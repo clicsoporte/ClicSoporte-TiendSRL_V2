@@ -18,13 +18,20 @@ const getValue = (obj: any, path: string[], defaultValue: any = '') => {
 
 const parseDecimal = (str: any): number => {
     if (str === null || str === undefined || str === '') return 0;
-    
-    // Universal parser for Costa Rican XMLs (dot for thousands, comma for decimal)
-    // Example: "1.234,56" -> "1234.56" -> 1234.56
-    // Example: "1.000" -> "1000" -> 1000 (Correct for integer-like values with thousand separators)
-    const cleanStr = String(str).replace(/\./g, '').replace(',', '.');
-    const parsed = parseFloat(cleanStr);
-    
+    const s = String(str).trim();
+
+    // If the string contains a comma, it's the decimal separator (es-CR format)
+    // e.g., "1.234,56" -> remove dots, replace comma -> "1234.56"
+    if (s.includes(',')) {
+        const cleanStr = s.replace(/\./g, '').replace(',', '.');
+        const parsed = parseFloat(cleanStr);
+        return isNaN(parsed) ? 0 : parsed;
+    }
+
+    // If no comma, parseFloat will handle it correctly.
+    // e.g., "1.000" (from quantity) -> 1
+    // e.g., "58248.06799" (from cost) -> 58248.06799
+    const parsed = parseFloat(s);
     return isNaN(parsed) ? 0 : parsed;
 };
 
@@ -225,17 +232,16 @@ export async function deleteDraft(id: string): Promise<void> {
 export async function exportForERP(lines: CostAssistantLine[]): Promise<string> {
     // Correctly map the data to the specific column structure of the ERP template
     const dataForExport = lines.map(line => ({
-        'CODIGOS (Requerido)': line.supplierCode, // Column A (01)
-        'Nombre (Requerido)': line.description,   // Column G
-        'Unidad de medida (Requerido)': 'Unid',  // Column I
-        'Precio (Sin impuestos) (Requerido)': line.sellPriceWithoutTax, // Column K
-        'Moneda': 'CRC',                          // Column L
-        'Imp.01': line.taxRate * 100,             // Column O
-        'Código Cabys': line.cabysCode,           // Column AC
-        'Estado': 'A',                            // Column AD
+        'CODIGOS 01': line.supplierCode,
+        'NOMBRE (Requerido)': line.description,
+        'UNIDAD DE MEDIDA (Requerido)': 'Unid',
+        'PRECIO (Sin impuestos) (Requerido)': line.sellPriceWithoutTax,
+        'MONEDA': 'CRC',
+        'IMP.01': line.taxRate * 100,
+        'CÓDIGO CABYS': line.cabysCode,
+        'ESTADO': 'A',
     }));
 
-    // Create a worksheet with the exact headers from the template
     const ws_data = [
         [
             "CODIGOS (Requerido)", null, null, null, null, "PARTIDA ARANCELARIA (Opcional)", "NOMBRE (Requerido)", 
@@ -254,28 +260,22 @@ export async function exportForERP(lines: CostAssistantLine[]): Promise<string> 
     
     const worksheet = XLSX.utils.aoa_to_sheet(ws_data);
 
-    // Add the JSON data starting from row 3, matching the header names
     XLSX.utils.sheet_add_json(worksheet, dataForExport, {
-        origin: "A3",
+        origin: 'A3',
         header: [
-            "CODIGOS (Requerido)", // A
-            null, // B
-            null, // C
-            null, // D
-            null, // E
-            null, // F
-            "Nombre (Requerido)", // G
-            null, // H
-            "Unidad de medida (Requerido)", // I
-            null, // J
-            "Precio (Sin impuestos) (Requerido)", // K
-            "Moneda", // L
-            null, // M
-            null, // N
-            "Imp.01", // O
+            'CODIGOS 01', // A
+            null, null, null, null, null,
+            'NOMBRE (Requerido)', // G
+            null,
+            'UNIDAD DE MEDIDA (Requerido)', // I
+            null,
+            'PRECIO (Sin impuestos) (Requerido)', // K
+            'MONEDA', // L
+            null, null,
+            'IMP.01', // O
             null, null, null, null, null, null, null, null, null, null, null, null, null,
-            "Código Cabys", // AC
-            "Estado" // AD
+            'CÓDIGO CABYS', // AC
+            'ESTADO' // AD
         ],
         skipHeader: true
     });
