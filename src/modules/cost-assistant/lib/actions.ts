@@ -17,41 +17,28 @@ const parseDecimal = (str: any): number => {
     if (str === null || str === undefined || str === '') return 0;
     let cleanStr = String(str).trim();
 
-    // Strategy: Differentiate between European style (1.234,56) and American (1,234.56)
     const hasComma = cleanStr.includes(',');
     const hasDot = cleanStr.includes('.');
 
-    if (hasComma && hasDot) {
-        // If comma is after dot, it's likely European style
-        if (cleanStr.lastIndexOf(',') > cleanStr.lastIndexOf('.')) {
-            cleanStr = cleanStr.replace(/\./g, '').replace(',', '.');
-        } else {
-             // It's American style, just remove commas
-            cleanStr = cleanStr.replace(/,/g, '');
-        }
-    } else if (hasComma) {
-        // Only has a comma, so it must be the decimal separator
-        cleanStr = cleanStr.replace(',', '.');
+    if (hasComma) {
+        // If comma is present, assume it's the decimal separator. Remove all dots.
+        cleanStr = cleanStr.replace(/\./g, '').replace(',', '.');
     } else if (hasDot) {
-        // Only has dots. This is ambiguous. Heuristic: if a dot is followed by 3 digits and it's not the only dot, it's a thousands separator.
+        // No comma, only dots. This is ambiguous. Let's handle 1.000 as 1000 unless it's clearly a decimal.
         const parts = cleanStr.split('.');
-        if (parts.length > 2) { // More than one dot, e.g., 1.000.000
-             cleanStr = parts.join('');
-        } else if (parts.length === 2 && parts[1].length === 3) {
-            // It could be 1.000 (one thousand) or 1.000 (one).
-            // Given the context of invoices, we assume it means an integer if it's .000
-            // This handles "1.000" as "1" and not "1000".
-             const asFloat = parseFloat(cleanStr);
-             // If it parses to a round number and looks like a thousands separator case
-             if (asFloat === Math.floor(asFloat) && cleanStr.endsWith('.000')) {
-                 return Math.floor(asFloat);
-             }
+        if (parts.length > 1) { // 1.234 or 1.23
+            const lastPart = parts[parts.length - 1];
+            if (lastPart.length === 3 && parts.length > 1) { // Likely thousands separator: 1.000 or 1.234.567
+                cleanStr = parts.join('');
+            }
+            // Otherwise, it's a decimal like 12.34, so parseFloat handles it.
         }
     }
-
+    
     const parsed = parseFloat(cleanStr);
     return isNaN(parsed) ? 0 : parsed;
 };
+
 
 interface InvoiceParseResult {
     lines: CostAssistantLine[];
@@ -65,7 +52,8 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
         removeNSPrefix: true, 
         parseTagValue: false, 
         isArray: (tagName, jPath) => {
-            return jPath.endsWith('LineaDetalle') || jPath.endsWith('CodigoComercial');
+            const alwaysArray = ['LineaDetalle', 'CodigoComercial'];
+            return alwaysArray.includes(tagName);
         },
     });
 
@@ -78,20 +66,19 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
     }
     
     const rootNode = json.FacturaElectronica;
-    const isHaciendaMessage = !!json.MensajeHacienda;
-
-    if (isHaciendaMessage) {
-         return { 
-            error: 'XML es una respuesta de Hacienda, no una factura.', 
-            details: {
-                supplierName: getValue(json, ['MensajeHacienda', 'NombreEmisor'], 'Respuesta Hacienda'),
-                invoiceNumber: getValue(json, ['MensajeHacienda', 'Clave'], 'N/A').substring(21, 41),
-                invoiceDate: getValue(json, ['MensajeHacienda', 'FechaEmision'], new Date().toISOString()),
-            } 
-        };
-    }
     
     if (!rootNode) {
+        const isHaciendaMessage = !!json.MensajeHacienda;
+        if (isHaciendaMessage) {
+            return { 
+                error: 'XML es una respuesta de Hacienda, no una factura.', 
+                details: {
+                    supplierName: getValue(json, ['MensajeHacienda', 'NombreEmisor'], 'Respuesta Hacienda'),
+                    invoiceNumber: getValue(json, ['MensajeHacienda', 'Clave'], 'N/A').substring(21, 41),
+                    invoiceDate: getValue(json, ['MensajeHacienda', 'FechaEmision'], new Date().toISOString()),
+                } 
+            };
+        }
         const detectedRoot = Object.keys(json)[0] || 'N/A';
         logError('Invalid XML structure for invoice', { detectedRoot });
         if (detectedRoot === 'html' || detectedRoot.startsWith('?xml')) {
@@ -116,9 +103,7 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
         return { lines: [], invoiceInfo };
     }
 
-    const lineasDetalleRaw = detalleServicio.LineaDetalle;
-    const lineasDetalle = Array.isArray(lineasDetalleRaw) ? lineasDetalleRaw : (lineasDetalleRaw ? [lineasDetalleRaw] : []);
-
+    const lineasDetalle = detalleServicio.LineaDetalle;
 
     const moneda = getValue(rootNode, ['ResumenFactura', 'CodigoTipoMoneda', 'CodigoMoneda'], 'CRC');
     const tipoCambioStr = getValue(rootNode, ['ResumenFactura', 'CodigoTipoMoneda', 'TipoCambio'], '1');
@@ -131,8 +116,7 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
         if (cantidad === 0) continue;
         
         let supplierCode = 'N/A';
-        const codigosComercialesRaw = linea.CodigoComercial;
-        const codigosComerciales = Array.isArray(codigosComercialesRaw) ? codigosComercialesRaw : (codigosComercialesRaw ? [codigosComercialesRaw] : []);
+        const codigosComerciales = linea.CodigoComercial || [];
         
         if (codigosComerciales.length > 0) {
             const preferredCodeNode = codigosComerciales.find((c: any) => c.Tipo === '01' || c.Tipo === '04');
@@ -153,6 +137,7 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
         const descuentoTotal = descuentoNode ? parseDecimal(getValue(descuentoNode, ['MontoDescuento'], '0')) : 0;
         
         const subTotal = parseDecimal(getValue(linea, ['SubTotal'], '0'));
+        
         const subTotalWithDiscount = subTotal - descuentoTotal;
         
         const unitCostWithTax = cantidad > 0 ? montoTotalLinea / cantidad : 0;
