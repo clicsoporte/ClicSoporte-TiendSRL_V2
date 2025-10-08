@@ -9,32 +9,47 @@ import { getCostAssistantSettings as getCostAssistantSettingsServer, saveCostAss
 
 // Helper to get a value from a potentially nested object
 const getValue = (obj: any, path: string[], defaultValue: any = '') => {
-    return path.reduce((acc, key) => (acc && acc[key]) ? acc[key] : defaultValue, obj);
+    return path.reduce((acc, key) => (acc && acc[key] !== undefined) ? acc[key] : defaultValue, obj);
 };
 
 const parseDecimal = (str: any): number => {
     if (typeof str !== 'string' && typeof str !== 'number') return 0;
     const cleanStr = String(str).trim();
 
+    // If it's a simple number string, parse it directly
+    if (!isNaN(Number(cleanStr))) {
+        return Number(cleanStr);
+    }
+
     const hasComma = cleanStr.includes(',');
     const hasPoint = cleanStr.includes('.');
 
-    // Handle formats like "1,234.56" (USA) or just "1234.56" when comma is not present
-    if (!hasComma && hasPoint) {
-        // If the number of characters after the last point is 3, it's likely a thousands separator for an integer.
-        // e.g. "2.000" for 2
-        if (cleanStr.length - cleanStr.lastIndexOf('.') - 1 === 3) {
-            return parseFloat(cleanStr.replace(/\./g, '')) || 0;
-        }
-        return parseFloat(cleanStr) || 0;
+    // Handle formats like "1,234.56" (USA)
+    if (hasPoint && hasComma) {
+        return parseFloat(cleanStr.replace(/,/g, '')) || 0;
     }
     
     // Handle formats like "1.234,56" (Europe)
-    if (hasComma) {
-        return parseFloat(cleanStr.replace(/\./g, '').replace(',', '.')) || 0;
+    if (hasPoint && hasComma) {
+         return parseFloat(cleanStr.replace(/\./g, '').replace(',', '.')) || 0;
     }
 
-    // Handle integers without any separator "1234"
+    // Handle "2.000" which can mean 2 or 2000 depending on context.
+    // In CR XMLs, a '.' is usually a thousands separator for integers if there are 3 digits after it.
+    if (hasPoint && !hasComma) {
+        const parts = cleanStr.split('.');
+        if (parts.length === 2 && parts[1].length === 3) {
+            // Likely a thousands separator for an integer, e.g., "2.000" should be 2, not 2000.
+            // Or "10.000" for 10. Let's treat as a decimal for consistency and let parseFloat handle it.
+            return parseFloat(parts.join('')) || 0;
+        }
+         return parseFloat(cleanStr) || 0;
+    }
+
+    if (hasComma && !hasPoint) {
+        return parseFloat(cleanStr.replace(',', '.')) || 0;
+    }
+
     return parseFloat(cleanStr) || 0;
 };
 
@@ -47,25 +62,22 @@ interface InvoiceParseResult {
 async function parseInvoice(xmlContent: string): Promise<InvoiceParseResult | { error: string, details: Partial<ProcessedInvoiceInfo> }> {
     
     const parser = new XMLParser({
-        ignoreAttributes: false,
-        attributeNamePrefix: "@_",
-        textNodeName: "#text",
-        parseAttributeValue: true,
+        ignoreAttributes: true,
         removeNSPrefix: true, 
+        parseTagValue: false, // Keep values as strings for manual parsing
     });
 
     const json = parser.parse(xmlContent);
 
-    // Determine the root node dynamically
     const rootNode = json.FacturaElectronica;
     const responseNode = json.MensajeHacienda;
 
     if (!rootNode && !responseNode) {
-         const detectedRoot = Object.keys(json)[0] || 'N/A';
-         if (detectedRoot === 'html' || detectedRoot === '?xml') {
+        const detectedRoot = Object.keys(json)[0] || 'N/A';
+        if (detectedRoot === 'html' || detectedRoot.startsWith('?')) {
             return { error: 'El archivo es un documento HTML o XML inválido, no una factura.', details: {} };
-         }
-        return { error: `No es un archivo de factura válido. Nodo raíz encontrado: ${detectedRoot}`, details: {} };
+        }
+        return { error: `No es un archivo de factura válido. Nodo raíz no encontrado.`, details: {} };
     }
     
     const isResponseMessage = !!responseNode;
@@ -74,7 +86,7 @@ async function parseInvoice(xmlContent: string): Promise<InvoiceParseResult | { 
     const numeroConsecutivo = getValue(invoiceDataNode, ['NumeroConsecutivo'], getValue(invoiceDataNode, ['Clave'], 'N/A').substring(21, 41));
     const fechaEmision = getValue(invoiceDataNode, ['FechaEmision'], new Date().toISOString());
     const emisorNombre = getValue(invoiceDataNode, ['Emisor', 'Nombre'], getValue(invoiceDataNode, ['NombreEmisor'], 'Desconocido'));
-
+    
     const defaultErrorDetails = {
         supplierName: emisorNombre,
         invoiceNumber: numeroConsecutivo,
@@ -84,10 +96,6 @@ async function parseInvoice(xmlContent: string): Promise<InvoiceParseResult | { 
     if (isResponseMessage) {
         return { error: 'XML es una respuesta de Hacienda, no una factura.', details: defaultErrorDetails };
     }
-    
-    const moneda = getValue(rootNode, ['ResumenFactura', 'CodigoTipoMoneda', 'CodigoMoneda'], 'CRC');
-    const tipoCambioStr = getValue(rootNode, ['ResumenFactura', 'CodigoTipoMoneda', 'TipoCambio'], '1');
-    const tipoCambio = parseFloat(tipoCambioStr) || 1.0;
     
     const invoiceInfo = {
         supplierName: emisorNombre,
@@ -100,14 +108,19 @@ async function parseInvoice(xmlContent: string): Promise<InvoiceParseResult | { 
         return { lines: [], invoiceInfo };
     }
 
-    const lineasDetalle = Array.isArray(detalleServicio.LineaDetalle) ? detalleServicio.LineaDetalle : [detalleServicio.LineaDetalle];
+    const lineasDetalle = Array.isArray(detalleServicio.LineaDetalle) 
+        ? detalleServicio.LineaDetalle 
+        : [detalleServicio.LineaDetalle];
+
+    const moneda = getValue(rootNode, ['ResumenFactura', 'CodigoTipoMoneda', 'CodigoMoneda'], 'CRC');
+    const tipoCambioStr = getValue(rootNode, ['ResumenFactura', 'CodigoTipoMoneda', 'TipoCambio'], '1');
+    const tipoCambio = parseDecimal(tipoCambioStr) || 1.0;
+
 
     const lines: CostAssistantLine[] = [];
     for (const linea of lineasDetalle) {
         
-        const cantidadStr = getValue(linea, ['Cantidad'], '0');
-        const cantidad = parseDecimal(cantidadStr);
-        
+        const cantidad = parseDecimal(getValue(linea, ['Cantidad'], '0'));
         if (cantidad === 0) continue;
 
         let supplierCode = 'N/A';
@@ -124,13 +137,10 @@ async function parseInvoice(xmlContent: string): Promise<InvoiceParseResult | { 
         
         const cabysV43 = getValue(linea, ['Codigo']);
         const cabysV44 = getValue(linea, ['CodigoCABYS']);
-        const cabysCode = cabysV44 || cabysV43;
+        const cabysCode = cabysV44 || cabysV43 || 'N/A';
         
-        const montoTotalLineaStr = getValue(linea, ['MontoTotalLinea'], '0');
-        const montoTotalLinea = parseDecimal(montoTotalLineaStr);
-
-        const subTotalStr = getValue(linea, ['SubTotal'], '0');
-        const subTotal = parseDecimal(subTotalStr);
+        const montoTotalLinea = parseDecimal(getValue(linea, ['MontoTotalLinea'], '0'));
+        const subTotal = parseDecimal(getValue(linea, ['SubTotal'], '0'));
         
         const unitCostWithTax = montoTotalLinea / cantidad;
         const unitCostWithoutTax = subTotal / cantidad;
