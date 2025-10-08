@@ -617,3 +617,11 @@ export type CostAssistantLine = {
     sellPriceWithoutTax: number;
     profitPerLine: number;
 };
+
+export type ProcessedInvoiceInfo = {
+    supplierName: string;
+    invoiceNumber: string;
+    invoiceDate: string;
+    status: 'success' | 'error';
+    errorMessage?: string;
+};

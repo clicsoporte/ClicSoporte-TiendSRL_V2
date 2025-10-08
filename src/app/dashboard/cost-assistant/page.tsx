@@ -11,12 +11,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useDropzone } from 'react-dropzone';
-import { FileScan, UploadCloud, Loader2, Percent, Calculator, Trash2, Settings2, FilePlus, Save, Briefcase } from 'lucide-react';
+import { FileScan, UploadCloud, Loader2, Percent, Calculator, Trash2, Settings2, FilePlus, Save, Briefcase, CheckCircle, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { format, parseISO, isValid } from 'date-fns';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 export default function CostAssistantPage() {
     const {
@@ -34,7 +36,7 @@ export default function CostAssistantPage() {
         { id: 'cabysCode', label: 'Cabys', defaultVisible: true, className: 'min-w-[150px]' },
         { id: 'supplierCode', label: 'Cód. Artículo', defaultVisible: true, className: 'min-w-[150px]' },
         { id: 'description', label: 'Descripción', defaultVisible: true, className: 'min-w-[400px]' },
-        { id: 'quantity', label: 'Cant.', defaultVisible: true, className: 'min-w-[120px] text-right' },
+        { id: 'quantity', label: 'Cant.', defaultVisible: true, className: 'w-[120px] min-w-[120px] text-right' },
         { id: 'unitCostWithoutTax', label: 'Costo Unit. (s/IVA)', defaultVisible: true, className: 'min-w-[180px] text-right' },
         { id: 'unitCostWithTax', label: 'Costo Unit. (c/IVA)', defaultVisible: false, className: 'min-w-[180px] text-right' },
         { id: 'taxRate', label: 'Imp. %', defaultVisible: true, className: 'min-w-[80px] text-center' },
@@ -62,7 +64,7 @@ export default function CostAssistantPage() {
                                     <AlertDialogHeader>
                                         <AlertDialogTitle>¿Iniciar una nueva operación?</AlertDialogTitle>
                                         <AlertDialogDescription>
-                                            Esta acción limpiará todos los artículos, costos y proveedores cargados. ¿Deseas continuar?
+                                            Esta acción limpiará todos los artículos, costos y facturas cargadas. ¿Deseas continuar?
                                         </AlertDialogDescription>
                                     </AlertDialogHeader>
                                     <AlertDialogFooter>
@@ -136,18 +138,33 @@ export default function CostAssistantPage() {
                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                      <Card>
                                         <CardHeader>
-                                            <CardTitle className="flex items-center gap-2"><Briefcase className="h-5 w-5" />Proveedores Cargados</CardTitle>
+                                            <CardTitle className="flex items-center gap-2"><Briefcase className="h-5 w-5" />Facturas Procesadas</CardTitle>
                                         </CardHeader>
                                         <CardContent>
-                                            {state.suppliers.length > 0 ? (
-                                                <ul className="space-y-2 text-sm text-muted-foreground">
-                                                    {state.suppliers.map((supplier, index) => (
-                                                        <li key={index} className="border-b pb-1">{supplier}</li>
-                                                    ))}
-                                                </ul>
-                                            ) : (
-                                                <p className="text-sm text-muted-foreground">Aún no se han cargado facturas.</p>
-                                            )}
+                                            <ScrollArea className="h-40">
+                                                {state.processedInvoices.length > 0 ? (
+                                                    <ul className="space-y-3 text-sm">
+                                                        {state.processedInvoices.map((invoice, index) => (
+                                                            <li key={index} className="border-b pb-2">
+                                                                <div className="flex justify-between items-start">
+                                                                    <div className="flex-1 pr-2">
+                                                                        <p className="font-semibold text-muted-foreground">{invoice.invoiceNumber}</p>
+                                                                        <p>{invoice.supplierName}</p>
+                                                                        <p className="text-xs text-muted-foreground">{isValid(parseISO(invoice.invoiceDate)) ? format(parseISO(invoice.invoiceDate), 'dd/MM/yyyy') : 'Fecha Inválida'}</p>
+                                                                    </div>
+                                                                    <div className={cn("flex items-center gap-1 text-xs font-medium", invoice.status === 'success' ? 'text-green-600' : 'text-red-600')}>
+                                                                        {invoice.status === 'success' ? <CheckCircle className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
+                                                                        <span>{invoice.status === 'success' ? 'Éxito' : 'Error'}</span>
+                                                                    </div>
+                                                                </div>
+                                                                {invoice.status === 'error' && <p className="text-xs text-red-500 mt-1">{invoice.errorMessage}</p>}
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                ) : (
+                                                    <p className="text-sm text-center text-muted-foreground h-full flex items-center justify-center">Aún no se han cargado facturas.</p>
+                                                )}
+                                            </ScrollArea>
                                         </CardContent>
                                     </Card>
                                     <div {...getRootProps()} className={cn("flex flex-col items-center justify-center p-4 border-2 border-dashed rounded-lg cursor-pointer transition-colors h-full min-h-[140px]", isDragActive ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50', state.isProcessing && 'cursor-not-allowed opacity-50')}>
@@ -219,15 +236,15 @@ export default function CostAssistantPage() {
                                 <TableBody>
                                     {state.lines.length > 0 ? state.lines.map((line) => (
                                         <TableRow key={line.id}>
-                                            {state.columnVisibility.cabysCode && <TableCell><Input value={line.cabysCode} onChange={e => actions.updateLine(line.id, { cabysCode: e.target.value })} className="h-auto p-1 border-0 font-mono text-xs"/></TableCell>}
-                                            {state.columnVisibility.supplierCode && <TableCell><Input value={line.supplierCode} onChange={e => actions.updateLine(line.id, { supplierCode: e.target.value })} className="h-auto p-1 border-0 font-mono text-xs"/></TableCell>}
-                                            {state.columnVisibility.description && <TableCell><Input value={line.description} onChange={e => actions.updateLine(line.id, { description: e.target.value })} className="h-auto p-1 border-0"/></TableCell>}
-                                            {state.columnVisibility.quantity && <TableCell><Input type="number" value={line.quantity} onChange={e => actions.updateLine(line.id, { quantity: Number(e.target.value) })} className="h-auto p-1 border-0 text-right" /></TableCell>}
-                                            {state.columnVisibility.unitCostWithoutTax && <TableCell><Input type="number" value={line.unitCostWithoutTax} onChange={e => actions.updateLine(line.id, { unitCostWithoutTax: Number(e.target.value) })} className="h-auto p-1 border-0 text-right font-mono"/></TableCell>}
-                                            {state.columnVisibility.unitCostWithTax && <TableCell className="text-right font-mono">{actions.formatCurrency(line.unitCostWithTax)}</TableCell>}
-                                            {state.columnVisibility.taxRate && <TableCell className="text-center font-mono text-xs">{`${(line.taxRate * 100).toFixed(0)}%`}</TableCell>}
+                                            {state.columnVisibility.cabysCode && <TableCell className={columns.find(c=>c.id === 'cabysCode')?.className}><Input value={line.cabysCode} onChange={e => actions.updateLine(line.id, { cabysCode: e.target.value })} className="h-auto p-1 border-0 font-mono text-xs"/></TableCell>}
+                                            {state.columnVisibility.supplierCode && <TableCell className={columns.find(c=>c.id === 'supplierCode')?.className}><Input value={line.supplierCode} onChange={e => actions.updateLine(line.id, { supplierCode: e.target.value })} className="h-auto p-1 border-0 font-mono text-xs"/></TableCell>}
+                                            {state.columnVisibility.description && <TableCell className={columns.find(c=>c.id === 'description')?.className}><Textarea value={line.description} onChange={e => actions.updateLine(line.id, { description: e.target.value })} className="h-auto p-1 border-0 min-h-[40px]"/></TableCell>}
+                                            {state.columnVisibility.quantity && <TableCell className={columns.find(c=>c.id === 'quantity')?.className}><Input type="number" value={line.quantity} onChange={e => actions.updateLine(line.id, { quantity: Number(e.target.value) })} className="h-auto p-1 border-0 text-right" /></TableCell>}
+                                            {state.columnVisibility.unitCostWithoutTax && <TableCell className={columns.find(c=>c.id === 'unitCostWithoutTax')?.className}><Input type="number" value={line.unitCostWithoutTax} onChange={e => actions.updateLine(line.id, { unitCostWithoutTax: Number(e.target.value) })} className="h-auto p-1 border-0 text-right font-mono"/></TableCell>}
+                                            {state.columnVisibility.unitCostWithTax && <TableCell className={cn(columns.find(c=>c.id === 'unitCostWithTax')?.className, "font-mono")}>{actions.formatCurrency(line.unitCostWithTax)}</TableCell>}
+                                            {state.columnVisibility.taxRate && <TableCell className={cn(columns.find(c=>c.id === 'taxRate')?.className, "font-mono text-xs")}>{`${(line.taxRate * 100).toFixed(0)}%`}</TableCell>}
                                             {state.columnVisibility.margin && 
-                                                <TableCell>
+                                                <TableCell className={columns.find(c=>c.id === 'margin')?.className}>
                                                     <div className="relative">
                                                         <Input 
                                                             type="text" 
@@ -240,9 +257,9 @@ export default function CostAssistantPage() {
                                                     </div>
                                                 </TableCell>
                                             }
-                                            {state.columnVisibility.sellPriceWithoutTax && <TableCell className="text-right font-mono">{actions.formatCurrency(line.sellPriceWithoutTax || 0)}</TableCell>}
-                                            {state.columnVisibility.finalSellPrice && <TableCell className="text-right font-bold text-base text-primary">{actions.formatCurrency(line.finalSellPrice)}</TableCell>}
-                                            {state.columnVisibility.profitPerLine && <TableCell className="text-right font-bold text-base text-blue-600">{actions.formatCurrency(line.profitPerLine || 0)}</TableCell>}
+                                            {state.columnVisibility.sellPriceWithoutTax && <TableCell className={cn(columns.find(c=>c.id === 'sellPriceWithoutTax')?.className, "font-mono")}>{actions.formatCurrency(line.sellPriceWithoutTax || 0)}</TableCell>}
+                                            {state.columnVisibility.finalSellPrice && <TableCell className={cn(columns.find(c=>c.id === 'finalSellPrice')?.className, "font-bold text-base text-primary")}>{actions.formatCurrency(line.finalSellPrice)}</TableCell>}
+                                            {state.columnVisibility.profitPerLine && <TableCell className={cn(columns.find(c=>c.id === 'profitPerLine')?.className, "font-bold text-base text-blue-600")}>{actions.formatCurrency(line.profitPerLine || 0)}</TableCell>}
                                             <TableCell>
                                                 <Button variant="ghost" size="icon" onClick={() => actions.removeLine(line.id)}>
                                                     <Trash2 className="h-4 w-4 text-destructive" />

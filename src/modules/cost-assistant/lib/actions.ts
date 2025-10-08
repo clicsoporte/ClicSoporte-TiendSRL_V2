@@ -4,7 +4,7 @@
 'use server';
 
 import { parseStringPromise } from 'xml2js';
-import type { CostAssistantLine } from '@/modules/core/types';
+import type { CostAssistantLine, ProcessedInvoiceInfo } from '@/modules/core/types';
 import { getCostAssistantSettings as getCostAssistantSettingsServer, saveCostAssistantSettings as saveCostAssistantSettingsServer, type CostAssistantSettings } from './db';
 
 
@@ -21,21 +21,16 @@ const parseDecimal = (str: string): number => {
     const hasPoint = cleanStr.includes('.');
 
     // Case: "1,234.56" (US/UK) or "1234.56"
+    // Or, for CR invoices: "2.000" where the point is a thousands separator for an integer.
     if (hasPoint && !hasComma) {
-        // If it has more than one point, it's likely a thousands separator e.g. 1.234.567
-        // But in CR, "2.000" can mean 2, not two thousand. Let's handle this carefully.
         const parts = cleanStr.split('.');
-        if (parts.length > 2) { // e.g. 1.234.567 -> treat as integer
-            return parseFloat(parts.join(''));
+        // If the last part has fewer than 3 digits, it's likely a decimal, e.g., "123.45"
+        // If it has 3, it's ambiguous (e.g., "2.000" could be 2 or 2000). We assume integer if it's 3 digits.
+        if (parts[parts.length - 1].length < 3) {
+            return parseFloat(cleanStr.replace(/,/g, '')) || 0;
         }
-        // "2.000" is ambiguous. It could be 2 or 2000.
-        // A common CR format is that if a '.' is present and the part after it is 3 digits long, it's a thousands separator.
-        if (parts.length === 2 && parts[1].length === 3) {
-             // Heuristic: If it looks like thousands (e.g. 1.000), treat it as such.
-             // This assumes we won't get prices like 2.5 dollars written as "2.500".
-             return parseFloat(parts.join(''));
-        }
-        return parseFloat(cleanStr) || 0;
+        // It's likely a thousands separator, e.g., "2.000" should be 2.
+        return parseFloat(parts.join('')) || 0;
     }
     
     // Case: "1.234,56" (EU)
@@ -50,10 +45,10 @@ const parseDecimal = (str: string): number => {
 
 interface InvoiceParseResult {
     lines: CostAssistantLine[];
-    supplierName: string;
+    invoiceInfo: Omit<ProcessedInvoiceInfo, 'status' | 'errorMessage'>;
 }
 
-async function parseInvoice(xmlContent: string): Promise<InvoiceParseResult | null> {
+async function parseInvoice(xmlContent: string): Promise<InvoiceParseResult | { error: string, details: Partial<ProcessedInvoiceInfo> }> {
     const json = await parseStringPromise(xmlContent, {
         explicitArray: true,
         trim: true,
@@ -62,21 +57,36 @@ async function parseInvoice(xmlContent: string): Promise<InvoiceParseResult | nu
     });
 
     const rootKey = Object.keys(json)[0];
+    
+    const numeroConsecutivo = getValue(json[rootKey], ['NumeroConsecutivo', '0'], 'N/A');
+    const fechaEmision = getValue(json[rootKey], ['FechaEmision', '0'], new Date().toISOString());
+    const emisorNombre = getValue(json[rootKey], ['Emisor', '0', 'Nombre', '0']);
+
+    const defaultErrorDetails = {
+        supplierName: emisorNombre || "Desconocido",
+        invoiceNumber: numeroConsecutivo,
+        invoiceDate: fechaEmision,
+    };
+    
     if (rootKey !== 'FacturaElectronica') {
-        return null; // This is not an invoice, likely a response from Hacienda
+        return { error: 'No es una Factura Electrónica', details: defaultErrorDetails };
     }
 
     const rootNode = json.FacturaElectronica;
     
-    const clave = getValue(rootNode, ['Clave'], 'N/A');
-    const emisorNombre = getValue(rootNode, ['Emisor', 'Nombre']);
     const moneda = getValue(rootNode, ['ResumenFactura', '0', 'CodigoTipoMoneda', '0', 'CodigoMoneda'], 'CRC');
     const tipoCambioStr = getValue(rootNode, ['ResumenFactura', '0', 'CodigoTipoMoneda', '0', 'TipoCambio'], '1');
     const tipoCambio = parseFloat(tipoCambioStr) || 1.0;
+    
+    const invoiceInfo = {
+        supplierName: emisorNombre,
+        invoiceNumber: numeroConsecutivo,
+        invoiceDate: fechaEmision,
+    };
 
     const detalleServicio = getValue(rootNode, ['DetalleServicio', '0']);
     if (!detalleServicio || !detalleServicio.LineaDetalle) {
-        return { lines: [], supplierName: emisorNombre };
+        return { lines: [], invoiceInfo };
     }
 
     const lines: CostAssistantLine[] = [];
@@ -121,7 +131,7 @@ async function parseInvoice(xmlContent: string): Promise<InvoiceParseResult | nu
         
         lines.push({
             id: '', // Will be generated in the hook
-            invoiceKey: clave,
+            invoiceKey: numeroConsecutivo,
             lineNumber: parseInt(getValue(linea, ['NumeroLinea'], '0')),
             cabysCode: cabysCode,
             supplierCode: supplierCode,
@@ -139,29 +149,42 @@ async function parseInvoice(xmlContent: string): Promise<InvoiceParseResult | nu
         });
     }
 
-    return { lines, supplierName: emisorNombre };
+    return { lines, invoiceInfo };
 }
 
-export async function processInvoiceXmls(xmlContents: string[]): Promise<{ lines: CostAssistantLine[], supplierNames: string[] }> {
+export async function processInvoiceXmls(xmlContents: string[]): Promise<{ lines: CostAssistantLine[], processedInvoices: ProcessedInvoiceInfo[] }> {
     let allLines: CostAssistantLine[] = [];
-    const supplierNames = new Set<string>();
+    const processedInvoices: ProcessedInvoiceInfo[] = [];
 
     for (const xmlContent of xmlContents) {
         try {
             const result = await parseInvoice(xmlContent);
-            if (result) {
+            if (result && 'lines' in result) {
                 allLines = [...allLines, ...result.lines];
-                if (result.supplierName) {
-                    supplierNames.add(result.supplierName);
-                }
+                processedInvoices.push({
+                    ...result.invoiceInfo,
+                    status: 'success'
+                });
+            } else if (result && 'error' in result) {
+                 processedInvoices.push({
+                    ...result.details,
+                    status: 'error',
+                    errorMessage: result.error
+                });
             }
         } catch (error: any) {
             console.error("Error parsing one of the XMLs:", error.message);
-            // We can decide to throw or just skip the failed file. Let's skip.
+            processedInvoices.push({
+                supplierName: 'Desconocido',
+                invoiceNumber: 'N/A',
+                invoiceDate: new Date().toISOString(),
+                status: 'error',
+                errorMessage: 'XML malformado o ilegible'
+            });
         }
     }
     
-    return { lines: allLines, supplierNames: Array.from(supplierNames) };
+    return { lines: allLines, processedInvoices };
 }
 
 export async function getCostAssistantSettings(): Promise<CostAssistantSettings> {

@@ -7,7 +7,7 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
-import type { CostAssistantLine } from '@/modules/core/types';
+import type { CostAssistantLine, ProcessedInvoiceInfo } from '@/modules/core/types';
 import { processInvoiceXmls, getCostAssistantSettings, saveCostAssistantSettings } from '../lib/actions';
 import { logError } from '@/modules/core/lib/logger';
 
@@ -36,7 +36,7 @@ const initialColumnVisibility = {
 const initialState = {
     isProcessing: false,
     lines: [] as CostAssistantLine[],
-    suppliers: [] as string[],
+    processedInvoices: [] as ProcessedInvoiceInfo[],
     transportCost: 0,
     otherCosts: 0,
     columnVisibility: initialColumnVisibility
@@ -84,7 +84,7 @@ export const useCostAssistant = () => {
                 )
             );
             
-            const { lines: processedLines, supplierNames } = await processInvoiceXmls(fileContents);
+            const { lines: processedLines, processedInvoices } = await processInvoiceXmls(fileContents);
 
             const newLines = processedLines.map(line => ({
                 ...line,
@@ -98,9 +98,10 @@ export const useCostAssistant = () => {
             setState(prevState => ({ 
                 ...prevState, 
                 lines: [...prevState.lines, ...newLines],
-                suppliers: Array.from(new Set([...prevState.suppliers, ...supplierNames]))
+                processedInvoices: [...prevState.processedInvoices, ...processedInvoices]
             }));
-            toast({ title: "Facturas Procesadas", description: `Se agregaron ${newLines.length} artículos nuevos de ${supplierNames.length} proveedor(es).` });
+            const successCount = processedInvoices.filter(p => p.status === 'success').length;
+            toast({ title: "Facturas Procesadas", description: `Se agregaron ${newLines.length} artículos de ${successCount} factura(s).` });
 
         } catch (error: any) {
             logError("Error processing invoice XMLs", { error: error.message });
