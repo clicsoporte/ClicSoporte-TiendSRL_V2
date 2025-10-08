@@ -31,17 +31,17 @@ export default function CostAssistantPage() {
     });
     
     const columns = [
-        { id: 'cabysCode', label: 'Cabys', defaultVisible: true, minWidth: 'min-w-[150px]' },
-        { id: 'supplierCode', label: 'Cód. Artículo', defaultVisible: true, minWidth: 'min-w-[150px]' },
-        { id: 'description', label: 'Descripción', defaultVisible: true },
-        { id: 'quantity', label: 'Cant.', defaultVisible: true, minWidth: 'min-w-[120px]', className: 'text-right' },
-        { id: 'unitCostWithoutTax', label: 'Costo Unit. (s/IVA)', defaultVisible: true, minWidth: 'min-w-[150px]', className: 'text-right' },
-        { id: 'unitCostWithTax', label: 'Costo Unit. (c/IVA)', defaultVisible: false, minWidth: 'min-w-[150px]', className: 'text-right' },
-        { id: 'taxRate', label: 'Imp. %', defaultVisible: true, className: 'text-center' },
-        { id: 'margin', label: 'Margen', defaultVisible: true, className: 'w-[120px] text-right', minWidth: 'min-w-[120px]' },
-        { id: 'sellPriceWithoutTax', label: 'P.V.P (s/IVA)', defaultVisible: true, minWidth: 'min-w-[150px]', className: 'text-right', tooltip: 'Precio de Venta al Público sin Impuestos' },
-        { id: 'finalSellPrice', label: 'P.V.P Sugerido', defaultVisible: true, minWidth: 'min-w-[150px]', className: 'text-right', tooltip: 'Precio de Venta al Público final (con IVA incluido)' },
-        { id: 'profitPerLine', label: 'Ganancia Bruta', defaultVisible: true, minWidth: 'min-w-[150px]', className: 'text-right' },
+        { id: 'cabysCode', label: 'Cabys', defaultVisible: true, className: 'min-w-[150px]' },
+        { id: 'supplierCode', label: 'Cód. Artículo', defaultVisible: true, className: 'min-w-[150px]' },
+        { id: 'description', label: 'Descripción', defaultVisible: true, className: 'min-w-[400px]' },
+        { id: 'quantity', label: 'Cant.', defaultVisible: true, className: 'min-w-[120px] text-right' },
+        { id: 'unitCostWithoutTax', label: 'Costo Unit. (s/IVA)', defaultVisible: true, className: 'min-w-[180px] text-right' },
+        { id: 'unitCostWithTax', label: 'Costo Unit. (c/IVA)', defaultVisible: false, className: 'min-w-[180px] text-right' },
+        { id: 'taxRate', label: 'Imp. %', defaultVisible: true, className: 'min-w-[80px] text-center' },
+        { id: 'margin', label: 'Margen', defaultVisible: true, className: 'w-[120px] min-w-[120px] text-right' },
+        { id: 'sellPriceWithoutTax', label: 'P.V.P (s/IVA)', defaultVisible: true, className: 'min-w-[180px] text-right', tooltip: 'Precio de Venta al Público sin Impuestos' },
+        { id: 'finalSellPrice', label: 'P.V.P Sugerido', defaultVisible: true, className: 'min-w-[180px] text-right', tooltip: 'Precio de Venta al Público final (con IVA incluido)' },
+        { id: 'profitPerLine', label: 'Ganancia Bruta', defaultVisible: true, className: 'min-w-[180px] text-right' },
     ];
 
     return (
@@ -199,12 +199,12 @@ export default function CostAssistantPage() {
                             </div>
                         </div>
 
-                        <div className="border rounded-lg overflow-hidden">
+                        <div className="w-full overflow-x-auto">
                             <Table>
-                                <TableHeader className="hidden md:table-header-group">
+                                <TableHeader>
                                     <TableRow>
                                         {columns.map(col => state.columnVisibility[col.id as keyof typeof state.columnVisibility] && (
-                                            <TableHead key={col.id} className={cn(col.minWidth, col.className)}>
+                                            <TableHead key={col.id} className={cn(col.className)}>
                                                 {col.tooltip ? (
                                                     <Tooltip>
                                                         <TooltipTrigger className="cursor-help underline decoration-dotted">{col.label}</TooltipTrigger>
@@ -218,41 +218,32 @@ export default function CostAssistantPage() {
                                 </TableHeader>
                                 <TableBody>
                                     {state.lines.length > 0 ? state.lines.map((line) => (
-                                        <TableRow key={line.id} className="flex flex-col md:table-row p-4 md:p-0 border-b last:border-b-0">
-                                            {/* Mobile view as a grid, Desktop as table cells */}
-                                            {state.columnVisibility.cabysCode && <TableCell className="md:table-cell px-0 md:px-4 py-1 md:py-4"><Label className="md:hidden text-muted-foreground text-xs">Cabys</Label><Input value={line.cabysCode} onChange={e => actions.updateLine(line.id, { cabysCode: e.target.value })} className="h-auto p-0 border-0 font-mono text-xs"/></TableCell>}
-                                            {state.columnVisibility.supplierCode && <TableCell className="md:table-cell px-0 md:px-4 py-1 md:py-4"><Label className="md:hidden text-muted-foreground text-xs">Cód. Artículo</Label><Input value={line.supplierCode} onChange={e => actions.updateLine(line.id, { supplierCode: e.target.value })} className="h-auto p-0 border-0 font-mono text-xs"/></TableCell>}
-                                            {state.columnVisibility.description && 
-                                                <TableCell className="md:table-cell px-0 md:px-4 py-1 md:py-4 font-bold md:font-normal text-base md:text-sm col-span-2 md:col-span-1">
-                                                    <Label className="md:hidden text-muted-foreground text-xs">Descripción</Label>
-                                                    <Textarea value={line.description} onChange={e => actions.updateLine(line.id, { description: e.target.value })} className="h-auto p-0 border-0 min-h-[40px]"/>
-                                                </TableCell>}
-                                            
-                                            <div className="grid grid-cols-2 md:contents gap-x-4 gap-y-2 mt-2 md:mt-0">
-                                                {state.columnVisibility.quantity && <TableCell className={cn("md:table-cell px-0 md:px-4 py-1 md:py-4", columns.find(c=>c.id === 'quantity')?.minWidth)}><Label className="md:hidden text-muted-foreground text-xs">Cant.</Label><Input type="number" value={line.quantity} onChange={e => actions.updateLine(line.id, { quantity: Number(e.target.value) })} className="h-auto p-0 border-0 text-right font-medium" /></TableCell>}
-                                                {state.columnVisibility.unitCostWithoutTax && <TableCell className="md:table-cell px-0 md:px-4 py-1 md:py-4"><Label className="md:hidden text-muted-foreground text-xs">Costo Unit. (s/IVA)</Label><Input type="number" value={line.unitCostWithoutTax} onChange={e => actions.updateLine(line.id, { unitCostWithoutTax: Number(e.target.value) })} className="h-auto p-0 border-0 text-right font-mono"/></TableCell>}
-                                                {state.columnVisibility.unitCostWithTax && <TableCell className="md:table-cell px-0 md:px-4 py-1 md:py-4"><Label className="md:hidden text-muted-foreground text-xs">Costo Unit. (c/IVA)</Label><span className="block text-right font-mono">{actions.formatCurrency(line.unitCostWithTax)}</span></TableCell>}
-                                                {state.columnVisibility.taxRate && <TableCell className="md:table-cell px-0 md:px-4 py-1 md:py-4 text-center"><Label className="md:hidden text-muted-foreground text-xs">Imp. %</Label><span className="block text-center font-mono text-xs">{`${(line.taxRate * 100).toFixed(0)}%`}</span></TableCell>}
-                                                {state.columnVisibility.margin && 
-                                                    <TableCell className={cn("md:table-cell px-0 md:px-4 py-1 md:py-4", columns.find(c=>c.id === 'margin')?.minWidth)}>
-                                                        <Label className="md:hidden text-muted-foreground text-xs">Margen</Label>
-                                                        <div className="relative">
-                                                            <Input 
-                                                                type="text" 
-                                                                value={line.displayMargin}
-                                                                onChange={(e) => actions.updateLine(line.id, { displayMargin: e.target.value })}
-                                                                onBlur={(e) => actions.handleMarginBlur(line.id, e.target.value)}
-                                                                className="h-auto p-0 border-0 text-right pr-6" 
-                                                            />
-                                                            <Percent className="absolute right-1.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"/>
-                                                        </div>
-                                                    </TableCell>
-                                                }
-                                                {state.columnVisibility.sellPriceWithoutTax && <TableCell className="md:table-cell px-0 md:px-4 py-1 md:py-4"><Label className="md:hidden text-muted-foreground text-xs">P.V.P (s/IVA)</Label><span className="block text-right font-mono">{actions.formatCurrency(line.sellPriceWithoutTax || 0)}</span></TableCell>}
-                                                {state.columnVisibility.finalSellPrice && <TableCell className="md:table-cell px-0 md:px-4 py-1 md:py-4"><Label className="md:hidden text-muted-foreground text-xs">P.V.P Sugerido</Label><span className="block text-right font-bold text-base text-primary">{actions.formatCurrency(line.finalSellPrice)}</span></TableCell>}
-                                                {state.columnVisibility.profitPerLine && <TableCell className="md:table-cell px-0 md:px-4 py-1 md:py-4"><Label className="md:hidden text-muted-foreground text-xs">Ganancia Bruta</Label><span className="block text-right font-bold text-base text-blue-600">{actions.formatCurrency(line.profitPerLine || 0)}</span></TableCell>}
-                                            </div>
-                                            <TableCell className="md:table-cell px-0 md:px-4 py-1 md:py-4 self-center justify-self-end">
+                                        <TableRow key={line.id}>
+                                            {state.columnVisibility.cabysCode && <TableCell><Input value={line.cabysCode} onChange={e => actions.updateLine(line.id, { cabysCode: e.target.value })} className="h-auto p-1 border-0 font-mono text-xs"/></TableCell>}
+                                            {state.columnVisibility.supplierCode && <TableCell><Input value={line.supplierCode} onChange={e => actions.updateLine(line.id, { supplierCode: e.target.value })} className="h-auto p-1 border-0 font-mono text-xs"/></TableCell>}
+                                            {state.columnVisibility.description && <TableCell><Input value={line.description} onChange={e => actions.updateLine(line.id, { description: e.target.value })} className="h-auto p-1 border-0"/></TableCell>}
+                                            {state.columnVisibility.quantity && <TableCell><Input type="number" value={line.quantity} onChange={e => actions.updateLine(line.id, { quantity: Number(e.target.value) })} className="h-auto p-1 border-0 text-right" /></TableCell>}
+                                            {state.columnVisibility.unitCostWithoutTax && <TableCell><Input type="number" value={line.unitCostWithoutTax} onChange={e => actions.updateLine(line.id, { unitCostWithoutTax: Number(e.target.value) })} className="h-auto p-1 border-0 text-right font-mono"/></TableCell>}
+                                            {state.columnVisibility.unitCostWithTax && <TableCell className="text-right font-mono">{actions.formatCurrency(line.unitCostWithTax)}</TableCell>}
+                                            {state.columnVisibility.taxRate && <TableCell className="text-center font-mono text-xs">{`${(line.taxRate * 100).toFixed(0)}%`}</TableCell>}
+                                            {state.columnVisibility.margin && 
+                                                <TableCell>
+                                                    <div className="relative">
+                                                        <Input 
+                                                            type="text" 
+                                                            value={line.displayMargin}
+                                                            onChange={(e) => actions.updateLine(line.id, { displayMargin: e.target.value })}
+                                                            onBlur={(e) => actions.handleMarginBlur(line.id, e.target.value)}
+                                                            className="h-auto p-1 border-0 text-right pr-6" 
+                                                        />
+                                                        <Percent className="absolute right-1.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"/>
+                                                    </div>
+                                                </TableCell>
+                                            }
+                                            {state.columnVisibility.sellPriceWithoutTax && <TableCell className="text-right font-mono">{actions.formatCurrency(line.sellPriceWithoutTax || 0)}</TableCell>}
+                                            {state.columnVisibility.finalSellPrice && <TableCell className="text-right font-bold text-base text-primary">{actions.formatCurrency(line.finalSellPrice)}</TableCell>}
+                                            {state.columnVisibility.profitPerLine && <TableCell className="text-right font-bold text-base text-blue-600">{actions.formatCurrency(line.profitPerLine || 0)}</TableCell>}
+                                            <TableCell>
                                                 <Button variant="ghost" size="icon" onClick={() => actions.removeLine(line.id)}>
                                                     <Trash2 className="h-4 w-4 text-destructive" />
                                                 </Button>
