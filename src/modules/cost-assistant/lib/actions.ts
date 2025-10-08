@@ -15,26 +15,8 @@ const getValue = (obj: any, path: string[], defaultValue: any = '') => {
 
 const parseDecimal = (str: any): number => {
     if (str === null || str === undefined || str === '') return 0;
-    let cleanStr = String(str).trim();
-
-    const hasComma = cleanStr.includes(',');
-    const hasDot = cleanStr.includes('.');
-
-    if (hasComma) {
-        // If comma is present, assume it's the decimal separator. Remove all dots.
-        cleanStr = cleanStr.replace(/\./g, '').replace(',', '.');
-    } else if (hasDot) {
-        // No comma, only dots. This is ambiguous. Let's handle 1.000 as 1000 unless it's clearly a decimal.
-        const parts = cleanStr.split('.');
-        if (parts.length > 1) { // 1.234 or 1.23
-            const lastPart = parts[parts.length - 1];
-            if (lastPart.length === 3 && parts.length > 1) { // Likely thousands separator: 1.000 or 1.234.567
-                cleanStr = parts.join('');
-            }
-            // Otherwise, it's a decimal like 12.34, so parseFloat handles it.
-        }
-    }
-    
+    // Standardize the string by removing thousand separators (.) and replacing decimal comma (,) with a dot.
+    const cleanStr = String(str).trim().replace(/\./g, '').replace(',', '.');
     const parsed = parseFloat(cleanStr);
     return isNaN(parsed) ? 0 : parsed;
 };
@@ -65,20 +47,21 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
         return { error: 'XML malformado o ilegible.', details: {} };
     }
     
+    // Explicitly check for and ignore Hacienda responses first.
+    if (json.MensajeHacienda) {
+        return { 
+            error: 'XML es una respuesta de Hacienda, no una factura.', 
+            details: {
+                supplierName: getValue(json, ['MensajeHacienda', 'NombreEmisor'], 'Respuesta Hacienda'),
+                invoiceNumber: getValue(json, ['MensajeHacienda', 'Clave'], 'N/A').substring(21, 41),
+                invoiceDate: getValue(json, ['MensajeHacienda', 'FechaEmision'], new Date().toISOString()),
+            } 
+        };
+    }
+    
     const rootNode = json.FacturaElectronica;
     
     if (!rootNode) {
-        const isHaciendaMessage = !!json.MensajeHacienda;
-        if (isHaciendaMessage) {
-            return { 
-                error: 'XML es una respuesta de Hacienda, no una factura.', 
-                details: {
-                    supplierName: getValue(json, ['MensajeHacienda', 'NombreEmisor'], 'Respuesta Hacienda'),
-                    invoiceNumber: getValue(json, ['MensajeHacienda', 'Clave'], 'N/A').substring(21, 41),
-                    invoiceDate: getValue(json, ['MensajeHacienda', 'FechaEmision'], new Date().toISOString()),
-                } 
-            };
-        }
         const detectedRoot = Object.keys(json)[0] || 'N/A';
         logError('Invalid XML structure for invoice', { detectedRoot });
         if (detectedRoot === 'html' || detectedRoot.startsWith('?xml')) {
@@ -103,7 +86,7 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
         return { lines: [], invoiceInfo };
     }
 
-    const lineasDetalle = detalleServicio.LineaDetalle;
+    const lineasDetalle = Array.isArray(detalleServicio.LineaDetalle) ? detalleServicio.LineaDetalle : [detalleServicio.LineaDetalle];
 
     const moneda = getValue(rootNode, ['ResumenFactura', 'CodigoTipoMoneda', 'CodigoMoneda'], 'CRC');
     const tipoCambioStr = getValue(rootNode, ['ResumenFactura', 'CodigoTipoMoneda', 'TipoCambio'], '1');
@@ -116,7 +99,8 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
         if (cantidad === 0) continue;
         
         let supplierCode = 'N/A';
-        const codigosComerciales = linea.CodigoComercial || [];
+        const codigosComercialesRaw = linea.CodigoComercial || [];
+        const codigosComerciales = Array.isArray(codigosComercialesRaw) ? codigosComercialesRaw : [codigosComercialesRaw];
         
         if (codigosComerciales.length > 0) {
             const preferredCodeNode = codigosComerciales.find((c: any) => c.Tipo === '01' || c.Tipo === '04');

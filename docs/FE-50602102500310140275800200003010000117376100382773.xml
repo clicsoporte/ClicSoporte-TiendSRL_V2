@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FacturaElectronica xmlns="https://cdn.comprobanteselectronicos.go.cr/xml-schemas/v4.3/facturaElectronica">
+  <Clave>50602102500310140275800200003010000117376100382773</Clave>
+  <CodigoActividad>523906</CodigoActividad>
+  <NumeroConsecutivo>00200003010000117376</NumeroConsecutivo>
+  <FechaEmision>2025-10-02T13:16:58-06:00</FechaEmision>
+  <Emisor>
+    <Nombre>TECTEL TECNOLOGIA TELEFONICA, S.A.</Nombre>
+    <Identificacion>
+      <Tipo>02</Tipo>
+      <Numero>3101402758</Numero>
+    </Identificacion>
+    <NombreComercial>TECTEL TECNOLOGIA TELEFONICA, S.A.  DISTRIBUIDOR MAYORISTA</NombreComercial>
+    <Ubicacion>
+      <Provincia>1</Provincia>
+      <Canton>07</Canton>
+      <Distrito>01</Distrito>
+      <Barrio>03</Barrio>
+      <OtrasSenas>CALLE SIN SALIDA FRENTE A CCSS CIUDAD COLON, ULTIMO PORTON MANO DERECHA</OtrasSenas>
+    </Ubicacion>
+    <Telefono>
+      <CodigoPais>506</CodigoPais>
+      <NumTelefono>22493737</NumTelefono>
+    </Telefono>
+    <CorreoElectronico>info@centralestelefonicascr.com</CorreoElectronico>
+  </Emisor>
+  <Receptor>
+    <Nombre>CLIC SOPORTE &amp; CLIC TIENDA SOCIEDAD DE RESPONSABILIDAD LIMITADA</Nombre>
+    <Identificacion>
+      <Tipo>02</Tipo>
+      <Numero>3102894538</Numero>
+    </Identificacion>
+    <NombreComercial>CLIC SOPORTE &amp; CLIC TIENDA SOCIEDAD DE RESPONSABILIDAD LIMITADA</NombreComercial>
+    <Telefono>
+      <CodigoPais>506</CodigoPais>
+      <NumTelefono>87104059</NumTelefono>
+    </Telefono>
+    <Fax>
+      <CodigoPais>506</CodigoPais>
+      <NumTelefono>40000630</NumTelefono>
+    </Fax>
+    <CorreoElectronico>cxp@clicsoporte.com</CorreoElectronico>
+  </Receptor>
+  <CondicionVenta>01</CondicionVenta>
+  <MedioPago>03</MedioPago>
+  <DetalleServicio>
+    <LineaDetalle>
+      <NumeroLinea>1</NumeroLinea>
+      <Codigo>4732399000000</Codigo>
+      <CodigoComercial>
+        <Tipo>01</Tipo>
+        <Codigo>NVR1108HS-8PS</Codigo>
+      </CodigoComercial>
+      <Cantidad>1.000</Cantidad>
+      <UnidadMedida>Unid</UnidadMedida>
+      <Detalle>NVR DAHUA 8CH  8POE  H.265 80MBPS- 1HD HASTA 8T  1 VGA 1 HDMI  NVR1108HS-8P-S3/H</Detalle>
+      <RegistroMedicamento />
+      <FormaFarmaceutica />
+      <PrecioUnitario>91.99000</PrecioUnitario>
+      <MontoTotal>91.99000</MontoTotal>
+      <SubTotal>91.99000</SubTotal>
+      <Impuesto>
+        <Codigo>01</Codigo>
+        <CodigoTarifa>08</CodigoTarifa>
+        <Tarifa>13</Tarifa>
+        <Monto>11.95870</Monto>
+      </Impuesto>
+      <ImpuestoNeto>11.95870</ImpuestoNeto>
+      <MontoTotalLinea>103.94870</MontoTotalLinea>
+    </LineaDetalle>
+    <LineaDetalle>
+      <NumeroLinea>2</NumeroLinea>
+      <Codigo>4721400000000</Codigo>
+      <CodigoComercial>
+        <Tipo>01</Tipo>
+        <Codigo>IPCHDW2449PRO</Codigo>
+      </CodigoComercial>
+      <Cantidad>4.000</Cantidad>
+      <UnidadMedida>Unid</UnidadMedida>
+      <Detalle>CAMARA IP DAHUA DOMO 4MP WIZCOLOR  2.8MM 30M MIC/AUDIO POE SD IP67  IPC-HDW2449T-S-PRO</Detalle>
+      <RegistroMedicamento />
+      <FormaFarmaceutica />
+      <PrecioUnitario>70.07000</PrecioUnitario>
+      <MontoTotal>280.28000</MontoTotal>
+      <SubTotal>280.28000</SubTotal>
+      <Impuesto>
+        <Codigo>01</Codigo>
+        <CodigoTarifa>08</CodigoTarifa>
+        <Tarifa>13</Tarifa>
+        <Monto>36.43640</Monto>
+      </Impuesto>
+      <ImpuestoNeto>36.43640</ImpuestoNeto>
+      <MontoTotalLinea>316.71640</MontoTotalLinea>
+    </LineaDetalle>
+    <LineaDetalle>
+      <NumeroLinea>3</NumeroLinea>
+      <Codigo>4740299999900</Codigo>
+      <CodigoComercial>
+        <Tipo>01</Tipo>
+        <Codigo>WD40EVRX</Codigo>
+      </CodigoComercial>
+      <Cantidad>1.000</Cantidad>
+      <UnidadMedida>Unid</UnidadMedida>
+      <Detalle>DISCO DURO WESTERN DIGITAL 4TB PURPLE CCTV 3,5’’ 6GB WD40EVRX</Detalle>
+      <RegistroMedicamento />
+      <FormaFarmaceutica />
+      <PrecioUnitario>98.11000</PrecioUnitario>
+      <MontoTotal>98.11000</MontoTotal>
+      <SubTotal>98.11000</SubTotal>
+      <Impuesto>
+        <Codigo>01</Codigo>
+        <CodigoTarifa>08</CodigoTarifa>
+        <Tarifa>13</Tarifa>
+        <Monto>12.75430</Monto>
+      </Impuesto>
+      <ImpuestoNeto>12.75430</ImpuestoNeto>
+      <MontoTotalLinea>110.86430</MontoTotalLinea>
+    </LineaDetalle>
+  </DetalleServicio>
+  <ResumenFactura>
+    <CodigoTipoMoneda>
+      <CodigoMoneda>USD</CodigoMoneda>
+      <TipoCambio>506.56</TipoCambio>
+    </CodigoTipoMoneda>
+    <TotalServGravados>0.00000</TotalServGravados>
+    <TotalServExentos>0.00000</TotalServExentos>
+    <TotalServExonerado>0.00000</TotalServExonerado>
+    <TotalMercanciasGravadas>470.38000</TotalMercanciasGravadas>
+    <TotalMercanciasExentas>0.00000</TotalMercanciasExentas>
+    <TotalMercExonerada>0.00000</TotalMercExonerada>
+    <TotalGravado>470.38000</TotalGravado>
+    <TotalExento>0.00000</TotalExento>
+    <TotalExonerado>0.00000</TotalExonerado>
+    <TotalVenta>470.38000</TotalVenta>
+    <TotalDescuentos>0.00000</TotalDescuentos>
+    <TotalVentaNeta>470.38000</TotalVentaNeta>
+    <TotalImpuesto>61.14940</TotalImpuesto>
+    <TotalIVADevuelto>0.00000</TotalIVADevuelto>
+    <TotalOtrosCargos>0.00000</TotalOtrosCargos>
+    <TotalComprobante>531.52940</TotalComprobante>
+  </ResumenFactura>
+  <Otros>
+    <OtroTexto codigo="Vendedor">SANDRA ROJAS CH</OtroTexto>
+    <OtroTexto codigo="DocumentoSTR">2-3-1-0108756</OtroTexto>
+    <OtroTexto codigo="Direccion">ALAJUELA, ATENAS, SANTA EULALIA, DE LA IGLESIA CATÓLICA QUINIENTOS METROS OESTE Y</OtroTexto>
+  </Otros>
+<ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#" Id="Signature-89f25f4b-3729-47b2-99d5-bfad07fad8f6"><ds:SignedInfo><ds:CanonicalizationMethod Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315" /><ds:SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha256" /><ds:Reference Id="Reference-4c48b1f3-c588-4836-996c-0875ec9a117f" URI=""><ds:Transforms><ds:Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature" /></ds:Transforms><ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256" /><ds:DigestValue>KBIdBP4tTFULn3dS/U8emm+LpfVi9ixcIFeShDRh0EY=</ds:DigestValue></ds:Reference><ds:Reference Id="ReferenceKeyInfo" URI="#KeyInfoId-Signature-89f25f4b-3729-47b2-99d5-bfad07fad8f6"><ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256" /><ds:DigestValue>eAy603NTc44i04Jas1bAi6W7ES59gbTIzDVp2HlnKtI=</ds:DigestValue></ds:Reference><ds:Reference Type="http://uri.etsi.org/01903#SignedProperties" URI="#SignedProperties-Signature-89f25f4b-3729-47b2-99d5-bfad07fad8f6"><ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256" /><ds:DigestValue>QH3gkXHNj+cckPtMv3SwOdJX15rlyNhCco5YfvEUQRI=</ds:DigestValue></ds:Reference></ds:SignedInfo><ds:SignatureValue Id="SignatureValue-89f25f4b-3729-47b2-99d5-bfad07fad8f6">YkBcxgTiS370FfW+omAxroQ/WMktemGe0A79l2ipqwR3Na2aKEHxhAeupXz+g6QG8IsDwF+BrCGoKJk5ocU5duhb1kiQhLq28P/bmABc8vpQI4G3H74lhlgvbc1BNscxtv0pcRepQQE4zoPBgJVo6DeuSUyFwaBPHfvkXxm//XkBpanq7P6oN4HaZWfaVd8lfuq9cxlJhy1aCELsWnJy62pl9vnYMeRUHbc00Ee+Fyw+3P8bLEVs0i9EPIfyt8zvrmptNQ3v/zoW1FwrgnSmMLrTk1VpcB6rIh57VfDWuiSwK4eQJgqaPNp0YkAFg10IFMF8NPvNVAPpriGocoBOoA==</ds:SignatureValue><ds:KeyInfo Id="KeyInfoId-Signature-89f25f4b-3729-47b2-99d5-bfad07fad8f6"><ds:X509Data><ds:X509Certificate>MIIFLzCCAxegAwIBAgIGAYEBydNVMA0GCSqGSIb3DQEBCwUAMFoxCzAJBgNVBAYTAkNSMR8wHQYDVQQKDBZNSU5JU1RFUklPIERFIEhBQ0lFTkRBMQwwCgYDVQQLDANER1QxHDAaBgNVBAMME0NBIFBFUlNPTkEgSlVSSURJQ0EwHhcNMjIwNTI2MTkxMzMzWhcNMjYwNTI1MTkxMzMzWjCBiTEZMBcGA1UEBRMQQ1BKLTMtMTAxLTQwMjc1ODELMAkGA1UEBhMCQ1IxGTAXBgNVBAoMEFBFUlNPTkEgSlVSSURJQ0ExDDAKBgNVBAsMA0NQSjE2MDQGA1UEAwwtVEVDVEVMIFRFQ05PTE9HSUEgVEVMRUZPTklDQSBTT0NJRURBRCBBTk9OSU1BMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAgNcIRkaS6hzz4jjddzj39HQ3m168YEPMxWmpqYdL9pMg7ozolj33ncXcTxcqmgCJJ6FAdnlWtDgJt9aIxwhF5iY4IQSTG5wYI4zof8W+vFjGDcGTbxTiUbSbm/j8+ipUBan4BlpeOvmuCzc9vwVuMk+4hkp+o/ZXoMsrxtabVpwXw8lQ7WsarRS0T7Z+1S3kQkX2lOAFfXZDGSfvHbigzGHX3oadqUmyR0jeorFbwr+bDTryvlXx1iGCZUuoj0p9vZRQJqFGZb9Y73j1zrU92NbirpmO+hucwPnu7OM8sg2F1knB3aHwtcD6GYqCo8Pa7tc7OdhNR0po8TT3zP9EzQIDAQABo4HKMIHHMB8GA1UdIwQYMBaAFDttV/XWfOmeEAIgQeO9GszPs06VMB0GA1UdDgQWBBTZoeLP/+gEd07rlZh0ahyaSrlhjjALBgNVHQ8EBAMCBsAwEwYDVR0lBAwwCgYIKwYBBQUHAwQwYwYIKwYBBQUHAQEEVzBVMFMGCCsGAQUFBzAChkdodHRwczovL3BraS5jb21wcm9iYW50ZXNlbGVjdHJvbmljb3MuZ28uY3IvcHJvZC9pbnRlcm1lZGlhdGUtcGotcGVtLmNydDANBgkqhkiG9w0BAQsFAAOCAgEAAS6+g365aAuuykXemVTtwDZoNbX+WD8O7a4AxyUSToVsSBoX4HlSyXiB6ufaacbL0wYXcCGr3ChFVXduBIQDnJoDxqUN8FvmX+u2oGlEit7H3NlV/yRZVbPmIojrT3F/aLEEbn3vj72AIlbIXZyZU1Vdx83wz+OQY5QsNbnzpDp1Se7RumDMf21xEFq6f9bAtyxmx2uxZsyTGIRrijg1Z0VCVKMUkMZTWUD5GNAU0Chn7JP1d/K5L70FWRpSleKH/rkGi5F/wmNS4IAZI10rKfdVm6xWfS2skpKRUOsXbUyZuXAWJf0wv6Vpb/4CMHsIFiBBu9yx3gk8te8PS4VT1FRhUyBXzR+7PSvQLVGiFv1j8qICjz+gFdfxDNHYgy4x4Z5M/FUsoD/zakqGJHxroSeJTpeqRKLodzDhxyO8CRwW3Xc+dRDfYwAgu4HDE/AAHdbip6PA23i3zozS1My7nroNASk5iPID9JvAyQW3TeW6HrzJe6gy+UshkS1TRCCqrBoNZZ/uJRoCTHSWLdmMWu+eh20po9xYqSIC4FCi2AEncHEUo64dSpyXzmPsJW3aVtra/QybnkSDX8rBvPZ807ddWdkWuHD7/N1S8sn40dnlLPEH4cBvJr/Uk9j1xCqK45pN9pzFjVnuI05GD6K8xIls2ZxaKrFQEn1qwlOluag=</ds:X509Certificate></ds:X509Data><ds:KeyValue><ds:RSAKeyValue><ds:Modulus>gNcIRkaS6hzz4jjddzj39HQ3m168YEPMxWmpqYdL9pMg7ozolj33ncXcTxcqmgCJJ6FAdnlWtDgJt9aIxwhF5iY4IQSTG5wYI4zof8W+vFjGDcGTbxTiUbSbm/j8+ipUBan4BlpeOvmuCzc9vwVuMk+4hkp+o/ZXoMsrxtabVpwXw8lQ7WsarRS0T7Z+1S3kQkX2lOAFfXZDGSfvHbigzGHX3oadqUmyR0jeorFbwr+bDTryvlXx1iGCZUuoj0p9vZRQJqFGZb9Y73j1zrU92NbirpmO+hucwPnu7OM8sg2F1knB3aHwtcD6GYqCo8Pa7tc7OdhNR0po8TT3zP9EzQ==</ds:Modulus><ds:Exponent>AQAB</ds:Exponent></ds:RSAKeyValue></ds:KeyValue></ds:KeyInfo><ds:Object Id="XadesObjectId-1b4af03d-6db5-44d2-9ffd-44f5bdbcbd00"><xades:QualifyingProperties xmlns:xades="http://uri.etsi.org/01903/v1.3.2#" Id="QualifyingProperties-0b7ed13f-c6d9-41f0-a61d-74f50a332afd" Target="#Signature-89f25f4b-3729-47b2-99d5-bfad07fad8f6"><xades:SignedProperties Id="SignedProperties-Signature-89f25f4b-3729-47b2-99d5-bfad07fad8f6"><xades:SignedSignatureProperties><xades:SigningTime>2025-10-02T13:17:15-06:00</xades:SigningTime><xades:SigningCertificate><xades:Cert><xades:CertDigest><ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256" /><ds:DigestValue>LDpf8fm4AlNtRXc79SAhPPB6kEWfhxCbV8EWDI3kz1I=</ds:DigestValue></xades:CertDigest><xades:IssuerSerial><ds:X509IssuerName>CN=CA PERSONA JURIDICA, OU=DGT, O=MINISTERIO DE HACIENDA, C=CR</ds:X509IssuerName><ds:X509SerialNumber>1653592413013</ds:X509SerialNumber></xades:IssuerSerial></xades:Cert></xades:SigningCertificate><xades:SignaturePolicyIdentifier><xades:SignaturePolicyId><xades:SigPolicyId><xades:Identifier>https://tribunet.hacienda.go.cr/docs/esquemas/2016/v4.1/Resolucion_Comprobantes_Electronicos_DGT-R-48-2016.pdf</xades:Identifier><xades:Description /></xades:SigPolicyId><xades:SigPolicyHash><ds:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1" /><ds:DigestValue>Ohixl6upD6av8N7pEvDABhEL6hM=</ds:DigestValue></xades:SigPolicyHash></xades:SignaturePolicyId></xades:SignaturePolicyIdentifier></xades:SignedSignatureProperties><xades:SignedDataObjectProperties><xades:DataObjectFormat ObjectReference="#Reference-4c48b1f3-c588-4836-996c-0875ec9a117f"><xades:MimeType>text/xml</xades:MimeType><xades:Encoding>UTF-8</xades:Encoding></xades:DataObjectFormat></xades:SignedDataObjectProperties></xades:SignedProperties></xades:QualifyingProperties></ds:Object></ds:Signature></FacturaElectronica>
