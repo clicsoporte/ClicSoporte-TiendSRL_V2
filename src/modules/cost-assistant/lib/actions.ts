@@ -24,26 +24,12 @@ const parseDecimal = (str: any): number => {
         // European format: 1.234,56 -> 1234.56
         cleanStr = cleanStr.replace(/\./g, '').replace(',', '.');
     } else if (hasDot) {
-        // Could be 1.000 (one thousand) or 1.000 (one) or 1.5 (one and a half)
         const parts = cleanStr.split('.');
         if (parts.length > 1) {
             const lastPart = parts[parts.length - 1];
-            // If the last part has 3 digits and there are other parts, it's likely a thousands separator.
-            // Example: 1.000 -> 1000. But what about 1.000 meaning 1?
-            // The key is that `1.000` is a valid representation for `1` in some XMLs.
             if (lastPart.length === 3) {
-                 // It's ambiguous. `1.000` could be 1 or 1000.
-                 // A common convention for single units is `1.000`.
-                 // Let's treat a single dot with three trailing zeros as an integer.
-                 if (parts.length === 2 && lastPart === '000') {
-                     cleanStr = parts[0];
-                 } else {
-                    // It could be 1.234.567, treat all as thousands separators
-                    cleanStr = cleanStr.replace(/\./g, '');
-                 }
+                 cleanStr = cleanStr.replace(/\./g, '');
             }
-            // If the last part is not 3 digits, it's a decimal separator.
-            // Example: '1.5', '12.34'
         }
     }
     
@@ -62,7 +48,12 @@ async function parseInvoice(xmlContent: string): Promise<InvoiceParseResult | { 
     const parser = new XMLParser({
         ignoreAttributes: true,
         removeNSPrefix: true, 
-        parseTagValue: false, // Keep values as strings for manual parsing
+        parseTagValue: false, 
+        isArray: (tagName, jPath) => {
+             // Force these paths to always be arrays, even if there's only one item
+            return jPath === 'FacturaElectronica.DetalleServicio.LineaDetalle' ||
+                   jPath === 'FacturaElectronica.DetalleServicio.LineaDetalle.CodigoComercial';
+        },
     });
 
     let json;
@@ -74,16 +65,6 @@ async function parseInvoice(xmlContent: string): Promise<InvoiceParseResult | { 
 
     const rootNode = json.FacturaElectronica;
     const responseNode = json.MensajeHacienda;
-    
-    if (!rootNode && !responseNode) {
-        const detectedRoot = Object.keys(json)[0] || 'N/A';
-        if (detectedRoot === 'html' || detectedRoot.startsWith('?')) {
-            return { error: 'El archivo es un documento HTML o XML inválido, no una factura.', details: {} };
-        }
-        return { error: `No es un archivo de factura válido. Nodo raíz no encontrado: ${detectedRoot}`, details: {} };
-    }
-    
-    const isResponseMessage = !!responseNode;
     
     const numeroConsecutivo = getValue(json, ['FacturaElectronica', 'NumeroConsecutivo'], getValue(json, ['MensajeHacienda', 'Clave'], 'N/A').substring(21, 41));
     const fechaEmision = getValue(json, ['FacturaElectronica', 'FechaEmision'], new Date().toISOString());
@@ -100,7 +81,11 @@ async function parseInvoice(xmlContent: string): Promise<InvoiceParseResult | { 
     }
     
     if (!rootNode) {
-        return { error: 'El nodo <FacturaElectronica> no fue encontrado.', details: defaultErrorDetails };
+        const detectedRoot = Object.keys(json)[0] || 'N/A';
+        if (detectedRoot === 'html' || detectedRoot.startsWith('?')) {
+            return { error: 'El archivo es un documento HTML o XML inválido, no una factura.', details: {} };
+        }
+        return { error: `No es un archivo de factura válido. Nodo raíz no encontrado: ${detectedRoot}`, details: defaultErrorDetails };
     }
     
     const invoiceInfo = {
@@ -114,9 +99,7 @@ async function parseInvoice(xmlContent: string): Promise<InvoiceParseResult | { 
         return { lines: [], invoiceInfo };
     }
 
-    const lineasDetalleRaw = detalleServicio.LineaDetalle;
-    const lineasDetalle = Array.isArray(lineasDetalleRaw) ? lineasDetalleRaw : [lineasDetalleRaw];
-
+    const lineasDetalle = detalleServicio.LineaDetalle;
 
     const moneda = getValue(rootNode, ['ResumenFactura', 'CodigoTipoMoneda', 'CodigoMoneda'], 'CRC');
     const tipoCambioStr = getValue(rootNode, ['ResumenFactura', 'CodigoTipoMoneda', 'TipoCambio'], '1');
@@ -128,11 +111,10 @@ async function parseInvoice(xmlContent: string): Promise<InvoiceParseResult | { 
         
         const cantidad = parseDecimal(getValue(linea, ['Cantidad'], '0'));
         if (cantidad === 0) continue;
-
+        
         let supplierCode = 'N/A';
-        const codigosComercialesNode = linea.CodigoComercial;
-        if (codigosComercialesNode) {
-            const codigosComerciales = Array.isArray(codigosComercialesNode) ? codigosComercialesNode : [codigosComercialesNode];
+        const codigosComerciales = linea.CodigoComercial;
+        if (codigosComerciales) {
             const preferredCodeNode = codigosComerciales.find((c: any) => c.Tipo === '01' || c.Tipo === '04');
             if (preferredCodeNode && preferredCodeNode.Codigo) {
                 supplierCode = preferredCodeNode.Codigo;
@@ -166,7 +148,7 @@ async function parseInvoice(xmlContent: string): Promise<InvoiceParseResult | { 
         const unitCostWithoutTaxInColones = moneda === 'USD' ? unitCostWithoutTax * tipoCambio : unitCostWithoutTax;
         
         lines.push({
-            id: '', // Will be generated in the hook
+            id: `${numeroConsecutivo}-${getValue(linea, ['NumeroLinea'], '0')}-${supplierCode}`,
             invoiceKey: numeroConsecutivo,
             lineNumber: parseInt(getValue(linea, ['NumeroLinea'], '0')),
             cabysCode: cabysCode,
