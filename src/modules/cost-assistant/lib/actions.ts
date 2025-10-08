@@ -20,14 +20,15 @@ const parseDecimal = (str: any): number => {
     if (str === null || str === undefined || str === '') return 0;
     let cleanStr = String(str).trim();
 
-    // If a comma exists, assume it's the decimal separator
+    // Check if comma is used as decimal separator
     if (cleanStr.includes(',')) {
-        const standardStr = cleanStr.replace(/\./g, '').replace(',', '.');
-        const parsed = parseFloat(standardStr);
-        return isNaN(parsed) ? 0 : parsed;
+        // Remove thousand separators (dots) and replace decimal comma with a dot
+        cleanStr = cleanStr.replace(/\./g, '').replace(',', '.');
+    } else {
+        // No comma found, treat dot as decimal separator (standard US/CR format)
+        // We don't need to do anything special here as parseFloat handles it.
     }
-
-    // If no comma, parse as is (dot is decimal separator)
+    
     const parsed = parseFloat(cleanStr);
     return isNaN(parsed) ? 0 : parsed;
 };
@@ -59,14 +60,8 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
     }
     
     if (json.MensajeHacienda) {
-        return { 
-            error: 'XML es una respuesta de Hacienda, no una factura.', 
-            details: {
-                supplierName: getValue(json.MensajeHacienda, ['NombreEmisor'], 'Respuesta Hacienda'),
-                invoiceNumber: getValue(json.MensajeHacienda, ['Clave'], 'N/A').substring(21, 41),
-                invoiceDate: getValue(json.MensajeHacienda, ['FechaEmision'], new Date().toISOString()),
-            } 
-        };
+        // This is a response from Hacienda, not an invoice. We should ignore it.
+        return { error: 'El archivo es una respuesta de Hacienda, no una factura.', details: {} };
     }
     
     const rootNode = json.FacturaElectronica;
@@ -181,11 +176,13 @@ export async function processInvoiceXmls(xmlContents: string[]): Promise<{ lines
             const result = await parseInvoice(xmlContent, index);
             if (result && 'lines' in result) {
                 allLines = [...allLines, ...result.lines];
-                processedInvoices.push({
-                    ...result.invoiceInfo,
-                    status: 'success'
-                });
-            } else if (result && 'error' in result) {
+                if (result.invoiceInfo.supplierName) { // Only add if it's a valid invoice
+                    processedInvoices.push({
+                        ...result.invoiceInfo,
+                        status: 'success'
+                    });
+                }
+            } else if (result && 'error' in result && result.details.supplierName) {
                  processedInvoices.push({
                     supplierName: result.details.supplierName || 'Desconocido',
                     invoiceNumber: result.details.invoiceNumber || 'N/A',
@@ -250,7 +247,16 @@ export async function exportForERP(lines: CostAssistantLine[]): Promise<string> 
     const fileName = `export_erp_${Date.now()}.xlsx`;
     const filePath = path.join(exportDir, fileName);
 
-    XLSX.writeFile(workbook, filePath);
+    try {
+        // Generate the file content in memory as a buffer
+        const buffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'buffer' });
+        
+        // Use fs.writeFileSync to save the buffer to the file system
+        fs.writeFileSync(filePath, buffer);
+    } catch (error: any) {
+        logError("Failed to save Excel file to disk", { error: error.message, path: filePath });
+        throw new Error(`cannot save file\n${filePath}`);
+    }
     
     return fileName;
 }
