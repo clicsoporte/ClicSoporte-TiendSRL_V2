@@ -15,20 +15,25 @@ const getValue = (obj: any, path: string[], defaultValue: any = '') => {
 const parseDecimal = (str: any): number => {
     if (typeof str !== 'string' && typeof str !== 'number') return 0;
     const cleanStr = String(str).trim();
+
+    const hasComma = cleanStr.includes(',');
+    const hasPoint = cleanStr.includes('.');
+
+    // Handle formats like "1,234.56" (USA) or just "1234.56"
+    if (hasPoint && !hasComma) {
+        // If it's something like "2.000" where it's meant to be an integer
+        if (cleanStr.length - cleanStr.lastIndexOf('.') - 1 > 2) {
+             return parseFloat(cleanStr.replace(/\./g, '')) || 0;
+        }
+        return parseFloat(cleanStr) || 0;
+    }
     
-    // If it contains a comma, it's likely a decimal separator in European format.
-    if (cleanStr.includes(',')) {
+    // Handle formats like "1.234,56" (Europe)
+    if (hasComma) {
         return parseFloat(cleanStr.replace(/\./g, '').replace(',', '.')) || 0;
     }
-    
-    // If it contains a point, it could be a decimal or a thousands separator.
-    // A simple heuristic: if there are more than 2 digits after the last point,
-    // it's likely a thousands separator.
-    const lastPointIndex = cleanStr.lastIndexOf('.');
-    if (lastPointIndex !== -1 && cleanStr.length - lastPointIndex - 1 > 2) {
-        return parseFloat(cleanStr.replace(/\./g, '')) || 0;
-    }
 
+    // Handle integers without any separator "1234"
     return parseFloat(cleanStr) || 0;
 };
 
@@ -45,15 +50,16 @@ async function parseInvoice(xmlContent: string): Promise<InvoiceParseResult | { 
         attributeNamePrefix: "@_",
         textNodeName: "#text",
         parseAttributeValue: true,
-        removeNSPrefix: true, // This is crucial for handling different namespaces
+        removeNSPrefix: true, 
     });
 
     const json = parser.parse(xmlContent);
 
     // Determine the root node dynamically
-    const rootNode = json.FacturaElectronica || json.MensajeHacienda;
+    const rootNode = json.FacturaElectronica;
+    const responseNode = json.MensajeHacienda;
 
-    if (!rootNode) {
+    if (!rootNode && !responseNode) {
          const detectedRoot = Object.keys(json)[0] || 'N/A';
          if (detectedRoot === 'html' || detectedRoot === '?xml') {
             return { error: 'El archivo es un documento HTML o XML inválido, no una factura.', details: {} };
@@ -61,11 +67,12 @@ async function parseInvoice(xmlContent: string): Promise<InvoiceParseResult | { 
         return { error: `No es un archivo de factura válido. Nodo raíz encontrado: ${detectedRoot}`, details: {} };
     }
     
-    const isResponseMessage = !!json.MensajeHacienda;
+    const isResponseMessage = !!responseNode;
+    const invoiceDataNode = isResponseMessage ? responseNode : rootNode;
     
-    const numeroConsecutivo = getValue(rootNode, ['NumeroConsecutivo'], 'N/A');
-    const fechaEmision = getValue(rootNode, ['FechaEmision'], new Date().toISOString());
-    const emisorNombre = getValue(rootNode, ['Emisor', 'Nombre'], 'Desconocido');
+    const numeroConsecutivo = getValue(invoiceDataNode, ['NumeroConsecutivo'], getValue(invoiceDataNode, ['Clave'], 'N/A').substring(21, 41));
+    const fechaEmision = getValue(invoiceDataNode, ['FechaEmision'], new Date().toISOString());
+    const emisorNombre = getValue(invoiceDataNode, ['Emisor', 'Nombre'], getValue(invoiceDataNode, ['NombreEmisor'], 'Desconocido'));
 
     const defaultErrorDetails = {
         supplierName: emisorNombre,
@@ -104,10 +111,15 @@ async function parseInvoice(xmlContent: string): Promise<InvoiceParseResult | { 
 
         let supplierCode = 'N/A';
         const codigosComerciales = Array.isArray(linea.CodigoComercial) ? linea.CodigoComercial : [linea.CodigoComercial].filter(Boolean);
+        
         if (codigosComerciales && codigosComerciales.length > 0) {
-            const codigoNode = codigosComerciales.find((c: any) => c.Tipo === '01' || c.Tipo === '04')?.Codigo;
-            if (codigoNode) {
-                supplierCode = codigoNode;
+            // Prioritize type '01' (Manufacturer) or '04' (Supplier Internal)
+            const preferredCodeNode = codigosComerciales.find((c: any) => c.Tipo === '01' || c.Tipo === '04');
+            if (preferredCodeNode && preferredCodeNode.Codigo) {
+                supplierCode = preferredCodeNode.Codigo;
+            } else if (codigosComerciales[0] && codigosComerciales[0].Codigo) {
+                // Fallback to the first available code
+                supplierCode = codigosComerciales[0].Codigo;
             }
         }
         
