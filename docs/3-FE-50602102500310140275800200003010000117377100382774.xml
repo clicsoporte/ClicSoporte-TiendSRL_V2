@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FacturaElectronica xmlns="https://cdn.comprobanteselectronicos.go.cr/xml-schemas/v4.3/facturaElectronica">
+  <Clave>50602102500310140275800200003010000117377100382774</Clave>
+  <CodigoActividad>523906</CodigoActividad>
+  <NumeroConsecutivo>00200003010000117377</NumeroConsecutivo>
+  <FechaEmision>2025-10-02T13:18:32-06:00</FechaEmision>
+  <Emisor>
+    <Nombre>TECTEL TECNOLOGIA TELEFONICA, S.A.</Nombre>
+    <Identificacion>
+      <Tipo>02</Tipo>
+      <Numero>3101402758</Numero>
+    </Identificacion>
+    <NombreComercial>TECTEL TECNOLOGIA TELEFONICA, S.A.  DISTRIBUIDOR MAYORISTA</NombreComercial>
+    <Ubicacion>
+      <Provincia>1</Provincia>
+      <Canton>07</Canton>
+      <Distrito>01</Distrito>
+      <Barrio>03</Barrio>
+      <OtrasSenas>CALLE SIN SALIDA FRENTE A CCSS CIUDAD COLON, ULTIMO PORTON MANO DERECHA</OtrasSenas>
+    </Ubicacion>
+    <Telefono>
+      <CodigoPais>506</CodigoPais>
+      <NumTelefono>22493737</NumTelefono>
+    </Telefono>
+    <CorreoElectronico>info@centralestelefonicascr.com</CorreoElectronico>
+  </Emisor>
+  <Receptor>
+    <Nombre>CLIC SOPORTE &amp; CLIC TIENDA SOCIEDAD DE RESPONSABILIDAD LIMITADA</Nombre>
+    <Identificacion>
+      <Tipo>02</Tipo>
+      <Numero>3102894538</Numero>
+    </Identificacion>
+    <NombreComercial>CLIC SOPORTE &amp; CLIC TIENDA SOCIEDAD DE RESPONSABILIDAD LIMITADA</NombreComercial>
+    <Telefono>
+      <CodigoPais>506</CodigoPais>
+      <NumTelefono>87104059</NumTelefono>
+    </Telefono>
+    <Fax>
+      <CodigoPais>506</CodigoPais>
+      <NumTelefono>40000630</NumTelefono>
+    </Fax>
+    <CorreoElectronico>cxp@clicsoporte.com</CorreoElectronico>
+  </Receptor>
+  <CondicionVenta>01</CondicionVenta>
+  <MedioPago>03</MedioPago>
+  <DetalleServicio>
+    <LineaDetalle>
+      <NumeroLinea>1</NumeroLinea>
+      <Codigo>4529000000000</Codigo>
+      <CodigoComercial>
+        <Tipo>01</Tipo>
+        <Codigo>MTLPPM2400R</Codigo>
+      </CodigoComercial>
+      <Cantidad>1.000</Cantidad>
+      <UnidadMedida>Unid</UnidadMedida>
+      <Detalle>PATCH PANEL MODULAR 24 PUERTOS UL  PARA RACK (PARA CONFIGURAR) 1U TEKLINK</Detalle>
+      <RegistroMedicamento />
+      <FormaFarmaceutica />
+      <PrecioUnitario>9.15000</PrecioUnitario>
+      <MontoTotal>9.15000</MontoTotal>
+      <SubTotal>9.15000</SubTotal>
+      <Impuesto>
+        <Codigo>01</Codigo>
+        <CodigoTarifa>08</CodigoTarifa>
+        <Tarifa>13</Tarifa>
+        <Monto>1.18950</Monto>
+      </Impuesto>
+      <ImpuestoNeto>1.18950</ImpuestoNeto>
+      <MontoTotalLinea>10.33950</MontoTotalLinea>
+    </LineaDetalle>
+    <LineaDetalle>
+      <NumeroLinea>2</NumeroLinea>
+      <Codigo>4529000000000</Codigo>
+      <CodigoComercial>
+        <Tipo>01</Tipo>
+        <Codigo>MTLBAN2UV250</Codigo>
+      </CodigoComercial>
+      <Cantidad>1.000</Cantidad>
+      <UnidadMedida>Unid</UnidadMedida>
+      <Detalle>BANDEJA VENTILADA 2U -  25CMS PROFUNDIDAD X 2U ALTURA - TEKLINK</Detalle>
+      <RegistroMedicamento />
+      <FormaFarmaceutica />
+      <PrecioUnitario>10.98000</PrecioUnitario>
+      <MontoTotal>10.98000</MontoTotal>
+      <SubTotal>10.98000</SubTotal>
+      <Impuesto>
+        <Codigo>01</Codigo>
+        <CodigoTarifa>08</CodigoTarifa>
+        <Tarifa>13</Tarifa>
+        <Monto>1.42740</Monto>
+      </Impuesto>
+      <ImpuestoNeto>1.42740</ImpuestoNeto>
+      <MontoTotalLinea>12.40740</MontoTotalLinea>
+    </LineaDetalle>
+    <LineaDetalle>
+      <NumeroLinea>3</NumeroLinea>
+      <Codigo>4529000000000</Codigo>
+      <CodigoComercial>
+        <Tipo>01</Tipo>
+        <Codigo>MTL-REG008-BK</Codigo>
+      </CodigoComercial>
+      <Cantidad>1.000</Cantidad>
+      <UnidadMedida>Unid</UnidadMedida>
+      <Detalle>REGLETA PARA RACK PDU HORIZONTAL 19’’ ANCHO 15AMP 8 TOMAS 110 VOLTIOS TEKLINK</Detalle>
+      <RegistroMedicamento />
+      <FormaFarmaceutica />
+      <PrecioUnitario>17.72000</PrecioUnitario>
+      <MontoTotal>17.72000</MontoTotal>
+      <SubTotal>17.72000</SubTotal>
+      <Impuesto>
+        <Codigo>01</Codigo>
+        <CodigoTarifa>08</CodigoTarifa>
+        <Tarifa>13</Tarifa>
+        <Monto>2.30360</Monto>
+      </Impuesto>
+      <ImpuestoNeto>2.30360</ImpuestoNeto>
+      <MontoTotalLinea>20.02360</MontoTotalLinea>
+    </LineaDetalle>
+    <LineaDetalle>
+      <NumeroLinea>4</NumeroLinea>
+      <Codigo>4529000000000</Codigo>
+      <CodigoComercial>
+        <Tipo>01</Tipo>
+        <Codigo>VEL-5MT-GY</Codigo>
+      </CodigoComercial>
+      <Cantidad>2.000</Cantidad>
+      <UnidadMedida>Unid</UnidadMedida>
+      <Detalle>ROLLO DE VELCRO 5MTS GRIS TEKLINK</Detalle>
+      <RegistroMedicamento />
+      <FormaFarmaceutica />
+      <PrecioUnitario>4.97000</PrecioUnitario>
+      <MontoTotal>9.94000</MontoTotal>
+      <SubTotal>9.94000</SubTotal>
+      <Impuesto>
+        <Codigo>01</Codigo>
+        <CodigoTarifa>08</CodigoTarifa>
+        <Tarifa>13</Tarifa>
+        <Monto>1.29220</Monto>
+      </Impuesto>
+      <ImpuestoNeto>1.29220</ImpuestoNeto>
+      <MontoTotalLinea>11.23220</MontoTotalLinea>
+    </LineaDetalle>
+    <LineaDetalle>
+      <NumeroLinea>5</NumeroLinea>
+      <Codigo>4634002010100</Codigo>
+      <CodigoComercial>
+        <Tipo>01</Tipo>
+        <Codigo>MTL-ORG-2U</Codigo>
+      </CodigoComercial>
+      <Cantidad>1.000</Cantidad>
+      <UnidadMedida>Unid</UnidadMedida>
+      <Detalle>ORGANIZADOR CABLE HORIZONTAL RANURADO 2U - DOBLE LADO - TEKLINK</Detalle>
+      <RegistroMedicamento />
+      <FormaFarmaceutica />
+      <PrecioUnitario>18.00000</PrecioUnitario>
+      <MontoTotal>18.00000</MontoTotal>
+      <SubTotal>18.00000</SubTotal>
+      <Impuesto>
+        <Codigo>01</Codigo>
+        <CodigoTarifa>08</CodigoTarifa>
+        <Tarifa>13</Tarifa>
+        <Monto>2.34000</Monto>
+      </Impuesto>
+      <ImpuestoNeto>2.34000</ImpuestoNeto>
+      <MontoTotalLinea>20.34000</MontoTotalLinea>
+    </LineaDetalle>
+  </DetalleServicio>
+  <ResumenFactura>
+    <CodigoTipoMoneda>
+      <CodigoMoneda>USD</CodigoMoneda>
+      <TipoCambio>506.56</TipoCambio>
+    </CodigoTipoMoneda>
+    <TotalServGravados>0.00000</TotalServGravados>
+    <TotalServExentos>0.00000</TotalServExentos>
+    <TotalServExonerado>0.00000</TotalServExonerado>
+    <TotalMercanciasGravadas>65.79000</TotalMercanciasGravadas>
+    <TotalMercanciasExentas>0.00000</TotalMercanciasExentas>
+    <TotalMercExonerada>0.00000</TotalMercExonerada>
+    <TotalGravado>65.79000</TotalGravado>
+    <TotalExento>0.00000</TotalExento>
+    <TotalExonerado>0.00000</TotalExonerado>
+    <TotalVenta>65.79000</TotalVenta>
+    <TotalDescuentos>0.00000</TotalDescuentos>
+    <TotalVentaNeta>65.79000</TotalVentaNeta>
+    <TotalImpuesto>8.55270</TotalImpuesto>
+    <TotalIVADevuelto>0.00000</TotalIVADevuelto>
+    <TotalOtrosCargos>0.00000</TotalOtrosCargos>
+    <TotalComprobante>74.34270</TotalComprobante>
+  </ResumenFactura>
+  <Otros>
+    <OtroTexto codigo="Vendedor">SANDRA ROJAS CH</OtroTexto>
+    <OtroTexto codigo="DocumentoSTR">2-3-1-0108757</OtroTexto>
+    <OtroTexto codigo="Direccion">ALAJUELA, ATENAS, SANTA EULALIA, DE LA IGLESIA CATÓLICA QUINIENTOS METROS OESTE Y</OtroTexto>
+  </Otros>
+<ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#" Id="Signature-10500abc-93a0-40c7-afeb-d288f0a4cf92"><ds:SignedInfo><ds:CanonicalizationMethod Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315" /><ds:SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha256" /><ds:Reference Id="Reference-b8240171-12d1-464e-b7fd-cb069a91a733" URI=""><ds:Transforms><ds:Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature" /></ds:Transforms><ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256" /><ds:DigestValue>UuT9FPPkZso3EC9M+JBOh5CK4BLNJ7FRW3Ys9cIBt0I=</ds:DigestValue></ds:Reference><ds:Reference Id="ReferenceKeyInfo" URI="#KeyInfoId-Signature-10500abc-93a0-40c7-afeb-d288f0a4cf92"><ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256" /><ds:DigestValue>QpTTKtfIz0Mq3NoamMEsMKGbOu0JJmfcfkjXyJBh620=</ds:DigestValue></ds:Reference><ds:Reference Type="http://uri.etsi.org/01903#SignedProperties" URI="#SignedProperties-Signature-10500abc-93a0-40c7-afeb-d288f0a4cf92"><ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256" /><ds:DigestValue>RmmHXpq0+JHNltHB98eBpdqGtOiTqJ3PWVZ0GLNKSaI=</ds:DigestValue></ds:Reference></ds:SignedInfo><ds:SignatureValue Id="SignatureValue-10500abc-93a0-40c7-afeb-d288f0a4cf92">GdUixGhj1lagBlAfwGvlw4oo9mqrjTJ4gx1PZmJcZHHW9VCurcONQOTHwbN7a4SSioFbrwDEtxJvAO5Jg3SLHjDExvneVvxwUSwiCXxbgOpac+kqaB9CLqAVBl0smuf74Y42PvQQ0UWSi9Y/4eZicfvRhBNyfb9GfqtD5/bZa0UtSRJr/T2GwDbH92L/6jxNHdT6nVc6anFEEjqMkxdQS0U1gTYAlIQVcPjw3QJe5bRWVzGhPu0LBkaBytIBcczELj9SoD5+Is1rVOQnz+aXKoXYL8wGbgFhvnj79eu6cPLe4jIcHKSiUCJs6sEr/OEtmIp41ep6M1MO3ZoP5J919w==</ds:SignatureValue><ds:KeyInfo Id="KeyInfoId-Signature-10500abc-93a0-40c7-afeb-d288f0a4cf92"><ds:X509Data><ds:X509Certificate>MIIFLzCCAxegAwIBAgIGAYEBydNVMA0GCSqGSIb3DQEBCwUAMFoxCzAJBgNVBAYTAkNSMR8wHQYDVQQKDBZNSU5JU1RFUklPIERFIEhBQ0lFTkRBMQwwCgYDVQQLDANER1QxHDAaBgNVBAMME0NBIFBFUlNPTkEgSlVSSURJQ0EwHhcNMjIwNTI2MTkxMzMzWhcNMjYwNTI1MTkxMzMzWjCBiTEZMBcGA1UEBRMQQ1BKLTMtMTAxLTQwMjc1ODELMAkGA1UEBhMCQ1IxGTAXBgNVBAoMEFBFUlNPTkEgSlVSSURJQ0ExDDAKBgNVBAsMA0NQSjE2MDQGA1UEAwwtVEVDVEVMIFRFQ05PTE9HSUEgVEVMRUZPTklDQSBTT0NJRURBRCBBTk9OSU1BMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAgNcIRkaS6hzz4jjddzj39HQ3m168YEPMxWmpqYdL9pMg7ozolj33ncXcTxcqmgCJJ6FAdnlWtDgJt9aIxwhF5iY4IQSTG5wYI4zof8W+vFjGDcGTbxTiUbSbm/j8+ipUBan4BlpeOvmuCzc9vwVuMk+4hkp+o/ZXoMsrxtabVpwXw8lQ7WsarRS0T7Z+1S3kQkX2lOAFfXZDGSfvHbigzGHX3oadqUmyR0jeorFbwr+bDTryvlXx1iGCZUuoj0p9vZRQJqFGZb9Y73j1zrU92NbirpmO+hucwPnu7OM8sg2F1knB3aHwtcD6GYqCo8Pa7tc7OdhNR0po8TT3zP9EzQIDAQABo4HKMIHHMB8GA1UdIwQYMBaAFDttV/XWfOmeEAIgQeO9GszPs06VMB0GA1UdDgQWBBTZoeLP/+gEd07rlZh0ahyaSrlhjjALBgNVHQ8EBAMCBsAwEwYDVR0lBAwwCgYIKwYBBQUHAwQwYwYIKwYBBQUHAQEEVzBVMFMGCCsGAQUFBzAChkdodHRwczovL3BraS5jb21wcm9iYW50ZXNlbGVjdHJvbmljb3MuZ28uY3IvcHJvZC9pbnRlcm1lZGlhdGUtcGotcGVtLmNydDANBgkqhkiG9w0BAQsFAAOCAgEAAS6+g365aAuuykXemVTtwDZoNbX+WD8O7a4AxyUSToVsSBoX4HlSyXiB6ufaacbL0wYXcCGr3ChFVXduBIQDnJoDxqUN8FvmX+u2oGlEit7H3NlV/yRZVbPmIojrT3F/aLEEbn3vj72AIlbIXZyZU1Vdx83wz+OQY5QsNbnzpDp1Se7RumDMf21xEFq6f9bAtyxmx2uxZsyTGIRrijg1Z0VCVKMUkMZTWUD5GNAU0Chn7JP1d/K5L70FWRpSleKH/rkGi5F/wmNS4IAZI10rKfdVm6xWfS2skpKRUOsXbUyZuXAWJf0wv6Vpb/4CMHsIFiBBu9yx3gk8te8PS4VT1FRhUyBXzR+7PSvQLVGiFv1j8qICjz+gFdfxDNHYgy4x4Z5M/FUsoD/zakqGJHxroSeJTpeqRKLodzDhxyO8CRwW3Xc+dRDfYwAgu4HDE/AAHdbip6PA23i3zozS1My7nroNASk5iPID9JvAyQW3TeW6HrzJe6gy+UshkS1TRCCqrBoNZZ/uJRoCTHSWLdmMWu+eh20po9xYqSIC4FCi2AEncHEUo64dSpyXzmPsJW3aVtra/QybnkSDX8rBvPZ807ddWdkWuHD7/N1S8sn40dnlLPEH4cBvJr/Uk9j1xCqK45pN9pzFjVnuI05GD6K8xIls2ZxaKrFQEn1qwlOluag=</ds:X509Certificate></ds:X509Data><ds:KeyValue><ds:RSAKeyValue><ds:Modulus>gNcIRkaS6hzz4jjddzj39HQ3m168YEPMxWmpqYdL9pMg7ozolj33ncXcTxcqmgCJJ6FAdnlWtDgJt9aIxwhF5iY4IQSTG5wYI4zof8W+vFjGDcGTbxTiUbSbm/j8+ipUBan4BlpeOvmuCzc9vwVuMk+4hkp+o/ZXoMsrxtabVpwXw8lQ7WsarRS0T7Z+1S3kQkX2lOAFfXZDGSfvHbigzGHX3oadqUmyR0jeorFbwr+bDTryvlXx1iGCZUuoj0p9vZRQJqFGZb9Y73j1zrU92NbirpmO+hucwPnu7OM8sg2F1knB3aHwtcD6GYqCo8Pa7tc7OdhNR0po8TT3zP9EzQ==</ds:Modulus><ds:Exponent>AQAB</ds:Exponent></ds:RSAKeyValue></ds:KeyValue></ds:KeyInfo><ds:Object Id="XadesObjectId-cf261f4a-398c-4dcd-85a3-ef4e3f80d8d3"><xades:QualifyingProperties xmlns:xades="http://uri.etsi.org/01903/v1.3.2#" Id="QualifyingProperties-2d4cfc76-3665-4e42-af5f-d154673d1b1e" Target="#Signature-10500abc-93a0-40c7-afeb-d288f0a4cf92"><xades:SignedProperties Id="SignedProperties-Signature-10500abc-93a0-40c7-afeb-d288f0a4cf92"><xades:SignedSignatureProperties><xades:SigningTime>2025-10-02T13:18:43-06:00</xades:SigningTime><xades:SigningCertificate><xades:Cert><xades:CertDigest><ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256" /><ds:DigestValue>LDpf8fm4AlNtRXc79SAhPPB6kEWfhxCbV8EWDI3kz1I=</ds:DigestValue></xades:CertDigest><xades:IssuerSerial><ds:X509IssuerName>CN=CA PERSONA JURIDICA, OU=DGT, O=MINISTERIO DE HACIENDA, C=CR</ds:X509IssuerName><ds:X509SerialNumber>1653592413013</ds:X509SerialNumber></xades:IssuerSerial></xades:Cert></xades:SigningCertificate><xades:SignaturePolicyIdentifier><xades:SignaturePolicyId><xades:SigPolicyId><xades:Identifier>https://tribunet.hacienda.go.cr/docs/esquemas/2016/v4.1/Resolucion_Comprobantes_Electronicos_DGT-R-48-2016.pdf</xades:Identifier><xades:Description /></xades:SigPolicyId><xades:SigPolicyHash><ds:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1" /><ds:DigestValue>Ohixl6upD6av8N7pEvDABhEL6hM=</ds:DigestValue></xades:SigPolicyHash></xades:SignaturePolicyId></xades:SignaturePolicyIdentifier></xades:SignedSignatureProperties><xades:SignedDataObjectProperties><xades:DataObjectFormat ObjectReference="#Reference-b8240171-12d1-464e-b7fd-cb069a91a733"><xades:MimeType>text/xml</xades:MimeType><xades:Encoding>UTF-8</xades:Encoding></xades:DataObjectFormat></xades:SignedDataObjectProperties></xades:SignedProperties></xades:QualifyingProperties></ds:Object></ds:Signature></FacturaElectronica>

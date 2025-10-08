@@ -13,6 +13,29 @@ const getValue = (obj: any, path: string[], defaultValue: any = '') => {
     return path.reduce((acc, key) => (acc && acc[key] && acc[key][0]) ? acc[key][0] : defaultValue, obj);
 };
 
+const parseDecimal = (str: string): number => {
+  if (typeof str !== 'string' || !str) return 0;
+
+  const hasDot = str.includes('.');
+  const hasComma = str.includes(',');
+
+  // Handle cases like "1.000" (one thousand) or "2.000" (two from your example file)
+  // If a dot exists and it's followed by exactly 3 digits at the end, it's likely a thousands separator.
+  if (hasDot && !hasComma) {
+    const parts = str.split('.');
+    if (parts.length > 1 && parts[parts.length - 1].length === 3) {
+      // It's likely a thousands separator, like "1.000" or "1.234.567"
+      const numberString = parts.join('');
+      return parseFloat(numberString) || 0;
+    }
+  }
+
+  // Standard case: "1,234.56" or "1234.56"
+  // Or European style: "1.234,56"
+  const cleanedStr = str.replace(/\./g, '').replace(',', '.');
+  return parseFloat(cleanedStr) || 0;
+};
+
 interface InvoiceParseResult {
     lines: CostAssistantLine[];
     supplierName: string;
@@ -41,9 +64,9 @@ async function parseInvoice(xmlContent: string): Promise<InvoiceParseResult> {
 
     const lines: CostAssistantLine[] = [];
     for (const linea of detalleServicio.LineaDetalle) {
-        // Handle quantities like "2.000" which means 2, not two thousand.
-        const cantidadStr = getValue(linea, ['Cantidad'], '0').replace(/\./g, '').replace(',', '.');
-        const cantidad = parseFloat(cantidadStr) || 0;
+        
+        const cantidadStr = getValue(linea, ['Cantidad'], '0');
+        const cantidad = parseDecimal(cantidadStr);
         
         if (cantidad === 0) continue;
 
