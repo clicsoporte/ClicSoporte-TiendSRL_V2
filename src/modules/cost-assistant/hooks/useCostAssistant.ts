@@ -164,9 +164,9 @@ export const useCostAssistant = () => {
         const totalAdditionalCosts = state.transportCost + state.otherCosts;
 
         const linesWithCosts = state.lines.map(line => {
-            const proportionalAdditionalCost = totalItems > 0 ? (totalAdditionalCosts / totalItems) * line.quantity : 0;
-            const finalUnitCost = line.unitCostWithoutTax + (proportionalAdditionalCost / line.quantity);
-            const sellPriceWithoutTax = finalUnitCost * (1 + line.margin);
+            const proportionalAdditionalCostPerUnit = totalItems > 0 && line.quantity > 0 ? (totalAdditionalCosts / totalItems) : 0;
+            const finalUnitCost = line.unitCostWithoutTax + proportionalAdditionalCostPerUnit;
+            const sellPriceWithoutTax = finalUnitCost / (1 - line.margin);
             const finalSellPrice = sellPriceWithoutTax * (1 + line.taxRate);
             const profitPerLine = (sellPriceWithoutTax - finalUnitCost) * line.quantity;
 

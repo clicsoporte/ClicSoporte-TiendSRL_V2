@@ -13,44 +13,32 @@ const getValue = (obj: any, path: string[], defaultValue: any = '') => {
 };
 
 const parseDecimal = (str: any): number => {
-    if (typeof str !== 'string' && typeof str !== 'number') return 0;
-    const cleanStr = String(str).trim();
+    if (str === null || str === undefined || str === '') return 0;
 
-    // If it's a simple number string, parse it directly
-    if (!isNaN(Number(cleanStr))) {
-        return Number(cleanStr);
+    let cleanStr = String(str).trim();
+
+    // The most reliable format in CR XML seems to be with a '.' decimal separator
+    // and no thousands separators. However, some providers do use them.
+
+    // Scenario 1: Contains comma, may contain dots (e.g., "1.234,56") -> European style
+    if (cleanStr.includes(',')) {
+        cleanStr = cleanStr.replace(/\./g, '').replace(',', '.');
     }
-
-    const hasComma = cleanStr.includes(',');
-    const hasPoint = cleanStr.includes('.');
-
-    // Handle formats like "1,234.56" (USA)
-    if (hasPoint && hasComma) {
-        return parseFloat(cleanStr.replace(/,/g, '')) || 0;
+    // Scenario 2: Contains only dots. This is ambiguous. "2.000" could be 2 or 2000.
+    // Given the XMLs, if a dot is followed by exactly 3 digits at the end, it's likely a thousands separator.
+    else if (cleanStr.includes('.')) {
+        const parts = cleanStr.split('.');
+        if (parts.length > 1) {
+            const lastPart = parts[parts.length - 1];
+            // If the last part is 3 digits and there are more parts, treat all dots as thousands separators.
+            if (lastPart.length === 3 && parts.length > 1) {
+                 cleanStr = cleanStr.replace(/\./g, '');
+            }
+        }
     }
     
-    // Handle formats like "1.234,56" (Europe)
-    if (hasPoint && hasComma) {
-         return parseFloat(cleanStr.replace(/\./g, '').replace(',', '.')) || 0;
-    }
-
-    // Handle "2.000" which can mean 2 or 2000 depending on context.
-    // In CR XMLs, a '.' is usually a thousands separator for integers if there are 3 digits after it.
-    if (hasPoint && !hasComma) {
-        const parts = cleanStr.split('.');
-        if (parts.length === 2 && parts[1].length === 3) {
-            // Likely a thousands separator for an integer, e.g., "2.000" should be 2, not 2000.
-            // Or "10.000" for 10. Let's treat as a decimal for consistency and let parseFloat handle it.
-            return parseFloat(parts.join('')) || 0;
-        }
-         return parseFloat(cleanStr) || 0;
-    }
-
-    if (hasComma && !hasPoint) {
-        return parseFloat(cleanStr.replace(',', '.')) || 0;
-    }
-
-    return parseFloat(cleanStr) || 0;
+    const parsed = parseFloat(cleanStr);
+    return isNaN(parsed) ? 0 : parsed;
 };
 
 
@@ -67,17 +55,23 @@ async function parseInvoice(xmlContent: string): Promise<InvoiceParseResult | { 
         parseTagValue: false, // Keep values as strings for manual parsing
     });
 
-    const json = parser.parse(xmlContent);
+    let json;
+    try {
+        json = parser.parse(xmlContent);
+    } catch (e: any) {
+        return { error: 'XML malformado o ilegible.', details: {} };
+    }
+
 
     const rootNode = json.FacturaElectronica;
     const responseNode = json.MensajeHacienda;
-
+    
     if (!rootNode && !responseNode) {
         const detectedRoot = Object.keys(json)[0] || 'N/A';
         if (detectedRoot === 'html' || detectedRoot.startsWith('?')) {
             return { error: 'El archivo es un documento HTML o XML inválido, no una factura.', details: {} };
         }
-        return { error: `No es un archivo de factura válido. Nodo raíz no encontrado.`, details: {} };
+        return { error: `No es un archivo de factura válido. Nodo raíz no encontrado: ${detectedRoot}`, details: {} };
     }
     
     const isResponseMessage = !!responseNode;
@@ -108,9 +102,9 @@ async function parseInvoice(xmlContent: string): Promise<InvoiceParseResult | { 
         return { lines: [], invoiceInfo };
     }
 
-    const lineasDetalle = Array.isArray(detalleServicio.LineaDetalle) 
-        ? detalleServicio.LineaDetalle 
-        : [detalleServicio.LineaDetalle];
+    const lineasDetalleRaw = detalleServicio.LineaDetalle;
+    const lineasDetalle = Array.isArray(lineasDetalleRaw) ? lineasDetalleRaw : [lineasDetalleRaw];
+
 
     const moneda = getValue(rootNode, ['ResumenFactura', 'CodigoTipoMoneda', 'CodigoMoneda'], 'CRC');
     const tipoCambioStr = getValue(rootNode, ['ResumenFactura', 'CodigoTipoMoneda', 'TipoCambio'], '1');
@@ -142,8 +136,8 @@ async function parseInvoice(xmlContent: string): Promise<InvoiceParseResult | { 
         const montoTotalLinea = parseDecimal(getValue(linea, ['MontoTotalLinea'], '0'));
         const subTotal = parseDecimal(getValue(linea, ['SubTotal'], '0'));
         
-        const unitCostWithTax = montoTotalLinea / cantidad;
-        const unitCostWithoutTax = subTotal / cantidad;
+        const unitCostWithTax = cantidad > 0 ? montoTotalLinea / cantidad : 0;
+        const unitCostWithoutTax = cantidad > 0 ? subTotal / cantidad : 0;
 
         const impuestoNode = getValue(linea, ['Impuesto']);
         let taxRate = 0.13; // Default
