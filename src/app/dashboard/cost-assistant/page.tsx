@@ -11,14 +11,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useDropzone } from 'react-dropzone';
-import { FileScan, UploadCloud, Loader2, Percent, Calculator, Trash2, Settings2, FilePlus, Save, Briefcase, CheckCircle, XCircle } from 'lucide-react';
+import { FileScan, UploadCloud, Loader2, Percent, Calculator, Trash2, Settings2, FilePlus, Save, Briefcase, CheckCircle, XCircle, FolderClock, FileDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Textarea } from '@/components/ui/textarea';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from '@/components/ui/sheet';
 import { format, parseISO, isValid } from 'date-fns';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import type { CostAnalysisDraft } from '@/modules/core/types';
 
 export default function CostAssistantPage() {
     const {
@@ -55,7 +56,7 @@ export default function CostAssistantPage() {
                             <CardTitle>Asistente de Costos y Precios</CardTitle>
                             <CardDescription>Carga facturas XML para extraer artículos, añadir costos y calcular precios de venta.</CardDescription>
                         </div>
-                        <div className="flex items-center gap-2">
+                         <div className="flex items-center gap-2 flex-wrap">
                              <AlertDialog>
                                 <AlertDialogTrigger asChild>
                                     <Button variant="outline"><FilePlus className="mr-2 h-4 w-4"/>Nueva Operación</Button>
@@ -73,7 +74,54 @@ export default function CostAssistantPage() {
                                     </AlertDialogFooter>
                                 </AlertDialogContent>
                             </AlertDialog>
-                            <Button disabled><Save className="mr-2 h-4 w-4"/>Guardar Borrador</Button>
+                            <Sheet onOpenChange={(open) => open && actions.loadDrafts()}>
+                                <SheetTrigger asChild>
+                                    <Button variant="outline"><FolderClock className="mr-2 h-4 w-4"/>Cargar Borradores</Button>
+                                </SheetTrigger>
+                                <SheetContent className="sm:max-w-2xl">
+                                    <SheetHeader>
+                                        <SheetTitle>Borradores Guardados</SheetTitle>
+                                        <SheetDescription>Selecciona un análisis guardado para continuar trabajando en él.</SheetDescription>
+                                    </SheetHeader>
+                                    <div className="py-4">
+                                        <ScrollArea className="h-[80vh]">
+                                            {state.drafts.length > 0 ? (
+                                                <div className="space-y-3 pr-4">
+                                                    {state.drafts.map((draft) => (
+                                                        <Card key={draft.id}>
+                                                            <CardHeader>
+                                                                <CardTitle className="text-lg">{draft.name}</CardTitle>
+                                                                <CardDescription>Guardado el {format(parseISO(draft.createdAt), 'dd/MM/yyyy HH:mm')}</CardDescription>
+                                                            </CardHeader>
+                                                            <CardFooter className="flex justify-end gap-2">
+                                                                <AlertDialog>
+                                                                    <AlertDialogTrigger asChild><Button variant="destructive" size="sm">Eliminar</Button></AlertDialogTrigger>
+                                                                    <AlertDialogContent>
+                                                                        <AlertDialogHeader>
+                                                                            <AlertDialogTitle>¿Eliminar Borrador?</AlertDialogTitle>
+                                                                            <AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription>
+                                                                        </AlertDialogHeader>
+                                                                        <AlertDialogFooter>
+                                                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                                            <AlertDialogAction onClick={() => actions.deleteDraft(draft.id)}>Sí, eliminar</AlertDialogAction>
+                                                                        </AlertDialogFooter>
+                                                                    </AlertDialogContent>
+                                                                </AlertDialog>
+                                                                <SheetClose asChild>
+                                                                    <Button size="sm" onClick={() => actions.loadDraft(draft)}>Cargar</Button>
+                                                                </SheetClose>
+                                                            </CardFooter>
+                                                        </Card>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <p className="text-center text-muted-foreground py-8">No hay borradores guardados.</p>
+                                            )}
+                                        </ScrollArea>
+                                    </div>
+                                </SheetContent>
+                            </Sheet>
+                            <Button onClick={() => actions.saveDraft(prompt("Asigna un nombre a este borrador:") || `Borrador ${new Date().toLocaleString()}`)}><Save className="mr-2 h-4 w-4"/>Guardar Borrador</Button>
                         </div>
                     </CardHeader>
                     <CardContent>
@@ -191,8 +239,16 @@ export default function CostAssistantPage() {
                 
                 <Card>
                     <CardHeader>
-                        <CardTitle>Artículos Extraídos</CardTitle>
-                        <CardDescription>Ajusta los datos y márgenes de ganancia para calcular el precio de venta final.</CardDescription>
+                        <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
+                             <div>
+                                <CardTitle>Artículos Extraídos</CardTitle>
+                                <CardDescription>Ajusta los datos y márgenes de ganancia para calcular el precio de venta final.</CardDescription>
+                             </div>
+                             <Button onClick={actions.handleExportToERP} disabled={state.lines.length === 0}>
+                                <FileDown className="mr-2 h-4 w-4" />
+                                Exportar para ERP (Excel)
+                            </Button>
+                        </div>
                     </CardHeader>
                     <CardContent>
                         <div className="border rounded-md p-4 mb-4">

@@ -4,7 +4,7 @@
 "use server";
 
 import { connectDb } from '../../core/lib/db';
-import type { CostAssistantLine } from '@/modules/core/types';
+import type { CostAnalysisDraft } from '@/modules/core/types';
 
 const DB_FILE = 'cost-assistant.db';
 
@@ -20,7 +20,8 @@ export async function initializeCostAssistantDb(db: import('better-sqlite3').Dat
             userId INTEGER NOT NULL,
             name TEXT,
             lines TEXT,
-            globalCosts TEXT
+            globalCosts TEXT,
+            processedInvoices TEXT
         );
 
         CREATE TABLE IF NOT EXISTS cost_assistant_settings (
@@ -65,6 +66,13 @@ export async function runCostAssistantMigrations(db: import('better-sqlite3').Da
         };
         db.prepare(`INSERT OR IGNORE INTO cost_assistant_settings (key, value) VALUES ('columnVisibility', ?)`).run(JSON.stringify(initialColumnVisibility));
     }
+    
+    const draftsTableInfo = db.prepare(`PRAGMA table_info(cost_analysis_drafts)`).all() as { name: string }[];
+    const draftColumns = new Set(draftsTableInfo.map(c => c.name));
+    if (!draftColumns.has('processedInvoices')) {
+        db.exec(`ALTER TABLE cost_analysis_drafts ADD COLUMN processedInvoices TEXT;`);
+    }
+
 }
 
 export async function getCostAssistantSettings(): Promise<CostAssistantSettings> {
@@ -90,4 +98,34 @@ export async function saveCostAssistantSettings(settings: CostAssistantSettings)
     db.prepare(`
         INSERT OR REPLACE INTO cost_assistant_settings (key, value) VALUES ('columnVisibility', ?)
     `).run(JSON.stringify(settings.columnVisibility));
+}
+
+export async function getAllDrafts(userId: number): Promise<CostAnalysisDraft[]> {
+    const db = await connectDb(DB_FILE);
+    const drafts = db.prepare('SELECT * FROM cost_analysis_drafts WHERE userId = ? ORDER BY createdAt DESC').all(userId) as any[];
+    return drafts.map(draft => ({
+        ...draft,
+        lines: JSON.parse(draft.lines || '[]'),
+        globalCosts: JSON.parse(draft.globalCosts || '{}'),
+        processedInvoices: JSON.parse(draft.processedInvoices || '[]'),
+    }));
+}
+
+export async function saveDraft(draft: CostAnalysisDraft): Promise<void> {
+    const db = await connectDb(DB_FILE);
+    db.prepare(`
+        INSERT OR REPLACE INTO cost_analysis_drafts 
+        (id, createdAt, userId, name, lines, globalCosts, processedInvoices) 
+        VALUES (@id, @createdAt, @userId, @name, @lines, @globalCosts, @processedInvoices)
+    `).run({
+        ...draft,
+        lines: JSON.stringify(draft.lines),
+        globalCosts: JSON.stringify(draft.globalCosts),
+        processedInvoices: JSON.stringify(draft.processedInvoices),
+    });
+}
+
+export async function deleteDraft(id: string): Promise<void> {
+    const db = await connectDb(DB_FILE);
+    db.prepare('DELETE FROM cost_analysis_drafts WHERE id = ?').run(id);
 }

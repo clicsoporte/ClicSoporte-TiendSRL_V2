@@ -625,3 +625,16 @@ export type ProcessedInvoiceInfo = {
     status: 'success' | 'error';
     errorMessage?: string;
 };
+
+export type CostAnalysisDraft = {
+    id: string; // UUID
+    createdAt: string;
+    userId: number;
+    name: string;
+    lines: CostAssistantLine[];
+    globalCosts: {
+        transportCost: number;
+        otherCosts: number;
+    };
+    processedInvoices: ProcessedInvoiceInfo[];
+};

@@ -4,9 +4,10 @@
 'use server';
 
 import { XMLParser } from 'fast-xml-parser';
-import type { CostAssistantLine, ProcessedInvoiceInfo } from '@/modules/core/types';
-import { getCostAssistantSettings as getCostAssistantSettingsServer, saveCostAssistantSettings as saveCostAssistantSettingsServer, type CostAssistantSettings } from './db';
-import { logError } from '@/modules/core/lib/logger';
+import type { CostAssistantLine, ProcessedInvoiceInfo, CostAnalysisDraft } from '@/modules/core/types';
+import { getCostAssistantSettings as getCostAssistantSettingsServer, saveCostAssistantSettings as saveCostAssistantSettingsServer, type CostAssistantSettings, getAllDrafts as getAllDraftsServer, saveDraft as saveDraftServer, deleteDraft as deleteDraftServer } from './db';
+import { logError, logInfo } from '@/modules/core/lib/logger';
+import * as XLSX from 'xlsx';
 
 // Helper to get a value from a potentially nested object
 const getValue = (obj: any, path: string[], defaultValue: any = '') => {
@@ -212,4 +213,34 @@ export async function getCostAssistantSettings(): Promise<CostAssistantSettings>
 
 export async function saveCostAssistantSettings(settings: CostAssistantSettings): Promise<void> {
     return saveCostAssistantSettingsServer(settings);
+}
+
+export async function getAllDrafts(userId: number): Promise<CostAnalysisDraft[]> {
+    return getAllDraftsServer(userId);
+}
+
+export async function saveDraft(draft: CostAnalysisDraft): Promise<void> {
+    await logInfo('Cost analysis draft saved', { name: draft.name, userId: draft.userId });
+    return saveDraftServer(draft);
+}
+
+export async function deleteDraft(id: string): Promise<void> {
+    await logInfo('Cost analysis draft deleted', { draftId: id });
+    return deleteDraftServer(id);
+}
+
+export async function exportForERP(lines: CostAssistantLine[]): Promise<Blob> {
+    const dataForExport = lines.map(line => ({
+        'COD_ARTICULO': line.supplierCode,
+        'PRECIO_BASE_LOCAL': line.sellPriceWithoutTax,
+        'IMPUESTO': line.taxRate * 100,
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(dataForExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Articulos');
+
+    const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+    
+    return new Blob([wbout], { type: 'application/octet-stream' });
 }
