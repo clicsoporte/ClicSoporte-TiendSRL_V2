@@ -41,7 +41,10 @@ async function parseInvoice(xmlContent: string): Promise<InvoiceParseResult> {
 
     const lines: CostAssistantLine[] = [];
     for (const linea of detalleServicio.LineaDetalle) {
-        const cantidad = parseFloat(getValue(linea, ['Cantidad'], '0'));
+        // Handle quantities like "2.000" which means 2, not two thousand.
+        const cantidadStr = getValue(linea, ['Cantidad'], '0').replace(/\./g, '').replace(',', '.');
+        const cantidad = parseFloat(cantidadStr) || 0;
+        
         if (cantidad === 0) continue;
 
         let supplierCode = 'N/A';
@@ -52,6 +55,11 @@ async function parseInvoice(xmlContent: string): Promise<InvoiceParseResult> {
                 supplierCode = codigoNode[0];
             }
         }
+        
+        // Handle different CABYS tags
+        const cabysV43 = getValue(linea, ['Codigo']);
+        const cabysV44 = getValue(linea, ['CodigoCABYS']);
+        const cabysCode = cabysV44 || cabysV43;
         
         const montoTotalLinea = parseFloat(getValue(linea, ['MontoTotalLinea'], '0'));
         const subTotal = parseFloat(getValue(linea, ['SubTotal'], '0'));
@@ -69,7 +77,7 @@ async function parseInvoice(xmlContent: string): Promise<InvoiceParseResult> {
             id: '', // Will be generated in the hook
             invoiceKey: clave,
             lineNumber: parseInt(getValue(linea, ['NumeroLinea'], '0')),
-            cabysCode: getValue(linea, ['Codigo']),
+            cabysCode: cabysCode,
             supplierCode: supplierCode,
             description: getValue(linea, ['Detalle']),
             quantity: cantidad,

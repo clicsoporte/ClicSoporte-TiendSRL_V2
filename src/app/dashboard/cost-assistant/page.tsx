@@ -33,7 +33,7 @@ export default function CostAssistantPage() {
         { id: 'cabysCode', label: 'Cabys', defaultVisible: true, minWidth: 'min-w-[150px]' },
         { id: 'supplierCode', label: 'Cód. Artículo', defaultVisible: true, minWidth: 'min-w-[150px]' },
         { id: 'description', label: 'Descripción', defaultVisible: true },
-        { id: 'quantity', label: 'Cant.', defaultVisible: true, className: 'text-right' },
+        { id: 'quantity', label: 'Cant.', defaultVisible: true, minWidth: 'min-w-[100px]', className: 'text-right' },
         { id: 'unitCostWithoutTax', label: 'Costo Unit. (s/IVA)', defaultVisible: true, minWidth: 'min-w-[150px]', className: 'text-right' },
         { id: 'unitCostWithTax', label: 'Costo Unit. (c/IVA)', defaultVisible: false, minWidth: 'min-w-[150px]', className: 'text-right' },
         { id: 'taxRate', label: 'Imp. %', defaultVisible: true, className: 'text-center' },
@@ -223,7 +223,7 @@ export default function CostAssistantPage() {
                                             {state.columnVisibility.cabysCode && <TableCell><Input value={line.cabysCode} onChange={e => actions.updateLine(line.id, { cabysCode: e.target.value })} className="font-mono text-xs"/></TableCell>}
                                             {state.columnVisibility.supplierCode && <TableCell><Input value={line.supplierCode} onChange={e => actions.updateLine(line.id, { supplierCode: e.target.value })} className="font-mono text-xs"/></TableCell>}
                                             {state.columnVisibility.description && <TableCell><Input value={line.description} onChange={e => actions.updateLine(line.id, { description: e.target.value })} /></TableCell>}
-                                            {state.columnVisibility.quantity && <TableCell><Input type="number" value={line.quantity} onChange={e => actions.updateLine(line.id, { quantity: Number(e.target.value) })} className="text-right font-medium" /></TableCell>}
+                                            {state.columnVisibility.quantity && <TableCell className={cn(columns.find(c=>c.id === 'quantity')?.minWidth)}><Input type="number" value={line.quantity} onChange={e => actions.updateLine(line.id, { quantity: Number(e.target.value) })} className="text-right font-medium" /></TableCell>}
                                             {state.columnVisibility.unitCostWithoutTax && <TableCell><Input type="number" value={line.unitCostWithoutTax} onChange={e => actions.updateLine(line.id, { unitCostWithoutTax: Number(e.target.value) })} className="text-right font-mono"/></TableCell>}
                                             {state.columnVisibility.unitCostWithTax && <TableCell className="text-right font-mono">{actions.formatCurrency(line.unitCostWithTax)}</TableCell>}
                                             {state.columnVisibility.taxRate && <TableCell className="text-center font-mono text-xs">{`${(line.taxRate * 100).toFixed(0)}%`}</TableCell>}
