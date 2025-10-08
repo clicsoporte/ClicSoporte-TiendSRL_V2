@@ -19,11 +19,12 @@ const parseDecimal = (str: any): number => {
     const hasComma = cleanStr.includes(',');
     const hasPoint = cleanStr.includes('.');
 
-    // Handle formats like "1,234.56" (USA) or just "1234.56"
-    if (hasPoint && !hasComma) {
-        // If it's something like "2.000" where it's meant to be an integer
-        if (cleanStr.length - cleanStr.lastIndexOf('.') - 1 > 2) {
-             return parseFloat(cleanStr.replace(/\./g, '')) || 0;
+    // Handle formats like "1,234.56" (USA) or just "1234.56" when comma is not present
+    if (!hasComma && hasPoint) {
+        // If the number of characters after the last point is 3, it's likely a thousands separator for an integer.
+        // e.g. "2.000" for 2
+        if (cleanStr.length - cleanStr.lastIndexOf('.') - 1 === 3) {
+            return parseFloat(cleanStr.replace(/\./g, '')) || 0;
         }
         return parseFloat(cleanStr) || 0;
     }
@@ -110,15 +111,13 @@ async function parseInvoice(xmlContent: string): Promise<InvoiceParseResult | { 
         if (cantidad === 0) continue;
 
         let supplierCode = 'N/A';
-        const codigosComerciales = Array.isArray(linea.CodigoComercial) ? linea.CodigoComercial : [linea.CodigoComercial].filter(Boolean);
-        
-        if (codigosComerciales && codigosComerciales.length > 0) {
-            // Prioritize type '01' (Manufacturer) or '04' (Supplier Internal)
+        const codigosComercialesNode = linea.CodigoComercial;
+        if (codigosComercialesNode) {
+            const codigosComerciales = Array.isArray(codigosComercialesNode) ? codigosComercialesNode : [codigosComercialesNode];
             const preferredCodeNode = codigosComerciales.find((c: any) => c.Tipo === '01' || c.Tipo === '04');
             if (preferredCodeNode && preferredCodeNode.Codigo) {
                 supplierCode = preferredCodeNode.Codigo;
-            } else if (codigosComerciales[0] && codigosComerciales[0].Codigo) {
-                // Fallback to the first available code
+            } else if (codigosComerciales.length > 0 && codigosComerciales[0].Codigo) {
                 supplierCode = codigosComerciales[0].Codigo;
             }
         }
