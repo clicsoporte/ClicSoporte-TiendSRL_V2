@@ -50,9 +50,9 @@ async function parseInvoice(xmlContent: string): Promise<InvoiceParseResult> {
         let supplierCode = 'N/A';
         const codigosComerciales = linea.CodigoComercial;
         if (codigosComerciales && codigosComerciales.length > 0) {
-            const codigoNode = codigosComerciales[0]?.Codigo;
-            if (codigoNode && codigoNode[0]) {
-                supplierCode = codigoNode[0];
+            const codigoNode = codigosComerciales.find((c: any) => c.Tipo[0] === '01')?.Codigo[0];
+            if (codigoNode) {
+                supplierCode = codigoNode;
             }
         }
         
