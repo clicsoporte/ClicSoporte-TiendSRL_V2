@@ -11,6 +11,7 @@ const config: Config = {
     'bg-blue-500',
     'bg-green-500',
     'bg-orange-500',
+    'bg-orange-600',
     'bg-cyan-700',
     'bg-red-600',
     'bg-indigo-700',
