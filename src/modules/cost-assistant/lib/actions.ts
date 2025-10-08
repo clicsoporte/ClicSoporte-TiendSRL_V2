@@ -12,23 +12,26 @@ const getValue = (obj: any, path: string[], defaultValue: any = '') => {
     return path.reduce((acc, key) => (acc && acc[key]) ? acc[key] : defaultValue, obj);
 };
 
-const parseDecimal = (str: string): number => {
-    if (typeof str !== 'string' || !str) return 0;
+const parseDecimal = (str: any): number => {
+    if (typeof str !== 'string' && typeof str !== 'number') return 0;
+    const cleanStr = String(str).trim();
     
-    const cleanStr = str.trim();
-    const hasComma = cleanStr.includes(',');
-    const hasPoint = cleanStr.includes('.');
-
-    if (hasComma) {
+    // If it contains a comma, it's likely a decimal separator in European format.
+    if (cleanStr.includes(',')) {
         return parseFloat(cleanStr.replace(/\./g, '').replace(',', '.')) || 0;
     }
     
-    if (hasPoint && (cleanStr.split('.').pop()?.length || 0) < 3) {
-        return parseFloat(cleanStr) || 0;
+    // If it contains a point, it could be a decimal or a thousands separator.
+    // A simple heuristic: if there are more than 2 digits after the last point,
+    // it's likely a thousands separator.
+    const lastPointIndex = cleanStr.lastIndexOf('.');
+    if (lastPointIndex !== -1 && cleanStr.length - lastPointIndex - 1 > 2) {
+        return parseFloat(cleanStr.replace(/\./g, '')) || 0;
     }
 
-    return parseFloat(cleanStr.replace(/\./g, '')) || 0;
+    return parseFloat(cleanStr) || 0;
 };
+
 
 interface InvoiceParseResult {
     lines: CostAssistantLine[];
@@ -42,33 +45,35 @@ async function parseInvoice(xmlContent: string): Promise<InvoiceParseResult | { 
         attributeNamePrefix: "@_",
         textNodeName: "#text",
         parseAttributeValue: true,
-        removeNSPrefix: true,
+        removeNSPrefix: true, // This is crucial for handling different namespaces
     });
 
     const json = parser.parse(xmlContent);
 
-    const rootKey = Object.keys(json)[0];
-    if (rootKey === 'html' || rootKey === '?xml') {
-        return { error: 'El archivo es un documento HTML o XML inválido, no una factura.', details: {} };
-    }
+    // Determine the root node dynamically
+    const rootNode = json.FacturaElectronica || json.MensajeHacienda;
 
-    const rootNode = json[rootKey];
-    
-    if (rootKey !== 'FacturaElectronica' && rootKey !== 'MensajeHacienda') {
-        return { error: `No es un archivo de factura válido. Nodo raíz encontrado: ${rootKey}`, details: {} };
+    if (!rootNode) {
+         const detectedRoot = Object.keys(json)[0] || 'N/A';
+         if (detectedRoot === 'html' || detectedRoot === '?xml') {
+            return { error: 'El archivo es un documento HTML o XML inválido, no una factura.', details: {} };
+         }
+        return { error: `No es un archivo de factura válido. Nodo raíz encontrado: ${detectedRoot}`, details: {} };
     }
+    
+    const isResponseMessage = !!json.MensajeHacienda;
     
     const numeroConsecutivo = getValue(rootNode, ['NumeroConsecutivo'], 'N/A');
     const fechaEmision = getValue(rootNode, ['FechaEmision'], new Date().toISOString());
-    const emisorNombre = getValue(rootNode, ['Emisor', 'Nombre']);
+    const emisorNombre = getValue(rootNode, ['Emisor', 'Nombre'], 'Desconocido');
 
     const defaultErrorDetails = {
-        supplierName: emisorNombre || "Desconocido",
+        supplierName: emisorNombre,
         invoiceNumber: numeroConsecutivo,
         invoiceDate: fechaEmision,
     };
     
-    if (rootKey === 'MensajeHacienda') {
+    if (isResponseMessage) {
         return { error: 'XML es una respuesta de Hacienda, no una factura.', details: defaultErrorDetails };
     }
     
