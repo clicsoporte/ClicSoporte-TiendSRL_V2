@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Textarea } from '@/components/ui/textarea';
 
 export default function CostAssistantPage() {
     const {
@@ -33,7 +34,7 @@ export default function CostAssistantPage() {
         { id: 'cabysCode', label: 'Cabys', defaultVisible: true, minWidth: 'min-w-[150px]' },
         { id: 'supplierCode', label: 'Cód. Artículo', defaultVisible: true, minWidth: 'min-w-[150px]' },
         { id: 'description', label: 'Descripción', defaultVisible: true },
-        { id: 'quantity', label: 'Cant.', defaultVisible: true, minWidth: 'min-w-[100px]', className: 'text-right' },
+        { id: 'quantity', label: 'Cant.', defaultVisible: true, minWidth: 'min-w-[120px]', className: 'text-right' },
         { id: 'unitCostWithoutTax', label: 'Costo Unit. (s/IVA)', defaultVisible: true, minWidth: 'min-w-[150px]', className: 'text-right' },
         { id: 'unitCostWithTax', label: 'Costo Unit. (c/IVA)', defaultVisible: false, minWidth: 'min-w-[150px]', className: 'text-right' },
         { id: 'taxRate', label: 'Imp. %', defaultVisible: true, className: 'text-center' },
@@ -149,7 +150,7 @@ export default function CostAssistantPage() {
                                             )}
                                         </CardContent>
                                     </Card>
-                                    <div {...getRootProps()} className={cn("flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg cursor-pointer transition-colors h-full", isDragActive ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50', state.isProcessing && 'cursor-not-allowed opacity-50')}>
+                                    <div {...getRootProps()} className={cn("flex flex-col items-center justify-center p-4 border-2 border-dashed rounded-lg cursor-pointer transition-colors h-full min-h-[140px]", isDragActive ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50', state.isProcessing && 'cursor-not-allowed opacity-50')}>
                                         <input {...getInputProps()} disabled={state.isProcessing}/>
                                         {state.isProcessing ? (
                                             <>
@@ -222,9 +223,9 @@ export default function CostAssistantPage() {
                                             {state.columnVisibility.cabysCode && <TableCell className="md:table-cell px-0 md:px-4 py-1 md:py-4"><Label className="md:hidden text-muted-foreground text-xs">Cabys</Label><Input value={line.cabysCode} onChange={e => actions.updateLine(line.id, { cabysCode: e.target.value })} className="h-auto p-0 border-0 font-mono text-xs"/></TableCell>}
                                             {state.columnVisibility.supplierCode && <TableCell className="md:table-cell px-0 md:px-4 py-1 md:py-4"><Label className="md:hidden text-muted-foreground text-xs">Cód. Artículo</Label><Input value={line.supplierCode} onChange={e => actions.updateLine(line.id, { supplierCode: e.target.value })} className="h-auto p-0 border-0 font-mono text-xs"/></TableCell>}
                                             {state.columnVisibility.description && 
-                                                <TableCell className="md:table-cell px-0 md:px-4 py-1 md:py-4 font-bold md:font-normal text-base md:text-sm">
+                                                <TableCell className="md:table-cell px-0 md:px-4 py-1 md:py-4 font-bold md:font-normal text-base md:text-sm col-span-2 md:col-span-1">
                                                     <Label className="md:hidden text-muted-foreground text-xs">Descripción</Label>
-                                                    <Input value={line.description} onChange={e => actions.updateLine(line.id, { description: e.target.value })} className="h-auto p-0 border-0"/>
+                                                    <Textarea value={line.description} onChange={e => actions.updateLine(line.id, { description: e.target.value })} className="h-auto p-0 border-0 min-h-[40px]"/>
                                                 </TableCell>}
                                             
                                             <div className="grid grid-cols-2 md:contents gap-x-4 gap-y-2 mt-2 md:mt-0">
