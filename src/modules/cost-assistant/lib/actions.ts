@@ -16,19 +16,19 @@ const getValue = (obj: any, path: string[], defaultValue: any = '') => {
     return path.reduce((acc, key) => (acc && acc[key] !== undefined) ? acc[key] : defaultValue, obj);
 };
 
-const parseInteger = (str: any): number => {
-    if (str === null || str === undefined || str === '') return 0;
-    // For quantities, which are integers but might have thousand separators.
-    const cleanStr = String(str).replace(/\./g, '').replace(/,.*$/, ''); // Remove dots and anything after a comma
-    const parsed = parseInt(cleanStr, 10);
-    return isNaN(parsed) ? 0 : parsed;
-};
-
-
 const parseDecimal = (str: any): number => {
     if (str === null || str === undefined || str === '') return 0;
-    // For prices, which use '.' for thousands and ',' for decimals.
-    const cleanStr = String(str).replace(/\./g, '').replace(',', '.');
+    const cleanStr = String(str).trim();
+    
+    // If it includes a comma, it's the decimal separator (e.g., "1.234,56")
+    if (cleanStr.includes(',')) {
+        const normalized = cleanStr.replace(/\./g, '').replace(',', '.');
+        const parsed = parseFloat(normalized);
+        return isNaN(parsed) ? 0 : parsed;
+    }
+    
+    // If it does NOT include a comma, any dots are for thousands.
+    // Handles "1.000" (as 1000) but parseFloat will correctly parse it as 1 if there's no decimal part.
     const parsed = parseFloat(cleanStr);
     return isNaN(parsed) ? 0 : parsed;
 };
@@ -99,7 +99,7 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
 
     const lines: CostAssistantLine[] = [];
     for (const [index, linea] of lineasDetalle.entries()) {
-        const cantidad = parseInteger(getValue(linea, ['Cantidad'], '0'));
+        const cantidad = parseDecimal(getValue(linea, ['Cantidad'], '0'));
         if (cantidad === 0) continue;
         
         let supplierCode = 'N/A';
@@ -229,55 +229,33 @@ export async function deleteDraft(id: string): Promise<void> {
 
 export async function exportForERP(lines: CostAssistantLine[]): Promise<string> {
     const dataForExport = lines.map(line => ({
-        'CODIGOS 01': line.supplierCode,
-        'NOMBRE (Requerido)': line.description,
-        'DESCRIPCION (Opcional)': line.description,
-        'UNIDAD DE MEDIDA (Requerido)': 'Unid',
-        'PRECIO (Sin impuestos) (Requerido)': line.sellPriceWithoutTax,
-        'MONEDA': 'CRC',
+        '01': line.supplierCode,
+        'Nombre': line.description,
+        'Unidad de medida': 'Unid',
+        'Precio (sin impuestos)': line.sellPriceWithoutTax,
+        'Moneda': 'CRC',
         'IMP.01': line.taxRate * 100,
-        'CÓDIGO CABYS': line.cabysCode,
-        'ESTADO': 'A'
+        'Código Cabys': line.cabysCode,
+        'Estado': 'A',
     }));
 
-    const worksheet = XLSX.utils.json_to_sheet(dataForExport, {
-        header: [
-            'CODIGOS 01', 'CODIGOS 02', 'CODIGOS 03', 'CODIGOS 04', 'CODIGOS 99', 
-            'PARTIDA ARANCELARIA (Opcional)', 'NOMBRE (Requerido)', 'DESCRIPCION (Opcional)', 
-            'UNIDAD DE MEDIDA (Requerido)', 'UNIDAD DE MEDIDA COMERCIAL (Opcional)', 
-            'PRECIO (Sin impuestos) (Requerido)', 'MONEDA', 'ACTIVIDAD ECONOMICA', 
-            'BASE IMPONIBLE', 'IMP.01', 'IMP.02', 'IMPUESTO ESPECIFICO', 
-            'CANTIDAD UNIDAD MEDIDA', 'PORCENTAJE', 'VOLUMEN UNIDAD CONSUMO', 
-            'IMPUESTO UNIDAD', 'TIPO DE PRODUCTO', 'IMP.07', 'IMP.08', 'IMP.12', 
-            'IMP.99', 'IMP.99 DESCRIPCIÓN', 'MUESTRA DESCRIPCION PDF (OPCIONAL)', 
-            'CÓDIGO CABYS', 'ESTADO', 'REGISTRO DE MEDICAMENTO', 'FORMA FARMACÉUTICA'
+    const ws_data = [
+        [
+            "CODIGOS (Requerido)", null, null, null, null, "IMPUESTOS (Opcional)", null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null
+        ],
+        [
+            "01", "02", "03", "04", "99", "PARTIDA ARANCELARIA (Opcional)", "NOMBRE (Requerido)", "DESCRIPCION (Opcional)", "UNIDAD DE MEDIDA (Requerido)", "UNIDAD DE MEDIDA COMERCIAL (Opcional)", "PRECIO (Sin impuestos) (Requerido)", "MONEDA", "ACTIVIDAD ECONOMICA", "BASE IMPONIBLE", "IMP.01", "IMP.02", "IMPUESTO ESPECIFICO", "CANTIDAD UNIDAD MEDIDA", "PORCENTAJE", "VOLUMEN UNIDAD CONSUMO", "IMPUESTO UNIDAD", "TIPO DE PRODUCTO", "IMP.07", "IMP.08", "IMP.12", "IMP.99", "IMP.99 DESCRIPCIÓN", "MUESTRA DESCRIPCION PDF (OPCIONAL)", "CÓDIGO CABYS", "ESTADO", "REGISTRO DE MEDICAMENTO", "FORMA FARMACÉUTICA"
         ]
+    ];
+    
+    const worksheet = XLSX.utils.aoa_to_sheet(ws_data);
+
+    XLSX.utils.sheet_add_json(worksheet, dataForExport, {
+        origin: "A3",
+        header: ['01', 'NOMBRE (Requerido)', 'UNIDAD DE MEDIDA (Requerido)', 'PRECIO (Sin impuestos) (Requerido)', 'MONEDA', 'IMP.01', 'CÓDIGO CABYS', 'ESTADO'],
+        skipHeader: true
     });
     
-    // Rename headers to be shorter and cleaner in the final file
-    const newHeaders = {
-        'CODIGOS 01': '01',
-        'NOMBRE (Requerido)': 'Nombre',
-        'DESCRIPCION (Opcional)': 'Descripcion',
-        'UNIDAD DE MEDIDA (Requerido)': 'Unidad de medida',
-        'PRECIO (Sin impuestos) (Requerido)': 'Precio (sin impuestos)',
-        'MONEDA': 'Moneda',
-        'IMP.01': 'IMP.01',
-        'CÓDIGO CABYS': 'Código Cabys',
-        'ESTADO': 'Estado',
-    };
-    
-    const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
-    for(let C = range.s.c; C <= range.e.c; ++C) {
-        const address = XLSX.utils.encode_col(C) + '1'; // "A1", "B1", etc.
-        if(!worksheet[address]) continue;
-        const currentHeader = worksheet[address].v;
-        if (newHeaders[currentHeader as keyof typeof newHeaders]) {
-            worksheet[address].v = newHeaders[currentHeader as keyof typeof newHeaders];
-        }
-    }
-
-
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Articulos');
     
