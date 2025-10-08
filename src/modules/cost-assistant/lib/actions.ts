@@ -17,19 +17,37 @@ const parseDecimal = (str: any): number => {
     if (str === null || str === undefined || str === '') return 0;
     let cleanStr = String(str).trim();
 
+    // Strategy: Differentiate between European style (1.234,56) and American (1,234.56)
     const hasComma = cleanStr.includes(',');
+    const hasDot = cleanStr.includes('.');
 
-    // If it has a comma, it's likely European format (1.234,56)
-    if (hasComma) {
-        cleanStr = cleanStr.replace(/\./g, '').replace(',', '.');
+    if (hasComma && hasDot) {
+        // If comma is after dot, it's likely European style
+        if (cleanStr.lastIndexOf(',') > cleanStr.lastIndexOf('.')) {
+            cleanStr = cleanStr.replace(/\./g, '').replace(',', '.');
+        } else {
+             // It's American style, just remove commas
+            cleanStr = cleanStr.replace(/,/g, '');
+        }
+    } else if (hasComma) {
+        // Only has a comma, so it must be the decimal separator
+        cleanStr = cleanStr.replace(',', '.');
+    } else if (hasDot) {
+        // Only has dots. This is ambiguous. Heuristic: if a dot is followed by 3 digits and it's not the only dot, it's a thousands separator.
+        const parts = cleanStr.split('.');
+        if (parts.length > 2) { // More than one dot, e.g., 1.000.000
+             cleanStr = parts.join('');
+        } else if (parts.length === 2 && parts[1].length === 3) {
+            // It could be 1.000 (one thousand) or 1.000 (one).
+            // Given the context of invoices, we assume it means an integer if it's .000
+            // This handles "1.000" as "1" and not "1000".
+             const asFloat = parseFloat(cleanStr);
+             // If it parses to a round number and looks like a thousands separator case
+             if (asFloat === Math.floor(asFloat) && cleanStr.endsWith('.000')) {
+                 return Math.floor(asFloat);
+             }
+        }
     }
-    // If no comma, the dot is the decimal separator (1234.56 or 1.000 for quantity 1)
-    // We need to handle the case where '.' is a thousands separator.
-    // A simple heuristic: if a dot is followed by exactly 3 digits at the end of the string (or before another dot), it's a thousands separator.
-    else if (cleanStr.includes('.') && cleanStr.match(/\.\d{3}$/) && cleanStr.length > 4 && !cleanStr.match(/\.\d{1,2}$/)) {
-         cleanStr = cleanStr.replace(/\./g, '');
-    }
-
 
     const parsed = parseFloat(cleanStr);
     return isNaN(parsed) ? 0 : parsed;
@@ -40,7 +58,7 @@ interface InvoiceParseResult {
     invoiceInfo: Omit<ProcessedInvoiceInfo, 'status' | 'errorMessage'>;
 }
 
-async function parseInvoice(xmlContent: string): Promise<InvoiceParseResult | { error: string, details: Partial<ProcessedInvoiceInfo> }> {
+async function parseInvoice(xmlContent: string, fileIndex: number): Promise<InvoiceParseResult | { error: string, details: Partial<ProcessedInvoiceInfo> }> {
     
     const parser = new XMLParser({
         ignoreAttributes: true,
@@ -59,8 +77,11 @@ async function parseInvoice(xmlContent: string): Promise<InvoiceParseResult | { 
         return { error: 'XML malformado o ilegible.', details: {} };
     }
     
-    if (json.MensajeHacienda) {
-        return { 
+    const rootNode = json.FacturaElectronica;
+    const isHaciendaMessage = !!json.MensajeHacienda;
+
+    if (isHaciendaMessage) {
+         return { 
             error: 'XML es una respuesta de Hacienda, no una factura.', 
             details: {
                 supplierName: getValue(json, ['MensajeHacienda', 'NombreEmisor'], 'Respuesta Hacienda'),
@@ -69,8 +90,6 @@ async function parseInvoice(xmlContent: string): Promise<InvoiceParseResult | { 
             } 
         };
     }
-    
-    const rootNode = json.FacturaElectronica;
     
     if (!rootNode) {
         const detectedRoot = Object.keys(json)[0] || 'N/A';
@@ -81,7 +100,7 @@ async function parseInvoice(xmlContent: string): Promise<InvoiceParseResult | { 
         return { error: `No es un archivo de factura válido. Nodo raíz no encontrado: ${detectedRoot}`, details: {} };
     }
     
-    const clave = getValue(rootNode, ['Clave'], 'N/A');
+    const clave = getValue(rootNode, ['Clave'], `unknown-key-${fileIndex}`);
     const numeroConsecutivo = getValue(rootNode, ['NumeroConsecutivo'], clave.substring(21, 41));
     const fechaEmision = getValue(rootNode, ['FechaEmision'], new Date().toISOString());
     const emisorNombre = getValue(rootNode, ['Emisor', 'Nombre'], 'Desconocido');
@@ -97,7 +116,9 @@ async function parseInvoice(xmlContent: string): Promise<InvoiceParseResult | { 
         return { lines: [], invoiceInfo };
     }
 
-    const lineasDetalle = Array.isArray(detalleServicio.LineaDetalle) ? detalleServicio.LineaDetalle : [detalleServicio.LineaDetalle];
+    const lineasDetalleRaw = detalleServicio.LineaDetalle;
+    const lineasDetalle = Array.isArray(lineasDetalleRaw) ? lineasDetalleRaw : (lineasDetalleRaw ? [lineasDetalleRaw] : []);
+
 
     const moneda = getValue(rootNode, ['ResumenFactura', 'CodigoTipoMoneda', 'CodigoMoneda'], 'CRC');
     const tipoCambioStr = getValue(rootNode, ['ResumenFactura', 'CodigoTipoMoneda', 'TipoCambio'], '1');
@@ -176,9 +197,9 @@ export async function processInvoiceXmls(xmlContents: string[]): Promise<{ lines
     let allLines: CostAssistantLine[] = [];
     const processedInvoices: ProcessedInvoiceInfo[] = [];
 
-    for (const xmlContent of xmlContents) {
+    for (const [index, xmlContent] of xmlContents.entries()) {
         try {
-            const result = await parseInvoice(xmlContent);
+            const result = await parseInvoice(xmlContent, index);
             if (result && 'lines' in result) {
                 allLines = [...allLines, ...result.lines];
                 processedInvoices.push({
