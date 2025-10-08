@@ -8,22 +8,25 @@ import { useToast } from '@/modules/core/hooks/use-toast';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import type { CostAssistantLine, ProcessedInvoiceInfo, CostAnalysisDraft } from '@/modules/core/types';
-import { processInvoiceXmls, getCostAssistantSettings, saveCostAssistantSettings, getAllDrafts, saveDraft, deleteDraft, exportForERP } from '../lib/actions';
+import { processInvoiceXmls, getCostAssistantSettings, saveCostAssistantSettings, getAllDrafts, saveDraft, deleteDraft, exportForERP, cleanupExportFile } from '../lib/actions';
 import { logError } from '@/modules/core/lib/logger';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 
 const normalizeNumber = (str: any): number => {
     if (str === null || str === undefined || str === '') return 0;
-    const cleanStr = String(str).trim();
+    let cleanStr = String(str).trim();
 
-    // If a comma exists, assume it's the decimal separator
+    // If a comma exists, it's the decimal separator
     if (cleanStr.includes(',')) {
-        const standardStr = cleanStr.replace(/\./g, '').replace(',', '.');
-        const parsed = parseFloat(standardStr);
-        return isNaN(parsed) ? 0 : parsed;
+        cleanStr = cleanStr.replace(/\./g, '').replace(',', '.');
+    } else {
+        // If no comma, but a dot exists with 3 digits after, it's a thousands separator
+        const dotIndex = cleanStr.lastIndexOf('.');
+        if (dotIndex !== -1 && cleanStr.substring(dotIndex + 1).length === 3) {
+           cleanStr = cleanStr.replace(/\./g, '');
+        }
     }
-
-    // If no comma, parse as is (dot is decimal separator)
+    
     const parsed = parseFloat(cleanStr);
     return isNaN(parsed) ? 0 : parsed;
 };
@@ -43,6 +46,8 @@ const initialColumnVisibility = {
     profitPerLine: true,
 };
 
+type ExportStatus = 'idle' | 'generating' | 'ready';
+
 const initialState = {
     isProcessing: false,
     lines: [] as CostAssistantLine[],
@@ -50,7 +55,9 @@ const initialState = {
     drafts: [] as CostAnalysisDraft[],
     transportCost: 0,
     otherCosts: 0,
-    columnVisibility: initialColumnVisibility
+    columnVisibility: initialColumnVisibility,
+    exportStatus: 'idle' as ExportStatus,
+    exportFileName: null as string | null,
 };
 
 export const useCostAssistant = () => {
@@ -98,9 +105,8 @@ export const useCostAssistant = () => {
             
             const { lines: processedLines, processedInvoices } = await processInvoiceXmls(fileContents);
 
-            const newLines = processedLines.map((line, index) => ({
+            const newLines = processedLines.map((line) => ({
                 ...line,
-                id: `${line.invoiceKey}-${line.lineNumber}-${line.supplierCode}-${index}`,
                 displayMargin: "20",
                 margin: 0.20,
                 finalSellPrice: 0, // Will be calculated by useMemo
@@ -166,7 +172,11 @@ export const useCostAssistant = () => {
     };
 
     const handleClear = () => {
-        setState(prevState => ({...initialState, columnVisibility: prevState.columnVisibility}));
+        setState(prevState => ({
+            ...initialState, 
+            columnVisibility: prevState.columnVisibility,
+            drafts: prevState.drafts, // Keep drafts loaded
+        }));
         toast({ title: "Operación Limpiada", description: "Se han borrado todos los datos para iniciar un nuevo análisis." });
     };
 
@@ -175,20 +185,29 @@ export const useCostAssistant = () => {
             toast({ title: 'No hay datos', description: 'No hay artículos para exportar.', variant: 'destructive' });
             return;
         }
+        setState(prevState => ({ ...prevState, exportStatus: 'generating' }));
         try {
-            const blob = await exportForERP(state.lines);
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `articulos_para_erp_${new Date().toISOString().split('T')[0]}.xlsx`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            a.remove();
-            toast({ title: 'Exportación Exitosa', description: 'Se ha generado el archivo de Excel para el ERP.' });
+            const fileName = await exportForERP(state.lines);
+            setState(prevState => ({ ...prevState, exportStatus: 'ready', exportFileName: fileName }));
+            toast({ title: 'Exportación Lista', description: 'Tu archivo está listo para ser descargado.' });
         } catch (error: any) {
             logError("Failed to export for ERP", { error: error.message });
+            setState(prevState => ({ ...prevState, exportStatus: 'idle' }));
             toast({ title: "Error de Exportación", description: error.message, variant: "destructive" });
+        }
+    };
+
+     const handleFinalizeExport = async () => {
+        if (!state.exportFileName) return;
+        try {
+            await cleanupExportFile(state.exportFileName);
+            setState(prevState => ({ ...prevState, exportStatus: 'idle', exportFileName: null }));
+            toast({ title: 'Exportación Finalizada', description: 'El archivo temporal ha sido eliminado del servidor.' });
+        } catch (error: any) {
+            logError("Failed to cleanup export file", { error: error.message });
+            // Even if cleanup fails, reset UI state
+            setState(prevState => ({ ...prevState, exportStatus: 'idle', exportFileName: null }));
+            toast({ title: "Error de Limpieza", description: `No se pudo eliminar el archivo del servidor. ${error.message}`, variant: "destructive" });
         }
     };
     
@@ -303,6 +322,7 @@ export const useCostAssistant = () => {
         saveDraft: saveDraftAction,
         loadDraft,
         deleteDraft: deleteDraftAction,
+        handleFinalizeExport,
     };
 
     return {
