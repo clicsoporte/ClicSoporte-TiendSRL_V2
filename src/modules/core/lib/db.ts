@@ -17,6 +17,7 @@ import { executeQuery } from './sql-service';
 import { initializePlannerDb, runPlannerMigrations } from '../../planner/lib/db';
 import { initializeRequestsDb, runRequestMigrations } from '../../requests/lib/db';
 import { initializeWarehouseDb, runWarehouseMigrations } from '../../warehouse/lib/db';
+import { initializeCostAssistantDb, runCostAssistantMigrations } from '../../cost-assistant/lib/db';
 import { getExchangeRate as fetchExchangeRateFromApi } from '../lib/api-actions';
 import { getSqlConfig } from './config-db';
 import { logError, logInfo, logWarn } from './logger';
@@ -38,6 +39,7 @@ const DB_MODULES: DatabaseModule[] = [
     { id: 'purchase-requests', name: 'Solicitud de Compra', dbFile: 'requests.db', initFn: initializeRequestsDb, migrationFn: runRequestMigrations },
     { id: 'production-planner', name: 'Planificador de Producción', dbFile: 'planner.db', initFn: initializePlannerDb, migrationFn: runPlannerMigrations },
     { id: 'warehouse-management', name: 'Gestión de Almacenes', dbFile: 'warehouse.db', initFn: initializeWarehouseDb, migrationFn: runWarehouseMigrations },
+    { id: 'cost-assistant', name: 'Asistente de Costos', dbFile: 'cost-assistant.db', initFn: initializeCostAssistantDb, migrationFn: runCostAssistantMigrations },
 ];
 
 // This path is configured to work correctly within the Next.js build output directory,
@@ -94,7 +96,7 @@ export async function connectDb(dbFile: string = DB_FILE): Promise<Database.Data
             db.pragma('journal_mode = WAL');
 
             const moduleConfig = DB_MODULES.find(m => m.dbFile === dbFile);
-            const mainTable = moduleConfig?.id === 'clic-tools-main' ? 'users' : moduleConfig?.id === 'purchase-requests' ? 'purchase_requests' : moduleConfig?.id === 'production-planner' ? 'production_orders' : moduleConfig?.id === 'warehouse-management' ? 'locations' : null;
+            const mainTable = moduleConfig?.id === 'clic-tools-main' ? 'users' : moduleConfig?.id === 'purchase-requests' ? 'purchase_requests' : moduleConfig?.id === 'production-planner' ? 'production_orders' : moduleConfig?.id === 'warehouse-management' ? 'locations' : moduleConfig?.id === 'cost-assistant' ? 'cost_analysis_drafts' : null;
             
             if (mainTable) {
                 const tableCheck = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name=?`).get(mainTable);
@@ -1661,3 +1663,5 @@ export async function getUnreadSuggestionsCount(): Promise<number> {
     const result = db.prepare('SELECT COUNT(*) as count FROM suggestions WHERE isRead = 0').get() as { count: number };
     return result.count;
 }
+
+    

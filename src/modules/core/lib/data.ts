@@ -30,6 +30,7 @@ import {
   BookMarked,
   MessageSquare,
   DollarSign,
+  FileScan,
 } from "lucide-react";
 
 /**
@@ -88,6 +89,15 @@ export const mainTools: Tool[] = [
     href: "/dashboard/quoter",
     icon: Sheet,
     bgColor: "bg-green-500",
+    textColor: "text-white",
+  },
+    {
+    id: "cost-assistant",
+    name: "Asistente de Costos",
+    description: "Procesar facturas de compra XML para calcular precios.",
+    href: "/dashboard/cost-assistant",
+    icon: FileScan,
+    bgColor: "bg-orange-600",
     textColor: "text-white",
   },
   {
@@ -385,3 +395,6 @@ export const allTools: Tool[] = [...mainTools, ...adminTools];
       
 
 
+
+
+    
