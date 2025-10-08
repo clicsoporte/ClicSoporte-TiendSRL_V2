@@ -3,7 +3,7 @@
  */
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
@@ -31,9 +31,9 @@ export const useCostAssistant = () => {
         otherCosts: 0,
     });
 
-    useState(() => {
+    useEffect(() => {
         setTitle("Asistente de Costos");
-    });
+    }, [setTitle]);
 
     const updateLine = (id: string, updatedFields: Partial<CostAssistantLine>) => {
         setState(prevState => ({
@@ -69,6 +69,7 @@ export const useCostAssistant = () => {
                 displayMargin: "20",
                 margin: 0.20,
                 finalSellPrice: 0, // Will be calculated by useMemo
+                profitPerLine: 0, // Will be calculated by useMemo
             }));
             
             setState(prevState => ({ ...prevState, lines: [...prevState.lines, ...newLines] }));
@@ -111,16 +112,21 @@ export const useCostAssistant = () => {
 
         const linesWithCosts = state.lines.map(line => {
             const proportionalAdditionalCost = totalItems > 0 ? (totalAdditionalCosts / totalItems) * line.quantity : 0;
-            const finalUnitCost = line.unitCostWithTax + (proportionalAdditionalCost / line.quantity);
+            const finalUnitCost = line.unitCostWithoutTax + (proportionalAdditionalCost / line.quantity);
             const sellPriceWithoutTax = finalUnitCost * (1 + line.margin);
             const finalSellPrice = sellPriceWithoutTax * (1 + line.taxRate);
+            const profitPerLine = (sellPriceWithoutTax - finalUnitCost) * line.quantity;
 
-            return { ...line, finalSellPrice };
+            return { ...line, finalSellPrice, sellPriceWithoutTax, profitPerLine };
         });
 
-        // Update state in a stable way
+        // Update state in a stable way if needed, avoiding infinite loops
         Promise.resolve().then(() => {
-            if (JSON.stringify(state.lines) !== JSON.stringify(linesWithCosts)) {
+            const needsUpdate = state.lines.some((line, index) => 
+                line.finalSellPrice !== linesWithCosts[index].finalSellPrice || 
+                line.profitPerLine !== linesWithCosts[index].profitPerLine
+            );
+            if (needsUpdate) {
                  setState(prevState => ({...prevState, lines: linesWithCosts}));
             }
         });

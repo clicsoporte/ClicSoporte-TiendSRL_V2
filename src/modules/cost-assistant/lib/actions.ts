@@ -11,15 +11,6 @@ const getValue = (obj: any, path: string[], defaultValue: any = '') => {
     return path.reduce((acc, key) => (acc && acc[key] && acc[key][0]) ? acc[key][0] : defaultValue, obj);
 };
 
-// Helper to get a value from a node that could be a simple string or an object with '_'
-const getNodeValue = (node: any, defaultValue: any = '') => {
-    if (!node) return defaultValue;
-    if (typeof node === 'string') return node;
-    if (node._) return node._;
-    return defaultValue;
-}
-
-
 async function parseInvoice(xmlContent: string): Promise<CostAssistantLine[]> {
     const json = await parseStringPromise(xmlContent, {
         explicitArray: true,
@@ -30,10 +21,6 @@ async function parseInvoice(xmlContent: string): Promise<CostAssistantLine[]> {
 
     const rootNode = Object.values(json)[0] as any; // FacturaElectronica or other root
     
-    // Determine Namespace from root
-    const namespace = rootNode.$?.xmlns;
-    const isV43 = namespace?.includes('v4.3');
-
     const clave = getValue(rootNode, ['Clave'], 'N/A');
     const emisorNombre = getValue(rootNode, ['Emisor', 'Nombre']);
     const moneda = getValue(rootNode, ['ResumenFactura', 'CodigoTipoMoneda', 'CodigoMoneda'], 'CRC');
@@ -60,12 +47,16 @@ async function parseInvoice(xmlContent: string): Promise<CostAssistantLine[]> {
         }
         
         const montoTotalLinea = parseFloat(getValue(linea, ['MontoTotalLinea'], '0'));
+        const subTotal = parseFloat(getValue(linea, ['SubTotal'], '0'));
+        
         const unitCostWithTax = montoTotalLinea / cantidad;
+        const unitCostWithoutTax = subTotal / cantidad;
 
         const impuestoNode = getValue(linea, ['Impuesto']);
         const taxRate = impuestoNode ? parseFloat(getValue(impuestoNode, ['Tarifa'], '0')) / 100 : 0.13;
         
-        const unitCostInColones = moneda === 'USD' ? unitCostWithTax * tipoCambio : unitCostWithTax;
+        const unitCostWithTaxInColones = moneda === 'USD' ? unitCostWithTax * tipoCambio : unitCostWithTax;
+        const unitCostWithoutTaxInColones = moneda === 'USD' ? unitCostWithoutTax * tipoCambio : unitCostWithoutTax;
         
         lines.push({
             id: '', // Will be generated in the hook
@@ -75,11 +66,14 @@ async function parseInvoice(xmlContent: string): Promise<CostAssistantLine[]> {
             supplierCode: supplierCode,
             description: getValue(linea, ['Detalle']),
             quantity: cantidad,
-            unitCostWithTax: unitCostInColones,
+            unitCostWithTax: unitCostWithTaxInColones,
+            unitCostWithoutTax: unitCostWithoutTaxInColones,
             taxRate: taxRate,
             displayMargin: "20",
             margin: 0.20,
             finalSellPrice: 0, // Calculated in the frontend
+            profitPerLine: 0, // Calculated in the frontend
+            sellPriceWithoutTax: 0, // Calculated in the frontend
             supplierName: emisorNombre,
         });
     }

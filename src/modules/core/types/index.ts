@@ -597,3 +597,23 @@ export type Suggestion = {
   isRead: 0 | 1;
   timestamp: string;
 };
+
+// --- Cost Assistant Types ---
+export type CostAssistantLine = {
+    id: string; // Composite key: invoiceKey-lineNumber
+    invoiceKey: string;
+    lineNumber: number;
+    supplierName: string;
+    cabysCode: string;
+    supplierCode: string;
+    description: string;
+    quantity: number;
+    unitCostWithTax: number;
+    unitCostWithoutTax: number;
+    taxRate: number;
+    displayMargin: string;
+    margin: number;
+    finalSellPrice: number;
+    sellPriceWithoutTax: number;
+    profitPerLine: number;
+};

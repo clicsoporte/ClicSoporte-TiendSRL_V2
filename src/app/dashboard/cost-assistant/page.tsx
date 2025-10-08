@@ -28,10 +28,10 @@ export default function CostAssistantPage() {
 
     return (
         <main className="flex-1 p-4 md:p-6 lg:p-8 space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Side Panels: Costs, Summary and Upload */}
-                <div className="lg:col-span-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-6">
-                     <Card>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+                {/* Control Panels */}
+                <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <Card>
                         <CardHeader>
                             <CardTitle>Costos Adicionales</CardTitle>
                         </CardHeader>
@@ -85,41 +85,30 @@ export default function CostAssistantPage() {
                             </div>
                         </CardContent>
                     </Card>
-                </div>
-                 {/* Main Content: Upload and Table */}
-                 <div className="lg:col-span-2 space-y-6">
                      <Card>
                         <CardHeader>
-                             <div className="flex items-center gap-4">
-                                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-orange-600 text-white">
-                                    <FileScan className="h-6 w-6" />
-                                </div>
-                                <div>
-                                    <CardTitle className="text-2xl">Asistente de Costos y Precios</CardTitle>
-                                    <CardDescription>Carga facturas de compra en formato XML para extraer artículos y calcular precios de venta.</CardDescription>
-                                </div>
-                            </div>
+                            <CardTitle className="flex items-center gap-2"><FileScan className="h-5 w-5"/>Cargar Facturas</CardTitle>
                         </CardHeader>
                         <CardContent>
-                             <div {...getRootProps()} className={cn("flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg cursor-pointer transition-colors", isDragActive ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50', state.isProcessing && 'cursor-not-allowed opacity-50')}>
+                             <div {...getRootProps()} className={cn("flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg cursor-pointer transition-colors h-full", isDragActive ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50', state.isProcessing && 'cursor-not-allowed opacity-50')}>
                                 <input {...getInputProps()} disabled={state.isProcessing}/>
                                 {state.isProcessing ? (
                                     <>
                                         <Loader2 className="h-8 w-8 text-primary animate-spin" />
-                                        <p className="mt-2 text-center text-primary text-sm">Procesando facturas...</p>
+                                        <p className="mt-2 text-center text-primary text-sm">Procesando...</p>
                                     </>
                                 ) : (
                                     <>
                                         <UploadCloud className="w-8 h-8 text-muted-foreground" />
                                         <p className="mt-2 text-center text-muted-foreground text-sm">
-                                            {isDragActive ? "Suelta los archivos XML aquí..." : "Arrastra los archivos XML aquí o haz clic para seleccionar"}
+                                            {isDragActive ? "Suelta los XML aquí..." : "Arrastra o haz clic para seleccionar"}
                                         </p>
                                     </>
                                 )}
                             </div>
                         </CardContent>
                     </Card>
-                 </div>
+                </div>
             </div>
             
             <Card>
@@ -135,19 +124,25 @@ export default function CostAssistantPage() {
                                     <TableHead className="min-w-[150px]">Cód. Artículo</TableHead>
                                     <TableHead>Descripción</TableHead>
                                     <TableHead className="text-right">Cant.</TableHead>
+                                    <TableHead className="text-right min-w-[150px]">Costo Unit. (s/IVA)</TableHead>
                                     <TableHead className="text-right min-w-[150px]">Costo Unit. (c/IVA)</TableHead>
+                                    <TableHead className="text-center">Imp. %</TableHead>
                                     <TableHead className="w-[100px] text-right">Margen</TableHead>
+                                    <TableHead className="text-right min-w-[150px]">P.V.P (s/IVA)</TableHead>
                                     <TableHead className="text-right min-w-[150px]">P.V.P Sugerido</TableHead>
+                                    <TableHead className="text-right min-w-[150px]">Ganancia Bruta</TableHead>
                                     <TableHead className="w-[50px]"></TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {state.lines.length > 0 ? state.lines.map((line, index) => (
+                                {state.lines.length > 0 ? state.lines.map((line) => (
                                     <TableRow key={line.id}>
                                         <TableCell className="font-mono text-xs">{line.supplierCode}</TableCell>
                                         <TableCell>{line.description}</TableCell>
                                         <TableCell className="text-right font-medium">{line.quantity}</TableCell>
+                                        <TableCell className="text-right font-mono">{actions.formatCurrency(line.unitCostWithoutTax)}</TableCell>
                                         <TableCell className="text-right font-mono">{actions.formatCurrency(line.unitCostWithTax)}</TableCell>
+                                        <TableCell className="text-center font-mono text-xs">{`${(line.taxRate * 100).toFixed(0)}%`}</TableCell>
                                         <TableCell>
                                             <div className="relative">
                                                 <Input 
@@ -160,7 +155,9 @@ export default function CostAssistantPage() {
                                                  <Percent className="absolute right-1.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"/>
                                             </div>
                                         </TableCell>
-                                        <TableCell className="text-right font-bold text-lg text-primary">{actions.formatCurrency(line.finalSellPrice)}</TableCell>
+                                        <TableCell className="text-right font-mono">{actions.formatCurrency(line.sellPriceWithoutTax || 0)}</TableCell>
+                                        <TableCell className="text-right font-bold text-base text-primary">{actions.formatCurrency(line.finalSellPrice)}</TableCell>
+                                        <TableCell className="text-right font-bold text-base text-blue-600">{actions.formatCurrency(line.profitPerLine || 0)}</TableCell>
                                         <TableCell>
                                             <Button variant="ghost" size="icon" onClick={() => actions.removeLine(line.id)}>
                                                 <Trash2 className="h-4 w-4 text-destructive" />
@@ -169,7 +166,7 @@ export default function CostAssistantPage() {
                                     </TableRow>
                                 )) : (
                                     <TableRow>
-                                        <TableCell colSpan={7} className="h-24 text-center">
+                                        <TableCell colSpan={11} className="h-24 text-center">
                                             Carga un archivo XML para ver los artículos.
                                         </TableCell>
                                     </TableRow>
