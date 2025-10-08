@@ -27,104 +27,11 @@ export default function CostAssistantPage() {
     });
 
     return (
-        <main className="flex-1 p-4 md:p-6 lg:p-8">
-            <div className="grid gap-8 lg:grid-cols-3">
-                {/* Main Content: Table and Upload */}
-                <div className="lg:col-span-2 space-y-6">
+        <main className="flex-1 p-4 md:p-6 lg:p-8 space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Side Panels: Costs, Summary and Upload */}
+                <div className="lg:col-span-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-6">
                      <Card>
-                        <CardHeader>
-                            <div className="flex items-center gap-4">
-                                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-orange-600 text-white">
-                                    <FileScan className="h-6 w-6" />
-                                </div>
-                                <div>
-                                    <CardTitle className="text-2xl">Asistente de Costos y Precios</CardTitle>
-                                    <CardDescription>Carga facturas de compra en formato XML para extraer artículos y calcular precios de venta.</CardDescription>
-                                </div>
-                            </div>
-                        </CardHeader>
-                        <CardContent>
-                             <div {...getRootProps()} className={cn("flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-lg cursor-pointer transition-colors", isDragActive ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50', state.isProcessing && 'cursor-not-allowed opacity-50')}>
-                                <input {...getInputProps()} disabled={state.isProcessing}/>
-                                {state.isProcessing ? (
-                                    <>
-                                        <Loader2 className="h-12 w-12 text-primary animate-spin" />
-                                        <p className="mt-4 text-center text-primary">Procesando facturas...</p>
-                                    </>
-                                ) : (
-                                    <>
-                                        <UploadCloud className="w-12 h-12 text-muted-foreground" />
-                                        <p className="mt-4 text-center text-muted-foreground">
-                                            {isDragActive ? "Suelta los archivos XML aquí..." : "Arrastra los archivos XML aquí o haz clic para seleccionar"}
-                                        </p>
-                                    </>
-                                )}
-                            </div>
-                        </CardContent>
-                    </Card>
-                    
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Artículos Extraídos</CardTitle>
-                            <CardDescription>Ajusta los márgenes de ganancia para calcular el precio de venta final.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="rounded-lg border overflow-x-auto">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead className="min-w-[150px]">Cód. Artículo</TableHead>
-                                            <TableHead>Descripción</TableHead>
-                                            <TableHead className="text-right">Cant.</TableHead>
-                                            <TableHead className="text-right min-w-[150px]">Costo Unit. (c/IVA)</TableHead>
-                                            <TableHead className="w-[100px] text-right">Margen</TableHead>
-                                            <TableHead className="text-right min-w-[150px]">P.V.P Sugerido</TableHead>
-                                            <TableHead className="w-[50px]"></TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {state.lines.length > 0 ? state.lines.map((line, index) => (
-                                            <TableRow key={line.id}>
-                                                <TableCell className="font-mono text-xs">{line.supplierCode}</TableCell>
-                                                <TableCell>{line.description}</TableCell>
-                                                <TableCell className="text-right font-medium">{line.quantity}</TableCell>
-                                                <TableCell className="text-right font-mono">{actions.formatCurrency(line.unitCostWithTax)}</TableCell>
-                                                <TableCell>
-                                                    <div className="relative">
-                                                        <Input 
-                                                            type="text" 
-                                                            value={line.displayMargin}
-                                                            onChange={(e) => actions.updateLine(line.id, { displayMargin: e.target.value })}
-                                                            onBlur={(e) => actions.handleMarginBlur(line.id, e.target.value)}
-                                                            className="text-right pr-6" 
-                                                        />
-                                                         <Percent className="absolute right-1.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"/>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="text-right font-bold text-lg text-primary">{actions.formatCurrency(line.finalSellPrice)}</TableCell>
-                                                <TableCell>
-                                                    <Button variant="ghost" size="icon" onClick={() => actions.removeLine(line.id)}>
-                                                        <Trash2 className="h-4 w-4 text-destructive" />
-                                                    </Button>
-                                                </TableCell>
-                                            </TableRow>
-                                        )) : (
-                                            <TableRow>
-                                                <TableCell colSpan={7} className="h-24 text-center">
-                                                    Carga un archivo XML para ver los artículos.
-                                                </TableCell>
-                                            </TableRow>
-                                        )}
-                                    </TableBody>
-                                </Table>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
-
-                {/* Side Panel: Costs and Totals */}
-                <div className="lg:col-span-1 space-y-6">
-                    <Card>
                         <CardHeader>
                             <CardTitle>Costos Adicionales</CardTitle>
                         </CardHeader>
@@ -151,7 +58,6 @@ export default function CostAssistantPage() {
                             </div>
                         </CardContent>
                     </Card>
-
                     <Card>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2"><Calculator className="h-5 w-5"/>Resumen General</CardTitle>
@@ -180,7 +86,99 @@ export default function CostAssistantPage() {
                         </CardContent>
                     </Card>
                 </div>
+                 {/* Main Content: Upload and Table */}
+                 <div className="lg:col-span-2 space-y-6">
+                     <Card>
+                        <CardHeader>
+                             <div className="flex items-center gap-4">
+                                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-orange-600 text-white">
+                                    <FileScan className="h-6 w-6" />
+                                </div>
+                                <div>
+                                    <CardTitle className="text-2xl">Asistente de Costos y Precios</CardTitle>
+                                    <CardDescription>Carga facturas de compra en formato XML para extraer artículos y calcular precios de venta.</CardDescription>
+                                </div>
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                             <div {...getRootProps()} className={cn("flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg cursor-pointer transition-colors", isDragActive ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50', state.isProcessing && 'cursor-not-allowed opacity-50')}>
+                                <input {...getInputProps()} disabled={state.isProcessing}/>
+                                {state.isProcessing ? (
+                                    <>
+                                        <Loader2 className="h-8 w-8 text-primary animate-spin" />
+                                        <p className="mt-2 text-center text-primary text-sm">Procesando facturas...</p>
+                                    </>
+                                ) : (
+                                    <>
+                                        <UploadCloud className="w-8 h-8 text-muted-foreground" />
+                                        <p className="mt-2 text-center text-muted-foreground text-sm">
+                                            {isDragActive ? "Suelta los archivos XML aquí..." : "Arrastra los archivos XML aquí o haz clic para seleccionar"}
+                                        </p>
+                                    </>
+                                )}
+                            </div>
+                        </CardContent>
+                    </Card>
+                 </div>
             </div>
+            
+            <Card>
+                <CardHeader>
+                    <CardTitle>Artículos Extraídos</CardTitle>
+                    <CardDescription>Ajusta los márgenes de ganancia para calcular el precio de venta final.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="rounded-lg border overflow-x-auto">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead className="min-w-[150px]">Cód. Artículo</TableHead>
+                                    <TableHead>Descripción</TableHead>
+                                    <TableHead className="text-right">Cant.</TableHead>
+                                    <TableHead className="text-right min-w-[150px]">Costo Unit. (c/IVA)</TableHead>
+                                    <TableHead className="w-[100px] text-right">Margen</TableHead>
+                                    <TableHead className="text-right min-w-[150px]">P.V.P Sugerido</TableHead>
+                                    <TableHead className="w-[50px]"></TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {state.lines.length > 0 ? state.lines.map((line, index) => (
+                                    <TableRow key={line.id}>
+                                        <TableCell className="font-mono text-xs">{line.supplierCode}</TableCell>
+                                        <TableCell>{line.description}</TableCell>
+                                        <TableCell className="text-right font-medium">{line.quantity}</TableCell>
+                                        <TableCell className="text-right font-mono">{actions.formatCurrency(line.unitCostWithTax)}</TableCell>
+                                        <TableCell>
+                                            <div className="relative">
+                                                <Input 
+                                                    type="text" 
+                                                    value={line.displayMargin}
+                                                    onChange={(e) => actions.updateLine(line.id, { displayMargin: e.target.value })}
+                                                    onBlur={(e) => actions.handleMarginBlur(line.id, e.target.value)}
+                                                    className="text-right pr-6" 
+                                                />
+                                                 <Percent className="absolute right-1.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"/>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="text-right font-bold text-lg text-primary">{actions.formatCurrency(line.finalSellPrice)}</TableCell>
+                                        <TableCell>
+                                            <Button variant="ghost" size="icon" onClick={() => actions.removeLine(line.id)}>
+                                                <Trash2 className="h-4 w-4 text-destructive" />
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
+                                )) : (
+                                    <TableRow>
+                                        <TableCell colSpan={7} className="h-24 text-center">
+                                            Carga un archivo XML para ver los artículos.
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
+                </CardContent>
+            </Card>
         </main>
     );
 }
