@@ -14,26 +14,26 @@ const getValue = (obj: any, path: string[], defaultValue: any = '') => {
 };
 
 const parseDecimal = (str: string): number => {
-  if (typeof str !== 'string' || !str) return 0;
+    if (typeof str !== 'string' || !str) return 0;
+    
+    const cleanStr = str.trim();
 
-  const hasDot = str.includes('.');
-  const hasComma = str.includes(',');
-
-  // Handle cases like "1.000" (one thousand) or "2.000" (two from your example file)
-  // If a dot exists and it's followed by exactly 3 digits at the end, it's likely a thousands separator.
-  if (hasDot && !hasComma) {
-    const parts = str.split('.');
-    if (parts.length > 1 && parts[parts.length - 1].length === 3) {
-      // It's likely a thousands separator, like "1.000" or "1.234.567"
-      const numberString = parts.join('');
-      return parseFloat(numberString) || 0;
+    // Case 1: Standard US format or integer (e.g., "1234.56" or "1234")
+    // Or CR format where '.' is the decimal separator (e.g., "2.000" for 2, not two thousand)
+    if (cleanStr.includes('.') && !cleanStr.includes(',')) {
+        // It could be "1000.00" (one thousand) or "2.000" (two, with 3 decimal places)
+        // A common pattern in CR XMLs is using '.' as a decimal separator with many trailing zeros.
+        return parseFloat(cleanStr) || 0;
     }
-  }
 
-  // Standard case: "1,234.56" or "1234.56"
-  // Or European style: "1.234,56"
-  const cleanedStr = str.replace(/\./g, '').replace(',', '.');
-  return parseFloat(cleanedStr) || 0;
+    // Case 2: European style with comma as decimal (e.g., "1.234,56")
+    if (cleanStr.includes(',')) {
+        const europeanStyleStr = cleanStr.replace(/\./g, '').replace(',', '.');
+        return parseFloat(europeanStyleStr) || 0;
+    }
+    
+    // Default case (integer as string, e.g., "1000")
+    return parseFloat(cleanStr) || 0;
 };
 
 interface InvoiceParseResult {
