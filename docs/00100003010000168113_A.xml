@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FacturaElectronica xmlns="https://cdn.comprobanteselectronicos.go.cr/xml-schemas/v4.3/facturaElectronica" xsi:schemaLocation="https://cdn.comprobanteselectronicos.go.cr/xml-schemas/v4.3/facturaElectronica https://tribunet.hacienda.go.cr/docs/esquemas/2017/v4.3/facturaElectronica.xsd" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <Clave>50603102500310112381900100003010000168113103610719</Clave>
+  <CodigoActividad>519016</CodigoActividad>
+  <NumeroConsecutivo>00100003010000168113</NumeroConsecutivo>
+  <FechaEmision>2025-10-03T00:00:00</FechaEmision>
+  <Emisor>
+    <Nombre>Dataformas de Costa Rica S.A.</Nombre>
+    <Identificacion>
+      <Tipo>02</Tipo>
+      <Numero>3101123819</Numero>
+    </Identificacion>
+    <NombreComercial>Dataformas</NombreComercial>
+    <Ubicacion>
+      <Provincia>1</Provincia>
+      <Canton>01</Canton>
+      <Distrito>09</Distrito>
+      <Barrio>18</Barrio>
+      <OtrasSenas>vía 104, calle 128 San Jose, Pavas,</OtrasSenas>
+    </Ubicacion>
+    <Telefono>
+      <CodigoPais>506</CodigoPais>
+      <NumTelefono>41115000</NumTelefono>
+    </Telefono>
+    <Fax>
+      <CodigoPais>506</CodigoPais>
+      <NumTelefono>41115000</NumTelefono>
+    </Fax>
+    <CorreoElectronico>factura@dataformas.com</CorreoElectronico>
+  </Emisor>
+  <Receptor>
+    <Nombre>CLIC SOPORTE &amp; CLIC TIENDA S.R.L</Nombre>
+    <Identificacion>
+      <Tipo>02</Tipo>
+      <Numero>3102894538</Numero>
+    </Identificacion>
+    <NombreComercial>CLIC SOPORTE &amp; CLIC TIENDA S.R.L</NombreComercial>
+    <Ubicacion>
+      <Provincia>1</Provincia>
+      <Canton>01</Canton>
+      <Distrito>09</Distrito>
+      <Barrio>18</Barrio>
+      <OtrasSenas>ALAJUELA, ATENAS, STA EULALIA, DE LA IGL.CATÓLICA 500O, 25S CASA PORTON NEGRO
+
+20507 ATENAS
+COSTA RICA</OtrasSenas>
+    </Ubicacion>
+    <OtrasSenasExtranjero>ALAJUELA, ATENAS, STA EULALIA, DE LA IGL.CATÓLICA 500O, 25S CASA PORTON NEGRO
+
+20507 ATENAS
+COSTA RICA</OtrasSenasExtranjero>
+    <Telefono>
+      <CodigoPais>506</CodigoPais>
+      <NumTelefono>87104059</NumTelefono>
+    </Telefono>
+    <CorreoElectronico>cxp@clicsoporte.com;</CorreoElectronico>
+  </Receptor>
+  <CondicionVenta>02</CondicionVenta>
+  <PlazoCredito>0</PlazoCredito>
+  <MedioPago>04</MedioPago>
+  <DetalleServicio>
+    <LineaDetalle>
+      <NumeroLinea>1</NumeroLinea>
+      <Codigo>4721400000000</Codigo>
+      <CodigoComercial>
+        <Tipo>04</Tipo>
+        <Codigo>DH00012</Codigo>
+      </CodigoComercial>
+      <Cantidad>2.000</Cantidad>
+      <UnidadMedida>Otros</UnidadMedida>
+      <UnidadMedidaComercial />
+      <Detalle>Dahua camara de red bullet wifi IR de 4 MP - DH-IPC-HFW1430DTN-STW-0280B -  1.0.01.04.37510-0001;IVA13;0.000000</Detalle>
+      <PrecioUnitario>33.46000</PrecioUnitario>
+      <MontoTotal>66.92000</MontoTotal>
+      <SubTotal>66.92000</SubTotal>
+      <Impuesto>
+        <Codigo>01</Codigo>
+        <CodigoTarifa>08</CodigoTarifa>
+        <Tarifa>13.00</Tarifa>
+        <Monto>8.70000</Monto>
+      </Impuesto>
+      <ImpuestoNeto>8.70000</ImpuestoNeto>
+      <MontoTotalLinea>75.62000</MontoTotalLinea>
+    </LineaDetalle>
+    <LineaDetalle>
+      <NumeroLinea>2</NumeroLinea>
+      <Codigo>4721400000000</Codigo>
+      <CodigoComercial>
+        <Tipo>04</Tipo>
+        <Codigo>DH00015</Codigo>
+      </CodigoComercial>
+      <Cantidad>1.000</Cantidad>
+      <UnidadMedida>Otros</UnidadMedida>
+      <UnidadMedidaComercial />
+      <Detalle>Dahua camara red wi-fi exterior movimiento panoramico 5MP - DH-IPC-P3BP-PV-0360B - 1.0.01.04.43098-9001;IVA13;0.000000</Detalle>
+      <PrecioUnitario>45.71000</PrecioUnitario>
+      <MontoTotal>45.71000</MontoTotal>
+      <SubTotal>45.71000</SubTotal>
+      <Impuesto>
+        <Codigo>01</Codigo>
+        <CodigoTarifa>08</CodigoTarifa>
+        <Tarifa>13.00</Tarifa>
+        <Monto>5.94000</Monto>
+      </Impuesto>
+      <ImpuestoNeto>5.94000</ImpuestoNeto>
+      <MontoTotalLinea>51.65000</MontoTotalLinea>
+    </LineaDetalle>
+    <LineaDetalle>
+      <NumeroLinea>3</NumeroLinea>
+      <Codigo>4527100000000</Codigo>
+      <CodigoComercial>
+        <Tipo>04</Tipo>
+        <Codigo>DH00073</Codigo>
+      </CodigoComercial>
+      <Cantidad>3.000</Cantidad>
+      <UnidadMedida>Otros</UnidadMedida>
+      <UnidadMedidaComercial />
+      <Detalle>Dahua tarjeta memoria microSD  DHI-TF-C100/128GB - 1.0.01.01.15515;IVA13;0.000000</Detalle>
+      <PrecioUnitario>8.68000</PrecioUnitario>
+      <MontoTotal>26.04000</MontoTotal>
+      <SubTotal>26.04000</SubTotal>
+      <Impuesto>
+        <Codigo>01</Codigo>
+        <CodigoTarifa>08</CodigoTarifa>
+        <Tarifa>13.00</Tarifa>
+        <Monto>3.39000</Monto>
+      </Impuesto>
+      <ImpuestoNeto>3.39000</ImpuestoNeto>
+      <MontoTotalLinea>29.43000</MontoTotalLinea>
+    </LineaDetalle>
+  </DetalleServicio>
+  <ResumenFactura>
+    <CodigoTipoMoneda>
+      <CodigoMoneda>USD</CodigoMoneda>
+      <TipoCambio>507.65000</TipoCambio>
+    </CodigoTipoMoneda>
+    <TotalMercanciasGravadas>138.67000</TotalMercanciasGravadas>
+    <TotalGravado>138.67000</TotalGravado>
+    <TotalVenta>138.67000</TotalVenta>
+    <TotalVentaNeta>138.67000</TotalVentaNeta>
+    <TotalImpuesto>18.03000</TotalImpuesto>
+    <TotalComprobante>156.70000</TotalComprobante>
+  </ResumenFactura>
+  <Otros>
+    <OtroTexto codigo="Usuario">WMS Eprac</OtroTexto>
+    <OtroTexto codigo="CodCliente">D02059</OtroTexto>
+    <OtroTexto codigo="Numero Documento">1168113</OtroTexto>
+    <OtroTexto codigo="Email">cxp@clicsoporte.com</OtroTexto>
+    <OtroTexto codigo="Condicion Venta">Crédito</OtroTexto>
+    <OtroTexto codigo="Medio Pago">Transferencia - depósito bancario</OtroTexto>
+    <OtroTexto codigo="Comentario">Based On Sales Orders 176832.</OtroTexto>
+    <OtroTexto codigo="Asesor Comercial">TMK RURAL</OtroTexto>
+    <OtroTexto codigo="Condicion de Pago">CONTADO</OtroTexto>
+    <OtroTexto codigo="Fecha de Vencimiento">2025-10-03 00:00:00.0000000</OtroTexto>
+    <OtroTexto codigo="NumProveedor">0</OtroTexto>
+    <OtroTexto codigo="NumTienda">0</OtroTexto>
+    <OtroTexto codigo="OrdenCompra">0</OtroTexto>
+    <OtroTexto codigo="Fecha orden Compra">-</OtroTexto>
+    <OtroTexto codigo="NumRecepcion">0</OtroTexto>
+    <OtroTexto codigo="Contacto">JONATHAN UGALDE GONZALEZ</OtroTexto>
+    <OtroTexto codigo="Ruta">RT06</OtroTexto>
+    <OtroTexto codigo="Tipo">RETIRA</OtroTexto>
+  </Otros>
+<ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#" Id="xades-id-9ddc5f11-f876-478e-ae4c-47cecabd7f4c"><ds:SignedInfo><ds:CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" /><ds:SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha256" /><ds:Reference Id="r-id-1" URI=""><ds:Transforms><ds:Transform Algorithm="http://www.w3.org/TR/1999/REC-xpath-19991116"><ds:XPath>ValorPath</ds:XPath></ds:Transform><ds:Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" /></ds:Transforms><ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256" /><ds:DigestValue>47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=</ds:DigestValue></ds:Reference><ds:Reference Type="http://uri.etsi.org/01903#SignedProperties" URI="#SignedProperties-xades-id-9ddc5f11-f876-478e-ae4c-47cecabd7f4c"><ds:Transforms><ds:Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" /></ds:Transforms><ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256" /><ds:DigestValue>PCy8KtLbAGyCG0ss1CVOvUHPbFRC0mXQCEBNelI1I3s=</ds:DigestValue></ds:Reference><ds:Reference Id="ReferenceKeyInfo" URI="#KeyInfoId-xades-id-9ddc5f11-f876-478e-ae4c-47cecabd7f4c"><ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256" /><ds:DigestValue>Xd8LY00zHWFa9pCUMBQFTTvgubdTl3mQBwWV3j9hDj0=</ds:DigestValue></ds:Reference><ds:Reference Type="http://uri.etsi.org/01903#SignedProperties" URI="#SignedProperties-xades-id-9ddc5f11-f876-478e-ae4c-47cecabd7f4c"><ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256" /><ds:DigestValue>oZtlTeexjyNX2kE+NvKPoIEwQ2surMAay+49/87YbaQ=</ds:DigestValue></ds:Reference></ds:SignedInfo><ds:SignatureValue Id="value-id-9ddc5f11-f876-478e-ae4c-47cecabd7f4c">De02nWBvrS0mm+qLOH7hvfOSW/p/XDYbt+NsMZUNOKNFTQMMijSTiy2XpFXcK90IZZs1zBt1fnNBbLHKBfl4J6RBMDkQME6GiRU/kQHFkGfVI4o7xsJIlhphG2/4Lw6KK67QcS0giFq6NMFY16i+W11WUNIh1H0SmsyXMoIZ9swbzOB2RWbvH1QLY5ja7e6w9l/L07xfQAgruynWIh0kQPc8fiCeRqeDh/EG5YZTTZ7FdqCUwiwrsK7T/RdQIeTG8mX4aMSZIKVGwfE6c9kcHUAjrSupCJny5HRihskypOvmMyYGJn4FqAowKBN23gZLMBa4H0KWvnKrR4czFVFi0g==</ds:SignatureValue><ds:KeyInfo Id="KeyInfoId-xades-id-9ddc5f11-f876-478e-ae4c-47cecabd7f4c"><ds:X509Data><ds:X509Certificate>MIIFKzCCAxOgAwIBAgIGAYGHQ2bLMA0GCSqGSIb3DQEBCwUAMFoxCzAJBgNVBAYTAkNSMR8wHQYDVQQKDBZNSU5JU1RFUklPIERFIEhBQ0lFTkRBMQwwCgYDVQQLDANER1QxHDAaBgNVBAMME0NBIFBFUlNPTkEgSlVSSURJQ0EwHhcNMjIwNjIxMTcxNTUwWhcNMjYwNjIwMTcxNTUwWjCBhTEZMBcGA1UEBRMQQ1BKLTMtMTAxLTEyMzgxOTELMAkGA1UEBhMCQ1IxGTAXBgNVBAoMEFBFUlNPTkEgSlVSSURJQ0ExDDAKBgNVBAsMA0NQSjEyMDAGA1UEAwwpREFUQUZPUk1BUyBERSBDT1NUQSBSSUNBIFNPQ0lFREFEIEFOT05JTUEwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQCNLeOjbT3Hdz4NOPbaE20iIRE6yItyEjAnA7EWrvFwda5CDkuNuqd595xLxd4W1DTcTgrI4izrv3PEuRez0CM8wWoVISxbcH74BR3YJM2W8o6mwUlSm6dJvxX2WxXdDnQMA9+zh3fUnqmvdmWNK2AnZQ4aGP4dKDy3UDKX6OhTsUgDTwnxQ8RNZTj/t1QcakSny3qc60CMAAT6IAp3TwGMaltwuNXA1Y5/OhRNK4fiNXot0z/nDg4LImRSnPXttTkjVWPjjVogMyfP/nV1gP0skn8kS55KiRyBjGDgdXur7PBhSAziwgJBr9SKyHwRl6/ofuoxk/MqqoIBKyF2dm5FAgMBAAGjgcowgccwHwYDVR0jBBgwFoAUO21X9dZ86Z4QAiBB470azM+zTpUwHQYDVR0OBBYEFFDLihZGT3IBnBR1nX5kVXKy7Qy5MAsGA1UdDwQEAwIGwDATBgNVHSUEDDAKBggrBgEFBQcDBDBjBggrBgEFBQcBAQRXMFUwUwYIKwYBBQUHMAKGR2h0dHBzOi8vcGtpLmNvbXByb2JhbnRlc2VsZWN0cm9uaWNvcy5nby5jci9wcm9kL2ludGVybWVkaWF0ZS1wai1wZW0uY3J0MA0GCSqGSIb3DQEBCwUAA4ICAQBTiF2QC2PvS9uV2Me/FcZh0ynGbVtBu2RGYkvSdu8xmJnkIFC0KZAxSNBAox9Q+aTnExVZxvJjFhDXuCkVdbxa3mQXRIzqHM9XphSF6VbpUmQ6oDSjvB7U92XGcR/rWn9g6DOFoegagZWUUkr8+VGl5qK0LpFVfYW8JVR9aUf0ab1VcXA4OF1tLO7dEFtLrQn28OKlhPEknP0ALUXyWjuYKsp0cjitEq/vMYz2RMiPhgUUup4NzHHmq/Y5s/gzLeFfiRAyY4shBcJ8mU+2BizxWjF3YC5ElqVWxN/wbEaeFcdwCGC0rPwCzUnqtSvHMqaM0O2kaGmnRdmnJm3Y7udS4K58MRlGSZMCo18HtPYODPZ70MG3IovLIdPP8FEu9riisuwa2q2JgR99m371iNmO3iwrqQTEdh84Ybj74AnltdEgJfCf+T8A2V7JgdAgCLdr7o3wwNC/L8G30xW/hnv5zrdIULn+Xq5TY2YejtqpUsx7BZtskkC+CoflB8hG3dDMojKbrzkZr7Ex3SHdy6pqEu0cUDryFdIW6ot1WkX3Fnaj31S1i0SHz+hGovxXH4KXHVwovEKxl2284vo5Jk9uO5qg2jDLgbk6EIMXX4yN6Kz4d4+o6eYLXC94cwxaewm5iH/coUbo/+7zXRIrC3YKgPzO+GkjNm4uzlxbODUH7A==</ds:X509Certificate></ds:X509Data><ds:KeyValue><ds:RSAKeyValue><ds:Modulus>jS3jo209x3c+DTj22hNtIiEROsiLchIwJwOxFq7xcHWuQg5LjbqnefecS8XeFtQ03E4KyOIs679zxLkXs9AjPMFqFSEsW3B++AUd2CTNlvKOpsFJUpunSb8V9lsV3Q50DAPfs4d31J6pr3ZljStgJ2UOGhj+HSg8t1Ayl+joU7FIA08J8UPETWU4/7dUHGpEp8t6nOtAjAAE+iAKd08BjGpbcLjVwNWOfzoUTSuH4jV6LdM/5w4OCyJkUpz17bU5I1Vj441aIDMnz/51dYD9LJJ/JEueSokcgYxg4HV7q+zwYUgM4sICQa/Uish8EZev6H7qMZPzKqqCASshdnZuRQ==</ds:Modulus><ds:Exponent>AQAB</ds:Exponent></ds:RSAKeyValue></ds:KeyValue></ds:KeyInfo><ds:Object><xades:QualifyingProperties xmlns:xades="http://uri.etsi.org/01903/v1.3.2#" Id="id-1a60462d-0b49-4e10-8a08-2ca112648d69" Target="#xades-id-9ddc5f11-f876-478e-ae4c-47cecabd7f4c"><xades:SignedProperties Id="SignedProperties-xades-id-9ddc5f11-f876-478e-ae4c-47cecabd7f4c"><xades:SignedSignatureProperties><xades:SigningTime>2025-10-03T13:35:10.000Z</xades:SigningTime><xades:SigningCertificate><xades:Cert><xades:CertDigest><ds:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1" /><ds:DigestValue>85I8cyshKSEsZqFI7kfnHLcYv1Q=</ds:DigestValue></xades:CertDigest><xades:IssuerSerial><ds:X509IssuerName>CN=CA PERSONA JURIDICA, OU=DGT, O=MINISTERIO DE HACIENDA, C=CR</ds:X509IssuerName><ds:X509SerialNumber>1655831750347</ds:X509SerialNumber></xades:IssuerSerial></xades:Cert></xades:SigningCertificate><SignaturePolicyIdentifier xmlns="http://uri.etsi.org/01903/v1.3.2#"><SignaturePolicyId><SigPolicyId><xades:Identifier>https://tribunet.hacienda.go.cr/docs/esquemas/2016/v4.1/Resolucion_Comprobantes_Electronicos_DGT-R-48-2016.pdf</xades:Identifier><Description /></SigPolicyId><xades:SigPolicyHash><ds:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1" /><ds:DigestValue>NmI5Njk1ZThkNzI0MmIzMGJmZDAyNDc4YjUwNzkzODM2NTBiOWUxNTBkMmI2YjgzYzZjM2I5NTZlNDQ4OWQzMQ==</ds:DigestValue></xades:SigPolicyHash></SignaturePolicyId></SignaturePolicyIdentifier></xades:SignedSignatureProperties><xades:SignedDataObjectProperties><xades:DataObjectFormat ObjectReference="#r-id-1"><xades:MimeType>application/octet-stream</xades:MimeType></xades:DataObjectFormat></xades:SignedDataObjectProperties></xades:SignedProperties></xades:QualifyingProperties></ds:Object></ds:Signature></FacturaElectronica>
