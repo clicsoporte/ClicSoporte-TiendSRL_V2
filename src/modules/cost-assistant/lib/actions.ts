@@ -20,23 +20,20 @@ const parseDecimal = (str: string): number => {
     const hasComma = cleanStr.includes(',');
     const hasPoint = cleanStr.includes('.');
 
-    // Case: "1,234.56" (US/UK) or "1234.56"
-    // Or, for CR invoices: "2.000" where the point is a thousands separator for an integer.
-    if (hasPoint && !hasComma) {
-        const parts = cleanStr.split('.');
-        // If the last part has fewer than 3 digits, it's likely a decimal, e.g., "123.45"
-        // If it has 3, it's ambiguous (e.g., "2.000" could be 2 or 2000). We assume integer if it's 3 digits.
-        if (parts[parts.length - 1].length < 3) {
-            return parseFloat(cleanStr.replace(/,/g, '')) || 0;
-        }
-        // It's likely a thousands separator, e.g., "2.000" should be 2.
-        return parseFloat(parts.join('')) || 0;
-    }
-    
-    // Case: "1.234,56" (EU)
+    // Case: "1.234,56" (EU style)
     if (hasComma) {
         const europeanStyleStr = cleanStr.replace(/\./g, '').replace(',', '.');
         return parseFloat(europeanStyleStr) || 0;
+    }
+
+    // Case: "1,234.56" (US/UK style) or integers with thousands separators like "2.000"
+    if (hasPoint) {
+        // If it's something like "2.000" which should be 2
+        if (cleanStr.split('.').length - 1 === 1 && cleanStr.split('.')[1].length === 3) {
+            return parseFloat(cleanStr.replace('.', '')) || 0;
+        }
+        // For "1,234.56"
+        return parseFloat(cleanStr.replace(/,/g, '')) || 0;
     }
     
     // Default case (integer as string, e.g., "1000")
@@ -57,10 +54,11 @@ async function parseInvoice(xmlContent: string): Promise<InvoiceParseResult | { 
     });
 
     const rootKey = Object.keys(json)[0];
+    const rootNode = json[rootKey];
     
-    const numeroConsecutivo = getValue(json[rootKey], ['NumeroConsecutivo', '0'], 'N/A');
-    const fechaEmision = getValue(json[rootKey], ['FechaEmision', '0'], new Date().toISOString());
-    const emisorNombre = getValue(json[rootKey], ['Emisor', '0', 'Nombre', '0']);
+    const numeroConsecutivo = getValue(rootNode, ['NumeroConsecutivo', '0'], 'N/A');
+    const fechaEmision = getValue(rootNode, ['FechaEmision', '0'], new Date().toISOString());
+    const emisorNombre = getValue(rootNode, ['Emisor', '0', 'Nombre', '0']);
 
     const defaultErrorDetails = {
         supplierName: emisorNombre || "Desconocido",
@@ -71,8 +69,6 @@ async function parseInvoice(xmlContent: string): Promise<InvoiceParseResult | { 
     if (rootKey !== 'FacturaElectronica') {
         return { error: 'No es una Factura Electrónica', details: defaultErrorDetails };
     }
-
-    const rootNode = json.FacturaElectronica;
     
     const moneda = getValue(rootNode, ['ResumenFactura', '0', 'CodigoTipoMoneda', '0', 'CodigoMoneda'], 'CRC');
     const tipoCambioStr = getValue(rootNode, ['ResumenFactura', '0', 'CodigoTipoMoneda', '0', 'TipoCambio'], '1');
