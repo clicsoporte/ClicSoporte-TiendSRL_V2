@@ -75,7 +75,7 @@ export default function CostAssistantPage() {
                     </CardHeader>
                     <CardContent>
                          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
-                            <div className="lg:col-span-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-6">
+                             <div className="lg:col-span-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-6">
                                 <Card>
                                     <CardHeader>
                                         <CardTitle>Costos Adicionales</CardTitle>
@@ -180,8 +180,13 @@ export default function CostAssistantPage() {
                     </CardHeader>
                     <CardContent>
                         <div className="border rounded-md p-4 mb-4">
-                            <h4 className="font-semibold text-sm mb-2 flex items-center gap-2"><Settings2 className="h-4 w-4"/> Opciones de Visualización</h4>
-                            <div className="flex flex-wrap gap-x-4 gap-y-2">
+                             <div className="flex items-center justify-between">
+                                <h4 className="font-semibold text-sm flex items-center gap-2"><Settings2 className="h-4 w-4"/> Opciones de Visualización</h4>
+                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={actions.handleSaveColumnVisibility}>
+                                    <Save className="h-4 w-4" />
+                                </Button>
+                            </div>
+                            <div className="flex flex-wrap gap-x-4 gap-y-2 mt-2">
                                 {columns.map(col => (
                                     <div key={col.id} className="flex items-center space-x-2">
                                         <Checkbox

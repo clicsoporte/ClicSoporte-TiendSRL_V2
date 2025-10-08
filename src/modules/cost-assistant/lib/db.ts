@@ -4,8 +4,13 @@
 "use server";
 
 import { connectDb } from '../../core/lib/db';
+import type { CostAssistantLine } from '@/modules/core/types';
 
 const DB_FILE = 'cost-assistant.db';
+
+export type CostAssistantSettings = {
+    columnVisibility: { [key: string]: boolean }
+};
 
 export async function initializeCostAssistantDb(db: import('better-sqlite3').Database) {
     const schema = `
@@ -17,14 +22,72 @@ export async function initializeCostAssistantDb(db: import('better-sqlite3').Dat
             lines TEXT,
             globalCosts TEXT
         );
+
+        CREATE TABLE IF NOT EXISTS cost_assistant_settings (
+            key TEXT PRIMARY KEY,
+            value TEXT
+        );
     `;
     db.exec(schema);
     
+    // Insert default column visibility
+    const initialColumnVisibility = {
+        cabysCode: true,
+        supplierCode: true,
+        description: true,
+        quantity: true,
+        unitCostWithoutTax: true,
+        unitCostWithTax: false,
+        taxRate: true,
+        margin: true,
+        sellPriceWithoutTax: true,
+        finalSellPrice: true,
+        profitPerLine: true,
+    };
+    db.prepare(`INSERT OR IGNORE INTO cost_assistant_settings (key, value) VALUES ('columnVisibility', ?)`).run(JSON.stringify(initialColumnVisibility));
+
     console.log(`Database ${DB_FILE} initialized for Cost Assistant.`);
 }
 
 export async function runCostAssistantMigrations(db: import('better-sqlite3').Database) {
-    // No migrations needed for the initial version.
+    const settingsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='cost_assistant_settings'`).get();
+    if (!settingsTable) {
+        db.exec(`
+            CREATE TABLE cost_assistant_settings (
+                key TEXT PRIMARY KEY,
+                value TEXT
+            );
+        `);
+         const initialColumnVisibility = {
+            cabysCode: true, supplierCode: true, description: true, quantity: true,
+            unitCostWithoutTax: true, unitCostWithTax: false, taxRate: true,
+            margin: true, sellPriceWithoutTax: true, finalSellPrice: true, profitPerLine: true
+        };
+        db.prepare(`INSERT OR IGNORE INTO cost_assistant_settings (key, value) VALUES ('columnVisibility', ?)`).run(JSON.stringify(initialColumnVisibility));
+    }
 }
 
-    
+export async function getCostAssistantSettings(): Promise<CostAssistantSettings> {
+    const db = await connectDb(DB_FILE);
+    const row = db.prepare(`SELECT value FROM cost_assistant_settings WHERE key = 'columnVisibility'`).get() as { value: string } | undefined;
+    if (row) {
+        return {
+            columnVisibility: JSON.parse(row.value)
+        }
+    }
+    // Return a default if not found
+    return {
+        columnVisibility: {
+            cabysCode: true, supplierCode: true, description: true, quantity: true,
+            unitCostWithoutTax: true, unitCostWithTax: false, taxRate: true,
+            margin: true, sellPriceWithoutTax: true, finalSellPrice: true, profitPerLine: true
+        }
+    };
+}
+
+export async function saveCostAssistantSettings(settings: CostAssistantSettings): Promise<void> {
+    const db = await connectDb(DB_FILE);
+    db.prepare(`
+        INSERT OR REPLACE INTO cost_assistant_settings (key, value) VALUES ('columnVisibility', ?)
+    `).run(JSON.stringify(settings.columnVisibility));
+}

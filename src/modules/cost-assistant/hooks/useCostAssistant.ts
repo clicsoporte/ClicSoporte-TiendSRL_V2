@@ -8,7 +8,7 @@ import { useToast } from '@/modules/core/hooks/use-toast';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import type { CostAssistantLine } from '@/modules/core/types';
-import { processInvoiceXmls } from '../lib/actions';
+import { processInvoiceXmls, getCostAssistantSettings, saveCostAssistantSettings } from '../lib/actions';
 import { logError } from '@/modules/core/lib/logger';
 
 const normalizeNumber = (value: string): number => {
@@ -51,6 +51,11 @@ export const useCostAssistant = () => {
 
     useEffect(() => {
         setTitle("Asistente de Costos");
+        const loadSettings = async () => {
+            const settings = await getCostAssistantSettings();
+            setState(prevState => ({ ...prevState, columnVisibility: settings.columnVisibility }));
+        };
+        loadSettings();
     }, [setTitle]);
 
     const updateLine = (id: string, updatedFields: Partial<CostAssistantLine>) => {
@@ -137,6 +142,16 @@ export const useCostAssistant = () => {
         }));
     };
 
+    const handleSaveColumnVisibility = async () => {
+        try {
+            await saveCostAssistantSettings({ columnVisibility: state.columnVisibility });
+            toast({ title: "Preferencia Guardada", description: "La visibilidad de las columnas ha sido guardada." });
+        } catch (error: any) {
+            logError("Failed to save column visibility", { error: error.message });
+            toast({ title: "Error", description: "No se pudo guardar la configuración de las columnas.", variant: "destructive" });
+        }
+    };
+
     const handleClear = () => {
         setState(initialState);
         toast({ title: "Operación Limpiada", description: "Se han borrado todos los datos para iniciar un nuevo análisis." });
@@ -186,6 +201,7 @@ export const useCostAssistant = () => {
         setTransportCost: (cost: number) => setState(prevState => ({ ...prevState, transportCost: cost })),
         setOtherCosts: (cost: number) => setState(prevState => ({ ...prevState, otherCosts: cost })),
         setColumnVisibility,
+        handleSaveColumnVisibility,
     };
 
     return {

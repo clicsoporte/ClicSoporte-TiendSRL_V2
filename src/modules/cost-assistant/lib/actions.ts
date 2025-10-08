@@ -5,6 +5,8 @@
 
 import { parseStringPromise } from 'xml2js';
 import type { CostAssistantLine } from '@/modules/core/types';
+import { getCostAssistantSettings as getCostAssistantSettingsServer, saveCostAssistantSettings as saveCostAssistantSettingsServer, type CostAssistantSettings } from './db';
+
 
 // Helper to get a value from a potentially nested XML object
 const getValue = (obj: any, path: string[], defaultValue: any = '') => {
@@ -104,4 +106,12 @@ export async function processInvoiceXmls(xmlContents: string[]): Promise<{ lines
     }
     
     return { lines: allLines, supplierNames: Array.from(supplierNames) };
+}
+
+export async function getCostAssistantSettings(): Promise<CostAssistantSettings> {
+    return getCostAssistantSettingsServer();
+}
+
+export async function saveCostAssistantSettings(settings: CostAssistantSettings): Promise<void> {
+    return saveCostAssistantSettingsServer(settings);
 }
