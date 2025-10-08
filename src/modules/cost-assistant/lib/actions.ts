@@ -6,6 +6,7 @@
 import { XMLParser } from 'fast-xml-parser';
 import type { CostAssistantLine, ProcessedInvoiceInfo } from '@/modules/core/types';
 import { getCostAssistantSettings as getCostAssistantSettingsServer, saveCostAssistantSettings as saveCostAssistantSettingsServer, type CostAssistantSettings } from './db';
+import { logError } from '@/modules/core/lib/logger';
 
 // Helper to get a value from a potentially nested object
 const getValue = (obj: any, path: string[], defaultValue: any = '') => {
@@ -14,24 +15,35 @@ const getValue = (obj: any, path: string[], defaultValue: any = '') => {
 
 const parseDecimal = (str: any): number => {
     if (str === null || str === undefined || str === '') return 0;
-
     let cleanStr = String(str).trim();
 
-    // If a comma exists, assume it's the decimal separator and remove dots.
-    if (cleanStr.includes(',')) {
+    const hasComma = cleanStr.includes(',');
+    const hasDot = cleanStr.includes('.');
+
+    if (hasComma) {
+        // European format: 1.234,56 -> 1234.56
         cleanStr = cleanStr.replace(/\./g, '').replace(',', '.');
-    } 
-    // If only dots exist, they are likely thousand separators if they are not the last dot for decimals.
-    // Example: "2.000" should be 2, "2.000.00" should be 2000.
-    else if (cleanStr.includes('.')) {
+    } else if (hasDot) {
+        // Could be 1.000 (one thousand) or 1.000 (one) or 1.5 (one and a half)
         const parts = cleanStr.split('.');
-        const lastPart = parts[parts.length - 1];
-        // If the last part has 3 digits and there is more than one dot, treat all as thousands separators.
-        // If last part is not 3 digits long, it's likely a decimal.
-        if (parts.length > 1 && lastPart.length === 3) {
-            // Check if there are other parts with less than 3 digits, suggesting mixed use, which is unlikely.
-            // For simplicity, if there are multiple dots and the last group is 3 digits, we treat them as thousand separators.
-            cleanStr = cleanStr.replace(/\./g, '');
+        if (parts.length > 1) {
+            const lastPart = parts[parts.length - 1];
+            // If the last part has 3 digits and there are other parts, it's likely a thousands separator.
+            // Example: 1.000 -> 1000. But what about 1.000 meaning 1?
+            // The key is that `1.000` is a valid representation for `1` in some XMLs.
+            if (lastPart.length === 3) {
+                 // It's ambiguous. `1.000` could be 1 or 1000.
+                 // A common convention for single units is `1.000`.
+                 // Let's treat a single dot with three trailing zeros as an integer.
+                 if (parts.length === 2 && lastPart === '000') {
+                     cleanStr = parts[0];
+                 } else {
+                    // It could be 1.234.567, treat all as thousands separators
+                    cleanStr = cleanStr.replace(/\./g, '');
+                 }
+            }
+            // If the last part is not 3 digits, it's a decimal separator.
+            // Example: '1.5', '12.34'
         }
     }
     
@@ -60,7 +72,6 @@ async function parseInvoice(xmlContent: string): Promise<InvoiceParseResult | { 
         return { error: 'XML malformado o ilegible.', details: {} };
     }
 
-
     const rootNode = json.FacturaElectronica;
     const responseNode = json.MensajeHacienda;
     
@@ -73,11 +84,10 @@ async function parseInvoice(xmlContent: string): Promise<InvoiceParseResult | { 
     }
     
     const isResponseMessage = !!responseNode;
-    const invoiceDataNode = isResponseMessage ? responseNode : rootNode;
     
-    const numeroConsecutivo = getValue(invoiceDataNode, ['NumeroConsecutivo'], getValue(invoiceDataNode, ['Clave'], 'N/A').substring(21, 41));
-    const fechaEmision = getValue(invoiceDataNode, ['FechaEmision'], new Date().toISOString());
-    const emisorNombre = getValue(invoiceDataNode, ['Emisor', 'Nombre'], getValue(invoiceDataNode, ['NombreEmisor'], 'Desconocido'));
+    const numeroConsecutivo = getValue(json, ['FacturaElectronica', 'NumeroConsecutivo'], getValue(json, ['MensajeHacienda', 'Clave'], 'N/A').substring(21, 41));
+    const fechaEmision = getValue(json, ['FacturaElectronica', 'FechaEmision'], new Date().toISOString());
+    const emisorNombre = getValue(json, ['FacturaElectronica', 'Emisor', 'Nombre'], getValue(json, ['MensajeHacienda', 'NombreEmisor'], 'Desconocido'));
     
     const defaultErrorDetails = {
         supplierName: emisorNombre,
@@ -87,6 +97,10 @@ async function parseInvoice(xmlContent: string): Promise<InvoiceParseResult | { 
     
     if (isResponseMessage) {
         return { error: 'XML es una respuesta de Hacienda, no una factura.', details: defaultErrorDetails };
+    }
+    
+    if (!rootNode) {
+        return { error: 'El nodo <FacturaElectronica> no fue encontrado.', details: defaultErrorDetails };
     }
     
     const invoiceInfo = {
