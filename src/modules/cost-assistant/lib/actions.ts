@@ -23,13 +23,17 @@ const parseDecimal = (str: any): number => {
     if (hasComma) {
         cleanStr = cleanStr.replace(/\./g, '').replace(',', '.');
     }
-    // If no comma, the dot is the decimal separator (1234.56)
-    // We don't need to do anything special for this case, parseFloat handles it.
+    // If no comma, the dot is the decimal separator (1234.56 or 1.000 for quantity 1)
+    // We need to handle the case where '.' is a thousands separator.
+    // A simple heuristic: if a dot is followed by exactly 3 digits at the end of the string (or before another dot), it's a thousands separator.
+    else if (cleanStr.includes('.') && cleanStr.match(/\.\d{3}$/) && cleanStr.length > 4 && !cleanStr.match(/\.\d{1,2}$/)) {
+         cleanStr = cleanStr.replace(/\./g, '');
+    }
+
 
     const parsed = parseFloat(cleanStr);
     return isNaN(parsed) ? 0 : parsed;
 };
-
 
 interface InvoiceParseResult {
     lines: CostAssistantLine[];
@@ -55,18 +59,18 @@ async function parseInvoice(xmlContent: string): Promise<InvoiceParseResult | { 
         return { error: 'XML malformado o ilegible.', details: {} };
     }
     
-    const rootNode = json.FacturaElectronica;
-    
     if (json.MensajeHacienda) {
         return { 
             error: 'XML es una respuesta de Hacienda, no una factura.', 
             details: {
                 supplierName: getValue(json, ['MensajeHacienda', 'NombreEmisor'], 'Respuesta Hacienda'),
-                invoiceNumber: 'N/A',
-                invoiceDate: new Date().toISOString(),
+                invoiceNumber: getValue(json, ['MensajeHacienda', 'Clave'], 'N/A').substring(21, 41),
+                invoiceDate: getValue(json, ['MensajeHacienda', 'FechaEmision'], new Date().toISOString()),
             } 
         };
     }
+    
+    const rootNode = json.FacturaElectronica;
     
     if (!rootNode) {
         const detectedRoot = Object.keys(json)[0] || 'N/A';
@@ -77,7 +81,8 @@ async function parseInvoice(xmlContent: string): Promise<InvoiceParseResult | { 
         return { error: `No es un archivo de factura válido. Nodo raíz no encontrado: ${detectedRoot}`, details: {} };
     }
     
-    const numeroConsecutivo = getValue(rootNode, ['NumeroConsecutivo'], 'N/A');
+    const clave = getValue(rootNode, ['Clave'], 'N/A');
+    const numeroConsecutivo = getValue(rootNode, ['NumeroConsecutivo'], clave.substring(21, 41));
     const fechaEmision = getValue(rootNode, ['FechaEmision'], new Date().toISOString());
     const emisorNombre = getValue(rootNode, ['Emisor', 'Nombre'], 'Desconocido');
 
