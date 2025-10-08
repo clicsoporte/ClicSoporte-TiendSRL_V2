@@ -15,8 +15,16 @@ const getValue = (obj: any, path: string[], defaultValue: any = '') => {
 
 const parseDecimal = (str: any): number => {
     if (str === null || str === undefined || str === '') return 0;
-    // Standardize the string by removing thousand separators (.) and replacing decimal comma (,) with a dot.
-    const cleanStr = String(str).trim().replace(/\./g, '').replace(',', '.');
+    const cleanStr = String(str).trim();
+
+    // If a comma exists, assume it's the decimal separator
+    if (cleanStr.includes(',')) {
+        const standardStr = cleanStr.replace(/\./g, '').replace(',', '.');
+        const parsed = parseFloat(standardStr);
+        return isNaN(parsed) ? 0 : parsed;
+    }
+
+    // If no comma, parse as is (dot is decimal separator)
     const parsed = parseFloat(cleanStr);
     return isNaN(parsed) ? 0 : parsed;
 };
@@ -33,7 +41,7 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
         ignoreAttributes: true,
         removeNSPrefix: true, 
         parseTagValue: false, 
-        isArray: (tagName, jPath) => {
+        isArray: (tagName) => {
             const alwaysArray = ['LineaDetalle', 'CodigoComercial'];
             return alwaysArray.includes(tagName);
         },
@@ -47,14 +55,13 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
         return { error: 'XML malformado o ilegible.', details: {} };
     }
     
-    // Explicitly check for and ignore Hacienda responses first.
     if (json.MensajeHacienda) {
         return { 
             error: 'XML es una respuesta de Hacienda, no una factura.', 
             details: {
-                supplierName: getValue(json, ['MensajeHacienda', 'NombreEmisor'], 'Respuesta Hacienda'),
-                invoiceNumber: getValue(json, ['MensajeHacienda', 'Clave'], 'N/A').substring(21, 41),
-                invoiceDate: getValue(json, ['MensajeHacienda', 'FechaEmision'], new Date().toISOString()),
+                supplierName: getValue(json.MensajeHacienda, ['NombreEmisor'], 'Respuesta Hacienda'),
+                invoiceNumber: getValue(json.MensajeHacienda, ['Clave'], 'N/A').substring(21, 41),
+                invoiceDate: getValue(json.MensajeHacienda, ['FechaEmision'], new Date().toISOString()),
             } 
         };
     }
@@ -140,7 +147,7 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
         const numeroLinea = getValue(linea, ['NumeroLinea'], index + 1);
 
         lines.push({
-            id: `${numeroConsecutivo}-${numeroLinea}-${supplierCode}-${index}`, // Make key more unique
+            id: `${numeroConsecutivo}-${numeroLinea}-${supplierCode}-${index}`,
             invoiceKey: numeroConsecutivo,
             lineNumber: numeroLinea,
             cabysCode: cabysCode,
