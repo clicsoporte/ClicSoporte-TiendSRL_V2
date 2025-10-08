@@ -20,13 +20,14 @@ const parseDecimal = (str: any): number => {
     if (str === null || str === undefined || str === '') return 0;
     let cleanStr = String(str).trim();
 
-    // Check if comma is used as decimal separator
+    // If a comma exists, it's the decimal separator
     if (cleanStr.includes(',')) {
-        // Remove thousand separators (dots) and replace decimal comma with a dot
         cleanStr = cleanStr.replace(/\./g, '').replace(',', '.');
     } else {
-        // No comma found, treat dot as decimal separator (standard US/CR format)
-        // We don't need to do anything special here as parseFloat handles it.
+        const dotIndex = cleanStr.lastIndexOf('.');
+        if (dotIndex !== -1 && (cleanStr.length - dotIndex - 1) > 2) {
+           cleanStr = cleanStr.replace(/\./g, '');
+        }
     }
     
     const parsed = parseFloat(cleanStr);
@@ -60,7 +61,6 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
     }
     
     if (json.MensajeHacienda) {
-        // This is a response from Hacienda, not an invoice. We should ignore it.
         return { error: 'El archivo es una respuesta de Hacienda, no una factura.', details: {} };
     }
     
@@ -182,10 +182,10 @@ export async function processInvoiceXmls(xmlContents: string[]): Promise<{ lines
                         status: 'success'
                     });
                 }
-            } else if (result && 'error' in result && result.details.supplierName) {
+            } else if (result && 'error' in result) {
                  processedInvoices.push({
                     supplierName: result.details.supplierName || 'Desconocido',
-                    invoiceNumber: result.details.invoiceNumber || 'N/A',
+                    invoiceNumber: result.details.invoiceNumber || `Archivo ${index + 1}`,
                     invoiceDate: result.details.invoiceDate || new Date().toISOString(),
                     status: 'error',
                     errorMessage: result.error
@@ -195,7 +195,7 @@ export async function processInvoiceXmls(xmlContents: string[]): Promise<{ lines
             console.error("Error parsing one of the XMLs:", error.message);
             processedInvoices.push({
                 supplierName: 'Desconocido',
-                invoiceNumber: 'N/A',
+                invoiceNumber: `Archivo ${index + 1}`,
                 invoiceDate: new Date().toISOString(),
                 status: 'error',
                 errorMessage: 'XML malformado o ilegible'
@@ -230,12 +230,53 @@ export async function deleteDraft(id: string): Promise<void> {
 
 export async function exportForERP(lines: CostAssistantLine[]): Promise<string> {
     const dataForExport = lines.map(line => ({
-        'COD_ARTICULO': line.supplierCode,
-        'PRECIO_BASE_LOCAL': line.sellPriceWithoutTax,
-        'IMPUESTO': line.taxRate * 100,
+        'CODIGOS 01': line.supplierCode,
+        'NOMBRE (Requerido)': line.description,
+        'UNIDAD DE MEDIDA (Requerido)': 'Unid',
+        'PRECIO (Sin impuestos) (Requerido)': line.sellPriceWithoutTax,
+        'MONEDA': 'CRC',
+        'IMP.01': line.taxRate * 100,
+        'CÓDIGO CABYS': line.cabysCode,
+        'ESTADO': 'A'
     }));
 
-    const worksheet = XLSX.utils.json_to_sheet(dataForExport);
+    const worksheet = XLSX.utils.json_to_sheet(dataForExport, {
+        header: [
+            'CODIGOS 01', 'CODIGOS 02', 'CODIGOS 03', 'CODIGOS 04', 'CODIGOS 99', 
+            'PARTIDA ARANCELARIA (Opcional)', 'NOMBRE (Requerido)', 'DESCRIPCION (Opcional)', 
+            'UNIDAD DE MEDIDA (Requerido)', 'UNIDAD DE MEDIDA COMERCIAL (Opcional)', 
+            'PRECIO (Sin impuestos) (Requerido)', 'MONEDA', 'ACTIVIDAD ECONOMICA', 
+            'BASE IMPONIBLE', 'IMP.01', 'IMP.02', 'IMPUESTO ESPECIFICO', 
+            'CANTIDAD UNIDAD MEDIDA', 'PORCENTAJE', 'VOLUMEN UNIDAD CONSUMO', 
+            'IMPUESTO UNIDAD', 'TIPO DE PRODUCTO', 'IMP.07', 'IMP.08', 'IMP.12', 
+            'IMP.99', 'IMP.99 DESCRIPCIÓN', 'MUESTRA DESCRIPCION PDF (OPCIONAL)', 
+            'CÓDIGO CABYS', 'ESTADO', 'REGISTRO DE MEDICAMENTO', 'FORMA FARMACÉUTICA'
+        ]
+    });
+    
+    // Rename headers to be shorter and cleaner in the final file
+    const newHeaders = {
+        'CODIGOS 01': '01',
+        'NOMBRE (Requerido)': 'Nombre',
+        'UNIDAD DE MEDIDA (Requerido)': 'Unidad de medida',
+        'PRECIO (Sin impuestos) (Requerido)': 'Precio (sin impuestos)',
+        'MONEDA': 'Moneda',
+        'IMP.01': 'IMP.01',
+        'CÓDIGO CABYS': 'Código Cabys',
+        'ESTADO': 'Estado',
+    };
+    
+    const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
+    for(let C = range.s.c; C <= range.e.c; ++C) {
+        const address = XLSX.utils.encode_col(C) + '1'; // "A1", "B1", etc.
+        if(!worksheet[address]) continue;
+        const currentHeader = worksheet[address].v;
+        if (newHeaders[currentHeader as keyof typeof newHeaders]) {
+            worksheet[address].v = newHeaders[currentHeader as keyof typeof newHeaders];
+        }
+    }
+
+
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Articulos');
     
@@ -248,14 +289,11 @@ export async function exportForERP(lines: CostAssistantLine[]): Promise<string> 
     const filePath = path.join(exportDir, fileName);
 
     try {
-        // Generate the file content in memory as a buffer
         const buffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'buffer' });
-        
-        // Use fs.writeFileSync to save the buffer to the file system
         fs.writeFileSync(filePath, buffer);
     } catch (error: any) {
         logError("Failed to save Excel file to disk", { error: error.message, path: filePath });
-        throw new Error(`cannot save file\n${filePath}`);
+        throw new Error(`No se pudo guardar el archivo en la ruta del servidor: ${filePath}`);
     }
     
     return fileName;
