@@ -85,7 +85,7 @@ export default function CostAssistantPage() {
                                     </SheetHeader>
                                     <div className="py-4">
                                         <ScrollArea className="h-[80vh]">
-                                            {state.drafts.length > 0 ? (
+                                            {state.drafts && state.drafts.length > 0 ? (
                                                 <div className="space-y-3 pr-4">
                                                     {state.drafts.map((draft) => (
                                                         <Card key={draft.id}>
@@ -244,10 +244,31 @@ export default function CostAssistantPage() {
                                 <CardTitle>Artículos Extraídos</CardTitle>
                                 <CardDescription>Ajusta los datos y márgenes de ganancia para calcular el precio de venta final.</CardDescription>
                              </div>
-                             <Button onClick={actions.handleExportToERP} disabled={state.lines.length === 0}>
-                                <FileDown className="mr-2 h-4 w-4" />
-                                Exportar para ERP (Excel)
-                            </Button>
+                             <div>
+                                {state.exportStatus === 'idle' && (
+                                    <Button onClick={actions.handleExportToERP} disabled={state.lines.length === 0}>
+                                        <FileDown className="mr-2 h-4 w-4" />
+                                        Exportar para ERP (Excel)
+                                    </Button>
+                                )}
+                                {state.exportStatus === 'generating' && (
+                                    <Button disabled>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Generando...
+                                    </Button>
+                                )}
+                                {state.exportStatus === 'ready' && state.exportFileName && (
+                                    <div className="flex gap-2">
+                                        <a href={`/api/temp-exports?file=${state.exportFileName}`} download={state.exportFileName}>
+                                            <Button>
+                                                <Download className="mr-2 h-4 w-4" />
+                                                Descargar Archivo
+                                            </Button>
+                                        </a>
+                                        <Button variant="outline" onClick={actions.handleFinalizeExport}>Finalizar</Button>
+                                    </div>
+                                )}
+                             </div>
                         </div>
                     </CardHeader>
                     <CardContent>

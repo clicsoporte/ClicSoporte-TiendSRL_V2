@@ -8,6 +8,8 @@ import type { CostAssistantLine, ProcessedInvoiceInfo, CostAnalysisDraft } from 
 import { getCostAssistantSettings as getCostAssistantSettingsServer, saveCostAssistantSettings as saveCostAssistantSettingsServer, type CostAssistantSettings, getAllDrafts as getAllDraftsServer, saveDraft as saveDraftServer, deleteDraft as deleteDraftServer } from './db';
 import { logError, logInfo } from '@/modules/core/lib/logger';
 import * as XLSX from 'xlsx';
+import path from 'path';
+import fs from 'fs';
 
 // Helper to get a value from a potentially nested object
 const getValue = (obj: any, path: string[], defaultValue: any = '') => {
@@ -16,7 +18,7 @@ const getValue = (obj: any, path: string[], defaultValue: any = '') => {
 
 const parseDecimal = (str: any): number => {
     if (str === null || str === undefined || str === '') return 0;
-    const cleanStr = String(str).trim();
+    let cleanStr = String(str).trim();
 
     // If a comma exists, assume it's the decimal separator
     if (cleanStr.includes(',')) {
@@ -229,7 +231,7 @@ export async function deleteDraft(id: string): Promise<void> {
     return deleteDraftServer(id);
 }
 
-export async function exportForERP(lines: CostAssistantLine[]): Promise<Blob> {
+export async function exportForERP(lines: CostAssistantLine[]): Promise<string> {
     const dataForExport = lines.map(line => ({
         'COD_ARTICULO': line.supplierCode,
         'PRECIO_BASE_LOCAL': line.sellPriceWithoutTax,
@@ -239,8 +241,34 @@ export async function exportForERP(lines: CostAssistantLine[]): Promise<Blob> {
     const worksheet = XLSX.utils.json_to_sheet(dataForExport);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Articulos');
-
-    const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
     
-    return new Blob([wbout], { type: 'application/octet-stream' });
+    const exportDir = path.join(process.cwd(), 'dbs', 'temp_exports');
+    if (!fs.existsSync(exportDir)) {
+        fs.mkdirSync(exportDir, { recursive: true });
+    }
+    
+    const fileName = `export_erp_${Date.now()}.xlsx`;
+    const filePath = path.join(exportDir, fileName);
+
+    XLSX.writeFile(workbook, filePath);
+    
+    return fileName;
+}
+
+
+export async function cleanupExportFile(fileName: string): Promise<void> {
+    if (!fileName) {
+        throw new Error("Filename is required");
+    }
+    const exportDir = path.join(process.cwd(), 'dbs', 'temp_exports');
+    const filePath = path.join(exportDir, fileName);
+
+    if (fs.existsSync(filePath)) {
+        try {
+            fs.unlinkSync(filePath);
+        } catch (error: any) {
+            logError("Failed to delete temporary export file", { error: error.message, file: fileName });
+            throw new Error("Error del servidor al limpiar el archivo temporal.");
+        }
+    }
 }
