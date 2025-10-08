@@ -66,6 +66,7 @@ export const initialCompany: Company = {
     quotePrefix: "COT-",
     nextQuoteNumber: 1,
     decimalPlaces: 2,
+    quoterShowTaxId: true,
     searchDebounceTime: 500,
     syncWarningHours: 12,
     importMode: 'file',
