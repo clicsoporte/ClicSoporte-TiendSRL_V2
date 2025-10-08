@@ -20,23 +20,27 @@ const parseDecimal = (str: string): number => {
     const hasComma = cleanStr.includes(',');
     const hasPoint = cleanStr.includes('.');
 
-    // Case: "1.234,56" (EU style)
-    if (hasComma) {
-        const europeanStyleStr = cleanStr.replace(/\./g, '').replace(',', '.');
-        return parseFloat(europeanStyleStr) || 0;
-    }
-
-    // Case: "1,234.56" (US/UK style) or integers with thousands separators like "2.000"
-    if (hasPoint) {
-        // If it's something like "2.000" which should be 2
-        if (cleanStr.split('.').length - 1 === 1 && cleanStr.split('.')[1].length === 3) {
-            return parseFloat(cleanStr.replace('.', '')) || 0;
-        }
-        // For "1,234.56"
-        return parseFloat(cleanStr.replace(/,/g, '')) || 0;
+    // Case: "1,234.56" (US/UK style) or integers with comma thousands separators
+    if (hasPoint && hasComma) {
+        return parseFloat(cleanStr.replace(/\./g, '').replace(',', '.')) || 0;
     }
     
-    // Default case (integer as string, e.g., "1000")
+    // Case: "1.234,56" (EU style)
+    if (hasComma) {
+        return parseFloat(cleanStr.replace(/\./g, '').replace(',', '.')) || 0;
+    }
+
+    // Handles cases like "2.000" which should be 2, not 2000.
+    // This happens when a point is used as a thousands separator for integers.
+    // We check if the part after the last dot is exactly 3 digits long, which is a common pattern for this.
+    if (hasPoint && cleanStr.split('.').pop()?.length === 3) {
+        // Check if there are other points, suggesting it's a thousands separator
+        if (cleanStr.split('.').length - 1 > 1 || parseFloat(cleanStr) > 1000) {
+             return parseFloat(cleanStr.replace(/\./g, '')) || 0;
+        }
+    }
+
+    // Default case for numbers like "1234.56" or "1000"
     return parseFloat(cleanStr) || 0;
 };
 
@@ -51,6 +55,10 @@ async function parseInvoice(xmlContent: string): Promise<InvoiceParseResult | { 
         trim: true,
         charkey: '_',
         attrkey: '$',
+        // --- THIS IS THE CRITICAL FIX ---
+        // It tells xml2js to ignore namespaces, so <FacturaElectronica xmlns="..."> becomes just 'FacturaElectronica'
+        ignoreAttrs: true, 
+        tagNameProcessors: [(name) => name.split(':').pop() || name],
     });
 
     const rootKey = Object.keys(json)[0];
@@ -66,8 +74,11 @@ async function parseInvoice(xmlContent: string): Promise<InvoiceParseResult | { 
         invoiceDate: fechaEmision,
     };
     
-    if (rootKey !== 'FacturaElectronica') {
-        return { error: 'No es una Factura Electrónica', details: defaultErrorDetails };
+    if (rootKey !== 'FacturaElectronica' && rootKey !== 'MensajeHacienda') {
+        return { error: 'No es un archivo de factura válido.', details: defaultErrorDetails };
+    }
+    if (rootKey === 'MensajeHacienda') {
+        return { error: 'XML es una respuesta de Hacienda, no una factura.', details: defaultErrorDetails };
     }
     
     const moneda = getValue(rootNode, ['ResumenFactura', '0', 'CodigoTipoMoneda', '0', 'CodigoMoneda'], 'CRC');
@@ -163,7 +174,9 @@ export async function processInvoiceXmls(xmlContents: string[]): Promise<{ lines
                 });
             } else if (result && 'error' in result) {
                  processedInvoices.push({
-                    ...result.details,
+                    supplierName: result.details.supplierName || 'Desconocido',
+                    invoiceNumber: result.details.invoiceNumber || 'N/A',
+                    invoiceDate: result.details.invoiceDate || new Date().toISOString(),
                     status: 'error',
                     errorMessage: result.error
                 });
