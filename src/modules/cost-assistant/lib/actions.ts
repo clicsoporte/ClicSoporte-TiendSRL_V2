@@ -18,18 +18,23 @@ const getValue = (obj: any, path: string[], defaultValue: any = '') => {
 
 const parseDecimal = (str: any): number => {
     if (str === null || str === undefined || str === '') return 0;
+
     let cleanStr = String(str).trim();
 
-    // If a comma exists, it's the decimal separator
+    // Detect if '.' is a thousands separator (e.g., "1.000" or "1.234.567")
+    // A simple heuristic: a dot is a thousands separator if it's followed by exactly 3 digits.
+    const thousandsSeparatorRegex = /\.\d{3}(?![\d,])/;
+    const hasThousandsDot = thousandsSeparatorRegex.test(cleanStr);
+
     if (cleanStr.includes(',')) {
+        // European format: 1.234,56
         cleanStr = cleanStr.replace(/\./g, '').replace(',', '.');
-    } else {
-        const dotIndex = cleanStr.lastIndexOf('.');
-        if (dotIndex !== -1 && (cleanStr.length - dotIndex - 1) > 2) {
-           cleanStr = cleanStr.replace(/\./g, '');
-        }
+    } else if (hasThousandsDot && !cleanStr.includes(',')) {
+         // Format like "1.000" with no comma. Treat dot as thousands separator.
+         cleanStr = cleanStr.replace(/\./g, '');
     }
-    
+    // For other cases (e.g., "1234.56"), parseFloat will handle it correctly.
+
     const parsed = parseFloat(cleanStr);
     return isNaN(parsed) ? 0 : parsed;
 };
@@ -42,6 +47,10 @@ interface InvoiceParseResult {
 
 async function parseInvoice(xmlContent: string, fileIndex: number): Promise<InvoiceParseResult | { error: string, details: Partial<ProcessedInvoiceInfo> }> {
     
+    if (xmlContent.includes('MensajeHacienda')) {
+        return { error: 'El archivo es una respuesta de Hacienda, no una factura.', details: {} };
+    }
+
     const parser = new XMLParser({
         ignoreAttributes: true,
         removeNSPrefix: true, 
@@ -58,10 +67,6 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
     } catch (e: any) {
         logError('XML parsing failed', { error: e.message, content: xmlContent.substring(0, 500) });
         return { error: 'XML malformado o ilegible.', details: {} };
-    }
-    
-    if (json.MensajeHacienda) {
-        return { error: 'El archivo es una respuesta de Hacienda, no una factura.', details: {} };
     }
     
     const rootNode = json.FacturaElectronica;
