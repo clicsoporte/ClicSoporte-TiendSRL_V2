@@ -28,7 +28,10 @@ const parseDecimal = (str: any): number => {
         if (parts.length > 1) {
             const lastPart = parts[parts.length - 1];
             if (lastPart.length === 3) {
-                 cleanStr = cleanStr.replace(/\./g, '');
+                 // It's likely a thousands separator if it's .000
+                 if (lastPart === '000') {
+                    cleanStr = cleanStr.replace(/\./g, '');
+                 }
             }
         }
     }
@@ -50,9 +53,7 @@ async function parseInvoice(xmlContent: string): Promise<InvoiceParseResult | { 
         removeNSPrefix: true, 
         parseTagValue: false, 
         isArray: (tagName, jPath) => {
-             // Force these paths to always be arrays, even if there's only one item
-            return jPath === 'FacturaElectronica.DetalleServicio.LineaDetalle' ||
-                   jPath === 'FacturaElectronica.DetalleServicio.LineaDetalle.CodigoComercial';
+            return jPath.endsWith('LineaDetalle') || jPath.endsWith('CodigoComercial');
         },
     });
 
@@ -62,32 +63,33 @@ async function parseInvoice(xmlContent: string): Promise<InvoiceParseResult | { 
     } catch (e: any) {
         return { error: 'XML malformado o ilegible.', details: {} };
     }
-
+    
+    // --- Check if it is a valid Invoice or a Response Message ---
     const rootNode = json.FacturaElectronica;
-    const responseNode = json.MensajeHacienda;
     
-    const numeroConsecutivo = getValue(json, ['FacturaElectronica', 'NumeroConsecutivo'], getValue(json, ['MensajeHacienda', 'Clave'], 'N/A').substring(21, 41));
-    const fechaEmision = getValue(json, ['FacturaElectronica', 'FechaEmision'], new Date().toISOString());
-    const emisorNombre = getValue(json, ['FacturaElectronica', 'Emisor', 'Nombre'], getValue(json, ['MensajeHacienda', 'NombreEmisor'], 'Desconocido'));
-    
-    const defaultErrorDetails = {
-        supplierName: emisorNombre,
-        invoiceNumber: numeroConsecutivo,
-        invoiceDate: fechaEmision,
-    };
-    
-    if (isResponseMessage) {
-        return { error: 'XML es una respuesta de Hacienda, no una factura.', details: defaultErrorDetails };
+    if (json.MensajeHacienda) {
+        return { 
+            error: 'XML es una respuesta de Hacienda, no una factura.', 
+            details: {
+                supplierName: getValue(json, ['MensajeHacienda', 'NombreEmisor'], 'Respuesta Hacienda'),
+                invoiceNumber: 'N/A',
+                invoiceDate: new Date().toISOString(),
+            } 
+        };
     }
     
     if (!rootNode) {
         const detectedRoot = Object.keys(json)[0] || 'N/A';
-        if (detectedRoot === 'html' || detectedRoot.startsWith('?')) {
+        if (detectedRoot === 'html' || detectedRoot.startsWith('?xml')) {
             return { error: 'El archivo es un documento HTML o XML inválido, no una factura.', details: {} };
         }
-        return { error: `No es un archivo de factura válido. Nodo raíz no encontrado: ${detectedRoot}`, details: defaultErrorDetails };
+        return { error: `No es un archivo de factura válido. Nodo raíz no encontrado: ${detectedRoot}`, details: {} };
     }
     
+    const numeroConsecutivo = getValue(rootNode, ['NumeroConsecutivo'], 'N/A');
+    const fechaEmision = getValue(rootNode, ['FechaEmision'], new Date().toISOString());
+    const emisorNombre = getValue(rootNode, ['Emisor', 'Nombre'], 'Desconocido');
+
     const invoiceInfo = {
         supplierName: emisorNombre,
         invoiceNumber: numeroConsecutivo,
@@ -99,7 +101,7 @@ async function parseInvoice(xmlContent: string): Promise<InvoiceParseResult | { 
         return { lines: [], invoiceInfo };
     }
 
-    const lineasDetalle = detalleServicio.LineaDetalle;
+    const lineasDetalle = Array.isArray(detalleServicio.LineaDetalle) ? detalleServicio.LineaDetalle : [detalleServicio.LineaDetalle];
 
     const moneda = getValue(rootNode, ['ResumenFactura', 'CodigoTipoMoneda', 'CodigoMoneda'], 'CRC');
     const tipoCambioStr = getValue(rootNode, ['ResumenFactura', 'CodigoTipoMoneda', 'TipoCambio'], '1');
@@ -107,14 +109,15 @@ async function parseInvoice(xmlContent: string): Promise<InvoiceParseResult | { 
 
 
     const lines: CostAssistantLine[] = [];
-    for (const linea of lineasDetalle) {
-        
+    for (const [index, linea] of lineasDetalle.entries()) {
         const cantidad = parseDecimal(getValue(linea, ['Cantidad'], '0'));
         if (cantidad === 0) continue;
         
         let supplierCode = 'N/A';
-        const codigosComerciales = linea.CodigoComercial;
-        if (codigosComerciales) {
+        const codigosComercialesRaw = linea.CodigoComercial;
+        const codigosComerciales = Array.isArray(codigosComercialesRaw) ? codigosComercialesRaw : (codigosComercialesRaw ? [codigosComercialesRaw] : []);
+        
+        if (codigosComerciales.length > 0) {
             const preferredCodeNode = codigosComerciales.find((c: any) => c.Tipo === '01' || c.Tipo === '04');
             if (preferredCodeNode && preferredCodeNode.Codigo) {
                 supplierCode = preferredCodeNode.Codigo;
@@ -132,10 +135,11 @@ async function parseInvoice(xmlContent: string): Promise<InvoiceParseResult | { 
         const descuentoNode = getValue(linea, ['Descuento']);
         const descuentoTotal = descuentoNode ? parseDecimal(getValue(descuentoNode, ['MontoDescuento'], '0')) : 0;
         
-        const subTotal = parseDecimal(getValue(linea, ['SubTotal'], '0')) - descuentoTotal;
+        const subTotal = parseDecimal(getValue(linea, ['SubTotal'], '0'));
+        const subTotalWithDiscount = subTotal - descuentoTotal;
         
         const unitCostWithTax = cantidad > 0 ? montoTotalLinea / cantidad : 0;
-        const unitCostWithoutTax = cantidad > 0 ? subTotal / cantidad : 0;
+        const unitCostWithoutTax = cantidad > 0 ? subTotalWithDiscount / cantidad : 0;
 
         const impuestoNode = getValue(linea, ['Impuesto']);
         let taxRate = 0.13; // Default
@@ -147,10 +151,12 @@ async function parseInvoice(xmlContent: string): Promise<InvoiceParseResult | { 
         const unitCostWithTaxInColones = moneda === 'USD' ? unitCostWithTax * tipoCambio : unitCostWithTax;
         const unitCostWithoutTaxInColones = moneda === 'USD' ? unitCostWithoutTax * tipoCambio : unitCostWithoutTax;
         
+        const numeroLinea = getValue(linea, ['NumeroLinea'], index + 1);
+
         lines.push({
-            id: `${numeroConsecutivo}-${getValue(linea, ['NumeroLinea'], '0')}-${supplierCode}`,
+            id: `${numeroConsecutivo}-${numeroLinea}-${index}`,
             invoiceKey: numeroConsecutivo,
-            lineNumber: parseInt(getValue(linea, ['NumeroLinea'], '0')),
+            lineNumber: numeroLinea,
             cabysCode: cabysCode,
             supplierCode: supplierCode,
             description: getValue(linea, ['Detalle']),
