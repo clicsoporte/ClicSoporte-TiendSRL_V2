@@ -18,18 +18,13 @@ const getValue = (obj: any, path: string[], defaultValue: any = '') => {
 
 const parseDecimal = (str: any): number => {
     if (str === null || str === undefined || str === '') return 0;
-    const cleanStr = String(str).trim();
     
-    // If it includes a comma, it's the decimal separator (e.g., "1.234,56")
-    if (cleanStr.includes(',')) {
-        const normalized = cleanStr.replace(/\./g, '').replace(',', '.');
-        const parsed = parseFloat(normalized);
-        return isNaN(parsed) ? 0 : parsed;
-    }
-    
-    // If it does NOT include a comma, any dots are for thousands.
-    // Handles "1.000" (as 1000) but parseFloat will correctly parse it as 1 if there's no decimal part.
+    // Universal parser for Costa Rican XMLs (dot for thousands, comma for decimal)
+    // Example: "1.234,56" -> "1234.56" -> 1234.56
+    // Example: "1.000" -> "1000" -> 1000 (Correct for integer-like values with thousand separators)
+    const cleanStr = String(str).replace(/\./g, '').replace(',', '.');
     const parsed = parseFloat(cleanStr);
+    
     return isNaN(parsed) ? 0 : parsed;
 };
 
@@ -228,31 +223,60 @@ export async function deleteDraft(id: string): Promise<void> {
 }
 
 export async function exportForERP(lines: CostAssistantLine[]): Promise<string> {
+    // Correctly map the data to the specific column structure of the ERP template
     const dataForExport = lines.map(line => ({
-        '01': line.supplierCode,
-        'Nombre': line.description,
-        'Unidad de medida': 'Unid',
-        'Precio (sin impuestos)': line.sellPriceWithoutTax,
-        'Moneda': 'CRC',
-        'IMP.01': line.taxRate * 100,
-        'Código Cabys': line.cabysCode,
-        'Estado': 'A',
+        'CODIGOS (Requerido)': line.supplierCode, // Column A (01)
+        'Nombre (Requerido)': line.description,   // Column G
+        'Unidad de medida (Requerido)': 'Unid',  // Column I
+        'Precio (Sin impuestos) (Requerido)': line.sellPriceWithoutTax, // Column K
+        'Moneda': 'CRC',                          // Column L
+        'Imp.01': line.taxRate * 100,             // Column O
+        'Código Cabys': line.cabysCode,           // Column AC
+        'Estado': 'A',                            // Column AD
     }));
 
+    // Create a worksheet with the exact headers from the template
     const ws_data = [
         [
-            "CODIGOS (Requerido)", null, null, null, null, "IMPUESTOS (Opcional)", null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null
+            "CODIGOS (Requerido)", null, null, null, null, "PARTIDA ARANCELARIA (Opcional)", "NOMBRE (Requerido)", 
+            "DESCRIPCION (Opcional)", "UNIDAD DE MEDIDA (Requerido)", "UNIDAD DE MEDIDA COMERCIAL (Opcional)", 
+            "PRECIO (Sin impuestos) (Requerido)", "MONEDA", "ACTIVIDAD ECONOMICA", "BASE IMPONIBLE", "IMPUESTOS (Opcional)", 
+            null, null, null, null, null, null, null, null, null, null, null, null, "MUESTRA DESCRIPCION PDF (OPCIONAL)", 
+            "CÓDIGO CABYS", "ESTADO", "REGISTRO DE MEDICAMENTO", "FORMA FARMACÉUTICA"
         ],
         [
-            "01", "02", "03", "04", "99", "PARTIDA ARANCELARIA (Opcional)", "NOMBRE (Requerido)", "DESCRIPCION (Opcional)", "UNIDAD DE MEDIDA (Requerido)", "UNIDAD DE MEDIDA COMERCIAL (Opcional)", "PRECIO (Sin impuestos) (Requerido)", "MONEDA", "ACTIVIDAD ECONOMICA", "BASE IMPONIBLE", "IMP.01", "IMP.02", "IMPUESTO ESPECIFICO", "CANTIDAD UNIDAD MEDIDA", "PORCENTAJE", "VOLUMEN UNIDAD CONSUMO", "IMPUESTO UNIDAD", "TIPO DE PRODUCTO", "IMP.07", "IMP.08", "IMP.12", "IMP.99", "IMP.99 DESCRIPCIÓN", "MUESTRA DESCRIPCION PDF (OPCIONAL)", "CÓDIGO CABYS", "ESTADO", "REGISTRO DE MEDICAMENTO", "FORMA FARMACÉUTICA"
+            "01", "02", "03", "04", "99", null, null, null, null, null, null, null, null, null,
+            "IMP.01", "IMP.02", "IMPUESTO ESPECIFICO", "CANTIDAD UNIDAD MEDIDA", "PORCENTAJE",
+            "VOLUMEN UNIDAD CONSUMO", "IMPUESTO UNIDAD", "TIPO DE PRODUCTO", "IMP.07", "IMP.08",
+            "IMP.12", "IMP.99", "IMP.99 DESCRIPCIÓN"
         ]
     ];
     
     const worksheet = XLSX.utils.aoa_to_sheet(ws_data);
 
+    // Add the JSON data starting from row 3, matching the header names
     XLSX.utils.sheet_add_json(worksheet, dataForExport, {
         origin: "A3",
-        header: ['01', 'NOMBRE (Requerido)', 'UNIDAD DE MEDIDA (Requerido)', 'PRECIO (Sin impuestos) (Requerido)', 'MONEDA', 'IMP.01', 'CÓDIGO CABYS', 'ESTADO'],
+        header: [
+            "CODIGOS (Requerido)", // A
+            null, // B
+            null, // C
+            null, // D
+            null, // E
+            null, // F
+            "Nombre (Requerido)", // G
+            null, // H
+            "Unidad de medida (Requerido)", // I
+            null, // J
+            "Precio (Sin impuestos) (Requerido)", // K
+            "Moneda", // L
+            null, // M
+            null, // N
+            "Imp.01", // O
+            null, null, null, null, null, null, null, null, null, null, null, null, null,
+            "Código Cabys", // AC
+            "Estado" // AD
+        ],
         skipHeader: true
     });
     
