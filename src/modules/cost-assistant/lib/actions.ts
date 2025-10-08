@@ -18,24 +18,14 @@ const parseDecimal = (str: any): number => {
     let cleanStr = String(str).trim();
 
     const hasComma = cleanStr.includes(',');
-    const hasDot = cleanStr.includes('.');
 
+    // If it has a comma, it's likely European format (1.234,56)
     if (hasComma) {
-        // European format: 1.234,56 -> 1234.56
         cleanStr = cleanStr.replace(/\./g, '').replace(',', '.');
-    } else if (hasDot) {
-        const parts = cleanStr.split('.');
-        if (parts.length > 1) {
-            const lastPart = parts[parts.length - 1];
-            if (lastPart.length === 3) {
-                 // It's likely a thousands separator if it's .000
-                 if (lastPart === '000') {
-                    cleanStr = cleanStr.replace(/\./g, '');
-                 }
-            }
-        }
     }
-    
+    // If no comma, the dot is the decimal separator (1234.56)
+    // We don't need to do anything special for this case, parseFloat handles it.
+
     const parsed = parseFloat(cleanStr);
     return isNaN(parsed) ? 0 : parsed;
 };
@@ -61,10 +51,10 @@ async function parseInvoice(xmlContent: string): Promise<InvoiceParseResult | { 
     try {
         json = parser.parse(xmlContent);
     } catch (e: any) {
+        logError('XML parsing failed', { error: e.message, content: xmlContent.substring(0, 500) });
         return { error: 'XML malformado o ilegible.', details: {} };
     }
     
-    // --- Check if it is a valid Invoice or a Response Message ---
     const rootNode = json.FacturaElectronica;
     
     if (json.MensajeHacienda) {
@@ -80,6 +70,7 @@ async function parseInvoice(xmlContent: string): Promise<InvoiceParseResult | { 
     
     if (!rootNode) {
         const detectedRoot = Object.keys(json)[0] || 'N/A';
+        logError('Invalid XML structure for invoice', { detectedRoot });
         if (detectedRoot === 'html' || detectedRoot.startsWith('?xml')) {
             return { error: 'El archivo es un documento HTML o XML inválido, no una factura.', details: {} };
         }
@@ -154,7 +145,7 @@ async function parseInvoice(xmlContent: string): Promise<InvoiceParseResult | { 
         const numeroLinea = getValue(linea, ['NumeroLinea'], index + 1);
 
         lines.push({
-            id: `${numeroConsecutivo}-${numeroLinea}-${index}`,
+            id: `${numeroConsecutivo}-${numeroLinea}-${supplierCode}-${index}`, // Make key more unique
             invoiceKey: numeroConsecutivo,
             lineNumber: numeroLinea,
             cabysCode: cabysCode,
