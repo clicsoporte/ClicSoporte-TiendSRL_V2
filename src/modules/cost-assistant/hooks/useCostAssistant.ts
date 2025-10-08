@@ -20,6 +20,7 @@ const normalizeNumber = (value: string): number => {
 };
 
 const initialColumnVisibility = {
+    cabysCode: true,
     supplierCode: true,
     description: true,
     quantity: true,

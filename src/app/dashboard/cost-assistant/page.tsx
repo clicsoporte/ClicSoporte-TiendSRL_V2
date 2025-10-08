@@ -29,6 +29,7 @@ export default function CostAssistantPage() {
     });
     
     const columns = [
+        { id: 'cabysCode', label: 'Cabys', defaultVisible: true, minWidth: 'min-w-[150px]' },
         { id: 'supplierCode', label: 'Cód. Artículo', defaultVisible: true, minWidth: 'min-w-[150px]' },
         { id: 'description', label: 'Descripción', defaultVisible: true },
         { id: 'quantity', label: 'Cant.', defaultVisible: true, className: 'text-right' },
@@ -45,8 +46,7 @@ export default function CostAssistantPage() {
         <TooltipProvider>
             <main className="flex-1 p-4 md:p-6 lg:p-8 space-y-6">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-                    {/* Control Panels */}
-                    <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-6">
+                     <div className="lg:col-span-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-6">
                         <Card>
                             <CardHeader>
                                 <CardTitle>Costos Adicionales</CardTitle>
@@ -101,8 +101,11 @@ export default function CostAssistantPage() {
                                 </div>
                             </CardContent>
                         </Card>
+                    </div>
+
+                    <div className="lg:col-span-2">
                         <Card>
-                            <CardHeader>
+                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2"><FileScan className="h-5 w-5"/>Cargar Facturas</CardTitle>
                             </CardHeader>
                             <CardContent>
@@ -130,7 +133,7 @@ export default function CostAssistantPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle>Artículos Extraídos</CardTitle>
-                        <CardDescription>Ajusta los márgenes de ganancia para calcular el precio de venta final.</CardDescription>
+                        <CardDescription>Ajusta los datos y márgenes de ganancia para calcular el precio de venta final.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <div className="border rounded-md p-4 mb-4">
@@ -169,14 +172,15 @@ export default function CostAssistantPage() {
                                 <TableBody>
                                     {state.lines.length > 0 ? state.lines.map((line) => (
                                         <TableRow key={line.id}>
-                                            {state.columnVisibility.supplierCode && <TableCell className="font-mono text-xs">{line.supplierCode}</TableCell>}
-                                            {state.columnVisibility.description && <TableCell>{line.description}</TableCell>}
-                                            {state.columnVisibility.quantity && <TableCell className="text-right font-medium">{line.quantity}</TableCell>}
-                                            {state.columnVisibility.unitCostWithoutTax && <TableCell className="text-right font-mono">{actions.formatCurrency(line.unitCostWithoutTax)}</TableCell>}
+                                            {state.columnVisibility.cabysCode && <TableCell><Input value={line.cabysCode} onChange={e => actions.updateLine(line.id, { cabysCode: e.target.value })} className="font-mono text-xs"/></TableCell>}
+                                            {state.columnVisibility.supplierCode && <TableCell><Input value={line.supplierCode} onChange={e => actions.updateLine(line.id, { supplierCode: e.target.value })} className="font-mono text-xs"/></TableCell>}
+                                            {state.columnVisibility.description && <TableCell><Input value={line.description} onChange={e => actions.updateLine(line.id, { description: e.target.value })} /></TableCell>}
+                                            {state.columnVisibility.quantity && <TableCell><Input type="number" value={line.quantity} onChange={e => actions.updateLine(line.id, { quantity: Number(e.target.value) })} className="text-right font-medium" /></TableCell>}
+                                            {state.columnVisibility.unitCostWithoutTax && <TableCell><Input type="number" value={line.unitCostWithoutTax} onChange={e => actions.updateLine(line.id, { unitCostWithoutTax: Number(e.target.value) })} className="text-right font-mono"/></TableCell>}
                                             {state.columnVisibility.unitCostWithTax && <TableCell className="text-right font-mono">{actions.formatCurrency(line.unitCostWithTax)}</TableCell>}
                                             {state.columnVisibility.taxRate && <TableCell className="text-center font-mono text-xs">{`${(line.taxRate * 100).toFixed(0)}%`}</TableCell>}
                                             {state.columnVisibility.margin && 
-                                                <TableCell>
+                                                <TableCell className={cn(columns.find(c=>c.id === 'margin')?.minWidth)}>
                                                     <div className="relative">
                                                         <Input 
                                                             type="text" 
