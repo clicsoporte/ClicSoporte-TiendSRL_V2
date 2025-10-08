@@ -17,23 +17,21 @@ const parseDecimal = (str: any): number => {
 
     let cleanStr = String(str).trim();
 
-    // The most reliable format in CR XML seems to be with a '.' decimal separator
-    // and no thousands separators. However, some providers do use them.
-
-    // Scenario 1: Contains comma, may contain dots (e.g., "1.234,56") -> European style
+    // If a comma exists, assume it's the decimal separator and remove dots.
     if (cleanStr.includes(',')) {
         cleanStr = cleanStr.replace(/\./g, '').replace(',', '.');
-    }
-    // Scenario 2: Contains only dots. This is ambiguous. "2.000" could be 2 or 2000.
-    // Given the XMLs, if a dot is followed by exactly 3 digits at the end, it's likely a thousands separator.
+    } 
+    // If only dots exist, they are likely thousand separators if they are not the last dot for decimals.
+    // Example: "2.000" should be 2, "2.000.00" should be 2000.
     else if (cleanStr.includes('.')) {
         const parts = cleanStr.split('.');
-        if (parts.length > 1) {
-            const lastPart = parts[parts.length - 1];
-            // If the last part is 3 digits and there are more parts, treat all dots as thousands separators.
-            if (lastPart.length === 3 && parts.length > 1) {
-                 cleanStr = cleanStr.replace(/\./g, '');
-            }
+        const lastPart = parts[parts.length - 1];
+        // If the last part has 3 digits and there is more than one dot, treat all as thousands separators.
+        // If last part is not 3 digits long, it's likely a decimal.
+        if (parts.length > 1 && lastPart.length === 3) {
+            // Check if there are other parts with less than 3 digits, suggesting mixed use, which is unlikely.
+            // For simplicity, if there are multiple dots and the last group is 3 digits, we treat them as thousand separators.
+            cleanStr = cleanStr.replace(/\./g, '');
         }
     }
     
@@ -134,7 +132,11 @@ async function parseInvoice(xmlContent: string): Promise<InvoiceParseResult | { 
         const cabysCode = cabysV44 || cabysV43 || 'N/A';
         
         const montoTotalLinea = parseDecimal(getValue(linea, ['MontoTotalLinea'], '0'));
-        const subTotal = parseDecimal(getValue(linea, ['SubTotal'], '0'));
+        
+        const descuentoNode = getValue(linea, ['Descuento']);
+        const descuentoTotal = descuentoNode ? parseDecimal(getValue(descuentoNode, ['MontoDescuento'], '0')) : 0;
+        
+        const subTotal = parseDecimal(getValue(linea, ['SubTotal'], '0')) - descuentoTotal;
         
         const unitCostWithTax = cantidad > 0 ? montoTotalLinea / cantidad : 0;
         const unitCostWithoutTax = cantidad > 0 ? subTotal / cantidad : 0;
