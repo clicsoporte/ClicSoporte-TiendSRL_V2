@@ -7,17 +7,27 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
-import type { CostAssistantLine, ProcessedInvoiceInfo } from '@/modules/core/types';
-import { processInvoiceXmls, getCostAssistantSettings, saveCostAssistantSettings } from '../lib/actions';
+import type { CostAssistantLine, ProcessedInvoiceInfo, CostAnalysisDraft } from '@/modules/core/types';
+import { processInvoiceXmls, getCostAssistantSettings, saveCostAssistantSettings, getAllDrafts, saveDraft, deleteDraft, exportForERP } from '../lib/actions';
 import { logError } from '@/modules/core/lib/logger';
+import { useAuth } from '@/modules/core/hooks/useAuth';
 
-const normalizeNumber = (value: string): number => {
-    if (typeof value !== 'string' || !value.trim()) return 0;
-    const standardizedValue = value.replace(/,/g, '.');
-    const validNumberString = standardizedValue.replace(/[^\d.]/g, '').replace(/(\..*)\./g, '$1');
-    const parsed = parseFloat(validNumberString);
+const normalizeNumber = (str: any): number => {
+    if (str === null || str === undefined || str === '') return 0;
+    const cleanStr = String(str).trim();
+
+    // If a comma exists, assume it's the decimal separator
+    if (cleanStr.includes(',')) {
+        const standardStr = cleanStr.replace(/\./g, '').replace(',', '.');
+        const parsed = parseFloat(standardStr);
+        return isNaN(parsed) ? 0 : parsed;
+    }
+
+    // If no comma, parse as is (dot is decimal separator)
+    const parsed = parseFloat(cleanStr);
     return isNaN(parsed) ? 0 : parsed;
 };
+
 
 const initialColumnVisibility = {
     cabysCode: true,
@@ -37,6 +47,7 @@ const initialState = {
     isProcessing: false,
     lines: [] as CostAssistantLine[],
     processedInvoices: [] as ProcessedInvoiceInfo[],
+    drafts: [] as CostAnalysisDraft[],
     transportCost: 0,
     otherCosts: 0,
     columnVisibility: initialColumnVisibility
@@ -46,6 +57,7 @@ export const useCostAssistant = () => {
     useAuthorization(['dashboard:access']); // Basic access permission
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
+    const { user } = useAuth();
 
     const [state, setState] = useState(initialState);
 
@@ -86,9 +98,9 @@ export const useCostAssistant = () => {
             
             const { lines: processedLines, processedInvoices } = await processInvoiceXmls(fileContents);
 
-            const newLines = processedLines.map(line => ({
+            const newLines = processedLines.map((line, index) => ({
                 ...line,
-                id: `${line.invoiceKey}-${line.lineNumber}`,
+                id: `${line.invoiceKey}-${line.lineNumber}-${line.supplierCode}-${index}`,
                 displayMargin: "20",
                 margin: 0.20,
                 finalSellPrice: 0, // Will be calculated by useMemo
@@ -154,8 +166,92 @@ export const useCostAssistant = () => {
     };
 
     const handleClear = () => {
-        setState(initialState);
+        setState(prevState => ({...initialState, columnVisibility: prevState.columnVisibility}));
         toast({ title: "Operación Limpiada", description: "Se han borrado todos los datos para iniciar un nuevo análisis." });
+    };
+
+    const handleExportToERP = async () => {
+        if (state.lines.length === 0) {
+            toast({ title: 'No hay datos', description: 'No hay artículos para exportar.', variant: 'destructive' });
+            return;
+        }
+        try {
+            const blob = await exportForERP(state.lines);
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `articulos_para_erp_${new Date().toISOString().split('T')[0]}.xlsx`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            a.remove();
+            toast({ title: 'Exportación Exitosa', description: 'Se ha generado el archivo de Excel para el ERP.' });
+        } catch (error: any) {
+            logError("Failed to export for ERP", { error: error.message });
+            toast({ title: "Error de Exportación", description: error.message, variant: "destructive" });
+        }
+    };
+    
+    // --- Drafts ---
+    const loadDrafts = async () => {
+        if (!user) return;
+        try {
+            const draftsFromDb = await getAllDrafts(user.id);
+            setState(prevState => ({ ...prevState, drafts: draftsFromDb }));
+        } catch (error: any) {
+            logError("Failed to load drafts", { error: error.message });
+            toast({ title: "Error", description: "No se pudieron cargar los borradores.", variant: "destructive" });
+        }
+    };
+
+    const saveDraftAction = async (draftName: string) => {
+        if (!user || !draftName) return;
+
+        const newDraft: CostAnalysisDraft = {
+            id: crypto.randomUUID(),
+            createdAt: new Date().toISOString(),
+            userId: user.id,
+            name: draftName,
+            lines: state.lines,
+            globalCosts: {
+                transportCost: state.transportCost,
+                otherCosts: state.otherCosts,
+            },
+            processedInvoices: state.processedInvoices
+        };
+
+        try {
+            await saveDraft(newDraft);
+            toast({ title: "Borrador Guardado", description: `El análisis "${draftName}" ha sido guardado.` });
+        } catch (error: any) {
+            logError("Failed to save draft", { error: error.message });
+            toast({ title: "Error", description: "No se pudo guardar el borrador.", variant: "destructive" });
+        }
+    };
+    
+    const loadDraft = (draftToLoad: CostAnalysisDraft) => {
+        setState(prevState => ({
+            ...prevState,
+            lines: draftToLoad.lines,
+            transportCost: draftToLoad.globalCosts.transportCost,
+            otherCosts: draftToLoad.globalCosts.otherCosts,
+            processedInvoices: draftToLoad.processedInvoices
+        }));
+        toast({ title: "Borrador Cargado", description: `Se ha cargado el análisis "${draftToLoad.name}".` });
+    };
+
+    const deleteDraftAction = async (draftId: string) => {
+        try {
+            await deleteDraft(draftId);
+            setState(prevState => ({
+                ...prevState,
+                drafts: prevState.drafts.filter(d => d.id !== draftId)
+            }));
+            toast({ title: "Borrador Eliminado", variant: "destructive" });
+        } catch (error: any) {
+            logError("Failed to delete draft", { error: error.message });
+            toast({ title: "Error", description: "No se pudo eliminar el borrador.", variant: "destructive" });
+        }
     };
 
     const totals = useMemo(() => {
@@ -170,10 +266,9 @@ export const useCostAssistant = () => {
             const finalSellPrice = sellPriceWithoutTax * (1 + line.taxRate);
             const profitPerLine = (sellPriceWithoutTax - finalUnitCost) * line.quantity;
 
-            return { ...line, finalSellPrice, sellPriceWithoutTax, profitPerLine };
+            return { ...line, finalSellPrice, sellPriceWithoutTax, profitPerLine, unitCostWithoutTax: finalUnitCost };
         });
 
-        // Update state in a stable way if needed, avoiding infinite loops
         Promise.resolve().then(() => {
             const needsUpdate = state.lines.some((line, index) => 
                 line.finalSellPrice !== linesWithCosts[index].finalSellPrice || 
@@ -203,6 +298,11 @@ export const useCostAssistant = () => {
         setOtherCosts: (cost: number) => setState(prevState => ({ ...prevState, otherCosts: cost })),
         setColumnVisibility,
         handleSaveColumnVisibility,
+        handleExportToERP,
+        loadDrafts,
+        saveDraft: saveDraftAction,
+        loadDraft,
+        deleteDraft: deleteDraftAction,
     };
 
     return {
