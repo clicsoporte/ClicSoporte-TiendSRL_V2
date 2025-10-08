@@ -11,10 +11,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useDropzone } from 'react-dropzone';
-import { FileScan, UploadCloud, Loader2, Percent, Calculator, Trash2, Settings2 } from 'lucide-react';
+import { FileScan, UploadCloud, Loader2, Percent, Calculator, Trash2, Settings2, FilePlus, Save, Briefcase } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Checkbox } from '@/components/ui/checkbox';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 export default function CostAssistantPage() {
     const {
@@ -45,90 +46,132 @@ export default function CostAssistantPage() {
     return (
         <TooltipProvider>
             <main className="flex-1 p-4 md:p-6 lg:p-8 space-y-6">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-                     <div className="lg:col-span-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-6">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Costos Adicionales</CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="transport-cost">Costo de Transporte (Total)</Label>
-                                    <Input 
-                                        id="transport-cost" 
-                                        type="number" 
-                                        value={state.transportCost || ''}
-                                        onChange={(e) => actions.setTransportCost(Number(e.target.value))}
-                                        placeholder="Ej: 5000"
-                                    />
+                <Card>
+                    <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                        <div>
+                            <CardTitle>Asistente de Costos y Precios</CardTitle>
+                            <CardDescription>Carga facturas XML para extraer artículos, añadir costos y calcular precios de venta.</CardDescription>
+                        </div>
+                        <div className="flex items-center gap-2">
+                             <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Button variant="outline"><FilePlus className="mr-2 h-4 w-4"/>Nueva Operación</Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>¿Iniciar una nueva operación?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            Esta acción limpiará todos los artículos, costos y proveedores cargados. ¿Deseas continuar?
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                        <AlertDialogAction onClick={actions.handleClear}>Sí, limpiar todo</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                            <Button disabled><Save className="mr-2 h-4 w-4"/>Guardar Borrador</Button>
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
+                            <div className="lg:col-span-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-6">
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle>Costos Adicionales</CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="space-y-4">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="transport-cost">Costo de Transporte (Total)</Label>
+                                            <Input 
+                                                id="transport-cost" 
+                                                type="number" 
+                                                value={state.transportCost || ''}
+                                                onChange={(e) => actions.setTransportCost(Number(e.target.value))}
+                                                placeholder="Ej: 5000"
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="other-costs">Otros Costos (Total)</Label>
+                                            <Input 
+                                                id="other-costs" 
+                                                type="number" 
+                                                value={state.otherCosts || ''}
+                                                onChange={(e) => actions.setOtherCosts(Number(e.target.value))}
+                                                placeholder="Ej: 10000"
+                                            />
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle className="flex items-center gap-2"><Calculator className="h-5 w-5"/>Resumen General</CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="space-y-2 text-sm">
+                                        <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Costo Total de Compra:</span>
+                                            <span className="font-medium">{actions.formatCurrency(state.totals.totalPurchaseCost)}</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Costos Adicionales Totales:</span>
+                                            <span className="font-medium">{actions.formatCurrency(state.totals.totalAdditionalCosts)}</span>
+                                        </div>
+                                        <div className="flex justify-between font-bold border-t pt-2">
+                                            <span>Costo Total Final:</span>
+                                            <span>{actions.formatCurrency(state.totals.totalFinalCost)}</span>
+                                        </div>
+                                        <div className="flex justify-between text-green-600 font-bold">
+                                            <span>Ingreso Total Estimado (Venta):</span>
+                                            <span>{actions.formatCurrency(state.totals.totalSellValue)}</span>
+                                        </div>
+                                        <div className="flex justify-between text-blue-700 font-bold text-lg border-t pt-2">
+                                            <span>Ganancia Bruta Estimada:</span>
+                                            <span>{actions.formatCurrency(state.totals.estimatedGrossProfit)}</span>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </div>
+                            <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+                                <div className="md:col-span-1">
+                                    <Card>
+                                        <CardHeader>
+                                            <CardTitle className="flex items-center gap-2"><Briefcase className="h-5 w-5" />Proveedores Cargados</CardTitle>
+                                        </CardHeader>
+                                        <CardContent>
+                                            {state.suppliers.length > 0 ? (
+                                                <ul className="space-y-2 text-sm text-muted-foreground">
+                                                    {state.suppliers.map((supplier, index) => (
+                                                        <li key={index} className="border-b pb-1">{supplier}</li>
+                                                    ))}
+                                                </ul>
+                                            ) : (
+                                                <p className="text-sm text-muted-foreground">Aún no se han cargado facturas.</p>
+                                            )}
+                                        </CardContent>
+                                    </Card>
                                 </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="other-costs">Otros Costos (Total)</Label>
-                                    <Input 
-                                        id="other-costs" 
-                                        type="number" 
-                                        value={state.otherCosts || ''}
-                                        onChange={(e) => actions.setOtherCosts(Number(e.target.value))}
-                                        placeholder="Ej: 10000"
-                                    />
+                                <div className="md:col-span-2">
+                                    <div {...getRootProps()} className={cn("flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg cursor-pointer transition-colors h-full", isDragActive ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50', state.isProcessing && 'cursor-not-allowed opacity-50')}>
+                                        <input {...getInputProps()} disabled={state.isProcessing}/>
+                                        {state.isProcessing ? (
+                                            <>
+                                                <Loader2 className="h-8 w-8 text-primary animate-spin" />
+                                                <p className="mt-2 text-center text-primary text-sm">Procesando...</p>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <UploadCloud className="w-8 h-8 text-muted-foreground" />
+                                                <p className="mt-2 text-center text-muted-foreground text-sm">
+                                                    {isDragActive ? "Suelta los XML aquí..." : "Arrastra o haz clic para seleccionar los XML"}
+                                                </p>
+                                            </>
+                                        )}
+                                    </div>
                                 </div>
-                            </CardContent>
-                        </Card>
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2"><Calculator className="h-5 w-5"/>Resumen General</CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-2 text-sm">
-                                <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Costo Total de Compra:</span>
-                                    <span className="font-medium">{actions.formatCurrency(state.totals.totalPurchaseCost)}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Costos Adicionales Totales:</span>
-                                    <span className="font-medium">{actions.formatCurrency(state.totals.totalAdditionalCosts)}</span>
-                                </div>
-                                <div className="flex justify-between font-bold border-t pt-2">
-                                    <span>Costo Total Final:</span>
-                                    <span>{actions.formatCurrency(state.totals.totalFinalCost)}</span>
-                                </div>
-                                <div className="flex justify-between text-green-600 font-bold">
-                                    <span>Ingreso Total Estimado (Venta):</span>
-                                    <span>{actions.formatCurrency(state.totals.totalSellValue)}</span>
-                                </div>
-                                <div className="flex justify-between text-blue-700 font-bold text-lg border-t pt-2">
-                                    <span>Ganancia Bruta Estimada:</span>
-                                    <span>{actions.formatCurrency(state.totals.estimatedGrossProfit)}</span>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </div>
-
-                    <div className="lg:col-span-2">
-                        <Card>
-                             <CardHeader>
-                                <CardTitle className="flex items-center gap-2"><FileScan className="h-5 w-5"/>Cargar Facturas</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div {...getRootProps()} className={cn("flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg cursor-pointer transition-colors h-full", isDragActive ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50', state.isProcessing && 'cursor-not-allowed opacity-50')}>
-                                    <input {...getInputProps()} disabled={state.isProcessing}/>
-                                    {state.isProcessing ? (
-                                        <>
-                                            <Loader2 className="h-8 w-8 text-primary animate-spin" />
-                                            <p className="mt-2 text-center text-primary text-sm">Procesando...</p>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <UploadCloud className="w-8 h-8 text-muted-foreground" />
-                                            <p className="mt-2 text-center text-muted-foreground text-sm">
-                                                {isDragActive ? "Suelta los XML aquí..." : "Arrastra o haz clic para seleccionar"}
-                                            </p>
-                                        </>
-                                    )}
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </div>
-                </div>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
                 
                 <Card>
                     <CardHeader>

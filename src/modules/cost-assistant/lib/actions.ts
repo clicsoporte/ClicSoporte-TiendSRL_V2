@@ -11,7 +11,12 @@ const getValue = (obj: any, path: string[], defaultValue: any = '') => {
     return path.reduce((acc, key) => (acc && acc[key] && acc[key][0]) ? acc[key][0] : defaultValue, obj);
 };
 
-async function parseInvoice(xmlContent: string): Promise<CostAssistantLine[]> {
+interface InvoiceParseResult {
+    lines: CostAssistantLine[];
+    supplierName: string;
+}
+
+async function parseInvoice(xmlContent: string): Promise<InvoiceParseResult> {
     const json = await parseStringPromise(xmlContent, {
         explicitArray: true,
         trim: true,
@@ -29,7 +34,7 @@ async function parseInvoice(xmlContent: string): Promise<CostAssistantLine[]> {
 
     const detalleServicio = getValue(rootNode, ['DetalleServicio']);
     if (!detalleServicio || !detalleServicio.LineaDetalle) {
-        return [];
+        return { lines: [], supplierName: emisorNombre };
     }
 
     const lines: CostAssistantLine[] = [];
@@ -78,21 +83,25 @@ async function parseInvoice(xmlContent: string): Promise<CostAssistantLine[]> {
         });
     }
 
-    return lines;
+    return { lines, supplierName: emisorNombre };
 }
 
-export async function processInvoiceXmls(xmlContents: string[]): Promise<CostAssistantLine[]> {
+export async function processInvoiceXmls(xmlContents: string[]): Promise<{ lines: CostAssistantLine[], supplierNames: string[] }> {
     let allLines: CostAssistantLine[] = [];
+    const supplierNames = new Set<string>();
 
     for (const xmlContent of xmlContents) {
         try {
-            const lines = await parseInvoice(xmlContent);
+            const { lines, supplierName } = await parseInvoice(xmlContent);
             allLines = [...allLines, ...lines];
+            if (supplierName) {
+                supplierNames.add(supplierName);
+            }
         } catch (error: any) {
             console.error("Error parsing one of the XMLs:", error);
             // We can decide to throw or just skip the failed file. Let's skip.
         }
     }
     
-    return allLines;
+    return { lines: allLines, supplierNames: Array.from(supplierNames) };
 }

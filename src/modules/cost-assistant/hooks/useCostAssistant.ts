@@ -33,18 +33,21 @@ const initialColumnVisibility = {
     profitPerLine: true,
 };
 
+const initialState = {
+    isProcessing: false,
+    lines: [] as CostAssistantLine[],
+    suppliers: [] as string[],
+    transportCost: 0,
+    otherCosts: 0,
+    columnVisibility: initialColumnVisibility
+};
+
 export const useCostAssistant = () => {
     useAuthorization(['dashboard:access']); // Basic access permission
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
 
-    const [state, setState] = useState({
-        isProcessing: false,
-        lines: [] as CostAssistantLine[],
-        transportCost: 0,
-        otherCosts: 0,
-        columnVisibility: initialColumnVisibility
-    });
+    const [state, setState] = useState(initialState);
 
     useEffect(() => {
         setTitle("Asistente de Costos");
@@ -76,7 +79,7 @@ export const useCostAssistant = () => {
                 )
             );
             
-            const processedLines = await processInvoiceXmls(fileContents);
+            const { lines: processedLines, supplierNames } = await processInvoiceXmls(fileContents);
 
             const newLines = processedLines.map(line => ({
                 ...line,
@@ -87,8 +90,12 @@ export const useCostAssistant = () => {
                 profitPerLine: 0, // Will be calculated by useMemo
             }));
             
-            setState(prevState => ({ ...prevState, lines: [...prevState.lines, ...newLines] }));
-            toast({ title: "Facturas Procesadas", description: `Se agregaron ${newLines.length} artículos nuevos.` });
+            setState(prevState => ({ 
+                ...prevState, 
+                lines: [...prevState.lines, ...newLines],
+                suppliers: Array.from(new Set([...prevState.suppliers, ...supplierNames]))
+            }));
+            toast({ title: "Facturas Procesadas", description: `Se agregaron ${newLines.length} artículos nuevos de ${supplierNames.length} proveedor(es).` });
 
         } catch (error: any) {
             logError("Error processing invoice XMLs", { error: error.message });
@@ -128,6 +135,11 @@ export const useCostAssistant = () => {
                 [column]: isVisible,
             }
         }));
+    };
+
+    const handleClear = () => {
+        setState(initialState);
+        toast({ title: "Operación Limpiada", description: "Se han borrado todos los datos para iniciar un nuevo análisis." });
     };
 
     const totals = useMemo(() => {
@@ -170,6 +182,7 @@ export const useCostAssistant = () => {
         updateLine,
         handleMarginBlur,
         formatCurrency,
+        handleClear,
         setTransportCost: (cost: number) => setState(prevState => ({ ...prevState, transportCost: cost })),
         setOtherCosts: (cost: number) => setState(prevState => ({ ...prevState, otherCosts: cost })),
         setColumnVisibility,
