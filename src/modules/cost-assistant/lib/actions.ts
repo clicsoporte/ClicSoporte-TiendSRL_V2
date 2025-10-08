@@ -16,25 +16,19 @@ const getValue = (obj: any, path: string[], defaultValue: any = '') => {
     return path.reduce((acc, key) => (acc && acc[key] !== undefined) ? acc[key] : defaultValue, obj);
 };
 
+const parseInteger = (str: any): number => {
+    if (str === null || str === undefined || str === '') return 0;
+    // For quantities, which are integers but might have thousand separators.
+    const cleanStr = String(str).replace(/\./g, '').replace(/,.*$/, ''); // Remove dots and anything after a comma
+    const parsed = parseInt(cleanStr, 10);
+    return isNaN(parsed) ? 0 : parsed;
+};
+
+
 const parseDecimal = (str: any): number => {
     if (str === null || str === undefined || str === '') return 0;
-
-    let cleanStr = String(str).trim();
-
-    // Detect if '.' is a thousands separator (e.g., "1.000" or "1.234.567")
-    // A simple heuristic: a dot is a thousands separator if it's followed by exactly 3 digits.
-    const thousandsSeparatorRegex = /\.\d{3}(?![\d,])/;
-    const hasThousandsDot = thousandsSeparatorRegex.test(cleanStr);
-
-    if (cleanStr.includes(',')) {
-        // European format: 1.234,56
-        cleanStr = cleanStr.replace(/\./g, '').replace(',', '.');
-    } else if (hasThousandsDot && !cleanStr.includes(',')) {
-         // Format like "1.000" with no comma. Treat dot as thousands separator.
-         cleanStr = cleanStr.replace(/\./g, '');
-    }
-    // For other cases (e.g., "1234.56"), parseFloat will handle it correctly.
-
+    // For prices, which use '.' for thousands and ',' for decimals.
+    const cleanStr = String(str).replace(/\./g, '').replace(',', '.');
     const parsed = parseFloat(cleanStr);
     return isNaN(parsed) ? 0 : parsed;
 };
@@ -105,7 +99,7 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
 
     const lines: CostAssistantLine[] = [];
     for (const [index, linea] of lineasDetalle.entries()) {
-        const cantidad = parseDecimal(getValue(linea, ['Cantidad'], '0'));
+        const cantidad = parseInteger(getValue(linea, ['Cantidad'], '0'));
         if (cantidad === 0) continue;
         
         let supplierCode = 'N/A';
@@ -237,6 +231,7 @@ export async function exportForERP(lines: CostAssistantLine[]): Promise<string> 
     const dataForExport = lines.map(line => ({
         'CODIGOS 01': line.supplierCode,
         'NOMBRE (Requerido)': line.description,
+        'DESCRIPCION (Opcional)': line.description,
         'UNIDAD DE MEDIDA (Requerido)': 'Unid',
         'PRECIO (Sin impuestos) (Requerido)': line.sellPriceWithoutTax,
         'MONEDA': 'CRC',
@@ -263,6 +258,7 @@ export async function exportForERP(lines: CostAssistantLine[]): Promise<string> 
     const newHeaders = {
         'CODIGOS 01': '01',
         'NOMBRE (Requerido)': 'Nombre',
+        'DESCRIPCION (Opcional)': 'Descripcion',
         'UNIDAD DE MEDIDA (Requerido)': 'Unidad de medida',
         'PRECIO (Sin impuestos) (Requerido)': 'Precio (sin impuestos)',
         'MONEDA': 'Moneda',
