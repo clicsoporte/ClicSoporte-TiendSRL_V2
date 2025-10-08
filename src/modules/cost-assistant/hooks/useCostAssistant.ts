@@ -19,6 +19,19 @@ const normalizeNumber = (value: string): number => {
     return isNaN(parsed) ? 0 : parsed;
 };
 
+const initialColumnVisibility = {
+    supplierCode: true,
+    description: true,
+    quantity: true,
+    unitCostWithoutTax: true,
+    unitCostWithTax: false,
+    taxRate: true,
+    margin: true,
+    sellPriceWithoutTax: true,
+    finalSellPrice: true,
+    profitPerLine: true,
+};
+
 export const useCostAssistant = () => {
     useAuthorization(['dashboard:access']); // Basic access permission
     const { setTitle } = usePageTitle();
@@ -29,6 +42,7 @@ export const useCostAssistant = () => {
         lines: [] as CostAssistantLine[],
         transportCost: 0,
         otherCosts: 0,
+        columnVisibility: initialColumnVisibility
     });
 
     useEffect(() => {
@@ -105,6 +119,16 @@ export const useCostAssistant = () => {
         })}`;
     };
 
+    const setColumnVisibility = (column: keyof typeof state.columnVisibility, isVisible: boolean) => {
+        setState(prevState => ({
+            ...prevState,
+            columnVisibility: {
+                ...prevState.columnVisibility,
+                [column]: isVisible,
+            }
+        }));
+    };
+
     const totals = useMemo(() => {
         const totalItems = state.lines.reduce((sum, line) => sum + line.quantity, 0);
         const totalPurchaseCost = state.lines.reduce((sum, line) => sum + (line.unitCostWithTax * line.quantity), 0);
@@ -147,6 +171,7 @@ export const useCostAssistant = () => {
         formatCurrency,
         setTransportCost: (cost: number) => setState(prevState => ({ ...prevState, transportCost: cost })),
         setOtherCosts: (cost: number) => setState(prevState => ({ ...prevState, otherCosts: cost })),
+        setColumnVisibility,
     };
 
     return {
