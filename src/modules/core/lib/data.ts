@@ -31,6 +31,7 @@ import {
   MessageSquare,
   DollarSign,
   FileScan,
+  Ticket,
 } from "lucide-react";
 
 /**
@@ -117,6 +118,15 @@ export const mainTools: Tool[] = [
     href: "/dashboard/planner",
     icon: CalendarCheck,
     bgColor: "bg-purple-500",
+    textColor: "text-white",
+  },
+  {
+    id: "tickets",
+    name: "Soporte Técnico",
+    description: "Gestionar tickets y dar soporte a los clientes.",
+    href: "/dashboard/tickets",
+    icon: Ticket,
+    bgColor: "bg-blue-500",
     textColor: "text-white",
   },
    {
