@@ -6,7 +6,7 @@
 'use client';
 
 import { logInfo, logError } from '@/modules/core/lib/logger';
-import type { Ticket, NewTicketPayload, User, TicketThread, HelpTopic, TicketCustomer } from '@/modules/core/types';
+import type { Ticket, NewTicketPayload, User, TicketThread, HelpTopic, TicketCustomer, ClientCompany } from '@/modules/core/types';
 import { 
     addTicket, 
     getTickets as getTicketsServer, 
@@ -19,6 +19,10 @@ import {
     updateHelpTopic as updateHelpTopicServer,
     deleteHelpTopic as deleteHelpTopicServer,
     addTicketCustomer as addTicketCustomerServer,
+    getClientCompanies as getClientCompaniesServer,
+    addClientCompany as addClientCompanyServer,
+    getTicketCustomerById as getTicketCustomerByIdServer,
+    deleteTicket as deleteTicketServer
 } from './db';
 
 /**
@@ -46,16 +50,30 @@ export async function saveTicket(payload: NewTicketPayload, user: User): Promise
  * Adds a new standalone customer to the ticket system.
  * @param payload - The data for the new customer.
  */
-export async function addTicketCustomer(payload: Omit<TicketCustomer, 'id' | 'createdAt' | 'notes'>): Promise<void> {
+export async function addTicketCustomer(payload: Omit<TicketCustomer, 'id' | 'createdAt' | 'notes'>): Promise<TicketCustomer> {
     try {
-        await addTicketCustomerServer(payload);
-        await logInfo(`New ticket customer created: ${payload.name}`);
+        const newCustomer = await addTicketCustomerServer(payload);
+        await logInfo(`New ticket contact created: ${payload.name}`);
+        return newCustomer;
     } catch (error) {
         logError("Error saving ticket customer from client action", { error: (error as Error).message });
         throw error;
     }
 }
 
+export async function addClientCompany(payload: Omit<ClientCompany, 'id' | 'createdAt'>): Promise<void> {
+    try {
+        await addClientCompanyServer(payload);
+        await logInfo(`New client company created: ${payload.name}`);
+    } catch (error) {
+        logError("Error saving client company from client action", { error: (error as Error).message });
+        throw error;
+    }
+}
+
+export async function getClientCompanies(): Promise<ClientCompany[]> {
+    return getClientCompaniesServer();
+}
 
 /**
  * Fetches all tickets from the server.
@@ -72,6 +90,10 @@ export async function getTickets(): Promise<Ticket[]> {
  */
 export async function getTicketById(id: number): Promise<Ticket | null> {
     return getTicketByIdServer(id);
+}
+
+export async function getTicketCustomerById(id: number): Promise<TicketCustomer | null> {
+    return getTicketCustomerByIdServer(id);
 }
 
 /**
@@ -139,4 +161,8 @@ export async function updateHelpTopic(topic: HelpTopic): Promise<HelpTopic> {
  */
 export async function deleteHelpTopic(id: number): Promise<void> {
     return deleteHelpTopicServer(id);
+}
+
+export async function deleteTicket(id: number): Promise<void> {
+    return deleteTicketServer(id);
 }
