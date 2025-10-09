@@ -644,14 +644,42 @@ export type CostAnalysisDraft = {
 export type TicketStatus = 'open' | 'in_progress' | 'on_hold' | 'closed';
 export type TicketPriority = 'low' | 'medium' | 'high' | 'urgent';
 
-export type TicketCustomer = {
+export type HelpTopic = {
     id: number;
+    name: string;
+    defaultPriority?: TicketPriority;
+    defaultAssigneeId?: number | null;
+};
+
+export type ClientCompany = {
+    id: number;
+    name: string;
+    taxId: string;
+    address: string;
+    phone: string;
+    email: string;
+    createdAt: string;
+};
+
+export type CompanyBranch = {
+    id: number;
+    companyId: number;
+    name: string;
+    address: string;
+    createdAt: string;
+};
+
+export type CompanyContact = {
+    id: number;
+    companyId: number;
+    branchId?: number | null;
     name: string;
     email: string;
     phone?: string;
-    notes?: string;
+    isPrimary: boolean;
     createdAt: string;
 };
+
 
 export type Ticket = {
     id: number;
@@ -662,9 +690,14 @@ export type Ticket = {
     createdAt: string;
     updatedAt: string;
     dueDate?: string;
-    erpCustomerId?: string | null;
-    ticketCustomerId?: number | null;
-    customerName: string; // Denormalized for quick display
+    
+    contactId: number; // Foreign key to company_contacts
+    companyId: number; // Foreign key to client_companies
+
+    // Denormalized data for quick display
+    customerName: string; 
+    companyName: string; 
+
     assigneeId?: number | null;
     helpTopicId?: number | null;
 };
@@ -684,17 +717,7 @@ export type NewTicketPayload = {
     content: string;
     status: TicketStatus;
     priority: TicketPriority;
-    erpCustomerId: string | null; // Customer ID from ERP
-    // Fields for creating a new customer if not found in ERP
-    customerName: string;
-    customerEmail: string;
-    customerPhone?: string;
+    contactId: number;
     helpTopicId?: number;
 };
 
-export type HelpTopic = {
-    id: number;
-    name: string;
-    defaultPriority?: TicketPriority;
-    defaultAssigneeId?: number | null;
-};

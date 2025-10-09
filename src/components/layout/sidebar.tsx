@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Sidebar component for the main application layout.
  * It handles navigation, displays user and company information, and adapts
@@ -131,7 +132,7 @@ export function AppSidebar() {
     {
       id: "warehouse",
       name: "Consulta Almacén",
-      description: "Localizar artículos y gestionar ubicaciones en bodega.",
+      description: "Localizar artículos y ver existencias en bodega.",
       href: "/dashboard/warehouse",
       icon: Warehouse,
       bgColor: "bg-cyan-600",

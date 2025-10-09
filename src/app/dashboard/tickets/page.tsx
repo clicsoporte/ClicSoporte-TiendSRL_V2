@@ -18,6 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { useAuthorization } from "@/modules/core/hooks/useAuthorization";
+import Link from "next/link";
 
 export default function TicketsPage() {
     const { state, actions, selectors } = useTickets();
@@ -27,9 +28,7 @@ export default function TicketsPage() {
     const {
         isLoading,
         isNewTicketDialogOpen,
-        isNewCustomerDialogOpen,
         newTicket,
-        newCustomer,
         isSubmitting,
         customerSearchTerm,
         isCustomerSearchOpen,
@@ -46,7 +45,12 @@ export default function TicketsPage() {
             <TableRow key={ticket.id} className="cursor-pointer" onClick={() => router.push(`/dashboard/tickets/${ticket.id}`)}>
                 <TableCell className="font-medium">{ticket.consecutive}</TableCell>
                 <TableCell>{ticket.subject}</TableCell>
-                <TableCell>{ticket.customerName}</TableCell>
+                <TableCell>
+                    <div className="flex flex-col">
+                        <span className="font-medium">{ticket.customerName}</span>
+                        <span className="text-xs text-muted-foreground">{ticket.companyName}</span>
+                    </div>
+                </TableCell>
                 <TableCell>
                     <Badge variant={priorityConfig[ticket.priority]?.variant as any}>
                         {priorityConfig[ticket.priority]?.label || ticket.priority}
@@ -94,37 +98,9 @@ export default function TicketsPage() {
                 <h1 className="text-2xl font-bold">Gestión de Tickets de Soporte</h1>
                 <div className="flex gap-2">
                     {hasPermission('tickets:create') && (
-                         <Dialog open={isNewCustomerDialogOpen} onOpenChange={actions.setNewCustomerDialogOpen}>
-                            <DialogTrigger asChild>
-                                <Button variant="outline"><UserPlus className="mr-2 h-4 w-4"/>Nuevo Cliente</Button>
-                            </DialogTrigger>
-                            <DialogContent className="sm:max-w-md">
-                                <form onSubmit={(e) => { e.preventDefault(); actions.handleCreateCustomer(); }}>
-                                    <DialogHeader>
-                                        <DialogTitle>Crear Nuevo Cliente de Soporte</DialogTitle>
-                                        <DialogDescription>Añade un nuevo contacto al sistema de tickets.</DialogDescription>
-                                    </DialogHeader>
-                                    <div className="py-4 space-y-4">
-                                        <div className="space-y-2">
-                                            <Label htmlFor="new-customer-name">Nombre Completo</Label>
-                                            <Input id="new-customer-name" value={newCustomer.name} onChange={(e) => actions.handleNewCustomerChange('name', e.target.value)} required />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="new-customer-email">Correo Electrónico</Label>
-                                            <Input id="new-customer-email" type="email" value={newCustomer.email} onChange={(e) => actions.handleNewCustomerChange('email', e.target.value)} required />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="new-customer-phone">Teléfono (Opcional)</Label>
-                                            <Input id="new-customer-phone" value={newCustomer.phone || ''} onChange={(e) => actions.handleNewCustomerChange('phone', e.target.value)} />
-                                        </div>
-                                    </div>
-                                    <DialogFooter>
-                                        <DialogClose asChild><Button variant="ghost" type="button">Cancelar</Button></DialogClose>
-                                        <Button type="submit" disabled={isSubmitting}>{isSubmitting && <Loader2 className="mr-2 animate-spin"/>}Crear Cliente</Button>
-                                    </DialogFooter>
-                                </form>
-                            </DialogContent>
-                        </Dialog>
+                         <Link href="/dashboard/tickets/customers">
+                            <Button variant="outline"><UserPlus className="mr-2 h-4 w-4"/>Gestión de Clientes</Button>
+                        </Link>
                     )}
                     {hasPermission('tickets:create') && (
                          <Dialog open={isNewTicketDialogOpen} onOpenChange={actions.setNewTicketDialogOpen}>
@@ -139,7 +115,7 @@ export default function TicketsPage() {
                                     <DialogHeader>
                                         <DialogTitle>Crear Nuevo Ticket de Soporte</DialogTitle>
                                         <DialogDescription>
-                                            Describe el problema. Busca un cliente del ERP o ingresa los datos de un nuevo contacto.
+                                            Describe el problema. Busca un contacto o cliente del ERP para asociar el ticket.
                                         </DialogDescription>
                                     </DialogHeader>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
@@ -154,43 +130,16 @@ export default function TicketsPage() {
                                                 </SelectContent>
                                             </Select>
                                         </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="customer-search">Buscar Cliente (ERP)</Label>
+                                        <div className="space-y-2 col-span-1 md:col-span-2">
+                                            <Label htmlFor="customer-search">Buscar Contacto (Cliente)</Label>
                                             <SearchInput
-                                                options={selectors.customerOptions}
-                                                onSelect={actions.handleSelectCustomer}
+                                                options={selectors.contactOptions}
+                                                onSelect={actions.handleSelectContact}
                                                 value={customerSearchTerm}
                                                 onValueChange={actions.setCustomerSearchTerm}
-                                                placeholder="Buscar por código, nombre o cédula..."
+                                                placeholder="Buscar por nombre, correo o empresa..."
                                                 open={isCustomerSearchOpen}
                                                 onOpenChange={actions.setCustomerSearchOpen}
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="new-ticket-name">Nombre del Contacto</Label>
-                                            <Input
-                                                id="new-ticket-name"
-                                                value={newTicket.customerName}
-                                                onChange={(e) => actions.handleNewTicketChange('customerName', e.target.value)}
-                                                required
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="new-ticket-email">Correo Electrónico</Label>
-                                            <Input
-                                                id="new-ticket-email"
-                                                type="email"
-                                                value={newTicket.customerEmail}
-                                                onChange={(e) => actions.handleNewTicketChange('customerEmail', e.target.value)}
-                                                required
-                                            />
-                                        </div>
-                                         <div className="space-y-2">
-                                            <Label htmlFor="new-ticket-phone">Teléfono</Label>
-                                            <Input
-                                                id="new-ticket-phone"
-                                                value={newTicket.customerPhone || ''}
-                                                onChange={(e) => actions.handleNewTicketChange('customerPhone', e.target.value)}
                                             />
                                         </div>
                                         <div className="space-y-2 col-span-1 md:col-span-2">

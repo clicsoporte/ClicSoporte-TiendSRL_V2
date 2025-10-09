@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview The main dashboard page, which greets the user and displays available tools.
  */
@@ -32,7 +33,7 @@ export default function DashboardPage() {
       if (hasAdminAccess) {
         tools.push({
           id: "admin",
-          name: "Configuración",
+          name: "Administración",
           description: "Gestionar usuarios, roles y sistema.",
           href: "/dashboard/admin",
           icon: Wrench,

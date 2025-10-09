@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useCallback } from "react";
@@ -182,7 +181,7 @@ export default function PlannerSettingsPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle>Configuración del Gestor de Proyectos</CardTitle>
-                        <CardDescription>Ajustes generales para el módulo de planificación de proyectos y tareas.</CardDescription>
+                        <CardDescription>Ajustes generales para el módulo de gestión de proyectos y tareas.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -469,4 +468,3 @@ export default function PlannerSettingsPage() {
         </main>
     );
 }
- 

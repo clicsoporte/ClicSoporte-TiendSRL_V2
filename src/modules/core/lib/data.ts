@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview This file contains the initial or default data for the application.
  * This data is used to populate the database on its first run.
@@ -63,7 +64,7 @@ export const initialCompany: Company = {
     address: "San José, Costa Rica",
     phone: "+50640000630",
     email: "facturacion@clicsoporte.com",
-    systemName: "Clic-Tools",
+    systemName: "Clic-Soporte",
     quotePrefix: "COT-",
     nextQuoteNumber: 1,
     decimalPlaces: 2,
@@ -113,8 +114,8 @@ export const mainTools: Tool[] = [
   },
    {
     id: "planner",
-    name: "Planificador OP",
-    description: "Gestionar y visualizar la carga de producción.",
+    name: "Gestor de Proyectos",
+    description: "Gestionar y visualizar proyectos y tareas.",
     href: "/dashboard/planner",
     icon: CalendarCheck,
     bgColor: "bg-purple-500",
@@ -365,7 +366,7 @@ export const adminTools: Tool[] = [
       },
        {
         id: "planner-settings",
-        name: "Config. Planificador",
+        name: "Config. Gestor de Proyectos",
         description: "Gestionar máquinas y otros ajustes del planificador.",
         href: "/dashboard/admin/planner",
         icon: Factory,
