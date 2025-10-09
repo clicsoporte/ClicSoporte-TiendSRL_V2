@@ -1,10 +1,10 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { useTickets } from '@/modules/tickets/hooks/useTickets';
-import type { Ticket, TicketThread, Customer, TicketStatus, TicketPriority, User } from '@/modules/core/types';
+import type { Ticket, TicketThread, TicketCustomer, TicketStatus, TicketPriority, User } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,12 +14,15 @@ import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Paperclip, Send, UserCircle, Loader2 } from 'lucide-react';
+import { Paperclip, Send, Loader2, MoreVertical, Pencil, Trash2 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { useRouter } from 'next/navigation';
 
 const getInitials = (name: string) => {
     if (!name) return "??";
@@ -28,37 +31,40 @@ const getInitials = (name: string) => {
 
 export default function TicketDetailPage() {
     const params = useParams();
+    const router = useRouter();
     const ticketId = Number(params.id);
     const { isAuthorized, hasPermission } = useAuthorization(['tickets:read:all']);
     const { actions, selectors } = useTickets();
-    const { customers, users: allUsers, user: currentUser } = useAuth();
+    const { users: allUsers, user: currentUser } = useAuth();
     const { toast } = useToast();
     
     const [ticket, setTicket] = useState<Ticket | null>(null);
     const [thread, setThread] = useState<TicketThread[]>([]);
-    const [customerInfo, setCustomerInfo] = useState<Customer | null>(null);
+    const [customerInfo, setCustomerInfo] = useState<TicketCustomer | null>(null);
     const [replyContent, setReplyContent] = useState("");
     const [isReplying, setIsReplying] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
     
-    const supportUsers = useMemo(() => allUsers.filter(u => u.role === 'admin' || u.role === 'support-agent'), [allUsers]);
+    const supportUsers = useMemo(() => allUsers.filter(u => u.role === 'admin' || u.role === 'support-agent' || (u.role && selectors.isSupportRole(u.role))), [allUsers, selectors]);
+
+    const loadData = useCallback(async () => {
+        if (ticketId && isAuthorized) {
+            const ticketData = await actions.getTicketById(ticketId);
+            setTicket(ticketData);
+            if (ticketData) {
+                const threadData = await actions.getTicketThread(ticketId);
+                setThread(threadData);
+                if (ticketData.contactId) {
+                    const contactData = await actions.getTicketCustomerById(ticketData.contactId);
+                    setCustomerInfo(contactData);
+                }
+            }
+        }
+    }, [ticketId, isAuthorized, actions]);
 
     useEffect(() => {
-        if (ticketId && isAuthorized) {
-            const loadData = async () => {
-                const ticketData = await actions.getTicketById(ticketId);
-                setTicket(ticketData);
-                if (ticketData) {
-                    const threadData = await actions.getTicketThread(ticketId);
-                    setThread(threadData);
-                    if (ticketData.erpCustomerId) {
-                        const erpCustomer = customers.find(c => c.id === ticketData.erpCustomerId);
-                        if (erpCustomer) setCustomerInfo(erpCustomer);
-                    }
-                }
-            };
-            loadData();
-        }
-    }, [ticketId, isAuthorized, actions, customers]);
+        loadData();
+    }, [loadData]);
     
     const handleAddReply = async () => {
         if (!replyContent.trim()) {
@@ -82,17 +88,29 @@ export default function TicketDetailPage() {
         const updatedTicket = await actions.updateTicketDetails(ticketId, updates, currentUser);
         if (updatedTicket) {
             setTicket(updatedTicket);
-            // Re-fetch thread to see the automated log entry
-            const threadData = await actions.getTicketThread(ticketId);
-            setThread(threadData);
+            await loadData();
         }
     };
+
+    const handleDeleteTicket = async () => {
+        if (!ticket) return;
+        setIsDeleting(true);
+        try {
+            await actions.deleteTicket(ticket.id);
+            toast({ title: "Ticket Eliminado", description: "El ticket ha sido eliminado exitosamente." });
+            router.push('/dashboard/tickets');
+        } catch (error) {
+            toast({ title: "Error", description: "No se pudo eliminar el ticket.", variant: "destructive" });
+        } finally {
+            setIsDeleting(false);
+        }
+    }
     
     if (!isAuthorized) return null;
 
     if (!ticket) {
         return (
-             <div className="flex h-full">
+             <div className="flex h-[calc(100vh-4rem)]">
                 <div className="w-full md:w-2/3 lg:w-3/4 flex flex-col p-4">
                     <Skeleton className="h-full w-full"/>
                 </div>
@@ -106,9 +124,40 @@ export default function TicketDetailPage() {
     return (
         <div className="flex h-[calc(100vh-4rem)] bg-muted/40">
             <div className="flex-1 flex flex-col">
-                <header className="p-4 border-b bg-background">
-                    <h1 className="text-xl font-bold">{ticket.subject}</h1>
-                    <p className="text-sm text-muted-foreground">Ticket #{ticket.consecutive}</p>
+                <header className="p-4 border-b bg-background flex justify-between items-center">
+                    <div>
+                        <h1 className="text-xl font-bold">{ticket.subject}</h1>
+                        <p className="text-sm text-muted-foreground">Ticket #{ticket.consecutive}</p>
+                    </div>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon"><MoreVertical className="h-5 w-5" /></Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+                            <DropdownMenuItem disabled>Editar Ticket</DropdownMenuItem>
+                            {hasPermission('tickets:update') && (
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive">Eliminar Ticket</DropdownMenuItem>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>¿Confirmar eliminación?</AlertDialogTitle>
+                                            <AlertDialogDescription>Esta acción es permanente.</AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                            <AlertDialogAction onClick={handleDeleteTicket} disabled={isDeleting}>
+                                                {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                                                Sí, eliminar
+                                            </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            )}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </header>
                  <ScrollArea className="flex-1 p-4">
                     <div className="space-y-6">
@@ -226,15 +275,17 @@ export default function TicketDetailPage() {
                     </CardHeader>
                     <CardContent className="text-sm space-y-3">
                        <div className="flex justify-between">
-                            <span className="text-muted-foreground">Nombre</span>
+                            <span className="text-muted-foreground">Nombre Contacto</span>
                             <span className="font-medium text-right">{ticket.customerName}</span>
                         </div>
+                        {ticket.companyName && (
+                            <div className="flex justify-between">
+                                <span className="text-muted-foreground">Empresa</span>
+                                <span className="font-medium text-right">{ticket.companyName}</span>
+                            </div>
+                        )}
                         {customerInfo && (
                             <>
-                                 <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Cédula</span>
-                                    <span>{customerInfo.taxId}</span>
-                                </div>
                                 <div className="flex justify-between">
                                     <span className="text-muted-foreground">Teléfono</span>
                                     <span>{customerInfo.phone}</span>
@@ -242,10 +293,6 @@ export default function TicketDetailPage() {
                                 <div className="flex justify-between">
                                     <span className="text-muted-foreground">Correo</span>
                                     <span className="truncate">{customerInfo.email}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Vendedor</span>
-                                    <span>{customerInfo.salesperson}</span>
                                 </div>
                             </>
                         )}

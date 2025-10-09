@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview This file contains the initial or default data for the application.
  * This data is used to populate the database on its first run.
@@ -243,6 +242,7 @@ export const initialRoles: Role[] = [
         "tickets:create",
         "tickets:read:all",
         "tickets:update",
+        "tickets:admin",
     ],
   },
   {
