@@ -20,19 +20,26 @@ const parseDecimal = (str: any): number => {
     if (str === null || str === undefined || str === '') return 0;
     const s = String(str).trim();
 
-    // If the string contains a comma, it's the decimal separator (es-CR format)
-    // e.g., "1.234,56" -> remove dots, replace comma -> "1234.56"
+    // Handle formats like "1,234.56" (en-US) or "1.234,56" (es-CR)
+    if (s.includes(',') && s.includes('.')) {
+        const lastDot = s.lastIndexOf('.');
+        const lastComma = s.lastIndexOf(',');
+        // If comma is after dot, it's the decimal separator (es-CR)
+        if (lastComma > lastDot) {
+            return parseFloat(s.replace(/\./g, '').replace(',', '.'));
+        }
+        // Otherwise, dot is decimal (en-US)
+        return parseFloat(s.replace(/,/g, ''));
+    }
+    
+    // If only a comma is present, it's the decimal separator
     if (s.includes(',')) {
-        const cleanStr = s.replace(/\./g, '').replace(',', '.');
-        const parsed = parseFloat(cleanStr);
-        return isNaN(parsed) ? 0 : parsed;
+        return parseFloat(s.replace(',', '.'));
     }
 
-    // If no comma, parseFloat will handle it correctly.
-    // e.g., "1.000" (from quantity) -> 1
-    // e.g., "58248.06799" (from cost) -> 58248.06799
-    const parsed = parseFloat(s);
-    return isNaN(parsed) ? 0 : parsed;
+    // If only dots are present, they are either a decimal or thousands separator.
+    // parseFloat will correctly handle "1.5" and will stop at the first non-numeric for "1.000", resulting in 1.
+    return parseFloat(s);
 };
 
 
@@ -229,15 +236,27 @@ export async function deleteDraft(id: string): Promise<void> {
     return deleteDraftServer(id);
 }
 
+const getTaxCode = (taxRate: number): string => {
+    switch (taxRate) {
+        case 0.13: return '08';
+        case 0.04: return '04';
+        case 0.02: return '03';
+        case 0.01: return '02';
+        case 0.005: return '09';
+        case 0: return '10';
+        default: return '08'; // Default to general rate if unknown
+    }
+};
+
 export async function exportForERP(lines: CostAssistantLine[]): Promise<string> {
-    // Correctly map the data to the specific column structure of the ERP template
+    // Map data to the specific column structure of the ERP template
     const dataForExport = lines.map(line => ({
         'CODIGOS 01': line.supplierCode,
         'NOMBRE (Requerido)': line.description,
         'UNIDAD DE MEDIDA (Requerido)': 'Unid',
         'PRECIO (Sin impuestos) (Requerido)': line.sellPriceWithoutTax,
         'MONEDA': 'CRC',
-        'IMP.01': line.taxRate * 100,
+        'IMP.01': getTaxCode(line.taxRate),
         'CÓDIGO CABYS': line.cabysCode,
         'ESTADO': 'A',
     }));
@@ -259,25 +278,29 @@ export async function exportForERP(lines: CostAssistantLine[]): Promise<string> 
     ];
     
     const worksheet = XLSX.utils.aoa_to_sheet(ws_data);
+    
+    // Create a mapping from our desired headers to their column letters
+    const headerMap = {
+        'CODIGOS 01': 'A',
+        'NOMBRE (Requerido)': 'G',
+        'UNIDAD DE MEDIDA (Requerido)': 'I',
+        'PRECIO (Sin impuestos) (Requerido)': 'K',
+        'MONEDA': 'L',
+        'IMP.01': 'O',
+        'CÓDIGO CABYS': 'AC',
+        'ESTADO': 'AD'
+    };
 
-    XLSX.utils.sheet_add_json(worksheet, dataForExport, {
-        origin: 'A3',
-        header: [
-            'CODIGOS 01', // A
-            null, null, null, null, null,
-            'NOMBRE (Requerido)', // G
-            null,
-            'UNIDAD DE MEDIDA (Requerido)', // I
-            null,
-            'PRECIO (Sin impuestos) (Requerido)', // K
-            'MONEDA', // L
-            null, null,
-            'IMP.01', // O
-            null, null, null, null, null, null, null, null, null, null, null, null, null,
-            'CÓDIGO CABYS', // AC
-            'ESTADO' // AD
-        ],
-        skipHeader: true
+    // Add JSON data row by row, placing data in the correct columns
+    dataForExport.forEach((row, index) => {
+        const rowIndex = index + 3; // Data starts on row 3
+        Object.entries(row).forEach(([key, value]) => {
+            const colLetter = headerMap[key as keyof typeof headerMap];
+            if (colLetter) {
+                const cellAddress = `${colLetter}${rowIndex}`;
+                XLSX.utils.sheet_add_aoa(worksheet, [[value]], { origin: cellAddress });
+            }
+        });
     });
     
     const workbook = XLSX.utils.book_new();
