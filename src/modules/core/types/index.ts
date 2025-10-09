@@ -1,5 +1,4 @@
 
-
 /**
  * @fileoverview This file defines the core TypeScript types used throughout the application.
  * Using centralized types helps ensure data consistency and provides autocompletion benefits.
@@ -640,3 +639,54 @@ export type CostAnalysisDraft = {
     };
     processedInvoices: ProcessedInvoiceInfo[];
 };
+
+// --- Tickets Module Types ---
+export type TicketStatus = 'open' | 'in_progress' | 'on_hold' | 'closed';
+export type TicketPriority = 'low' | 'medium' | 'high' | 'urgent';
+
+export type TicketCustomer = {
+    id: number;
+    name: string;
+    email: string;
+    phone?: string;
+    notes?: string;
+    createdAt: string;
+};
+
+export type Ticket = {
+    id: number;
+    consecutive: string;
+    subject: string;
+    status: TicketStatus;
+    priority: TicketPriority;
+    createdAt: string;
+    updatedAt: string;
+    dueDate?: string;
+    erpCustomerId?: string | null;
+    ticketCustomerId?: number | null;
+    assigneeId?: number | null;
+    helpTopicId?: number | null;
+};
+
+export type TicketThread = {
+    id: number;
+    ticketId: number;
+    userId?: number;
+    userName: string;
+    type: 'message' | 'note' | 'status_change';
+    content: string;
+    createdAt: string;
+};
+
+export type NewTicketPayload = {
+    subject: string;
+    content: string;
+    status: TicketStatus;
+    priority: TicketPriority;
+    erpCustomerId: string | null; // Customer ID from ERP
+    // Fields for creating a new customer if not found in ERP
+    customerName: string;
+    customerEmail: string;
+    customerPhone?: string;
+};
+

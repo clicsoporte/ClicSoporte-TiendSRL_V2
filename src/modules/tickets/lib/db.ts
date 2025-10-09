@@ -5,6 +5,7 @@
 "use server";
 
 import { connectDb } from '../../core/lib/db';
+import type { Ticket, NewTicketPayload, User } from '@/modules/core/types';
 
 const TICKETS_DB_FILE = 'tickets.db';
 
@@ -13,7 +14,7 @@ export async function initializeTicketsDb(db: import('better-sqlite3').Database)
         CREATE TABLE IF NOT EXISTS ticket_customers (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
-            email TEXT UNIQUE,
+            email TEXT UNIQUE NOT NULL,
             phone TEXT,
             notes TEXT,
             createdAt TEXT NOT NULL
@@ -83,4 +84,58 @@ export async function initializeTicketsDb(db: import('better-sqlite3').Database)
 
 export async function runTicketMigrations(db: import('better-sqlite3').Database) {
     // Future migrations for the tickets module will go here.
+}
+
+async function getNextTicketNumber(db: import('better-sqlite3').Database): Promise<{ prefix: string; number: number }> {
+    const prefixRow = db.prepare("SELECT value FROM ticket_settings WHERE key = 'ticketPrefix'").get() as { value: string } | undefined;
+    const numberRow = db.prepare("SELECT value FROM ticket_settings WHERE key = 'nextTicketNumber'").get() as { value: string } | undefined;
+
+    const prefix = prefixRow?.value || 'CAS-';
+    const number = numberRow ? parseInt(numberRow.value, 10) : 1;
+
+    return { prefix, number };
+}
+
+export async function addTicket(payload: NewTicketPayload, user: User): Promise<Ticket> {
+    const db = await connectDb(TICKETS_DB_FILE);
+
+    const transaction = db.transaction(() => {
+        let ticketCustomerId: number | null = null;
+        let erpCustomerId: string | null = payload.erpCustomerId;
+
+        // If it's not a customer from the ERP, create a new entry in ticket_customers.
+        if (!erpCustomerId) {
+            const existingCustomer = db.prepare('SELECT id FROM ticket_customers WHERE email = ?').get(payload.customerEmail) as { id: number } | undefined;
+            if (existingCustomer) {
+                ticketCustomerId = existingCustomer.id;
+            } else {
+                const info = db.prepare('INSERT INTO ticket_customers (name, email, phone, createdAt) VALUES (?, ?, ?, ?)')
+                    .run(payload.customerName, payload.customerEmail, payload.customerPhone || null, new Date().toISOString());
+                ticketCustomerId = info.lastInsertRowid as number;
+            }
+        }
+
+        const { prefix, number } = getNextTicketNumber(db);
+        const consecutive = `${prefix}${number.toString().padStart(6, '0')}`;
+        const now = new Date().toISOString();
+
+        const ticketInsertInfo = db.prepare(`
+            INSERT INTO tickets (consecutive, subject, status, priority, createdAt, updatedAt, erpCustomerId, ticketCustomerId, assigneeId)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(consecutive, payload.subject, 'open', 'medium', now, now, erpCustomerId, ticketCustomerId, null);
+        
+        const newTicketId = ticketInsertInfo.lastInsertRowid;
+
+        const threadInsertInfo = db.prepare(`
+            INSERT INTO ticket_threads (ticketId, userId, userName, type, content, createdAt)
+            VALUES (?, ?, ?, ?, ?, ?)
+        `).run(newTicketId, user.id, user.name, 'message', payload.content, now);
+
+        db.prepare('UPDATE ticket_settings SET value = ? WHERE key = ?').run(String(number + 1), 'nextTicketNumber');
+
+        const newTicket = db.prepare('SELECT * FROM tickets WHERE id = ?').get(newTicketId) as Ticket;
+        return newTicket;
+    });
+
+    return transaction();
 }

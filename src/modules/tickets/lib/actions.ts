@@ -4,14 +4,27 @@
  */
 'use client';
 
-import { logInfo } from '@/modules/core/lib/logger';
-// We will import from './db' as we create server-side functions.
-// Example: import { getTickets as getTicketsServer } from './db';
+import { logInfo, logError } from '@/modules/core/lib/logger';
+import type { Ticket, NewTicketPayload, User } from '@/modules/core/types';
+import { addTicket } from './db';
 
-// Functions will be added here as we build the module.
-// For example:
-/*
-export async function getTickets(options: any) {
-    return getTicketsServer(options);
+/**
+ * Saves a new ticket to the database.
+ * @param payload - The data for the new ticket.
+ * @param user - The user creating the ticket.
+ * @returns The newly created ticket object.
+ */
+export async function saveTicket(payload: NewTicketPayload, user: User): Promise<Ticket> {
+    try {
+        const createdTicket = await addTicket(payload, user);
+        await logInfo(`New ticket #${createdTicket.consecutive} created by ${user.name}`, { 
+            ticketId: createdTicket.id, 
+            subject: payload.subject,
+            customer: payload.customerName 
+        });
+        return createdTicket;
+    } catch (error) {
+        logError("Error saving ticket from client action", { error: (error as Error).message });
+        throw error;
+    }
 }
-*/
