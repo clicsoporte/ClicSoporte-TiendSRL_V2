@@ -31,7 +31,7 @@ export const adminTools: Tool[] = [
       {
         id: "general-settings",
         name: "Configuración General",
-        description: "Gestionar los datos de la empresa y logo.",
+        description: "Gestionar los datos de la empresa y paquetes de soporte.",
         href: "/dashboard/admin/general",
         icon: Briefcase,
         bgColor: "bg-orange-500",
@@ -137,3 +137,5 @@ export const adminTools: Tool[] = [
         textColor: "text-white",
       }
 ];
+
+    

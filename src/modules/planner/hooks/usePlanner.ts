@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Custom hook `usePlanner` for managing the state and logic of the Production Planner page.
  * This hook encapsulates all state and actions for the planner, keeping the UI component clean.
@@ -27,7 +28,7 @@ import { getDaysRemaining as getSimpleDaysRemaining } from '@/modules/core/lib/t
 import { generateDocument } from '@/modules/core/lib/pdf-generator';
 import type { RowInput } from 'jspdf-autotable';
 
-const emptyOrder: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'assignmentId' | 'previousStatus' | 'scheduledStartDate' | 'scheduledEndDate' | 'requestedBy' | 'hasBeenModified' | 'lastModifiedBy' | 'lastModifiedAt' | 'lastStatusUpdateBy' | 'lastStatusUpdateNotes' | 'approvedBy'> = {
+const emptyOrder: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'assignmentId' | 'previousStatus' | 'scheduledStartDate' | 'scheduledEndDate' | 'requestedBy' | 'hasBeenModified' | 'lastModifiedBy' | 'lastModifiedAt'| 'lastStatusUpdateBy' | 'lastStatusUpdateNotes' | 'approvedBy'> = {
     deliveryDate: '',
     customerId: '',
     customerName: '',
@@ -166,7 +167,7 @@ export const usePlanner = () => {
     }, [toast, state.viewingArchived, state.pageSize]);
     
     useEffect(() => {
-        setTitle("Planificador OP");
+        setTitle("Gestor de Proyectos");
         if (isAuthorized) {
             loadInitialData(0);
         }
@@ -695,3 +696,5 @@ export const usePlanner = () => {
         isAuthorized,
     };
 };
+
+    

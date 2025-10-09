@@ -4,13 +4,14 @@
  * It dynamically displays a grid of available administration tools.
  */
 'use client';
-import { adminTools } from "../../../modules/core/lib/data";
+import { adminTools } from "@/modules/admin/lib/data";
 import { ToolCard } from "../../../components/dashboard/tool-card";
 import { useEffect } from "react";
 import { usePageTitle } from "../../../modules/core/hooks/usePageTitle";
 import { useAuthorization } from "@/modules/core/hooks/useAuthorization";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/modules/core/hooks/useAuth";
+import type { Tool } from "@/modules/core/types";
 
 export default function AdminDashboardPage() {
     const { setTitle } = usePageTitle();
@@ -45,7 +46,7 @@ export default function AdminDashboardPage() {
     }
     
     // Filter tools based on user permissions
-    const visibleAdminTools = adminTools.filter(tool => {
+    const visibleAdminTools = adminTools.filter((tool: Tool) => {
         // A tool might require one of several permissions to be visible
         switch (tool.id) {
             case 'user-management':
@@ -88,7 +89,7 @@ export default function AdminDashboardPage() {
               Centro de Administración
             </h2>
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {visibleAdminTools.map((tool) => {
+              {visibleAdminTools.map((tool: Tool) => {
                 const isSuggestionsTool = tool.id === "suggestions-viewer";
                 const badgeCount = isSuggestionsTool ? unreadSuggestionsCount : 0;
                 return <ToolCard key={tool.id} tool={tool} badgeCount={badgeCount}/>
@@ -99,3 +100,5 @@ export default function AdminDashboardPage() {
       </main>
   );
 }
+
+    
