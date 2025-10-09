@@ -16,10 +16,12 @@ const parseDecimal = (str: any): number => {
     if (str === null || str === undefined || str === '') return 0;
     const s = String(str).trim();
     
+    // If a comma exists, it is the decimal separator. Remove dots, replace comma.
     if (s.includes(',')) {
         return parseFloat(s.replace(/\./g, '').replace(',', '.'));
     }
     
+    // If no comma exists, treat as a standard float, respecting the dot as decimal separator
     return parseFloat(s);
 };
 
@@ -103,6 +105,7 @@ export const useCostAssistant = () => {
                 margin: 0.20,
                 finalSellPrice: 0, // Will be calculated by useMemo
                 profitPerLine: 0, // Will be calculated by useMemo
+                sellPriceWithoutTax: 0,
             }));
             
             setState(prevState => ({ 
@@ -265,12 +268,11 @@ export const useCostAssistant = () => {
         }
     };
 
-    const totals = useMemo(() => {
+    const linesWithCalculatedCosts = useMemo(() => {
         const totalItems = state.lines.reduce((sum, line) => sum + line.quantity, 0);
-        const totalPurchaseCost = state.lines.reduce((sum, line) => sum + (line.unitCostWithTax * line.quantity), 0);
         const totalAdditionalCosts = state.transportCost + state.otherCosts;
 
-        const linesWithCosts = state.lines.map(line => {
+        return state.lines.map(line => {
             const proportionalAdditionalCostPerUnit = totalItems > 0 && line.quantity > 0 ? (totalAdditionalCosts / totalItems) : 0;
             const finalUnitCost = line.unitCostWithoutTax + proportionalAdditionalCostPerUnit;
             const sellPriceWithoutTax = finalUnitCost / (1 - line.margin);
@@ -279,23 +281,23 @@ export const useCostAssistant = () => {
 
             return { ...line, finalSellPrice, sellPriceWithoutTax, profitPerLine, unitCostWithoutTax: finalUnitCost };
         });
+    }, [state.lines, state.transportCost, state.otherCosts]);
+    
+    // This effect synchronizes the calculated costs back into the main state, preventing the infinite loop.
+    useEffect(() => {
+        setState(prevState => ({...prevState, lines: linesWithCalculatedCosts }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [state.transportCost, state.otherCosts]); // Only re-run when global costs change
 
-        Promise.resolve().then(() => {
-            const needsUpdate = state.lines.some((line, index) => 
-                line.finalSellPrice !== linesWithCosts[index].finalSellPrice || 
-                line.profitPerLine !== linesWithCosts[index].profitPerLine
-            );
-            if (needsUpdate) {
-                 setState(prevState => ({...prevState, lines: linesWithCosts}));
-            }
-        });
-
-        const totalSellValue = linesWithCosts.reduce((sum, line) => sum + (line.finalSellPrice * line.quantity), 0);
+    const totals = useMemo(() => {
+        const totalPurchaseCost = state.lines.reduce((sum, line) => sum + (line.unitCostWithTax * line.quantity), 0);
+        const totalAdditionalCosts = state.transportCost + state.otherCosts;
         const totalFinalCost = totalPurchaseCost + totalAdditionalCosts;
+        const totalSellValue = linesWithCalculatedCosts.reduce((sum, line) => sum + (line.finalSellPrice * line.quantity), 0);
         const estimatedGrossProfit = totalSellValue - totalFinalCost;
 
         return { totalPurchaseCost, totalAdditionalCosts, totalFinalCost, totalSellValue, estimatedGrossProfit };
-    }, [state.lines, state.transportCost, state.otherCosts]);
+    }, [state.lines, linesWithCalculatedCosts, state.transportCost, state.otherCosts]);
 
 
     const actions = {
