@@ -178,3 +178,65 @@ export async function getTicketThread(ticketId: number): Promise<TicketThread[]>
         return [];
     }
 }
+
+export async function addThreadEntry(payload: { ticketId: number; userId: number; userName: string; content: string; type: 'message' | 'note' }): Promise<TicketThread> {
+    const db = await connectDb(TICKETS_DB_FILE);
+    const { ticketId, userId, userName, content, type } = payload;
+    const now = new Date().toISOString();
+
+    const info = db.prepare(`
+        INSERT INTO ticket_threads (ticketId, userId, userName, type, content, createdAt)
+        VALUES (?, ?, ?, ?, ?, ?)
+    `).run(ticketId, userId, userName, type, content, now);
+
+    db.prepare('UPDATE tickets SET updatedAt = ? WHERE id = ?').run(now, ticketId);
+    
+    return db.prepare('SELECT * FROM ticket_threads WHERE id = ?').get(info.lastInsertRowid) as TicketThread;
+}
+
+export async function updateTicketDetails(ticketId: number, updates: Partial<Pick<Ticket, 'status' | 'priority' | 'assigneeId'>>, user: User): Promise<Ticket> {
+    const db = await connectDb(TICKETS_DB_FILE);
+    
+    const currentTicket = db.prepare('SELECT * FROM tickets WHERE id = ?').get(ticketId) as Ticket;
+    if (!currentTicket) throw new Error("Ticket not found.");
+    
+    const transaction = db.transaction(() => {
+        const now = new Date().toISOString();
+        let query = 'UPDATE tickets SET updatedAt = ?';
+        const params: (string | number | null)[] = [now];
+        const historyNotes: string[] = [];
+
+        if (updates.status && updates.status !== currentTicket.status) {
+            query += ', status = ?';
+            params.push(updates.status);
+            historyNotes.push(`Estado cambiado a: ${updates.status}`);
+        }
+        if (updates.priority && updates.priority !== currentTicket.priority) {
+            query += ', priority = ?';
+            params.push(updates.priority);
+            historyNotes.push(`Prioridad cambiada a: ${updates.priority}`);
+        }
+        if (updates.assigneeId !== undefined && updates.assigneeId !== currentTicket.assigneeId) {
+            query += ', assigneeId = ?';
+            params.push(updates.assigneeId);
+            historyNotes.push(`Asignado a nuevo técnico.`);
+        }
+        
+        query += ' WHERE id = ?';
+        params.push(ticketId);
+
+        if (updates) {
+            db.prepare(query).run(...params);
+
+            if (historyNotes.length > 0) {
+                 db.prepare(`
+                    INSERT INTO ticket_threads (ticketId, userId, userName, type, content, createdAt)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                `).run(ticketId, user.id, user.name, 'status_change', historyNotes.join('. '), now);
+            }
+        }
+    });
+
+    transaction();
+    return db.prepare('SELECT * FROM tickets WHERE id = ?').get(ticketId) as Ticket;
+}

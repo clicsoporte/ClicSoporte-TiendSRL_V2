@@ -6,7 +6,7 @@
 
 import { logInfo, logError } from '@/modules/core/lib/logger';
 import type { Ticket, NewTicketPayload, User, TicketThread } from '@/modules/core/types';
-import { addTicket, getTickets as getTicketsServer, getTicketById as getTicketByIdServer, getTicketThread as getTicketThreadServer } from './db';
+import { addTicket, getTickets as getTicketsServer, getTicketById as getTicketByIdServer, getTicketThread as getTicketThreadServer, addThreadEntry as addThreadEntryServer, updateTicketDetails as updateTicketDetailsServer } from './db';
 
 /**
  * Saves a new ticket to the database.
@@ -53,4 +53,28 @@ export async function getTicketById(id: number): Promise<Ticket | null> {
  */
 export async function getTicketThread(ticketId: number): Promise<TicketThread[]> {
     return getTicketThreadServer(ticketId);
+}
+
+/**
+ * Adds a new entry to a ticket's conversation thread.
+ * @param payload - The data for the new thread entry.
+ * @returns The newly created thread entry.
+ */
+export async function addThreadEntry(payload: { ticketId: number; userId: number; userName: string; content: string; type: 'message' | 'note' }): Promise<TicketThread> {
+    const newEntry = await addThreadEntryServer(payload);
+    await logInfo(`Reply added to ticket #${payload.ticketId} by ${payload.userName}`);
+    return newEntry;
+}
+
+/**
+ * Updates details of a ticket, such as status, priority, or assignee.
+ * @param ticketId - The ID of the ticket to update.
+ * @param updates - An object containing the fields to update.
+ * @param user - The user performing the update.
+ * @returns The updated ticket object.
+ */
+export async function updateTicketDetails(ticketId: number, updates: Partial<Pick<Ticket, 'status' | 'priority' | 'assigneeId'>>, user: User): Promise<Ticket> {
+    const updatedTicket = await updateTicketDetailsServer(ticketId, updates, user);
+    await logInfo(`Ticket #${ticketId} details updated by ${user.name}`, { updates });
+    return updatedTicket;
 }

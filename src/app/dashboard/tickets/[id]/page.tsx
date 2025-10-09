@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useTickets } from '@/modules/tickets/hooks/useTickets';
-import type { Ticket, TicketThread, Customer } from '@/modules/core/types';
+import type { Ticket, TicketThread, Customer, TicketStatus, TicketPriority } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,10 +14,11 @@ import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Paperclip, Send, UserCircle } from 'lucide-react';
+import { Paperclip, Send, UserCircle, Loader2 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from '@/modules/core/hooks/use-toast';
 
 const getInitials = (name: string) => {
     if (!name) return "??";
@@ -28,11 +29,14 @@ export default function TicketDetailPage() {
     const params = useParams();
     const ticketId = Number(params.id);
     const { actions, selectors } = useTickets();
-    const { customers, users } = useAuth();
+    const { customers, users, user: currentUser } = useAuth();
+    const { toast } = useToast();
     
     const [ticket, setTicket] = useState<Ticket | null>(null);
     const [thread, setThread] = useState<TicketThread[]>([]);
     const [customerInfo, setCustomerInfo] = useState<Customer | null>(null);
+    const [replyContent, setReplyContent] = useState("");
+    const [isReplying, setIsReplying] = useState(false);
 
     useEffect(() => {
         if (ticketId) {
@@ -51,6 +55,28 @@ export default function TicketDetailPage() {
             loadData();
         }
     }, [ticketId, actions, customers]);
+    
+    const handleAddReply = async () => {
+        if (!replyContent.trim()) {
+            toast({ title: "Error", description: "La respuesta no puede estar vacía.", variant: "destructive" });
+            return;
+        }
+        setIsReplying(true);
+        const newEntry = await actions.addThreadEntry({ ticketId, content: replyContent });
+        if (newEntry) {
+            setThread(prev => [...prev, newEntry]);
+            setReplyContent("");
+        }
+        setIsReplying(false);
+    };
+
+    const handleDetailUpdate = async (updates: Partial<Pick<Ticket, 'status' | 'priority' | 'assigneeId'>>) => {
+        if (!currentUser) return;
+        const updatedTicket = await actions.updateTicketDetails(ticketId, updates, currentUser);
+        if (updatedTicket) {
+            setTicket(updatedTicket);
+        }
+    };
     
     if (!ticket) {
         return (
@@ -86,7 +112,8 @@ export default function TicketDetailPage() {
                                 )}
                                 <div className={cn(
                                     "max-w-xl rounded-lg p-3 text-sm",
-                                    item.userId ? "bg-primary text-primary-foreground" : "bg-card"
+                                    item.userId ? "bg-primary text-primary-foreground" : "bg-card",
+                                    item.type === 'status_change' && "bg-yellow-100 text-yellow-800 w-full text-center italic"
                                 )}>
                                     <p className="font-semibold">{item.userName}</p>
                                     <p className="whitespace-pre-wrap">{item.content}</p>
@@ -107,10 +134,12 @@ export default function TicketDetailPage() {
                             placeholder="Escribe tu respuesta..."
                             className="pr-20"
                             rows={3}
+                            value={replyContent}
+                            onChange={e => setReplyContent(e.target.value)}
                         />
                         <div className="absolute top-2 right-2 flex gap-1">
-                             <Button type="submit" size="icon">
-                                <Send className="h-4 w-4" />
+                             <Button type="button" size="icon" onClick={handleAddReply} disabled={isReplying}>
+                                {isReplying ? <Loader2 className="h-4 w-4 animate-spin"/> : <Send className="h-4 w-4" />}
                                 <span className="sr-only">Enviar</span>
                             </Button>
                              <Button type="button" size="icon" variant="ghost">
@@ -126,27 +155,55 @@ export default function TicketDetailPage() {
                     <CardHeader>
                         <CardTitle>Detalles del Ticket</CardTitle>
                     </CardHeader>
-                    <CardContent className="text-sm space-y-3">
-                         <div className="flex justify-between">
-                            <span className="text-muted-foreground">Prioridad</span>
-                            <Badge variant={selectors.priorityConfig[ticket.priority]?.variant as any}>
-                                {selectors.priorityConfig[ticket.priority]?.label || ticket.priority}
-                            </Badge>
+                    <CardContent className="text-sm space-y-4">
+                         <div className="space-y-1.5">
+                            <Label>Prioridad</Label>
+                            <Select value={ticket.priority} onValueChange={(v) => handleDetailUpdate({ priority: v as TicketPriority })}>
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {Object.entries(selectors.priorityConfig).map(([key, config]) => (
+                                        <SelectItem key={key} value={key}>{config.label}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
-                        <div className="flex justify-between">
-                            <span className="text-muted-foreground">Estado</span>
-                             <div className="flex items-center gap-2">
-                                <span className={cn("h-2 w-2 rounded-full", selectors.statusConfig[ticket.status]?.color)}></span>
-                                <span>{selectors.statusConfig[ticket.status]?.label || ticket.status}</span>
-                            </div>
+                        <div className="space-y-1.5">
+                            <Label>Estado</Label>
+                             <Select value={ticket.status} onValueChange={(v) => handleDetailUpdate({ status: v as TicketStatus })}>
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                     {Object.entries(selectors.statusConfig).map(([key, config]) => (
+                                        <SelectItem key={key} value={key}>
+                                             <div className="flex items-center gap-2">
+                                                <span className={cn("h-2 w-2 rounded-full", config.color)}></span>
+                                                <span>{config.label}</span>
+                                            </div>
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
                          <div className="flex justify-between">
                             <span className="text-muted-foreground">Creado</span>
                             <span>{format(parseISO(ticket.createdAt), 'dd/MM/yyyy')}</span>
                         </div>
-                         <div className="flex justify-between">
-                            <span className="text-muted-foreground">Asignado a</span>
-                            <span>{users.find(u => u.id === ticket.assigneeId)?.name || 'Sin Asignar'}</span>
+                         <div className="space-y-1.5">
+                            <Label>Asignado a</Label>
+                            <Select value={String(ticket.assigneeId || 'null')} onValueChange={(v) => handleDetailUpdate({ assigneeId: v === 'null' ? null : Number(v) })}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Sin Asignar"/>
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="null">Sin Asignar</SelectItem>
+                                    {users.map(u => (
+                                        <SelectItem key={u.id} value={String(u.id)}>{u.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
                     </CardContent>
                 </Card>

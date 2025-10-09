@@ -10,8 +10,8 @@ import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError, logInfo } from '@/modules/core/lib/logger';
 import { useAuth } from '@/modules/core/hooks/useAuth';
-import type { NewTicketPayload, Ticket, TicketPriority, TicketStatus, TicketThread } from '@/modules/core/types';
-import { saveTicket, getTickets, getTicketById as getTicketByIdServer, getTicketThread as getTicketThreadServer } from '../lib/actions';
+import type { NewTicketPayload, Ticket, TicketPriority, TicketStatus, TicketThread, User } from '@/modules/core/types';
+import { saveTicket, getTickets, getTicketById as getTicketByIdServer, getTicketThread as getTicketThreadServer, addThreadEntry as addThreadEntryServer, updateTicketDetails as updateTicketDetailsServer } from '../lib/actions';
 import { useDebounce } from 'use-debounce';
 
 
@@ -175,11 +175,43 @@ export const useTickets = () => {
             try {
                 const thread = await getTicketThreadServer(ticketId);
                 updateState({ currentThread: thread });
+                return thread;
             } catch (error) {
                 logError("Failed to get ticket thread", { error: (error as Error).message });
                 toast({ title: "Error", description: "No se pudo cargar la conversación.", variant: "destructive" });
+                return [];
             } finally {
                 updateState({ isLoading: false });
+            }
+        },
+        
+        addThreadEntry: async (payload: { ticketId: number; content: string; type?: 'message' | 'note' }) => {
+            if (!user) return;
+            updateState({ isSubmitting: true });
+            try {
+                const newEntry = await addThreadEntryServer({ ...payload, userId: user.id, userName: user.name, type: payload.type || 'message' });
+                updateState({ currentThread: [...state.currentThread, newEntry] });
+                return newEntry;
+            } catch (error: any) {
+                logError("Failed to add thread entry", { error: error.message });
+                toast({ title: "Error al Responder", description: error.message, variant: "destructive" });
+            } finally {
+                updateState({ isSubmitting: false });
+            }
+        },
+        
+        updateTicketDetails: async (ticketId: number, updates: Partial<Pick<Ticket, 'status' | 'priority' | 'assigneeId'>>) => {
+            if (!user) return null;
+            try {
+                const updatedTicket = await updateTicketDetailsServer(ticketId, updates, user);
+                // Also update thread immediately
+                const thread = await getTicketThreadServer(ticketId);
+                updateState({ currentThread: thread });
+                return updatedTicket;
+            } catch (error: any) {
+                logError("Failed to update ticket details", { error: error.message });
+                toast({ title: "Error al Actualizar", description: error.message, variant: "destructive" });
+                return null;
             }
         },
     };
