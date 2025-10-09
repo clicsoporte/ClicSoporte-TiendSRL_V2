@@ -8,7 +8,11 @@
 import React, { createContext, useState, useContext, ReactNode, FC, useEffect, useCallback } from "react";
 import type { User, Role, Company, Product, StockInfo, Customer, Exemption, ExemptionLaw } from "../types";
 import { getCurrentUser as getCurrentUserClient } from '../lib/auth-client';
-import { getAllRoles, getCompanySettings, getAllCustomers, getAllProducts, getAllStock, getAndCacheExchangeRate, getAllExemptions, getExemptionLaws, getUnreadSuggestionsCount } from '../lib/db';
+import { getAllUsers } from '../lib/auth';
+import { getAllRoles } from '../lib/roles-db';
+import { getCompanySettings, getAndCacheExchangeRate, getExemptionLaws } from '../lib/settings-db';
+import { getAllCustomers, getAllProducts, getAllStock, getAllExemptions } from '../lib/data-access-db';
+import { getUnreadSuggestionsCount } from '../lib/suggestions-actions';
 import { usePathname, useRouter } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Loader2 } from "lucide-react";
@@ -32,6 +36,7 @@ interface AuthContextType {
   updateUnreadSuggestionsCount: () => Promise<void>;
   exchangeRateData: { rate: number | null, date: string | null };
   isLoading: boolean;
+  hasPermission: (permission: string) => boolean;
   refreshAuth: () => Promise<{ isAuthenticated: boolean; } | void>;
   refreshAuthAndRedirect: (path: string) => Promise<void>;
   refreshExchangeRate: () => Promise<void>;
@@ -124,6 +129,12 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     router.push(path);
   }, [loadAuthData, router]);
 
+  const hasPermission = useCallback((permission: string) => {
+    if (isLoading || !userRole) return false;
+    if (userRole.id === 'admin') return true;
+    return userRole.permissions.includes(permission);
+  }, [isLoading, userRole]);
+
   useEffect(() => {
     let isMounted = true;
 
@@ -158,6 +169,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     updateUnreadSuggestionsCount,
     exchangeRateData,
     isLoading,
+    hasPermission,
     refreshAuth: loadAuthData,
     refreshAuthAndRedirect,
     refreshExchangeRate,

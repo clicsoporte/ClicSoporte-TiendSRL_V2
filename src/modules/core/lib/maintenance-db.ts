@@ -6,7 +6,6 @@
 
 import fs from 'fs';
 import path from 'path';
-import { connectDb } from './db';
 import { DB_MODULES } from './data';
 import type { UpdateBackupInfo, DatabaseModule } from '../types';
 

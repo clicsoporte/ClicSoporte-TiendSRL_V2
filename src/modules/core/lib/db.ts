@@ -10,7 +10,7 @@ import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
 import { initialUsers, initialCompany, initialRoles, DB_MODULES } from './data';
-import type { Company, DatabaseModule } from '@/modules/core/types';
+import type { Company, LogEntry, DateRange } from '@/modules/core/types';
 import bcrypt from 'bcryptjs';
 import { addLog as dbAddLog } from './logger-db';
 
@@ -348,8 +348,7 @@ export async function initializeMainDatabase(db: import('better-sqlite3').Databa
             searchDebounceTime INTEGER, syncWarningHours INTEGER, importMode TEXT, lastSyncTimestamp TEXT,
             customerFilePath TEXT, productFilePath TEXT, exemptionFilePath TEXT,
             stockFilePath TEXT, locationFilePath TEXT, cabysFilePath TEXT,
-            supportPackages TEXT,
-            servicesCatalog TEXT
+            supportPackages TEXT, servicesCatalog TEXT
         );
         
         CREATE TABLE api_settings (

@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview The main login page for the application.
  * This is a Server Component that fetches request headers (IP, hostname)
@@ -7,7 +6,7 @@
 
 import { headers } from "next/headers";
 import { AuthForm } from "@/components/auth/auth-form";
-import { getCompanySettings } from "@/modules/core/lib/db";
+import { getCompanySettings } from "@/modules/core/lib/settings-db";
 import { Suspense } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Network } from "lucide-react";
