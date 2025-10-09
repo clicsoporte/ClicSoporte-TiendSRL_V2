@@ -47,7 +47,7 @@ const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(({
     onOpenChange
   }, ref) => {
     
-    const showPopover = open && value.length > 1 && options.length > 0;
+    const showPopover = open && value.length > 1 && options && options.length > 0;
     
     const handleSelect = (optionValue: string) => {
         onSelect(optionValue);
@@ -88,7 +88,7 @@ const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(({
                         disabled
                     />
                     <CommandList>
-                         {options.length > 0 ? (
+                         {options && options.length > 0 ? (
                              <CommandGroup>
                                 {options.map((option) => (
                                 <CommandItem
