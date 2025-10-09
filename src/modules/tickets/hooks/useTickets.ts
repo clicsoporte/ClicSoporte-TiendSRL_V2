@@ -10,8 +10,8 @@ import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError, logInfo } from '@/modules/core/lib/logger';
 import { useAuth } from '@/modules/core/hooks/useAuth';
-import type { NewTicketPayload, Ticket, TicketPriority, TicketStatus, TicketThread, User, HelpTopic } from '@/modules/core/types';
-import { saveTicket, getTickets, getTicketById as getTicketByIdServer, getTicketThread as getTicketThreadServer, addThreadEntry as addThreadEntryServer, updateTicketDetails as updateTicketDetailsServer, getHelpTopics } from '../lib/actions';
+import type { NewTicketPayload, Ticket, TicketPriority, TicketStatus, TicketThread, User, HelpTopic, TicketCustomer } from '@/modules/core/types';
+import { saveTicket, getTickets, getTicketById as getTicketByIdServer, getTicketThread as getTicketThreadServer, addThreadEntry as addThreadEntryServer, updateTicketDetails as updateTicketDetailsServer, getHelpTopics, addTicketCustomer } from '../lib/actions';
 import { useDebounce } from 'use-debounce';
 
 
@@ -26,11 +26,19 @@ const emptyTicket: NewTicketPayload = {
     customerPhone: '',
 };
 
+const emptyCustomer: Omit<TicketCustomer, 'id' | 'createdAt' | 'notes'> = {
+    name: '',
+    email: '',
+    phone: '',
+};
+
 const initialState = {
     isLoading: true,
     isSubmitting: false,
     isNewTicketDialogOpen: false,
+    isNewCustomerDialogOpen: false,
     newTicket: emptyTicket,
+    newCustomer: emptyCustomer,
     customerSearchTerm: '',
     isCustomerSearchOpen: false,
     tickets: [] as Ticket[],
@@ -95,6 +103,7 @@ export const useTickets = () => {
     
     const actions = {
         setNewTicketDialogOpen: (isOpen: boolean) => updateState({ isNewTicketDialogOpen: isOpen }),
+        setNewCustomerDialogOpen: (isOpen: boolean) => updateState({ isNewCustomerDialogOpen: isOpen }),
         setCustomerSearchTerm: (term: string) => updateState({ customerSearchTerm: term }),
         setCustomerSearchOpen: (isOpen: boolean) => updateState({ isCustomerSearchOpen: isOpen }),
         setSearchTerm: (term: string) => updateState({ searchTerm: term }),
@@ -105,6 +114,10 @@ export const useTickets = () => {
 
         handleNewTicketChange: (field: keyof NewTicketPayload, value: string | number | null) => {
             updateState({ newTicket: { ...state.newTicket, [field]: value } });
+        },
+
+        handleNewCustomerChange: (field: keyof typeof emptyCustomer, value: string) => {
+            updateState({ newCustomer: { ...state.newCustomer, [field]: value } });
         },
 
         handleSelectCustomer: (customerId: string) => {
@@ -129,6 +142,24 @@ export const useTickets = () => {
                     },
                     customerSearchTerm: ''
                 });
+            }
+        },
+        
+        handleCreateCustomer: async () => {
+            if (!state.newCustomer.name || !state.newCustomer.email) {
+                toast({ title: "Datos Incompletos", description: "El nombre y el correo electrónico son requeridos.", variant: "destructive" });
+                return;
+            }
+            updateState({ isSubmitting: true });
+            try {
+                await addTicketCustomer(state.newCustomer);
+                toast({ title: "Cliente Creado", description: "El nuevo cliente de soporte ha sido añadido." });
+                updateState({ isNewCustomerDialogOpen: false, newCustomer: emptyCustomer });
+            } catch (error: any) {
+                logError("Failed to create ticket customer", { error: error.message });
+                toast({ title: "Error", description: `No se pudo crear el cliente: ${error.message}`, variant: "destructive" });
+            } finally {
+                updateState({ isSubmitting: false });
             }
         },
 

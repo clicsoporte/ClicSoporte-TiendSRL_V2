@@ -185,6 +185,16 @@ export async function addTicket(payload: NewTicketPayload, user: User): Promise<
     return transaction();
 }
 
+export async function addTicketCustomer(payload: Omit<TicketCustomer, 'id' | 'createdAt' | 'notes'>): Promise<void> {
+    const db = await connectDb(TICKETS_DB_FILE);
+    const existing = db.prepare('SELECT id FROM ticket_customers WHERE email = ?').get(payload.email);
+    if (existing) {
+        throw new Error('Ya existe un cliente de soporte con este correo electrónico.');
+    }
+    db.prepare('INSERT INTO ticket_customers (name, email, phone, createdAt) VALUES (?, ?, ?, ?)')
+      .run(payload.name, payload.email, payload.phone || null, new Date().toISOString());
+}
+
 export async function getTickets(): Promise<Ticket[]> {
     const db = await connectDb(TICKETS_DB_FILE);
     try {

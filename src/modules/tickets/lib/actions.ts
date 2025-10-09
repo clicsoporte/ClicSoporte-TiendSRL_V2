@@ -1,11 +1,12 @@
 
+
 /**
  * @fileoverview Client-side functions for interacting with the ticket module's server-side DB functions.
  */
 'use client';
 
 import { logInfo, logError } from '@/modules/core/lib/logger';
-import type { Ticket, NewTicketPayload, User, TicketThread, HelpTopic } from '@/modules/core/types';
+import type { Ticket, NewTicketPayload, User, TicketThread, HelpTopic, TicketCustomer } from '@/modules/core/types';
 import { 
     addTicket, 
     getTickets as getTicketsServer, 
@@ -16,7 +17,8 @@ import {
     getHelpTopics as getHelpTopicsServer,
     addHelpTopic as addHelpTopicServer,
     updateHelpTopic as updateHelpTopicServer,
-    deleteHelpTopic as deleteHelpTopicServer
+    deleteHelpTopic as deleteHelpTopicServer,
+    addTicketCustomer as addTicketCustomerServer,
 } from './db';
 
 /**
@@ -39,6 +41,21 @@ export async function saveTicket(payload: NewTicketPayload, user: User): Promise
         throw error;
     }
 }
+
+/**
+ * Adds a new standalone customer to the ticket system.
+ * @param payload - The data for the new customer.
+ */
+export async function addTicketCustomer(payload: Omit<TicketCustomer, 'id' | 'createdAt' | 'notes'>): Promise<void> {
+    try {
+        await addTicketCustomerServer(payload);
+        await logInfo(`New ticket customer created: ${payload.name}`);
+    } catch (error) {
+        logError("Error saving ticket customer from client action", { error: (error as Error).message });
+        throw error;
+    }
+}
+
 
 /**
  * Fetches all tickets from the server.
