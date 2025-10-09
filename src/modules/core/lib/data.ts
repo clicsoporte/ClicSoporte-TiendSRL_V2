@@ -32,6 +32,7 @@ import {
   DollarSign,
   FileScan,
   Ticket,
+  KeyRound,
 } from "lucide-react";
 
 /**
@@ -128,6 +129,15 @@ export const mainTools: Tool[] = [
     href: "/dashboard/tickets",
     icon: Ticket,
     bgColor: "bg-blue-500",
+    textColor: "text-white",
+  },
+  {
+    id: "licenses",
+    name: "Licenciamiento",
+    description: "Gestionar licencias de software propias y de terceros.",
+    href: "/dashboard/licenses",
+    icon: KeyRound,
+    bgColor: "bg-indigo-500",
     textColor: "text-white",
   },
    {
@@ -244,6 +254,8 @@ export const initialRoles: Role[] = [
         "tickets:read:all",
         "tickets:update",
         "tickets:admin",
+        "licenses:read",
+        "licenses:manage",
     ],
   },
   {
@@ -431,5 +443,7 @@ export const allTools: Tool[] = [...mainTools, ...adminTools];
 
 
 
+
+    
 
     

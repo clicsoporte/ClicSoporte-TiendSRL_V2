@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Sidebar component for the main application layout.
  * It handles navigation, displays user and company information, and adapts
@@ -33,6 +32,7 @@ import {
   PackagePlus,
   MessageSquare,
   Ticket,
+  KeyRound,
 } from "lucide-react";
 import type { Tool } from "../../modules/core/types";
 import { UserNav } from "./user-nav";
@@ -109,6 +109,15 @@ export function AppSidebar() {
       href: "/dashboard/tickets",
       icon: Ticket,
       bgColor: "bg-blue-500",
+      textColor: "text-white",
+    },
+    {
+      id: "licenses",
+      name: "Licenciamiento",
+      description: "Gestionar licencias de software.",
+      href: "/dashboard/licenses",
+      icon: KeyRound,
+      bgColor: "bg-indigo-500",
       textColor: "text-white",
     },
     {
@@ -246,3 +255,5 @@ export function AppSidebar() {
       </Sidebar>
   );
 }
+
+    
