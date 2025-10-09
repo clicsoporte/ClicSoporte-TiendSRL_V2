@@ -26,7 +26,7 @@ const priorityConfig: { [key in TicketPriority]: { label: string } } = {
 };
 
 export const useTicketSettings = () => {
-    const { isAuthorized } = useAuthorization(['admin:settings:general']); // TODO: Change to a specific permission
+    const { isAuthorized } = useAuthorization(['tickets:admin']);
     const { toast } = useToast();
 
     const [isLoading, setIsLoading] = useState(true);

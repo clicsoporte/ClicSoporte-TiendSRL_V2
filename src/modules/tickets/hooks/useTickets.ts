@@ -10,8 +10,8 @@ import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError, logInfo } from '@/modules/core/lib/logger';
 import { useAuth } from '@/modules/core/hooks/useAuth';
-import type { NewTicketPayload, Ticket, TicketPriority, TicketStatus, TicketThread, User } from '@/modules/core/types';
-import { saveTicket, getTickets, getTicketById as getTicketByIdServer, getTicketThread as getTicketThreadServer, addThreadEntry as addThreadEntryServer, updateTicketDetails as updateTicketDetailsServer } from '../lib/actions';
+import type { NewTicketPayload, Ticket, TicketPriority, TicketStatus, TicketThread, User, HelpTopic } from '@/modules/core/types';
+import { saveTicket, getTickets, getTicketById as getTicketByIdServer, getTicketThread as getTicketThreadServer, addThreadEntry as addThreadEntryServer, updateTicketDetails as updateTicketDetailsServer, getHelpTopics } from '../lib/actions';
 import { useDebounce } from 'use-debounce';
 
 
@@ -34,6 +34,7 @@ const initialState = {
     customerSearchTerm: '',
     isCustomerSearchOpen: false,
     tickets: [] as Ticket[],
+    helpTopics: [] as HelpTopic[],
     searchTerm: '',
     statusFilter: 'all',
     priorityFilter: 'all',
@@ -55,7 +56,7 @@ const statusConfig: { [key in TicketStatus]: { label: string, color: string } } 
 };
 
 export const useTickets = () => {
-    const { isAuthorized } = useAuthorization(['dashboard:access']); // Basic permission for now
+    const { isAuthorized } = useAuthorization(['tickets:read:all']);
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
     const { user, customers, companyData } = useAuth();
@@ -72,8 +73,11 @@ export const useTickets = () => {
     const loadInitialData = useCallback(async () => {
         updateState({ isLoading: true });
         try {
-            const fetchedTickets = await getTickets();
-            updateState({ tickets: fetchedTickets });
+            const [fetchedTickets, fetchedHelpTopics] = await Promise.all([
+                getTickets(),
+                getHelpTopics()
+            ]);
+            updateState({ tickets: fetchedTickets, helpTopics: fetchedHelpTopics });
         } catch (error) {
             logError("Failed to load tickets", { error: (error as Error).message });
             toast({ title: "Error", description: "No se pudieron cargar los tickets.", variant: "destructive" });
@@ -122,9 +126,6 @@ export const useTickets = () => {
                     newTicket: {
                         ...state.newTicket,
                         erpCustomerId: null,
-                        customerName: '',
-                        customerEmail: '',
-                        customerPhone: '',
                     },
                     customerSearchTerm: ''
                 });
@@ -200,13 +201,16 @@ export const useTickets = () => {
             }
         },
         
-        updateTicketDetails: async (ticketId: number, updates: Partial<Pick<Ticket, 'status' | 'priority' | 'assigneeId'>>) => {
+        updateTicketDetails: async (ticketId: number, updates: Partial<Pick<Ticket, 'status' | 'priority' | 'assigneeId'>>, user: User): Promise<Ticket | null> => {
             if (!user) return null;
             try {
                 const updatedTicket = await updateTicketDetailsServer(ticketId, updates, user);
                 // Also update thread immediately
                 const thread = await getTicketThreadServer(ticketId);
-                updateState({ currentThread: thread });
+                updateState({ 
+                    tickets: state.tickets.map(t => t.id === ticketId ? updatedTicket : t),
+                    currentThread: thread 
+                });
                 return updatedTicket;
             } catch (error: any) {
                 logError("Failed to update ticket details", { error: error.message });

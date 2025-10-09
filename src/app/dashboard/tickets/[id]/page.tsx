@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useTickets } from '@/modules/tickets/hooks/useTickets';
-import type { Ticket, TicketThread, Customer, TicketStatus, TicketPriority } from '@/modules/core/types';
+import type { Ticket, TicketThread, Customer, TicketStatus, TicketPriority, User } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,6 +19,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from '@/modules/core/hooks/use-toast';
+import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 
 const getInitials = (name: string) => {
     if (!name) return "??";
@@ -28,8 +29,9 @@ const getInitials = (name: string) => {
 export default function TicketDetailPage() {
     const params = useParams();
     const ticketId = Number(params.id);
+    const { isAuthorized, hasPermission } = useAuthorization(['tickets:read:all']);
     const { actions, selectors } = useTickets();
-    const { customers, users, user: currentUser } = useAuth();
+    const { customers, users: allUsers, user: currentUser } = useAuth();
     const { toast } = useToast();
     
     const [ticket, setTicket] = useState<Ticket | null>(null);
@@ -37,9 +39,11 @@ export default function TicketDetailPage() {
     const [customerInfo, setCustomerInfo] = useState<Customer | null>(null);
     const [replyContent, setReplyContent] = useState("");
     const [isReplying, setIsReplying] = useState(false);
+    
+    const supportUsers = useMemo(() => allUsers.filter(u => u.role === 'admin' || u.role === 'support-agent'), [allUsers]);
 
     useEffect(() => {
-        if (ticketId) {
+        if (ticketId && isAuthorized) {
             const loadData = async () => {
                 const ticketData = await actions.getTicketById(ticketId);
                 setTicket(ticketData);
@@ -54,7 +58,7 @@ export default function TicketDetailPage() {
             };
             loadData();
         }
-    }, [ticketId, actions, customers]);
+    }, [ticketId, isAuthorized, actions, customers]);
     
     const handleAddReply = async () => {
         if (!replyContent.trim()) {
@@ -71,13 +75,21 @@ export default function TicketDetailPage() {
     };
 
     const handleDetailUpdate = async (updates: Partial<Pick<Ticket, 'status' | 'priority' | 'assigneeId'>>) => {
-        if (!currentUser) return;
+        if (!currentUser || !hasPermission('tickets:update')) {
+             toast({ title: "Acción no permitida", description: "No tienes permiso para actualizar este ticket.", variant: "destructive" });
+            return;
+        };
         const updatedTicket = await actions.updateTicketDetails(ticketId, updates, currentUser);
         if (updatedTicket) {
             setTicket(updatedTicket);
+            // Re-fetch thread to see the automated log entry
+            const threadData = await actions.getTicketThread(ticketId);
+            setThread(threadData);
         }
     };
     
+    if (!isAuthorized) return null;
+
     if (!ticket) {
         return (
              <div className="flex h-full">
@@ -136,13 +148,14 @@ export default function TicketDetailPage() {
                             rows={3}
                             value={replyContent}
                             onChange={e => setReplyContent(e.target.value)}
+                            disabled={!hasPermission('tickets:update')}
                         />
                         <div className="absolute top-2 right-2 flex gap-1">
-                             <Button type="button" size="icon" onClick={handleAddReply} disabled={isReplying}>
+                             <Button type="button" size="icon" onClick={handleAddReply} disabled={isReplying || !hasPermission('tickets:update')}>
                                 {isReplying ? <Loader2 className="h-4 w-4 animate-spin"/> : <Send className="h-4 w-4" />}
                                 <span className="sr-only">Enviar</span>
                             </Button>
-                             <Button type="button" size="icon" variant="ghost">
+                             <Button type="button" size="icon" variant="ghost" disabled={!hasPermission('tickets:update')}>
                                 <Paperclip className="h-4 w-4" />
                                 <span className="sr-only">Adjuntar</span>
                             </Button>
@@ -158,7 +171,7 @@ export default function TicketDetailPage() {
                     <CardContent className="text-sm space-y-4">
                          <div className="space-y-1.5">
                             <Label>Prioridad</Label>
-                            <Select value={ticket.priority} onValueChange={(v) => handleDetailUpdate({ priority: v as TicketPriority })}>
+                            <Select value={ticket.priority} onValueChange={(v) => handleDetailUpdate({ priority: v as TicketPriority })} disabled={!hasPermission('tickets:update')}>
                                 <SelectTrigger>
                                     <SelectValue />
                                 </SelectTrigger>
@@ -171,7 +184,7 @@ export default function TicketDetailPage() {
                         </div>
                         <div className="space-y-1.5">
                             <Label>Estado</Label>
-                             <Select value={ticket.status} onValueChange={(v) => handleDetailUpdate({ status: v as TicketStatus })}>
+                             <Select value={ticket.status} onValueChange={(v) => handleDetailUpdate({ status: v as TicketStatus })} disabled={!hasPermission('tickets:update')}>
                                 <SelectTrigger>
                                     <SelectValue />
                                 </SelectTrigger>
@@ -193,13 +206,13 @@ export default function TicketDetailPage() {
                         </div>
                          <div className="space-y-1.5">
                             <Label>Asignado a</Label>
-                            <Select value={String(ticket.assigneeId || 'null')} onValueChange={(v) => handleDetailUpdate({ assigneeId: v === 'null' ? null : Number(v) })}>
+                            <Select value={String(ticket.assigneeId || 'null')} onValueChange={(v) => handleDetailUpdate({ assigneeId: v === 'null' ? null : Number(v) })} disabled={!hasPermission('tickets:update')}>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Sin Asignar"/>
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="null">Sin Asignar</SelectItem>
-                                    {users.map(u => (
+                                    {supportUsers.map(u => (
                                         <SelectItem key={u.id} value={String(u.id)}>{u.name}</SelectItem>
                                     ))}
                                 </SelectContent>

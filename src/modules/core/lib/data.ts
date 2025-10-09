@@ -239,6 +239,9 @@ export const initialRoles: Role[] = [
         "warehouse:inventory:assign",
         "warehouse:locations:manage",
         "hacienda:query",
+        "tickets:create",
+        "tickets:read:all",
+        "tickets:update",
     ],
   },
   {
@@ -269,6 +272,16 @@ export const initialRoles: Role[] = [
         "dashboard:access",
         "requests:read",
         "requests:create",
+    ]
+  },
+  {
+    id: 'support-agent',
+    name: 'Soporte Técnico',
+    permissions: [
+        "dashboard:access",
+        "tickets:create",
+        "tickets:read:all",
+        "tickets:update",
     ]
   }
 ];
@@ -384,6 +397,15 @@ export const adminTools: Tool[] = [
         href: "/dashboard/admin/stock",
         icon: Boxes,
         bgColor: "bg-green-700",
+        textColor: "text-white",
+      },
+       {
+        id: "tickets-settings",
+        name: "Config. Soporte Técnico",
+        description: "Gestionar temas de ayuda y automatizaciones.",
+        href: "/dashboard/admin/tickets",
+        icon: Ticket,
+        bgColor: "bg-blue-700",
         textColor: "text-white",
       },
       {

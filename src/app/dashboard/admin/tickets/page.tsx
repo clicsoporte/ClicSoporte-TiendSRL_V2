@@ -2,7 +2,7 @@
 'use client';
 
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useTicketSettings } from '@/modules/tickets/hooks/useTicketSettings';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
@@ -19,7 +19,7 @@ import { useAuth } from '@/modules/core/hooks/useAuth';
 
 export default function TicketSettingsPage() {
     const { setTitle } = usePageTitle();
-    const { users } = useAuth();
+    const { user: currentUser, users } = useAuth();
     const {
         state,
         actions,
@@ -27,6 +27,8 @@ export default function TicketSettingsPage() {
         isAuthorized,
         isLoading
     } = useTicketSettings();
+
+    const supportUsers = users.filter(u => u.role === 'admin' || u.role === 'support-agent');
     
     useEffect(() => {
         setTitle("Configuración de Tickets");
@@ -101,7 +103,7 @@ export default function TicketSettingsPage() {
                                                 <SelectTrigger id="default-assignee"><SelectValue placeholder="Sin asignar"/></SelectTrigger>
                                                 <SelectContent>
                                                     <SelectItem value="null">Sin asignar</SelectItem>
-                                                    {users.map(u => (
+                                                    {supportUsers.map(u => (
                                                         <SelectItem key={u.id} value={String(u.id)}>{u.name}</SelectItem>
                                                     ))}
                                                 </SelectContent>
