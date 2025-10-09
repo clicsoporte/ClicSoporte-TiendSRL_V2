@@ -2,7 +2,7 @@
 'use client';
 
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useTicketSettings } from '@/modules/tickets/hooks/useTicketSettings';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
@@ -19,7 +19,7 @@ import { useAuth } from '@/modules/core/hooks/useAuth';
 
 export default function TicketSettingsPage() {
     const { setTitle } = usePageTitle();
-    const { user: currentUser, users } = useAuth();
+    const { users } = useAuth();
     const {
         state,
         actions,
@@ -28,7 +28,10 @@ export default function TicketSettingsPage() {
         isLoading
     } = useTicketSettings();
 
-    const supportUsers = users.filter(u => u.role === 'admin' || u.role === 'support-agent');
+    const supportUsers = useMemo(() => {
+        if (!users) return [];
+        return users.filter(u => u.role === 'admin' || u.role === 'support-agent');
+    }, [users]);
     
     useEffect(() => {
         setTitle("Configuración de Tickets");
@@ -103,7 +106,7 @@ export default function TicketSettingsPage() {
                                                 <SelectTrigger id="default-assignee"><SelectValue placeholder="Sin asignar"/></SelectTrigger>
                                                 <SelectContent>
                                                     <SelectItem value="null">Sin asignar</SelectItem>
-                                                    {supportUsers.map(u => (
+                                                    {supportUsers && supportUsers.map(u => (
                                                         <SelectItem key={u.id} value={String(u.id)}>{u.name}</SelectItem>
                                                     ))}
                                                 </SelectContent>
@@ -132,7 +135,7 @@ export default function TicketSettingsPage() {
                             </TableHeader>
                             <TableBody>
                                 {state.helpTopics.map(topic => {
-                                    const assignee = users.find(u => u.id === topic.defaultAssigneeId);
+                                    const assignee = users?.find(u => u.id === topic.defaultAssigneeId);
                                     return (
                                         <TableRow key={topic.id}>
                                             <TableCell className="font-medium">{topic.name}</TableCell>
