@@ -1,11 +1,10 @@
-
 /**
  * @fileoverview Server-side functions for the support tickets database.
  */
 "use server";
 
 import { connectDb } from '../../core/lib/db';
-import type { Ticket, NewTicketPayload, User, TicketCustomer, TicketThread, HelpTopic } from '@/modules/core/types';
+import type { Ticket, NewTicketPayload, User, TicketCustomer, TicketThread, HelpTopic, ClientCompany } from '@/modules/core/types';
 
 const TICKETS_DB_FILE = 'tickets.db';
 
@@ -60,7 +59,7 @@ export async function initializeTicketsDb(db: import('better-sqlite3').Database)
             updatedAt TEXT NOT NULL,
             dueDate TEXT,
             
-            contactId INTEGER, -- Foreign key to company_contacts
+            contactId INTEGER,
             
             -- Denormalized for quick display & for customers not in the company structure
             customerName TEXT, 
@@ -200,8 +199,8 @@ async function getNextTicketNumber(db: import('better-sqlite3').Database): Promi
 export async function addTicket(payload: NewTicketPayload, user: User): Promise<Ticket> {
     const db = await connectDb(TICKETS_DB_FILE);
 
-    const transaction = db.transaction(() => {
-        const { prefix, number } = getNextTicketNumber(db);
+    const transaction = db.transaction(async () => {
+        const { prefix, number } = await getNextTicketNumber(db);
         const consecutive = `${prefix}${number.toString().padStart(6, '0')}`;
         const now = new Date().toISOString();
         
@@ -247,13 +246,14 @@ export async function addTicket(payload: NewTicketPayload, user: User): Promise<
     return transaction();
 }
 
-export async function addTicketCustomer(payload: Omit<TicketCustomer, 'id' | 'createdAt' | 'notes'>): Promise<void> {
+export async function addTicketCustomer(payload: Omit<TicketCustomer, 'id' | 'createdAt' | 'notes'>): Promise<TicketCustomer> {
     const db = await connectDb(TICKETS_DB_FILE);
     const existing = db.prepare('SELECT id FROM company_contacts WHERE email = ?').get(payload.email);
     if (existing) {
         throw new Error('Ya existe un contacto de soporte con este correo electrónico.');
     }
     
+    // For standalone customers, we create a 'company' entry for them.
     const company = {
         name: payload.name,
         taxId: payload.email, // Using email as unique ID for now for standalone customers.
@@ -268,6 +268,36 @@ export async function addTicketCustomer(payload: Omit<TicketCustomer, 'id' | 'cr
 
     const contactInfo = db.prepare('INSERT INTO company_contacts (companyId, name, email, phone, isPrimary, createdAt) VALUES (?, ?, ?, ?, ?, ?)')
       .run(companyId, payload.name, payload.email, payload.phone || null, true, new Date().toISOString());
+
+    return {
+        id: contactInfo.lastInsertRowid as number,
+        name: payload.name,
+        email: payload.email,
+        phone: payload.phone,
+        createdAt: company.createdAt
+    };
+}
+
+
+export async function addClientCompany(payload: Omit<ClientCompany, 'id' | 'createdAt'>): Promise<ClientCompany> {
+    const db = await connectDb(TICKETS_DB_FILE);
+    const existing = db.prepare('SELECT id FROM client_companies WHERE taxId = ?').get(payload.taxId);
+    if(existing) {
+        throw new Error('Ya existe una empresa con esa cédula jurídica.');
+    }
+    const now = new Date().toISOString();
+    const info = db.prepare(`
+        INSERT INTO client_companies (name, taxId, address, phone, email, createdAt) 
+        VALUES (@name, @taxId, @address, @phone, @email, @createdAt)
+    `).run({ ...payload, createdAt: now });
+
+    const newId = info.lastInsertRowid as number;
+    return { ...payload, id: newId, createdAt: now };
+}
+
+export async function getClientCompanies(): Promise<ClientCompany[]> {
+    const db = await connectDb(TICKETS_DB_FILE);
+    return db.prepare('SELECT * FROM client_companies ORDER BY name ASC').all() as ClientCompany[];
 }
 
 export async function getTickets(): Promise<Ticket[]> {
@@ -290,6 +320,12 @@ export async function getTicketById(id: number): Promise<Ticket | null> {
         console.error(`Failed to get ticket with id ${id}:`, error);
         return null;
     }
+}
+
+export async function getTicketCustomerById(id: number): Promise<TicketCustomer | null> {
+    // This function will need to be adapted to the new company/contact structure
+    // For now, it will fetch from a placeholder.
+    return null;
 }
 
 export async function getTicketThread(ticketId: number): Promise<TicketThread[]> {
@@ -390,4 +426,9 @@ export async function updateHelpTopic(topic: HelpTopic): Promise<HelpTopic> {
 export async function deleteHelpTopic(id: number): Promise<void> {
     const db = await connectDb(TICKETS_DB_FILE);
     db.prepare('DELETE FROM help_topics WHERE id = ?').run(id);
+}
+
+export async function deleteTicket(id: number): Promise<void> {
+    const db = await connectDb(TICKETS_DB_FILE);
+    db.prepare('DELETE FROM tickets WHERE id = ?').run(id);
 }

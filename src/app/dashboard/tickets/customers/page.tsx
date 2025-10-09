@@ -3,18 +3,17 @@
  */
 'use client';
 
-import { useTickets } from '@/modules/tickets/hooks/useTickets';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Skeleton } from '@/components/ui/skeleton';
-import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PlusCircle, Loader2 } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { addClientCompany, getClientCompanies } from '@/modules/tickets/lib/actions';
 import type { ClientCompany } from '@/modules/core/types';

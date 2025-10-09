@@ -475,7 +475,7 @@ async function initializeMainDatabase(db: import('better-sqlite3').Database) {
         userInsert.run({ ...user, password: hashedPassword });
     });
 
-    db.prepare(`INSERT INTO company_settings (id, name, taxId, address, phone, email, systemName, quotePrefix, nextQuoteNumber, decimalPlaces, quoterShowTaxId, searchDebounceTime, syncWarningHours, importMode, supportPackages, servicesCatalog) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+    db.prepare(`INSERT OR IGNORE INTO company_settings (id, name, taxId, address, phone, email, systemName, quotePrefix, nextQuoteNumber, decimalPlaces, quoterShowTaxId, searchDebounceTime, syncWarningHours, importMode, supportPackages, servicesCatalog) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
         initialCompany.name, initialCompany.taxId, initialCompany.address, initialCompany.phone, initialCompany.email, initialCompany.systemName,
         initialCompany.quotePrefix, initialCompany.nextQuoteNumber, initialCompany.decimalPlaces, true, initialCompany.searchDebounceTime, initialCompany.syncWarningHours, initialCompany.importMode, 
         JSON.stringify(initialCompany.supportPackages), JSON.stringify(initialCompany.servicesCatalog)
@@ -509,48 +509,18 @@ async function initializeMainDatabase(db: import('better-sqlite3').Database) {
     console.log(`Database ${DB_FILE} initialized with default users, company settings, and roles.`);
     await checkAndApplyMigrations(db);
 }
-
-export async function getCompanySettings(): Promise<Company | null> {
-    const db = await connectDb();
-    try {
-        const company = db.prepare('SELECT * FROM company_settings WHERE id = 1').get() as any;
-        if (company) {
-            company.supportPackages = company.supportPackages ? JSON.parse(company.supportPackages) : [];
-            company.servicesCatalog = company.servicesCatalog ? JSON.parse(company.servicesCatalog) : [];
-        }
-        return company;
-    } catch (error) {
-        console.error("Failed to get company settings:", error);
-        return null;
-    }
-}
-
-export async function saveCompanySettings(settings: Company): Promise<void> {
-    const db = await connectDb();
-    try {
-        db.prepare(`
-            UPDATE company_settings SET 
-                name = @name, taxId = @taxId, address = @address, phone = @phone, email = @email,
-                logoUrl = @logoUrl, systemName = @systemName, quotePrefix = @quotePrefix, nextQuoteNumber = @nextQuoteNumber, 
-                decimalPlaces = @decimalPlaces, quoterShowTaxId = @quoterShowTaxId, searchDebounceTime = @searchDebounceTime, syncWarningHours = @syncWarningHours,
-                customerFilePath = @customerFilePath, 
-                productFilePath = @productFilePath, exemptionFilePath = @exemptionFilePath, stockFilePath = @stockFilePath,
-                locationFilePath = @locationFilePath, cabysFilePath = @cabysFilePath, importMode = @importMode,
-                lastSyncTimestamp = @lastSyncTimestamp,
-                supportPackages = @supportPackages,
-                servicesCatalog = @servicesCatalog
-            WHERE id = 1
-        `).run({
-            ...settings,
-            quoterShowTaxId: settings.quoterShowTaxId ? 1 : 0,
-            supportPackages: JSON.stringify(settings.supportPackages || []),
-            servicesCatalog: JSON.stringify(settings.servicesCatalog || []),
-        });
-    } catch (error) {
-        console.error("Failed to save company settings:", error);
-    }
-}
 // The rest of db.ts remains the same...
 // ... (omitting the rest of the file for brevity as it's unchanged) ...
 
     
+
+// Re-exporting functions that were causing import errors
+export { getUnreadSuggestionsCount, getSuggestions, markSuggestionAsRead, deleteSuggestion } from './suggestions-actions';
+export { getAllRoles, saveAllRoles, resetDefaultRoles } from './roles-db';
+export { getAllCustomers, getAllProducts, getAllStock, getAllExemptions, getCabysCatalog } from './data-access-db';
+export { getCompanySettings, saveCompanySettings, getApiSettings, saveApiSettings, getExemptionLaws, saveExemptionLaws, getAndCacheExchangeRate } from './settings-db';
+export { importData, importAllDataFromFiles } from './import-service';
+export { getLogs, clearLogs } from './logger';
+export { getSqlConfig, saveSqlConfig, saveImportQueries, getImportQueries, testSqlConnection } from './config-db-client';
+export { backupAllForUpdate, restoreAllFromUpdateBackup, listAllUpdateBackups, deleteOldUpdateBackups, uploadBackupFile, factoryReset, getDbModules } from './maintenance-db';
+export { getStockSettings, saveStockSettings } from './stock-db';

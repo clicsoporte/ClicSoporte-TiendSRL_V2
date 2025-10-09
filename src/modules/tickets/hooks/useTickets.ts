@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Custom hook `useTickets` for managing the state and logic of the Tickets page.
  */
@@ -10,26 +9,34 @@ import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError, logInfo } from '@/modules/core/lib/logger';
 import { useAuth } from '@/modules/core/hooks/useAuth';
-import type { NewTicketPayload, Ticket, TicketPriority, TicketStatus, TicketThread, User, HelpTopic, TicketCustomer } from '@/modules/core/types';
-import { saveTicket, getTickets, getTicketById as getTicketByIdServer, getTicketThread as getTicketThreadServer, addThreadEntry as addThreadEntryServer, updateTicketDetails as updateTicketDetailsServer, getHelpTopics, addTicketCustomer } from '../lib/actions';
+import type { NewTicketPayload, Ticket, TicketPriority, TicketStatus, TicketThread, User, HelpTopic, ClientCompany } from '@/modules/core/types';
+import { 
+    saveTicket, getTickets, getTicketById as getTicketByIdServer, 
+    getTicketThread as getTicketThreadServer, 
+    addThreadEntry as addThreadEntryServer, 
+    updateTicketDetails as updateTicketDetailsServer, 
+    getHelpTopics, addTicketCustomer, addClientCompany,
+    deleteTicket,
+} from '../lib/actions';
 import { useDebounce } from 'use-debounce';
-
 
 const emptyTicket: NewTicketPayload = {
     subject: '',
     content: '',
     status: 'open',
     priority: 'medium',
-    erpCustomerId: null,
+    contactId: null,
     customerName: '',
     customerEmail: '',
     customerPhone: '',
 };
 
-const emptyCustomer: Omit<TicketCustomer, 'id' | 'createdAt' | 'notes'> = {
+const emptyCustomer: Omit<ClientCompany, 'id' | 'createdAt'> = {
     name: '',
-    email: '',
+    taxId: '',
+    address: '',
     phone: '',
+    email: '',
 };
 
 const initialState = {
@@ -120,41 +127,22 @@ export const useTickets = () => {
             updateState({ newCustomer: { ...state.newCustomer, [field]: value } });
         },
 
-        handleSelectCustomer: (customerId: string) => {
+        handleSelectContact: (contactId: string) => {
+            // Placeholder - this logic will expand when contacts are implemented
             updateState({ isCustomerSearchOpen: false });
-            const customer = customers.find(c => c.id === customerId);
-            if (customer) {
-                updateState({
-                    newTicket: {
-                        ...state.newTicket,
-                        erpCustomerId: customer.id,
-                        customerName: customer.name,
-                        customerEmail: customer.email || customer.electronicDocEmail,
-                        customerPhone: customer.phone,
-                    },
-                    customerSearchTerm: `[${customer.id}] ${customer.name}`
-                });
-            } else {
-                updateState({
-                    newTicket: {
-                        ...state.newTicket,
-                        erpCustomerId: null,
-                    },
-                    customerSearchTerm: ''
-                });
-            }
         },
         
         handleCreateCustomer: async () => {
-            if (!state.newCustomer.name || !state.newCustomer.email) {
-                toast({ title: "Datos Incompletos", description: "El nombre y el correo electrónico son requeridos.", variant: "destructive" });
+            if (!state.newCustomer.name || !state.newCustomer.taxId) {
+                toast({ title: "Datos Incompletos", description: "El nombre y la cédula jurídica son requeridos.", variant: "destructive" });
                 return;
             }
             updateState({ isSubmitting: true });
             try {
-                await addTicketCustomer(state.newCustomer);
-                toast({ title: "Cliente Creado", description: "El nuevo cliente de soporte ha sido añadido." });
+                await addClientCompany(state.newCustomer);
+                toast({ title: "Empresa Creada", description: "La nueva empresa cliente ha sido añadida." });
                 updateState({ isNewCustomerDialogOpen: false, newCustomer: emptyCustomer });
+                // Optionally re-fetch client companies if needed elsewhere
             } catch (error: any) {
                 logError("Failed to create ticket customer", { error: error.message });
                 toast({ title: "Error", description: `No se pudo crear el cliente: ${error.message}`, variant: "destructive" });
@@ -249,19 +237,24 @@ export const useTickets = () => {
                 return null;
             }
         },
+
+        deleteTicket: async (id: number): Promise<void> => {
+            return deleteTicket(id);
+        },
+
+        resetNewTicketForm: () => {
+            updateState({ newTicket: emptyTicket, customerSearchTerm: '' });
+        }
     };
 
     const selectors = {
         priorityConfig,
         statusConfig,
-        customerOptions: useMemo(() => {
+        contactOptions: useMemo(() => {
+            // This will be expanded when contacts are fully implemented
             if (debouncedCustomerSearch.length < 2) return [];
-            const searchTerms = debouncedCustomerSearch.toLowerCase().split(' ').filter(Boolean);
-            return customers.filter(c => {
-                const targetText = `${c.id} ${c.name} ${c.taxId}`.toLowerCase();
-                return searchTerms.every(term => targetText.includes(term));
-            }).map(c => ({ value: c.id, label: `[${c.id}] ${c.name} (${c.taxId})` }));
-        }, [customers, debouncedCustomerSearch]),
+            return [];
+        }, [debouncedCustomerSearch]),
         filteredTickets: useMemo(() => {
             return state.tickets.filter(ticket => {
                 const searchMatch = debouncedSearchTerm 

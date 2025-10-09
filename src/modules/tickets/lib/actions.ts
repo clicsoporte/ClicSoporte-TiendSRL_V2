@@ -1,5 +1,3 @@
-
-
 /**
  * @fileoverview Client-side functions for interacting with the ticket module's server-side DB functions.
  */
@@ -22,7 +20,7 @@ import {
     getClientCompanies as getClientCompaniesServer,
     addClientCompany as addClientCompanyServer,
     getTicketCustomerById as getTicketCustomerByIdServer,
-    deleteTicket as deleteTicketServer
+    deleteTicket as deleteTicketServer,
 } from './db';
 
 /**
@@ -61,10 +59,11 @@ export async function addTicketCustomer(payload: Omit<TicketCustomer, 'id' | 'cr
     }
 }
 
-export async function addClientCompany(payload: Omit<ClientCompany, 'id' | 'createdAt'>): Promise<void> {
+export async function addClientCompany(payload: Omit<ClientCompany, 'id' | 'createdAt'>): Promise<ClientCompany> {
     try {
-        await addClientCompanyServer(payload);
+        const newCompany = await addClientCompanyServer(payload);
         await logInfo(`New client company created: ${payload.name}`);
+        return newCompany;
     } catch (error) {
         logError("Error saving client company from client action", { error: (error as Error).message });
         throw error;

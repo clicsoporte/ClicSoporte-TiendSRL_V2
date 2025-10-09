@@ -11,8 +11,7 @@ import { logError, logInfo } from '@/modules/core/lib/logger';
 import type { HelpTopic, TicketPriority } from '@/modules/core/types';
 import { getHelpTopics, addHelpTopic, updateHelpTopic, deleteHelpTopic } from '../lib/actions';
 
-const emptyTopic: HelpTopic = {
-    id: 0,
+const emptyTopic: Omit<HelpTopic, 'id'> = {
     name: '',
     defaultPriority: 'medium',
     defaultAssigneeId: null,
@@ -33,7 +32,7 @@ export const useTicketSettings = () => {
     const [helpTopics, setHelpTopics] = useState<HelpTopic[]>([]);
     const [isFormOpen, setFormOpen] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
-    const [currentTopic, setCurrentTopic] = useState<HelpTopic>(emptyTopic);
+    const [currentTopic, setCurrentTopic] = useState<HelpTopic | Omit<HelpTopic, 'id'>>(emptyTopic);
     const [topicToDelete, setTopicToDelete] = useState<HelpTopic | null>(null);
     
     const fetchHelpTopics = useCallback(async () => {
@@ -62,13 +61,13 @@ export const useTicketSettings = () => {
         }
 
         try {
-            if (isEditing) {
+            if (isEditing && 'id' in currentTopic) {
                 const updated = await updateHelpTopic(currentTopic);
                 setHelpTopics(prev => prev.map(t => t.id === updated.id ? updated : t));
                 toast({ title: "Tema Actualizado" });
                 logInfo('Help topic updated', { topic: updated.name });
             } else {
-                const newTopic = await addHelpTopic(currentTopic);
+                const newTopic = await addHelpTopic(currentTopic as Omit<HelpTopic, 'id'>);
                 setHelpTopics(prev => [...prev, newTopic]);
                 toast({ title: "Tema Creado" });
                 logInfo('New help topic created', { topic: newTopic.name });

@@ -43,7 +43,7 @@ export async function getProductionOrders(options: {
  * @param requestedBy - The name of the user creating the order.
  * @returns The newly created production order.
  */
-export async function saveProductionOrder(order: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'machineId' | 'previousStatus' | 'scheduledStartDate' | 'scheduledEndDate' | 'requestedBy' | 'hasBeenModified' | 'lastModifiedBy' | 'lastModifiedAt'>, requestedBy: string): Promise<ProductionOrder> {
+export async function saveProductionOrder(order: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'assignmentId' | 'previousStatus' | 'scheduledStartDate' | 'scheduledEndDate' | 'requestedBy' | 'hasBeenModified' | 'lastModifiedBy' | 'lastModifiedAt'| 'lastStatusUpdateBy' | 'lastStatusUpdateNotes' | 'approvedBy' >, requestedBy: string): Promise<ProductionOrder> {
     const createdOrder = await addOrder(order, requestedBy);
     await logInfo(`Project ${createdOrder.consecutive} created by ${requestedBy}`, { customer: createdOrder.customerName, project: createdOrder.productDescription });
     return createdOrder;

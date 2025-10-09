@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview This file defines a central authentication context and hook.
  * It provides a single source of truth for the current user, their role, company data,
@@ -20,6 +19,8 @@ import { Loader2 } from "lucide-react";
 interface AuthContextType {
   user: User | null;
   userRole: Role | null;
+  users: User[];
+  roles: Role[];
   companyData: Company | null;
   setCompanyData: (data: Company) => void;
   customers: Customer[];
@@ -48,7 +49,9 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
   const router = useRouter();
   const pathname = usePathname();
   const [user, setUser] = useState<User | null>(null);
+  const [users, setUsers] = useState<User[]>([]);
   const [userRole, setUserRole] = useState<Role | null>(null);
+  const [roles, setRoles] = useState<Role[]>([]);
   const [companyData, setCompanyData] = useState<Company | null>(null);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -77,20 +80,22 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     try {
       const [
         currentUser, allRoles, companySettings, dbCustomers, dbProducts, 
-        dbStock, rateData, dbExemptions, dbLaws, unreadCount
+        dbStock, rateData, dbExemptions, dbLaws, unreadCount, allUsers
       ] = await Promise.all([
         getCurrentUserClient(), getAllRoles(), getCompanySettings(),
         getAllCustomers(), getAllProducts(), getAllStock(), getAndCacheExchangeRate(),
-        getAllExemptions(), getExemptionLaws(), getUnreadSuggestionsCount()
+        getAllExemptions(), getExemptionLaws(), getUnreadSuggestionsCount(), getAllUsers()
       ]);
 
       setUser(currentUser);
+      setUsers(allUsers);
       setCompanyData(companySettings);
       setCustomers(dbCustomers);
       setProducts(dbProducts);
       setStockLevels(dbStock);
       setAllExemptions(dbExemptions);
       setExemptionLaws(dbLaws);
+      setRoles(allRoles);
       if (currentUser) {
         setUnreadSuggestionsCount(unreadCount);
       }
@@ -140,6 +145,8 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
   const contextValue: AuthContextType = {
     user,
     userRole,
+    users,
+    roles,
     companyData,
     setCompanyData,
     customers,

@@ -27,7 +27,7 @@ import { getDaysRemaining as getSimpleDaysRemaining } from '@/modules/core/lib/t
 import { generateDocument } from '@/modules/core/lib/pdf-generator';
 import type { RowInput } from 'jspdf-autotable';
 
-const emptyOrder: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'machineId' | 'previousStatus' | 'scheduledStartDate' | 'scheduledEndDate' | 'requestedBy' | 'hasBeenModified' | 'lastModifiedBy' | 'lastModifiedAt'> = {
+const emptyOrder: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'assignmentId' | 'previousStatus' | 'scheduledStartDate' | 'scheduledEndDate' | 'requestedBy' | 'hasBeenModified' | 'lastModifiedBy' | 'lastModifiedAt' | 'lastStatusUpdateBy' | 'lastStatusUpdateNotes' | 'approvedBy'> = {
     deliveryDate: '',
     customerId: '',
     customerName: '',
@@ -272,8 +272,8 @@ export const usePlanner = () => {
         },
 
         openStatusDialog: (order: ProductionOrder, status: ProductionOrderStatus) => {
-            if (state.plannerSettings?.requireMachineForStart && status === 'in-progress' && !order.machineId) {
-                toast({ title: "Asignación no realizada", description: "Debe asignar una máquina/proceso.", variant: "destructive" });
+            if (state.plannerSettings?.requireAssignmentForStart && status === 'in-progress' && !order.assignmentId) {
+                toast({ title: "Asignación no realizada", description: "Debe asignar un técnico/recurso.", variant: "destructive" });
                 return;
             }
             updateState({
@@ -377,11 +377,11 @@ export const usePlanner = () => {
             }
         },
 
-        handleDetailUpdate: async (orderId: number, details: { priority?: ProductionOrderPriority; machineId?: string | null; scheduledDateRange?: DateRange }) => {
+        handleDetailUpdate: async (orderId: number, details: { priority?: ProductionOrderPriority; assignmentId?: string | null; scheduledDateRange?: DateRange }) => {
             if (!currentUser) return;
             const finalDetails = {
                 ...details,
-                machineId: details.machineId === 'none' ? null : details.machineId
+                assignmentId: details.assignmentId === 'none' ? null : details.assignmentId
             };
             const updated = await updateProductionOrderDetails({ orderId, ...finalDetails, updatedBy: currentUser.name });
             updateState({ 
@@ -413,6 +413,7 @@ export const usePlanner = () => {
             } catch (error: any) {
                 logError("Failed to reopen order", { error: error.message });
                 toast({ title: "Error", variant: "destructive" });
+                await loadInitialData();
             } finally {
                 updateState({ isSubmitting: false });
             }
@@ -503,7 +504,7 @@ export const usePlanner = () => {
                 { id: 'deliveryDate', header: 'Entrega', width: 55 },
                 { id: 'scheduledDate', header: 'Fecha Prog.', width: 85 },
                 { id: 'status', header: 'Estado', width: 65 },
-                { id: 'machineId', header: state.plannerSettings.assignmentLabel || 'Asignación', width: 75 },
+                { id: 'assignmentId', header: state.plannerSettings.assignmentLabel || 'Asignación', width: 75 },
                 { id: 'priority', header: 'Prioridad', width: 55 },
             ];
         
@@ -520,7 +521,7 @@ export const usePlanner = () => {
                         case 'deliveryDate': return format(parseISO(order.deliveryDate), 'dd/MM/yy');
                         case 'scheduledDate': return (order.scheduledStartDate && order.scheduledEndDate) ? `${format(parseISO(order.scheduledStartDate), 'dd/MM/yy')} - ${format(parseISO(order.scheduledEndDate), 'dd/MM/yy')}` : 'N/A';
                         case 'status': return selectors.statusConfig[order.status]?.label || order.status;
-                        case 'machineId': return state.plannerSettings?.machines.find(m => m.id === order.machineId)?.name || 'N/A';
+                        case 'assignmentId': return state.plannerSettings?.assignments.find(m => m.id === order.assignmentId)?.name || 'N/A';
                         case 'priority': return selectors.priorityConfig[order.priority]?.label || order.priority;
                         default: return '';
                     }
@@ -571,7 +572,7 @@ export const usePlanner = () => {
             
             const historyData = await getOrderHistory(order.id);
 
-            const machineName = state.plannerSettings.machines.find(m => m.id === order.machineId)?.name || 'N/A';
+            const assignmentName = state.plannerSettings.assignments.find(m => m.id === order.assignmentId)?.name || 'N/A';
             
             const details = [
                 { title: 'Cliente:', content: order.customerName },
@@ -581,7 +582,7 @@ export const usePlanner = () => {
                 { title: 'Fecha Entrega:', content: format(parseISO(order.deliveryDate), 'dd/MM/yyyy') },
                 { title: 'Estado:', content: selectors.statusConfig[order.status]?.label || order.status },
                 { title: 'Prioridad:', content: selectors.priorityConfig[order.priority]?.label || order.priority },
-                { title: 'Asignación:', content: machineName },
+                { title: 'Asignación:', content: assignmentName },
                 { title: 'Notas:', content: order.notes || 'N/A' },
                 { title: 'Solicitado por:', content: order.requestedBy },
                 { title: 'Aprobado por:', content: order.approvedBy || 'N/A' },

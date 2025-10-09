@@ -48,6 +48,7 @@ export default function MaintenancePage() {
     const { user } = useAuth();
     const { toast } = useToast();
     const [isProcessing, setIsProcessing] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
     const [processingAction, setProcessingAction] = useState<string | null>(null);
     const { setTitle } = usePageTitle();
 
@@ -73,8 +74,7 @@ export default function MaintenancePage() {
 
 
     const fetchMaintenanceData = useCallback(async () => {
-        setIsProcessing(true);
-        setProcessingAction('load');
+        setIsLoading(true);
         try {
             const [backups, modules] = await Promise.all([
                 listAllUpdateBackups(),
@@ -83,15 +83,14 @@ export default function MaintenancePage() {
             setUpdateBackups(backups);
             setDbModules(modules);
             if (backups.length > 0) {
-                const latestTimestamp = backups.reduce((latest, current) => new Date(current.date) > new Date(latest) ? current.date : latest, backups[0].date);
+                const latestTimestamp = backups.reduce((latest: string, current) => new Date(current.date) > new Date(latest) ? current.date : latest, backups[0].date);
                 setSelectedRestoreTimestamp(latestTimestamp);
             }
         } catch(error: any) {
             logError("Error fetching maintenance data", { error: error.message });
             toast({ title: "Error", description: "No se pudieron cargar los datos de mantenimiento.", variant: "destructive" });
         } finally {
-            setIsProcessing(false);
-            setProcessingAction(null);
+            setIsLoading(false);
         }
     }, [toast]);
 
@@ -270,7 +269,7 @@ export default function MaintenancePage() {
 
     const oldBackupsCount = uniqueTimestamps.length > 1 ? uniqueTimestamps.length - 1 : 0;
     
-    if (isAuthorized === null || (isProcessing && processingAction === 'load')) {
+    if (isLoading) {
         return (
              <main className="flex-1 p-4 md:p-6 lg:p-8">
                 <div className="mx-auto max-w-4xl space-y-8">

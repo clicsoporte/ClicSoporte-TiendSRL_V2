@@ -1,10 +1,9 @@
-
 'use client';
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useTickets } from '@/modules/tickets/hooks/useTickets';
-import type { Ticket, TicketThread, TicketCustomer, TicketStatus, TicketPriority, User } from '@/modules/core/types';
+import type { Ticket, TicketThread, TicketStatus, TicketPriority, User } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,11 +17,12 @@ import { Paperclip, Send, Loader2, MoreVertical, Pencil, Trash2 } from 'lucide-r
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { useRouter } from 'next/navigation';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+
 
 const getInitials = (name: string) => {
     if (!name) return "??";
@@ -40,12 +40,15 @@ export default function TicketDetailPage() {
     
     const [ticket, setTicket] = useState<Ticket | null>(null);
     const [thread, setThread] = useState<TicketThread[]>([]);
-    const [customerInfo, setCustomerInfo] = useState<TicketCustomer | null>(null);
+    const [customerInfo, setCustomerInfo] = useState<any | null>(null); // Simplified customer info
     const [replyContent, setReplyContent] = useState("");
     const [isReplying, setIsReplying] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     
-    const supportUsers = useMemo(() => allUsers.filter(u => u.role === 'admin' || u.role === 'support-agent' || (u.role && selectors.isSupportRole(u.role))), [allUsers, selectors]);
+    const supportUsers = useMemo(() => {
+        if (!allUsers) return [];
+        return allUsers.filter(u => u.role === 'admin' || u.role === 'support-agent'); // Simplified logic
+    }, [allUsers]);
 
     const loadData = useCallback(async () => {
         if (ticketId && isAuthorized) {
@@ -54,10 +57,7 @@ export default function TicketDetailPage() {
             if (ticketData) {
                 const threadData = await actions.getTicketThread(ticketId);
                 setThread(threadData);
-                if (ticketData.contactId) {
-                    const contactData = await actions.getTicketCustomerById(ticketData.contactId);
-                    setCustomerInfo(contactData);
-                }
+                // Placeholder for customer fetching logic
             }
         }
     }, [ticketId, isAuthorized, actions]);

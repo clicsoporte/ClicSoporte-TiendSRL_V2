@@ -36,7 +36,7 @@ export default function TicketSettingsPage() {
             .map(r => r.id);
         
         // Filter users who have one of those roles
-        return users.filter(u => supportRoleIds.includes(u.role));
+        return users.filter(u => u.role && supportRoleIds.includes(u.role));
     }, [users, roles]);
     
     useEffect(() => {
