@@ -80,6 +80,7 @@ export const initialCompany: Company = {
     locationFilePath: "",
     cabysFilePath: "",
     supportPackages: [],
+    servicesCatalog: [],
 };
 
 /**
@@ -443,6 +444,8 @@ export const allTools: Tool[] = [...mainTools, ...adminTools];
 
 
 
+
+    
 
     
 

@@ -19,6 +19,7 @@ import { initializeRequestsDb, runRequestMigrations } from '../../requests/lib/d
 import { initializeWarehouseDb, runWarehouseMigrations } from '../../warehouse/lib/db';
 import { initializeCostAssistantDb, runCostAssistantMigrations } from '../../cost-assistant/lib/db';
 import { initializeTicketsDb, runTicketMigrations } from '../../tickets/lib/db';
+import { initializeLicensesDb, runLicensesMigrations } from '../../licenses/lib/db';
 import { getExchangeRate as fetchExchangeRateFromApi } from '../lib/api-actions';
 import { getSqlConfig } from './config-db';
 import { logError, logInfo, logWarn } from './logger';
@@ -38,10 +39,11 @@ const UPDATE_BACKUP_DIR = 'update_backups';
 const DB_MODULES: DatabaseModule[] = [
     { id: 'clic-tools-main', name: 'Clic-Tools (Sistema Principal)', dbFile: DB_FILE, initFn: initializeMainDatabase, migrationFn: checkAndApplyMigrations },
     { id: 'purchase-requests', name: 'Solicitud de Compra', dbFile: 'requests.db', initFn: initializeRequestsDb, migrationFn: runRequestMigrations },
-    { id: 'production-planner', name: 'Planificador de Producción', dbFile: 'planner.db', initFn: initializePlannerDb, migrationFn: runPlannerMigrations },
+    { id: 'production-planner', name: 'Gestor de Proyectos', dbFile: 'planner.db', initFn: initializePlannerDb, migrationFn: runPlannerMigrations },
     { id: 'warehouse-management', name: 'Gestión de Almacenes', dbFile: 'warehouse.db', initFn: initializeWarehouseDb, migrationFn: runWarehouseMigrations },
     { id: 'cost-assistant', name: 'Asistente de Costos', dbFile: 'cost-assistant.db', initFn: initializeCostAssistantDb, migrationFn: runCostAssistantMigrations },
     { id: 'tickets', name: 'Soporte Técnico', dbFile: 'tickets.db', initFn: initializeTicketsDb, migrationFn: runTicketMigrations },
+    { id: 'licenses', name: 'Gestión de Licencias', dbFile: 'licenses.db', initFn: initializeLicensesDb, migrationFn: runLicensesMigrations },
 ];
 
 // This path is configured to work correctly within the Next.js build output directory,
@@ -98,7 +100,7 @@ export async function connectDb(dbFile: string = DB_FILE): Promise<Database.Data
             db.pragma('journal_mode = WAL');
 
             const moduleConfig = DB_MODULES.find(m => m.dbFile === dbFile);
-            const mainTable = moduleConfig?.id === 'clic-tools-main' ? 'users' : moduleConfig?.id === 'purchase-requests' ? 'purchase_requests' : moduleConfig?.id === 'production-planner' ? 'production_orders' : moduleConfig?.id === 'warehouse-management' ? 'locations' : moduleConfig?.id === 'cost-assistant' ? 'cost_analysis_drafts' : moduleConfig?.id === 'tickets' ? 'tickets' : null;
+            const mainTable = moduleConfig?.id === 'clic-tools-main' ? 'users' : moduleConfig?.id === 'purchase-requests' ? 'purchase_requests' : moduleConfig?.id === 'production-planner' ? 'production_orders' : moduleConfig?.id === 'warehouse-management' ? 'locations' : moduleConfig?.id === 'cost-assistant' ? 'cost_analysis_drafts' : moduleConfig?.id === 'tickets' ? 'tickets' : moduleConfig?.id === 'licenses' ? 'licenses' : null;
             
             if (mainTable) {
                 const tableCheck = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name=?`).get(mainTable);
@@ -184,6 +186,7 @@ async function checkAndApplyMigrations(db: import('better-sqlite3').Database) {
         if (!companyColumns.has('syncWarningHours')) db.exec(`ALTER TABLE company_settings ADD COLUMN syncWarningHours INTEGER DEFAULT 12`);
         if (!companyColumns.has('quoterShowTaxId')) db.exec(`ALTER TABLE company_settings ADD COLUMN quoterShowTaxId BOOLEAN DEFAULT TRUE`);
         if (!companyColumns.has('supportPackages')) db.exec(`ALTER TABLE company_settings ADD COLUMN supportPackages TEXT`);
+        if (!companyColumns.has('servicesCatalog')) db.exec(`ALTER TABLE company_settings ADD COLUMN servicesCatalog TEXT`);
 
 
         const adminUser = db.prepare('SELECT role FROM users WHERE id = 1').get() as { role: string } | undefined;
@@ -372,7 +375,8 @@ async function initializeMainDatabase(db: import('better-sqlite3').Database) {
             searchDebounceTime INTEGER, syncWarningHours INTEGER, importMode TEXT, lastSyncTimestamp TEXT,
             customerFilePath TEXT, productFilePath TEXT, exemptionFilePath TEXT,
             stockFilePath TEXT, locationFilePath TEXT, cabysFilePath TEXT,
-            supportPackages TEXT
+            supportPackages TEXT,
+            servicesCatalog TEXT
         );
         
         CREATE TABLE api_settings (
@@ -398,7 +402,7 @@ async function initializeMainDatabase(db: import('better-sqlite3').Database) {
 
         CREATE TABLE customers (
             id TEXT PRIMARY KEY, name TEXT, address TEXT, phone TEXT, taxId TEXT, currency TEXT,
-            creditLimit REAL, paymentCondition TEXT, salesperson TEXT, active TEXT, email TEXT, electronicDocEmail,
+            creditLimit REAL, paymentCondition TEXT, salesperson TEXT, active TEXT, email TEXT, electronicDocEmail TEXT,
             supportPackageId TEXT, monthlyHoursBalance REAL
         );
 
@@ -471,9 +475,10 @@ async function initializeMainDatabase(db: import('better-sqlite3').Database) {
         userInsert.run({ ...user, password: hashedPassword });
     });
 
-    db.prepare(`INSERT INTO company_settings (id, name, taxId, address, phone, email, systemName, quotePrefix, nextQuoteNumber, decimalPlaces, quoterShowTaxId, searchDebounceTime, syncWarningHours, importMode, supportPackages) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+    db.prepare(`INSERT INTO company_settings (id, name, taxId, address, phone, email, systemName, quotePrefix, nextQuoteNumber, decimalPlaces, quoterShowTaxId, searchDebounceTime, syncWarningHours, importMode, supportPackages, servicesCatalog) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
         initialCompany.name, initialCompany.taxId, initialCompany.address, initialCompany.phone, initialCompany.email, initialCompany.systemName,
-        initialCompany.quotePrefix, initialCompany.nextQuoteNumber, initialCompany.decimalPlaces, true, initialCompany.searchDebounceTime, initialCompany.syncWarningHours, initialCompany.importMode, JSON.stringify(initialCompany.supportPackages)
+        initialCompany.quotePrefix, initialCompany.nextQuoteNumber, initialCompany.decimalPlaces, true, initialCompany.searchDebounceTime, initialCompany.syncWarningHours, initialCompany.importMode, 
+        JSON.stringify(initialCompany.supportPackages), JSON.stringify(initialCompany.servicesCatalog)
     );
     
     db.prepare(`INSERT OR IGNORE INTO api_settings (id, exchangeRateApi, haciendaExemptionApi, haciendaTributariaApi) VALUES (1, ?, ?, ?)`).run(
@@ -511,6 +516,7 @@ export async function getCompanySettings(): Promise<Company | null> {
         const company = db.prepare('SELECT * FROM company_settings WHERE id = 1').get() as any;
         if (company) {
             company.supportPackages = company.supportPackages ? JSON.parse(company.supportPackages) : [];
+            company.servicesCatalog = company.servicesCatalog ? JSON.parse(company.servicesCatalog) : [];
         }
         return company;
     } catch (error) {
@@ -531,12 +537,14 @@ export async function saveCompanySettings(settings: Company): Promise<void> {
                 productFilePath = @productFilePath, exemptionFilePath = @exemptionFilePath, stockFilePath = @stockFilePath,
                 locationFilePath = @locationFilePath, cabysFilePath = @cabysFilePath, importMode = @importMode,
                 lastSyncTimestamp = @lastSyncTimestamp,
-                supportPackages = @supportPackages
+                supportPackages = @supportPackages,
+                servicesCatalog = @servicesCatalog
             WHERE id = 1
         `).run({
             ...settings,
             quoterShowTaxId: settings.quoterShowTaxId ? 1 : 0,
-            supportPackages: JSON.stringify(settings.supportPackages || [])
+            supportPackages: JSON.stringify(settings.supportPackages || []),
+            servicesCatalog: JSON.stringify(settings.servicesCatalog || []),
         });
     } catch (error) {
         console.error("Failed to save company settings:", error);
@@ -544,3 +552,5 @@ export async function saveCompanySettings(settings: Company): Promise<void> {
 }
 // The rest of db.ts remains the same...
 // ... (omitting the rest of the file for brevity as it's unchanged) ...
+
+    

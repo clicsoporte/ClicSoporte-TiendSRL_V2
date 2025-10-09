@@ -49,13 +49,14 @@ export type Company = {
     locationFilePath?: string;
     cabysFilePath?: string;
     supportPackages: SupportPackage[];
+    servicesCatalog: Service[];
 };
 
 export type SupportPackage = {
   id: string; // e.g., 'alfa', 'beta'
   name: string;
-  includedServices: string[];
-  excludedServices: string[];
+  includedServices: string[]; // Array of service IDs
+  excludedServices: string[]; // Array of service IDs
 };
 
 export type Service = {
@@ -675,6 +676,25 @@ export type ClientCompany = {
     createdAt: string;
 };
 
+export type CompanyBranch = {
+    id: number;
+    companyId: number;
+    name: string;
+    address: string;
+    createdAt: string;
+};
+
+export type CompanyContact = {
+    id: number;
+    companyId: number;
+    branchId?: number | null;
+    name: string;
+    email: string;
+    phone?: string;
+    isPrimary: boolean;
+    createdAt: string;
+};
+
 export type TicketCustomer = {
     id: number;
     name: string;
@@ -729,3 +749,22 @@ export type NewTicketPayload = {
     assigneeId?: number | null;
     dueDate?: string;
 };
+
+export type License = {
+    id: number;
+    licenseKey: string;
+    softwareId: number;
+    clientCompanyId: number | null;
+    isPerpetual: boolean;
+    expirationDate: string;
+    status: 'active' | 'expired' | 'revoked';
+    createdAt: string;
+};
+
+export type SoftwareProduct = {
+    id: number;
+    name: string;
+    isInternal: boolean;
+};
+
+    
