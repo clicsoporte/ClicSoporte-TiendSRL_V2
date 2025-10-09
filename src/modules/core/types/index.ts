@@ -651,32 +651,12 @@ export type HelpTopic = {
     defaultAssigneeId?: number | null;
 };
 
-export type ClientCompany = {
+export type TicketCustomer = {
     id: number;
-    name: string;
-    taxId: string;
-    address: string;
-    phone: string;
-    email: string;
-    createdAt: string;
-};
-
-export type CompanyBranch = {
-    id: number;
-    companyId: number;
-    name: string;
-    address: string;
-    createdAt: string;
-};
-
-export type CompanyContact = {
-    id: number;
-    companyId: number;
-    branchId?: number | null;
     name: string;
     email: string;
     phone?: string;
-    isPrimary: boolean;
+    notes?: string;
     createdAt: string;
 };
 
@@ -691,13 +671,12 @@ export type Ticket = {
     updatedAt: string;
     dueDate?: string;
     
-    contactId: number; // Foreign key to company_contacts
-    companyId: number; // Foreign key to client_companies
-
-    // Denormalized data for quick display
-    customerName: string; 
-    companyName: string; 
-
+    erpCustomerId: string | null;
+    ticketCustomerId: number | null;
+    
+    customerName: string; // Denormalized for quick display
+    companyName?: string; // Denormalized company name
+    
     assigneeId?: number | null;
     helpTopicId?: number | null;
 };
@@ -717,7 +696,11 @@ export type NewTicketPayload = {
     content: string;
     status: TicketStatus;
     priority: TicketPriority;
-    contactId: number;
+    erpCustomerId: string | null;
+    customerName: string;
+    customerEmail: string;
+    customerPhone?: string;
     helpTopicId?: number;
+    assigneeId?: number | null;
+    dueDate?: string;
 };
-

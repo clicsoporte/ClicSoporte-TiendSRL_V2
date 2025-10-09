@@ -1,5 +1,4 @@
 
-
 /**
  * @fileoverview Server-side functions for the support tickets database.
  */
@@ -12,13 +11,36 @@ const TICKETS_DB_FILE = 'tickets.db';
 
 export async function initializeTicketsDb(db: import('better-sqlite3').Database) {
     const schema = `
-        CREATE TABLE IF NOT EXISTS ticket_customers (
+        CREATE TABLE IF NOT EXISTS client_companies (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            taxId TEXT UNIQUE NOT NULL,
+            address TEXT,
+            phone TEXT,
+            email TEXT,
+            createdAt TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS company_branches (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            companyId INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            address TEXT,
+            createdAt TEXT NOT NULL,
+            FOREIGN KEY (companyId) REFERENCES client_companies(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS company_contacts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            companyId INTEGER NOT NULL,
+            branchId INTEGER,
             name TEXT NOT NULL,
             email TEXT UNIQUE NOT NULL,
             phone TEXT,
-            notes TEXT,
-            createdAt TEXT NOT NULL
+            isPrimary BOOLEAN DEFAULT FALSE,
+            createdAt TEXT NOT NULL,
+            FOREIGN KEY (companyId) REFERENCES client_companies(id) ON DELETE CASCADE,
+            FOREIGN KEY (branchId) REFERENCES company_branches(id) ON DELETE SET NULL
         );
 
         CREATE TABLE IF NOT EXISTS help_topics (
@@ -38,14 +60,16 @@ export async function initializeTicketsDb(db: import('better-sqlite3').Database)
             updatedAt TEXT NOT NULL,
             dueDate TEXT,
             
-            erpCustomerId TEXT, -- From intratool.db customers table
-            ticketCustomerId INTEGER, -- From this db's ticket_customers table
-            customerName TEXT, -- Denormalized for quick display
+            contactId INTEGER, -- Foreign key to company_contacts
             
+            -- Denormalized for quick display & for customers not in the company structure
+            customerName TEXT, 
+            companyName TEXT, 
+
             assigneeId INTEGER, -- User ID from intratool.db
             helpTopicId INTEGER,
 
-            FOREIGN KEY (ticketCustomerId) REFERENCES ticket_customers(id),
+            FOREIGN KEY (contactId) REFERENCES company_contacts(id) ON DELETE SET NULL,
             FOREIGN KEY (helpTopicId) REFERENCES help_topics(id)
         );
 
@@ -96,9 +120,51 @@ export async function runTicketMigrations(db: import('better-sqlite3').Database)
     const ticketsTableInfo = db.prepare(`PRAGMA table_info(tickets)`).all() as { name: string }[];
     const ticketsColumns = new Set(ticketsTableInfo.map(c => c.name));
 
-    if (!ticketsColumns.has('customerName')) {
-        db.exec(`ALTER TABLE tickets ADD COLUMN customerName TEXT;`);
+    if (!ticketsColumns.has('companyName')) {
+        db.exec(`ALTER TABLE tickets ADD COLUMN companyName TEXT;`);
     }
+     if (!ticketsColumns.has('helpTopicId')) {
+        db.exec(`ALTER TABLE tickets ADD COLUMN helpTopicId INTEGER;`);
+    }
+    if (!ticketsColumns.has('dueDate')) {
+        db.exec(`ALTER TABLE tickets ADD COLUMN dueDate TEXT;`);
+    }
+    if (ticketsColumns.has('erpCustomerId')) {
+        // This is a more complex migration to move from the old customer system.
+        // It's safer to check for the old columns and rename the table if needed.
+        // For simplicity here, we assume a fresh start or manual migration if this fails.
+        console.log("Migration: Re-structuring tickets table for new customer model.");
+        try {
+            db.exec(`
+                CREATE TABLE tickets_new (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    consecutive TEXT UNIQUE NOT NULL,
+                    subject TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    priority TEXT NOT NULL,
+                    createdAt TEXT NOT NULL,
+                    updatedAt TEXT NOT NULL,
+                    dueDate TEXT,
+                    contactId INTEGER,
+                    customerName TEXT,
+                    companyName TEXT,
+                    assigneeId INTEGER,
+                    helpTopicId INTEGER,
+                    FOREIGN KEY (contactId) REFERENCES company_contacts(id) ON DELETE SET NULL,
+                    FOREIGN KEY (helpTopicId) REFERENCES help_topics(id)
+                );
+            `);
+             db.exec(`
+                INSERT INTO tickets_new (id, consecutive, subject, status, priority, createdAt, updatedAt, customerName, assigneeId)
+                SELECT id, consecutive, subject, status, priority, createdAt, updatedAt, customerName, assigneeId FROM tickets;
+            `);
+            db.exec(`DROP TABLE tickets;`);
+            db.exec(`ALTER TABLE tickets_new RENAME TO tickets;`);
+        } catch (e) {
+            console.error("Failed to migrate tickets table. A manual migration might be needed.", e);
+        }
+    }
+
 
     const helpTopicsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='help_topics'`).get();
     if (!helpTopicsTable) {
@@ -135,39 +201,35 @@ export async function addTicket(payload: NewTicketPayload, user: User): Promise<
     const db = await connectDb(TICKETS_DB_FILE);
 
     const transaction = db.transaction(() => {
-        let ticketCustomerId: number | null = null;
-        let erpCustomerId: string | null = payload.erpCustomerId;
-
-        if (!erpCustomerId) {
-            const existingCustomer = db.prepare('SELECT id FROM ticket_customers WHERE email = ?').get(payload.customerEmail) as { id: number } | undefined;
-            if (existingCustomer) {
-                ticketCustomerId = existingCustomer.id;
-            } else {
-                const info = db.prepare('INSERT INTO ticket_customers (name, email, phone, createdAt) VALUES (?, ?, ?, ?)')
-                    .run(payload.customerName, payload.customerEmail, payload.customerPhone || null, new Date().toISOString());
-                ticketCustomerId = info.lastInsertRowid as number;
-            }
-        }
-
         const { prefix, number } = getNextTicketNumber(db);
         const consecutive = `${prefix}${number.toString().padStart(6, '0')}`;
         const now = new Date().toISOString();
         
         let priority = payload.priority;
-        let assigneeId = null;
+        let assigneeId = payload.assigneeId;
 
         if (payload.helpTopicId) {
             const topic = db.prepare('SELECT * FROM help_topics WHERE id = ?').get(payload.helpTopicId) as HelpTopic | undefined;
             if (topic) {
-                if (topic.defaultPriority) priority = topic.defaultPriority;
-                if (topic.defaultAssigneeId) assigneeId = topic.defaultAssigneeId;
+                if (topic.defaultPriority && !payload.priority) priority = topic.defaultPriority;
+                if (topic.defaultAssigneeId && payload.assigneeId === undefined) assigneeId = topic.defaultAssigneeId;
+            }
+        }
+        
+        // Find company name if contactId is provided
+        let companyName = payload.companyName || '';
+        if(payload.contactId) {
+            const contact = db.prepare('SELECT companyId FROM company_contacts WHERE id = ?').get(payload.contactId) as { companyId: number } | undefined;
+            if (contact) {
+                const company = db.prepare('SELECT name FROM client_companies WHERE id = ?').get(contact.companyId) as { name: string } | undefined;
+                if(company) companyName = company.name;
             }
         }
 
         const ticketInsertInfo = db.prepare(`
-            INSERT INTO tickets (consecutive, subject, status, priority, createdAt, updatedAt, erpCustomerId, ticketCustomerId, customerName, assigneeId, helpTopicId)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(consecutive, payload.subject, 'open', priority, now, now, erpCustomerId, ticketCustomerId, payload.customerName, assigneeId, payload.helpTopicId);
+            INSERT INTO tickets (consecutive, subject, status, priority, createdAt, updatedAt, contactId, customerName, companyName, assigneeId, helpTopicId, dueDate)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(consecutive, payload.subject, 'open', priority, now, now, payload.contactId, payload.customerName, companyName, assigneeId, payload.helpTopicId, payload.dueDate || null);
         
         const newTicketId = ticketInsertInfo.lastInsertRowid;
 
@@ -187,12 +249,25 @@ export async function addTicket(payload: NewTicketPayload, user: User): Promise<
 
 export async function addTicketCustomer(payload: Omit<TicketCustomer, 'id' | 'createdAt' | 'notes'>): Promise<void> {
     const db = await connectDb(TICKETS_DB_FILE);
-    const existing = db.prepare('SELECT id FROM ticket_customers WHERE email = ?').get(payload.email);
+    const existing = db.prepare('SELECT id FROM company_contacts WHERE email = ?').get(payload.email);
     if (existing) {
-        throw new Error('Ya existe un cliente de soporte con este correo electrónico.');
+        throw new Error('Ya existe un contacto de soporte con este correo electrónico.');
     }
-    db.prepare('INSERT INTO ticket_customers (name, email, phone, createdAt) VALUES (?, ?, ?, ?)')
-      .run(payload.name, payload.email, payload.phone || null, new Date().toISOString());
+    
+    const company = {
+        name: payload.name,
+        taxId: payload.email, // Using email as unique ID for now for standalone customers.
+        address: '',
+        phone: payload.phone || '',
+        email: payload.email,
+        createdAt: new Date().toISOString()
+    }
+    
+    const companyInfo = db.prepare('INSERT INTO client_companies (name, taxId, address, phone, email, createdAt) VALUES (?, ?, ?, ?, ?, ?)').run(company.name, company.taxId, company.address, company.phone, company.email, company.createdAt);
+    const companyId = companyInfo.lastInsertRowid as number;
+
+    const contactInfo = db.prepare('INSERT INTO company_contacts (companyId, name, email, phone, isPrimary, createdAt) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(companyId, payload.name, payload.email, payload.phone || null, true, new Date().toISOString());
 }
 
 export async function getTickets(): Promise<Ticket[]> {

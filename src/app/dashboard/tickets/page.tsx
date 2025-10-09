@@ -5,7 +5,7 @@ import { useTickets } from "@/modules/tickets/hooks/useTickets";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
-import { FilePlus, Loader2, FilterX, UserPlus } from "lucide-react";
+import { FilePlus, Loader2, FilterX, UserPlus, Paperclip } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -19,16 +19,26 @@ import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { useAuthorization } from "@/modules/core/hooks/useAuthorization";
 import Link from "next/link";
+import { useAuth } from "@/modules/core/hooks/useAuth";
+import { useDropzone } from 'react-dropzone';
+import { useMemo } from 'react';
 
 export default function TicketsPage() {
     const { state, actions, selectors } = useTickets();
     const { isAuthorized, hasPermission } = useAuthorization(['tickets:read:all']);
     const router = useRouter();
+    const { users } = useAuth();
+    
+    const { getRootProps, getInputProps, acceptedFiles } = useDropzone({
+        // Placeholder for future file handling logic
+    });
 
     const {
         isLoading,
         isNewTicketDialogOpen,
+        isNewCustomerDialogOpen,
         newTicket,
+        newCustomer,
         isSubmitting,
         customerSearchTerm,
         isCustomerSearchOpen,
@@ -39,6 +49,12 @@ export default function TicketsPage() {
         priorityFilter,
     } = state;
 
+    const supportUsers = useMemo(() => {
+        if (!users) return [];
+        return users.filter(u => u.role === 'admin' || u.role === 'support-agent');
+    }, [users]);
+
+
     const renderTicketRow = (ticket: typeof tickets[0]) => {
         const { priorityConfig, statusConfig } = selectors;
         return (
@@ -48,7 +64,7 @@ export default function TicketsPage() {
                 <TableCell>
                     <div className="flex flex-col">
                         <span className="font-medium">{ticket.customerName}</span>
-                        <span className="text-xs text-muted-foreground">{ticket.companyName}</span>
+                        {ticket.companyName && <span className="text-xs text-muted-foreground">{ticket.companyName}</span>}
                     </div>
                 </TableCell>
                 <TableCell>
@@ -98,19 +114,50 @@ export default function TicketsPage() {
                 <h1 className="text-2xl font-bold">Gestión de Tickets de Soporte</h1>
                 <div className="flex gap-2">
                     {hasPermission('tickets:create') && (
-                         <Link href="/dashboard/tickets/customers">
-                            <Button variant="outline"><UserPlus className="mr-2 h-4 w-4"/>Gestión de Clientes</Button>
-                        </Link>
+                         <Dialog open={isNewCustomerDialogOpen} onOpenChange={actions.setNewCustomerDialogOpen}>
+                            <DialogTrigger asChild>
+                                <Button variant="outline"><UserPlus className="mr-2 h-4 w-4"/>Nuevo Cliente</Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                                <DialogHeader>
+                                    <DialogTitle>Crear Nuevo Cliente de Soporte</DialogTitle>
+                                    <DialogDescription>
+                                        Añade un nuevo cliente que no existe en el ERP.
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <div className="space-y-4 py-4">
+                                     <div className="space-y-2">
+                                        <Label htmlFor="customer-name">Nombre Completo</Label>
+                                        <Input id="customer-name" value={newCustomer.name} onChange={e => actions.handleNewCustomerChange('name', e.target.value)} required/>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="customer-email">Correo Electrónico</Label>
+                                        <Input id="customer-email" type="email" value={newCustomer.email} onChange={e => actions.handleNewCustomerChange('email', e.target.value)} required/>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="customer-phone">Teléfono</Label>
+                                        <Input id="customer-phone" value={newCustomer.phone} onChange={e => actions.handleNewCustomerChange('phone', e.target.value)} />
+                                    </div>
+                                </div>
+                                <DialogFooter>
+                                    <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
+                                    <Button onClick={actions.handleCreateCustomer} disabled={isSubmitting}>
+                                         {isSubmitting && <Loader2 className="mr-2 animate-spin" />}
+                                        Crear Cliente
+                                    </Button>
+                                </DialogFooter>
+                            </DialogContent>
+                        </Dialog>
                     )}
                     {hasPermission('tickets:create') && (
-                         <Dialog open={isNewTicketDialogOpen} onOpenChange={actions.setNewTicketDialogOpen}>
+                         <Dialog open={isNewTicketDialogOpen} onOpenChange={(open) => { actions.setNewTicketDialogOpen(open); if(!open) actions.resetNewTicketForm(); }}>
                             <DialogTrigger asChild>
                                 <Button>
                                     <FilePlus className="mr-2 h-4 w-4" />
                                     Nuevo Ticket
                                 </Button>
                             </DialogTrigger>
-                            <DialogContent className="sm:max-w-3xl">
+                            <DialogContent className="sm:max-w-4xl">
                                 <form onSubmit={(e) => { e.preventDefault(); actions.handleCreateTicket(); }}>
                                     <DialogHeader>
                                         <DialogTitle>Crear Nuevo Ticket de Soporte</DialogTitle>
@@ -118,48 +165,95 @@ export default function TicketsPage() {
                                             Describe el problema. Busca un contacto o cliente del ERP para asociar el ticket.
                                         </DialogDescription>
                                     </DialogHeader>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
-                                         <div className="space-y-2 col-span-1 md:col-span-2">
-                                            <Label htmlFor="new-ticket-topic">Tema de Ayuda</Label>
-                                            <Select value={String(newTicket.helpTopicId || '')} onValueChange={(v) => actions.handleNewTicketChange('helpTopicId', Number(v))}>
-                                                <SelectTrigger id="new-ticket-topic"><SelectValue placeholder="Seleccione un tema..."/></SelectTrigger>
-                                                <SelectContent>
-                                                    {helpTopics.map(topic => (
-                                                        <SelectItem key={topic.id} value={String(topic.id)}>{topic.name}</SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 py-4">
+                                        <div className="md:col-span-2 space-y-4">
+                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="new-ticket-topic">Tema de Ayuda</Label>
+                                                    <Select value={String(newTicket.helpTopicId || '')} onValueChange={(v) => actions.handleNewTicketChange('helpTopicId', Number(v))} required>
+                                                        <SelectTrigger id="new-ticket-topic"><SelectValue placeholder="Seleccione un tema..."/></SelectTrigger>
+                                                        <SelectContent>
+                                                            {helpTopics.map(topic => (
+                                                                <SelectItem key={topic.id} value={String(topic.id)}>{topic.name}</SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                                 <div className="space-y-2">
+                                                    <Label htmlFor="new-ticket-priority">Prioridad</Label>
+                                                    <Select value={newTicket.priority} onValueChange={(v) => actions.handleNewTicketChange('priority', v as TicketPriority)}>
+                                                        <SelectTrigger id="new-ticket-priority"><SelectValue /></SelectTrigger>
+                                                        <SelectContent>
+                                                            {Object.entries(selectors.priorityConfig).map(([key, config]) => (
+                                                                <SelectItem key={key} value={key}>{config.label}</SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <Label htmlFor="new-ticket-subject">Asunto</Label>
+                                                <Input
+                                                    id="new-ticket-subject"
+                                                    value={newTicket.subject}
+                                                    onChange={(e) => actions.handleNewTicketChange('subject', e.target.value)}
+                                                    required
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="new-ticket-content">Descripción del Problema</Label>
+                                                <Textarea
+                                                    id="new-ticket-content"
+                                                    rows={8}
+                                                    value={newTicket.content}
+                                                    onChange={(e) => actions.handleNewTicketChange('content', e.target.value)}
+                                                    required
+                                                />
+                                            </div>
+                                            <div {...getRootProps()} className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:border-primary">
+                                                <input {...getInputProps()} />
+                                                <p>Arrastra archivos aquí o haz clic para seleccionarlos</p>
+                                                {acceptedFiles.length > 0 && <p className="text-sm mt-2">{acceptedFiles.map(f => f.name).join(', ')}</p>}
+                                            </div>
                                         </div>
-                                        <div className="space-y-2 col-span-1 md:col-span-2">
-                                            <Label htmlFor="customer-search">Buscar Contacto (Cliente)</Label>
-                                            <SearchInput
-                                                options={selectors.contactOptions}
-                                                onSelect={actions.handleSelectContact}
-                                                value={customerSearchTerm}
-                                                onValueChange={actions.setCustomerSearchTerm}
-                                                placeholder="Buscar por nombre, correo o empresa..."
-                                                open={isCustomerSearchOpen}
-                                                onOpenChange={actions.setCustomerSearchOpen}
-                                            />
-                                        </div>
-                                        <div className="space-y-2 col-span-1 md:col-span-2">
-                                            <Label htmlFor="new-ticket-subject">Asunto</Label>
-                                            <Input
-                                                id="new-ticket-subject"
-                                                value={newTicket.subject}
-                                                onChange={(e) => actions.handleNewTicketChange('subject', e.target.value)}
-                                                required
-                                            />
-                                        </div>
-                                        <div className="space-y-2 col-span-1 md:col-span-2">
-                                            <Label htmlFor="new-ticket-content">Descripción del Problema</Label>
-                                            <Textarea
-                                                id="new-ticket-content"
-                                                rows={6}
-                                                value={newTicket.content}
-                                                onChange={(e) => actions.handleNewTicketChange('content', e.target.value)}
-                                                required
-                                            />
+                                        <div className="md:col-span-1 space-y-4">
+                                            <div className="space-y-2">
+                                                <Label htmlFor="customer-search">Buscar Contacto (Cliente)</Label>
+                                                <SearchInput
+                                                    options={selectors.contactOptions}
+                                                    onSelect={actions.handleSelectContact}
+                                                    value={customerSearchTerm}
+                                                    onValueChange={actions.setCustomerSearchTerm}
+                                                    placeholder="Buscar por nombre, correo..."
+                                                    open={isCustomerSearchOpen}
+                                                    onOpenChange={actions.setCustomerSearchOpen}
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="new-ticket-customer-name">Nombre del Contacto</Label>
+                                                <Input id="new-ticket-customer-name" value={newTicket.customerName} onChange={(e) => actions.handleNewTicketChange('customerName', e.target.value)} required />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="new-ticket-customer-email">Email del Contacto</Label>
+                                                <Input id="new-ticket-customer-email" type="email" value={newTicket.customerEmail} onChange={(e) => actions.handleNewTicketChange('customerEmail', e.target.value)} required />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="new-ticket-assignee">Asignar a</Label>
+                                                <Select value={String(newTicket.assigneeId || 'null')} onValueChange={(v) => actions.handleNewTicketChange('assigneeId', v === 'null' ? null : Number(v))}>
+                                                    <SelectTrigger id="new-ticket-assignee"><SelectValue placeholder="Automático (por tema)"/></SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="null">Automático (por tema)</SelectItem>
+                                                        {supportUsers.map(u => (
+                                                            <SelectItem key={u.id} value={String(u.id)}>{u.name}</SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="new-ticket-due-date">Fecha de Vencimiento (Opcional)</Label>
+                                                <Input id="new-ticket-due-date" type="date" value={newTicket.dueDate || ''} onChange={(e) => actions.handleNewTicketChange('dueDate', e.target.value)} />
+                                            </div>
                                         </div>
                                     </div>
                                     <DialogFooter>
