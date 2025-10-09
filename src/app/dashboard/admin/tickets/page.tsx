@@ -19,7 +19,7 @@ import { useAuth } from '@/modules/core/hooks/useAuth';
 
 export default function TicketSettingsPage() {
     const { setTitle } = usePageTitle();
-    const { users } = useAuth();
+    const { users, userRole, roles } = useAuth();
     const {
         state,
         actions,
@@ -29,9 +29,15 @@ export default function TicketSettingsPage() {
     } = useTicketSettings();
 
     const supportUsers = useMemo(() => {
-        if (!users) return [];
-        return users.filter(u => u.role === 'admin' || u.role === 'support-agent');
-    }, [users]);
+        if (!users || !roles) return [];
+        // Find all roles that have ticket read permissions
+        const supportRoleIds = roles
+            .filter(r => r.permissions.includes('tickets:read:all'))
+            .map(r => r.id);
+        
+        // Filter users who have one of those roles
+        return users.filter(u => supportRoleIds.includes(u.role));
+    }, [users, roles]);
     
     useEffect(() => {
         setTitle("Configuración de Tickets");
