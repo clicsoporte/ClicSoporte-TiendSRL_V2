@@ -96,7 +96,7 @@ export default function PlannerPage() {
                     <div className="flex justify-between items-start gap-2">
                         <div>
                             <CardTitle className="text-lg">{order.consecutive} - [{order.productId}] {order.productDescription}</CardTitle>
-                            <CardDescription>Cliente: {order.customerName} ({order.customerTaxId})</CardDescription>
+                            <CardDescription>Cliente: {order.customerName} {state.plannerSettings?.showCustomerTaxId && `(${order.customerTaxId})`}</CardDescription>
                         </div>
                         <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
                             {!!order.reopened && <Badge variant="destructive"><RefreshCcw className="mr-1 h-3 w-3" /> Reabierta</Badge>}
@@ -161,14 +161,14 @@ export default function PlannerPage() {
                         </div>
                         <div className="space-y-1">
                              <p className="font-semibold text-muted-foreground">{state.plannerSettings?.assignmentLabel || 'Asignado a'}</p>
-                            <Select value={order.machineId || 'none'} onValueChange={(value) => actions.handleDetailUpdate(order.id, { machineId: value })}>
+                            <Select value={order.assignmentId || 'none'} onValueChange={(value) => actions.handleDetailUpdate(order.id, { assignmentId: value })}>
                                 <SelectTrigger className="h-8 w-40 border-0 focus:ring-0">
                                     <SelectValue placeholder="Sin Asignar" />
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="none">Sin Asignar</SelectItem>
-                                    {state.plannerSettings?.machines.map(machine => (
-                                        <SelectItem key={machine.id} value={machine.id} disabled={!selectors.hasPermission('planner:machine:assign')}>{machine.name}</SelectItem>
+                                    {state.plannerSettings?.assignments.map(assignment => (
+                                        <SelectItem key={assignment.id} value={assignment.id} disabled={!selectors.hasPermission('planner:machine:assign')}>{assignment.name}</SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>

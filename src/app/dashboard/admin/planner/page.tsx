@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/modules/core/hooks/use-toast";
 import { logError, logInfo } from "@/modules/core/lib/logger";
-import type { PlannerMachine, PlannerSettings, CustomStatus } from "@/modules/core/types";
+import type { PlannerAssignment, PlannerSettings, CustomStatus } from "@/modules/core/types";
 import { usePageTitle } from "@/modules/core/hooks/usePageTitle";
 import { useAuthorization } from "@/modules/core/hooks/useAuthorization";
 import { getPlannerSettings, savePlannerSettings } from "@/modules/planner/lib/actions";
@@ -32,7 +32,7 @@ const availableColumns = [
     { id: 'deliveryDate', label: 'Fecha Entrega' },
     { id: 'scheduledDate', label: 'Fecha Programada' },
     { id: 'status', label: 'Estado' },
-    { id: 'machineId', label: 'Asignación' },
+    { id: 'assignmentId', label: 'Asignación' },
     { id: 'priority', label: 'Prioridad' },
 ];
 
@@ -52,7 +52,7 @@ export default function PlannerSettingsPage() {
     const { toast } = useToast();
     const [settings, setSettings] = useState<PlannerSettings | null>(null);
     const [isLoading, setIsLoading] = useState(true);
-    const [newMachine, setNewMachine] = useState({ id: "", name: "" });
+    const [newAssignment, setNewAssignment] = useState({ id: "", name: "" });
 
     useEffect(() => {
         setTitle("Configuración del Gestor de Proyectos");
@@ -93,22 +93,22 @@ export default function PlannerSettingsPage() {
         }
     }, [setTitle, isAuthorized]);
 
-    const handleAddMachine = () => {
-        if (!settings || !newMachine.id || !newMachine.name) {
+    const handleAddAssignment = () => {
+        if (!settings || !newAssignment.id || !newAssignment.name) {
             toast({ title: "Datos incompletos", description: "El ID y el Nombre de la asignación son requeridos.", variant: "destructive" });
             return;
         }
-        if (settings.machines.some(m => m.id === newMachine.id)) {
+        if (settings.assignments.some(m => m.id === newAssignment.id)) {
             toast({ title: "ID Duplicado", description: "Ya existe una asignación con ese ID.", variant: "destructive" });
             return;
         }
-        setSettings(prev => prev ? { ...prev, machines: [...prev.machines, newMachine] } : null);
-        setNewMachine({ id: "", name: "" });
+        setSettings(prev => prev ? { ...prev, assignments: [...prev.assignments, newAssignment] } : null);
+        setNewAssignment({ id: "", name: "" });
     };
 
-    const handleDeleteMachine = useCallback((id: string) => {
+    const handleDeleteAssignment = useCallback((id: string) => {
         if (!settings) return;
-        setSettings(prev => prev ? { ...prev, machines: prev.machines.filter(m => m.id !== id) } : null);
+        setSettings(prev => prev ? { ...prev, assignments: prev.assignments.filter(m => m.id !== id) } : null);
         toast({ title: "Asignación Eliminada", description: "La asignación ha sido eliminada. Guarda los cambios para confirmar.", variant: "destructive"});
     }, [settings, toast]);
 
@@ -237,11 +237,11 @@ export default function PlannerSettingsPage() {
                             </p>
                              <div className="flex items-center space-x-2">
                                 <Switch
-                                    id="require-machine"
-                                    checked={settings.requireMachineForStart}
-                                    onCheckedChange={(checked) => setSettings(prev => prev ? { ...prev, requireMachineForStart: checked } : null)}
+                                    id="require-assignment"
+                                    checked={settings.requireAssignmentForStart}
+                                    onCheckedChange={(checked) => setSettings(prev => prev ? { ...prev, requireAssignmentForStart: checked } : null)}
                                 />
-                                <Label htmlFor="require-machine">Requerir asignación para iniciar el proyecto</Label>
+                                <Label htmlFor="require-assignment">Requerir asignación para iniciar el proyecto</Label>
                             </div>
                             <p className="text-sm text-muted-foreground mt-2">
                                Si se activa, será obligatorio realizar una asignación al proyecto antes de poder cambiar su estado a "En Progreso".
@@ -260,13 +260,13 @@ export default function PlannerSettingsPage() {
                                 <CardDescription className="mb-4">Añade o elimina las opciones de asignación disponibles (técnicos, recursos, etc.).</CardDescription>
                                 <div className="space-y-4">
                                     <div className="max-h-60 overflow-y-auto pr-2 space-y-2">
-                                        {settings.machines.map(machine => (
-                                            <div key={machine.id} className="flex items-center justify-between rounded-lg border p-3">
+                                        {settings.assignments.map(assignment => (
+                                            <div key={assignment.id} className="flex items-center justify-between rounded-lg border p-3">
                                                 <div>
-                                                    <p className="font-medium">{machine.name}</p>
-                                                    <p className="text-sm text-muted-foreground">ID: <span className="font-mono">{machine.id}</span></p>
+                                                    <p className="font-medium">{assignment.name}</p>
+                                                    <p className="text-sm text-muted-foreground">ID: <span className="font-mono">{assignment.id}</span></p>
                                                 </div>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteMachine(machine.id)}>
+                                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteAssignment(assignment.id)}>
                                                     <Trash2 className="h-4 w-4 text-destructive" />
                                                 </Button>
                                             </div>
@@ -275,14 +275,14 @@ export default function PlannerSettingsPage() {
                                     <Separator />
                                     <div className="flex items-end gap-2 pt-2">
                                         <div className="grid flex-1 gap-2">
-                                            <Label htmlFor="machine-id">ID de Asignación</Label>
-                                            <Input id="machine-id" value={newMachine.id} onChange={(e) => setNewMachine(prev => ({ ...prev, id: e.target.value }))} placeholder="Ej: JUG" />
+                                            <Label htmlFor="assignment-id">ID de Asignación</Label>
+                                            <Input id="assignment-id" value={newAssignment.id} onChange={(e) => setNewAssignment(prev => ({ ...prev, id: e.target.value }))} placeholder="Ej: JUG" />
                                         </div>
                                         <div className="grid flex-1 gap-2">
-                                            <Label htmlFor="machine-name">Nombre de Asignación</Label>
-                                            <Input id="machine-name" value={newMachine.name} onChange={(e) => setNewMachine(prev => ({ ...prev, name: e.target.value }))} placeholder="Ej: Jonathan Ugalde" />
+                                            <Label htmlFor="assignment-name">Nombre de Asignación</Label>
+                                            <Input id="assignment-name" value={newAssignment.name} onChange={(e) => setNewAssignment(prev => ({ ...prev, name: e.target.value }))} placeholder="Ej: Jonathan Ugalde" />
                                         </div>
-                                        <Button size="icon" onClick={handleAddMachine}>
+                                        <Button size="icon" onClick={handleAddAssignment}>
                                             <PlusCircle className="h-4 w-4" />
                                         </Button>
                                     </div>

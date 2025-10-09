@@ -49,6 +49,19 @@ export type Company = {
     stockFilePath?: string;
     locationFilePath?: string;
     cabysFilePath?: string;
+    supportPackages: SupportPackage[];
+};
+
+export type SupportPackage = {
+  id: string; // e.g., 'alfa', 'beta'
+  name: string;
+  includedServices: string[];
+  excludedServices: string[];
+};
+
+export type Service = {
+  id: string;
+  name: string;
 };
 
 /**
@@ -90,6 +103,8 @@ export type Customer = {
     active: 'S' | 'N'; // ACTIVO
     email: string; // E_MAIL
     electronicDocEmail: string; // EMAIL_DOC_ELECTRONICO
+    supportPackageId?: string; // ID of the assigned support package
+    monthlyHoursBalance?: number;
 };
 
 /**
@@ -257,11 +272,11 @@ export type ProductionOrder = {
   erpPackageNumber?: string;
   erpTicketNumber?: string;
   reopened?: boolean;
-  machineId?: string | null;
+  assignmentId?: string | null;
   previousStatus?: ProductionOrderStatus | null;
 };
 
-export type UpdateProductionOrderPayload = Partial<Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'machineId' | 'previousStatus' | 'lastStatusUpdateBy' | 'lastStatusUpdateNotes' | 'approvedBy' | 'lastModifiedBy' | 'lastModifiedAt' | 'hasBeenModified' | 'pendingAction'>> & {
+export type UpdateProductionOrderPayload = Partial<Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'assignmentId' | 'previousStatus' | 'lastStatusUpdateBy' | 'lastStatusUpdateNotes' | 'approvedBy' | 'lastModifiedBy' | 'lastModifiedAt' | 'hasBeenModified' | 'pendingAction'>> & {
     orderId: number;
     updatedBy: string;
 };
@@ -275,7 +290,7 @@ export type ProductionOrderHistoryEntry = {
     updatedBy: string;
 };
 
-export type PlannerMachine = {
+export type PlannerAssignment = {
   id: string;
   name: string;
 };
@@ -292,8 +307,8 @@ export type PlannerSettings = {
     nextOrderNumber?: number;
     useWarehouseReception: boolean;
     showCustomerTaxId: boolean;
-    machines: PlannerMachine[];
-    requireMachineForStart: boolean;
+    assignments: PlannerAssignment[];
+    requireAssignmentForStart: boolean;
     assignmentLabel: string;
     customStatuses: CustomStatus[];
     pdfPaperSize: 'letter' | 'legal';
@@ -317,7 +332,7 @@ export type UpdateStatusPayload = {
 export type UpdateOrderDetailsPayload = {
   orderId: number;
   priority?: ProductionOrderPriority;
-  machineId?: string | null;
+  assignmentId?: string | null;
   scheduledDateRange?: DateRange;
   updatedBy: string;
 };
@@ -671,10 +686,10 @@ export type Ticket = {
     updatedAt: string;
     dueDate?: string;
     
-    erpCustomerId: string | null;
-    ticketCustomerId: number | null;
+    contactId: number | null;
     
-    customerName: string; // Denormalized for quick display
+    // Denormalized for quick display & for customers not in the company structure
+    customerName: string; 
     companyName?: string; // Denormalized company name
     
     assigneeId?: number | null;
@@ -696,10 +711,11 @@ export type NewTicketPayload = {
     content: string;
     status: TicketStatus;
     priority: TicketPriority;
-    erpCustomerId: string | null;
+    contactId: number | null;
     customerName: string;
     customerEmail: string;
     customerPhone?: string;
+    companyName?: string;
     helpTopicId?: number;
     assigneeId?: number | null;
     dueDate?: string;
