@@ -12,23 +12,15 @@ import { processInvoiceXmls, getCostAssistantSettings, saveCostAssistantSettings
 import { logError } from '@/modules/core/lib/logger';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 
-const normalizeNumber = (str: any): number => {
+const parseDecimal = (str: any): number => {
     if (str === null || str === undefined || str === '') return 0;
-    let cleanStr = String(str).trim();
-
-    // If a comma exists, it's the decimal separator
-    if (cleanStr.includes(',')) {
-        cleanStr = cleanStr.replace(/\./g, '').replace(',', '.');
-    } else {
-        // If no comma, but a dot exists with 3 digits after, it's a thousands separator
-        const dotIndex = cleanStr.lastIndexOf('.');
-        if (dotIndex !== -1 && cleanStr.substring(dotIndex + 1).length === 3) {
-           cleanStr = cleanStr.replace(/\./g, '');
-        }
+    const s = String(str).trim();
+    
+    if (s.includes(',')) {
+        return parseFloat(s.replace(/\./g, '').replace(',', '.'));
     }
     
-    const parsed = parseFloat(cleanStr);
-    return isNaN(parsed) ? 0 : parsed;
+    return parseFloat(s);
 };
 
 
@@ -137,7 +129,7 @@ export const useCostAssistant = () => {
     };
 
     const handleMarginBlur = (lineId: string, displayValue: string) => {
-        const numericValue = normalizeNumber(displayValue);
+        const numericValue = parseDecimal(displayValue);
         updateLine(lineId, {
             margin: numericValue / 100,
             displayMargin: String(numericValue)

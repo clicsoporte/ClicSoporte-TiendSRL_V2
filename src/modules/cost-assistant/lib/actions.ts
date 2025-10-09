@@ -19,26 +19,13 @@ const getValue = (obj: any, path: string[], defaultValue: any = '') => {
 const parseDecimal = (str: any): number => {
     if (str === null || str === undefined || str === '') return 0;
     const s = String(str).trim();
-
-    // Handle formats like "1,234.56" (en-US) or "1.234,56" (es-CR)
-    if (s.includes(',') && s.includes('.')) {
-        const lastDot = s.lastIndexOf('.');
-        const lastComma = s.lastIndexOf(',');
-        // If comma is after dot, it's the decimal separator (es-CR)
-        if (lastComma > lastDot) {
-            return parseFloat(s.replace(/\./g, '').replace(',', '.'));
-        }
-        // Otherwise, dot is decimal (en-US)
-        return parseFloat(s.replace(/,/g, ''));
+    
+    // If a comma exists, it is the decimal separator. Remove dots, replace comma.
+    if (s.includes(',')) {
+        return parseFloat(s.replace(/\./g, '').replace(',', '.'));
     }
     
-    // If only a comma is present, it's the decimal separator
-    if (s.includes(',')) {
-        return parseFloat(s.replace(',', '.'));
-    }
-
-    // If only dots are present, they are either a decimal or thousands separator.
-    // parseFloat will correctly handle "1.5" and will stop at the first non-numeric for "1.000", resulting in 1.
+    // If no comma exists, any dot is a decimal separator.
     return parseFloat(s);
 };
 
@@ -112,6 +99,7 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
         if (cantidad === 0) continue;
         
         let supplierCode = 'N/A';
+        let supplierCodeType = '04'; // Default to 'Uso Interno'
         const codigosComercialesRaw = linea.CodigoComercial || [];
         const codigosComerciales = Array.isArray(codigosComercialesRaw) ? codigosComercialesRaw : [codigosComercialesRaw];
         
@@ -119,8 +107,10 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
             const preferredCodeNode = codigosComerciales.find((c: any) => c.Tipo === '01' || c.Tipo === '04');
             if (preferredCodeNode && preferredCodeNode.Codigo) {
                 supplierCode = preferredCodeNode.Codigo;
+                supplierCodeType = preferredCodeNode.Tipo;
             } else if (codigosComerciales.length > 0 && codigosComerciales[0].Codigo) {
                 supplierCode = codigosComerciales[0].Codigo;
+                supplierCodeType = codigosComerciales[0].Tipo;
             }
         }
         
@@ -142,9 +132,10 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
 
         const impuestoNode = getValue(linea, ['Impuesto']);
         let taxRate = 0.13; // Default
+        let taxCode = '08'; // Default
         if (impuestoNode) {
-            const tarifaStr = getValue(impuestoNode, ['Tarifa'], '13');
-            taxRate = parseDecimal(tarifaStr) / 100;
+            taxRate = parseDecimal(getValue(impuestoNode, ['Tarifa'], '13')) / 100;
+            taxCode = getValue(impuestoNode, ['CodigoTarifaIVA'], '08');
         }
         
         const unitCostWithTaxInColones = moneda === 'USD' ? unitCostWithTax * tipoCambio : unitCostWithTax;
@@ -158,11 +149,13 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
             lineNumber: numeroLinea,
             cabysCode: cabysCode,
             supplierCode: supplierCode,
+            supplierCodeType: supplierCodeType,
             description: getValue(linea, ['Detalle']),
             quantity: cantidad,
             unitCostWithTax: unitCostWithTaxInColones,
             unitCostWithoutTax: unitCostWithoutTaxInColones,
             taxRate: taxRate,
+            taxCode: taxCode,
             displayMargin: "20",
             margin: 0.20,
             finalSellPrice: 0, // Calculated in the frontend
@@ -236,31 +229,32 @@ export async function deleteDraft(id: string): Promise<void> {
     return deleteDraftServer(id);
 }
 
-const getTaxCode = (taxRate: number): string => {
-    switch (taxRate) {
-        case 0.13: return '08';
-        case 0.04: return '04';
-        case 0.02: return '03';
-        case 0.01: return '02';
-        case 0.005: return '09';
-        case 0: return '10';
-        default: return '08'; // Default to general rate if unknown
-    }
-};
-
 export async function exportForERP(lines: CostAssistantLine[]): Promise<string> {
     // Map data to the specific column structure of the ERP template
-    const dataForExport = lines.map(line => ({
-        'CODIGOS 01': line.supplierCode,
-        'NOMBRE (Requerido)': line.description,
-        'UNIDAD DE MEDIDA (Requerido)': 'Unid',
-        'PRECIO (Sin impuestos) (Requerido)': line.sellPriceWithoutTax,
-        'MONEDA': 'CRC',
-        'IMP.01': getTaxCode(line.taxRate),
-        'CÓDIGO CABYS': line.cabysCode,
-        'ESTADO': 'A',
-    }));
+    const dataForExport = lines.map(line => {
+        const row: any = {
+            'NOMBRE (Requerido)': line.description,
+            'UNIDAD DE MEDIDA (Requerido)': '78-Unid-Unidad',
+            'PRECIO (Sin impuestos) (Requerido)': line.sellPriceWithoutTax,
+            'MONEDA': 'CRC',
+            'IMP.01': line.taxCode || '08',
+            'CÓDIGO CABYS': line.cabysCode,
+            'ESTADO': 'A',
+            'Actividad economica': '4651.0', // Default as per example
+        };
 
+        // Add the SKU to the correct column based on its type
+        const codeType = line.supplierCodeType || '04'; // Default to '04' if not present
+        if (['01', '02', '03', '04', '99'].includes(codeType)) {
+            row[`CODIGOS ${codeType}`] = line.supplierCode;
+        } else {
+            row['CODIGOS 99'] = line.supplierCode; // Fallback to '99'
+        }
+
+        return row;
+    });
+
+    // Define the full header structure based on the user's image
     const ws_data = [
         [
             "CODIGOS (Requerido)", null, null, null, null, "PARTIDA ARANCELARIA (Opcional)", "NOMBRE (Requerido)", 
@@ -279,28 +273,10 @@ export async function exportForERP(lines: CostAssistantLine[]): Promise<string> 
     
     const worksheet = XLSX.utils.aoa_to_sheet(ws_data);
     
-    // Create a mapping from our desired headers to their column letters
-    const headerMap = {
-        'CODIGOS 01': 'A',
-        'NOMBRE (Requerido)': 'G',
-        'UNIDAD DE MEDIDA (Requerido)': 'I',
-        'PRECIO (Sin impuestos) (Requerido)': 'K',
-        'MONEDA': 'L',
-        'IMP.01': 'O',
-        'CÓDIGO CABYS': 'AC',
-        'ESTADO': 'AD'
-    };
-
-    // Add JSON data row by row, placing data in the correct columns
-    dataForExport.forEach((row, index) => {
-        const rowIndex = index + 3; // Data starts on row 3
-        Object.entries(row).forEach(([key, value]) => {
-            const colLetter = headerMap[key as keyof typeof headerMap];
-            if (colLetter) {
-                const cellAddress = `${colLetter}${rowIndex}`;
-                XLSX.utils.sheet_add_aoa(worksheet, [[value]], { origin: cellAddress });
-            }
-        });
+    // Add data starting from the third row
+    XLSX.utils.sheet_add_json(worksheet, dataForExport, {
+        origin: "A3",
+        skipHeader: true // We've already created the complex header
     });
     
     const workbook = XLSX.utils.book_new();

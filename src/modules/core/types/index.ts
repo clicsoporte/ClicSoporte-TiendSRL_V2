@@ -606,11 +606,13 @@ export type CostAssistantLine = {
     supplierName: string;
     cabysCode: string;
     supplierCode: string;
+    supplierCodeType: string;
     description: string;
     quantity: number;
     unitCostWithTax: number;
     unitCostWithoutTax: number;
     taxRate: number;
+    taxCode: string;
     displayMargin: string;
     margin: number;
     finalSellPrice: number;
