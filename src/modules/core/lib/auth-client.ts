@@ -6,7 +6,7 @@
 'use client';
 
 import type { User } from '@/modules/core/types';
-import { getAllUsers as getAllUsersServer, login as loginServer, saveAllUsers as saveAllUsersServer, comparePasswords as comparePasswordsServer, addUser as addUserServer, logout as logoutServer } from './auth';
+import { getAllUsers as getAllUsersServer, getUserById, login as loginServer, saveAllUsers as saveAllUsersServer, comparePasswords as comparePasswordsServer, addUser as addUserServer, logout as logoutServer } from './auth';
 
 const CURRENT_USER_ID_KEY = 'currentUserId';
 
@@ -47,9 +47,13 @@ export async function getCurrentUser(): Promise<User | null> {
     const currentUserId = sessionStorage.getItem(CURRENT_USER_ID_KEY);
     if (!currentUserId) return null;
 
-    const allUsers = await getAllUsersServer();
-    const user = allUsers.find(u => u.id === Number(currentUserId));
-    return user || null;
+    try {
+        const user = await getUserById(Number(currentUserId));
+        return user;
+    } catch (error) {
+        console.error("Failed to get current user by ID:", error);
+        return null;
+    }
 }
 
 /**

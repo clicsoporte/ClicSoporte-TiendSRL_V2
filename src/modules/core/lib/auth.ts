@@ -80,6 +80,27 @@ export async function getAllUsers(): Promise<User[]> {
 }
 
 /**
+ * Retrieves a single user by their ID.
+ * @param {number} id - The ID of the user to fetch.
+ * @returns {Promise<User | null>} The user object or null if not found.
+ */
+export async function getUserById(id: number): Promise<User | null> {
+    const db = await connectDb();
+    try {
+        const stmt = db.prepare('SELECT * FROM users WHERE id = ?');
+        const user = stmt.get(id) as User | undefined;
+        if (!user) return null;
+        
+        const { password, ...userWithoutPassword } = user;
+        return userWithoutPassword as User;
+
+    } catch (error) {
+        console.error(`Failed to get user by ID ${id}:`, error);
+        return null;
+    }
+}
+
+/**
  * Adds a new user to the database.
  * @param userData - The data for the new user, including a plaintext password.
  * @returns The newly created user object, without the password hash.
