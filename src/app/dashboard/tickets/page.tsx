@@ -16,9 +16,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { format, parseISO } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { useRouter } from "next/navigation";
 
 export default function TicketsPage() {
     const { state, actions, selectors } = useTickets();
+    const router = useRouter();
 
     const {
         isLoading,
@@ -36,7 +38,7 @@ export default function TicketsPage() {
     const renderTicketRow = (ticket: typeof tickets[0]) => {
         const { priorityConfig, statusConfig } = selectors;
         return (
-            <TableRow key={ticket.id} className="cursor-pointer">
+            <TableRow key={ticket.id} className="cursor-pointer" onClick={() => router.push(`/dashboard/tickets/${ticket.id}`)}>
                 <TableCell className="font-medium">{ticket.consecutive}</TableCell>
                 <TableCell>{ticket.subject}</TableCell>
                 <TableCell>{ticket.customerName}</TableCell>

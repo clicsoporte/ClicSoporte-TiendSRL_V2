@@ -5,8 +5,8 @@
 'use client';
 
 import { logInfo, logError } from '@/modules/core/lib/logger';
-import type { Ticket, NewTicketPayload, User } from '@/modules/core/types';
-import { addTicket, getTickets as getTicketsServer } from './db';
+import type { Ticket, NewTicketPayload, User, TicketThread } from '@/modules/core/types';
+import { addTicket, getTickets as getTicketsServer, getTicketById as getTicketByIdServer, getTicketThread as getTicketThreadServer } from './db';
 
 /**
  * Saves a new ticket to the database.
@@ -35,4 +35,22 @@ export async function saveTicket(payload: NewTicketPayload, user: User): Promise
  */
 export async function getTickets(): Promise<Ticket[]> {
     return getTicketsServer();
+}
+
+/**
+ * Fetches a single ticket by its ID.
+ * @param id - The ID of the ticket to fetch.
+ * @returns A promise that resolves to the ticket object or null if not found.
+ */
+export async function getTicketById(id: number): Promise<Ticket | null> {
+    return getTicketByIdServer(id);
+}
+
+/**
+ * Fetches the conversation thread for a specific ticket.
+ * @param ticketId - The ID of the ticket.
+ * @returns A promise that resolves to an array of thread entries.
+ */
+export async function getTicketThread(ticketId: number): Promise<TicketThread[]> {
+    return getTicketThreadServer(ticketId);
 }

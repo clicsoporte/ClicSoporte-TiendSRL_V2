@@ -10,8 +10,8 @@ import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError, logInfo } from '@/modules/core/lib/logger';
 import { useAuth } from '@/modules/core/hooks/useAuth';
-import type { NewTicketPayload, Ticket, TicketPriority, TicketStatus } from '@/modules/core/types';
-import { saveTicket, getTickets } from '../lib/actions';
+import type { NewTicketPayload, Ticket, TicketPriority, TicketStatus, TicketThread } from '@/modules/core/types';
+import { saveTicket, getTickets, getTicketById as getTicketByIdServer, getTicketThread as getTicketThreadServer } from '../lib/actions';
 import { useDebounce } from 'use-debounce';
 
 
@@ -37,6 +37,7 @@ const initialState = {
     searchTerm: '',
     statusFilter: 'all',
     priorityFilter: 'all',
+    currentThread: [] as TicketThread[],
 };
 
 const priorityConfig: { [key in TicketPriority]: { label: string, variant: 'default' | 'secondary' | 'destructive' | 'outline' } } = {
@@ -154,7 +155,33 @@ export const useTickets = () => {
             } finally {
                 updateState({ isSubmitting: false });
             }
-        }
+        },
+        
+        getTicketById: async (id: number) => {
+            updateState({ isLoading: true });
+            try {
+                return await getTicketByIdServer(id);
+            } catch (error) {
+                 logError("Failed to get ticket by id", { error: (error as Error).message });
+                 toast({ title: "Error", description: "No se pudo cargar el ticket.", variant: "destructive" });
+                 return null;
+            } finally {
+                 updateState({ isLoading: false });
+            }
+        },
+
+        getTicketThread: async (ticketId: number) => {
+            updateState({ isLoading: true });
+            try {
+                const thread = await getTicketThreadServer(ticketId);
+                updateState({ currentThread: thread });
+            } catch (error) {
+                logError("Failed to get ticket thread", { error: (error as Error).message });
+                toast({ title: "Error", description: "No se pudo cargar la conversación.", variant: "destructive" });
+            } finally {
+                updateState({ isLoading: false });
+            }
+        },
     };
 
     const selectors = {
@@ -183,7 +210,6 @@ export const useTickets = () => {
     return {
         state,
         actions,
-        selectors,
-        isAuthorized
+        selectors
     };
 };

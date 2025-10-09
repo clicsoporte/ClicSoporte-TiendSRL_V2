@@ -156,3 +156,25 @@ export async function getTickets(): Promise<Ticket[]> {
         return [];
     }
 }
+
+export async function getTicketById(id: number): Promise<Ticket | null> {
+    const db = await connectDb(TICKETS_DB_FILE);
+    try {
+        const stmt = db.prepare('SELECT * FROM tickets WHERE id = ?');
+        return stmt.get(id) as Ticket | null;
+    } catch (error) {
+        console.error(`Failed to get ticket with id ${id}:`, error);
+        return null;
+    }
+}
+
+export async function getTicketThread(ticketId: number): Promise<TicketThread[]> {
+    const db = await connectDb(TICKETS_DB_FILE);
+    try {
+        const stmt = db.prepare('SELECT * FROM ticket_threads WHERE ticketId = ? ORDER BY createdAt ASC');
+        return stmt.all(ticketId) as TicketThread[];
+    } catch (error) {
+        console.error(`Failed to get thread for ticket id ${ticketId}:`, error);
+        return [];
+    }
+}
