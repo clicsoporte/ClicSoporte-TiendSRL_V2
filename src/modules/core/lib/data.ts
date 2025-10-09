@@ -4,7 +4,7 @@
  * Spanish is used for UI-facing strings like names and descriptions.
  */
 
-import type { Tool, User, Role, Company } from "@/modules/core/types";
+import type { Tool, User, Role, Company, DatabaseModule } from "@/modules/core/types";
 import {
   Users,
   Sheet,
@@ -34,6 +34,13 @@ import {
   Ticket,
   KeyRound,
 } from "lucide-react";
+import { initializeMainDatabase } from './db';
+import { runPlannerMigrations, initializePlannerDb } from '../../planner/lib/db';
+import { runRequestMigrations, initializeRequestsDb } from '../../requests/lib/db';
+import { runWarehouseMigrations, initializeWarehouseDb } from '../../warehouse/lib/db';
+import { runCostAssistantMigrations, initializeCostAssistantDb } from '../../cost-assistant/lib/db';
+import { runTicketMigrations, initializeTicketsDb } from '../../tickets/lib/db';
+import { runLicensesMigrations, initializeLicensesDb } from '../../licenses/lib/db';
 
 /**
  * The default user to be created in the database.
@@ -82,6 +89,22 @@ export const initialCompany: Company = {
     supportPackages: [],
     servicesCatalog: [],
 };
+
+/**
+ * Acts as a registry for all database modules in the application.
+ * This structure allows the core `connectDb` function to be completely agnostic
+ * of any specific module, promoting true modularity and decoupling.
+ */
+export const DB_MODULES: DatabaseModule[] = [
+    { id: 'clic-tools-main', name: 'Clic-Tools (Sistema Principal)', dbFile: 'intratool.db', initFn: initializeMainDatabase, migrationFn: () => {} },
+    { id: 'purchase-requests', name: 'Solicitud de Compra', dbFile: 'requests.db', initFn: initializeRequestsDb, migrationFn: runRequestMigrations },
+    { id: 'production-planner', name: 'Gestor de Proyectos', dbFile: 'planner.db', initFn: initializePlannerDb, migrationFn: runPlannerMigrations },
+    { id: 'warehouse-management', name: 'Gestión de Almacenes', dbFile: 'warehouse.db', initFn: initializeWarehouseDb, migrationFn: runWarehouseMigrations },
+    { id: 'cost-assistant', name: 'Asistente de Costos', dbFile: 'cost-assistant.db', initFn: initializeCostAssistantDb, migrationFn: runCostAssistantMigrations },
+    { id: 'tickets', name: 'Soporte Técnico', dbFile: 'tickets.db', initFn: initializeTicketsDb, migrationFn: runTicketMigrations },
+    { id: 'licenses', name: 'Gestión de Licencias', dbFile: 'licenses.db', initFn: initializeLicensesDb, migrationFn: runLicensesMigrations },
+];
+
 
 /**
  * List of tools available on the main dashboard.

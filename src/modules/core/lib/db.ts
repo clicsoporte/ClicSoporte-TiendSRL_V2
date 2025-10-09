@@ -9,42 +9,15 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
-import { initialUsers, initialCompany, initialRoles } from './data';
-import type { Company, LogEntry, ApiSettings, User, Product, Customer, Role, QuoteDraft, DatabaseModule, Exemption, ExemptionLaw, StockInfo, Warehouse, StockSettings, Location, InventoryItem, SqlConfig, ImportQuery, ItemLocation, UpdateBackupInfo, DateRange, CostAnalysisDraft } from '@/modules/core/types';
+import { initialUsers, initialCompany, initialRoles, DB_MODULES } from './data';
+import type { Company, DatabaseModule } from '@/modules/core/types';
 import bcrypt from 'bcryptjs';
-import Papa from 'papaparse';
-import { executeQuery } from './sql-service';
-import { initializePlannerDb, runPlannerMigrations } from '../../planner/lib/db';
-import { initializeRequestsDb, runRequestMigrations } from '../../requests/lib/db';
-import { initializeWarehouseDb, runWarehouseMigrations } from '../../warehouse/lib/db';
-import { initializeCostAssistantDb, runCostAssistantMigrations } from '../../cost-assistant/lib/db';
-import { initializeTicketsDb, runTicketMigrations } from '../../tickets/lib/db';
-import { initializeLicensesDb, runLicensesMigrations } from '../../licenses/lib/db';
-import { getExchangeRate as fetchExchangeRateFromApi } from '../lib/api-actions';
-import { getSqlConfig } from './config-db';
 import { addLog as dbAddLog } from './logger-db';
 
 
 const DB_FILE = 'intratool.db';
 const SALT_ROUNDS = 10;
-const CABYS_FILE_PATH = path.join(process.cwd(), 'docs', 'Datos', 'cabys.csv');
 const UPDATE_BACKUP_DIR = 'update_backups';
-
-
-/**
- * Acts as a registry for all database modules in the application.
- * This structure allows the core `connectDb` function to be completely agnostic
- * of any specific module, promoting true modularity and decoupling.
- */
-const DB_MODULES: DatabaseModule[] = [
-    { id: 'clic-tools-main', name: 'Clic-Tools (Sistema Principal)', dbFile: DB_FILE, initFn: initializeMainDatabase, migrationFn: checkAndApplyMigrations },
-    { id: 'purchase-requests', name: 'Solicitud de Compra', dbFile: 'requests.db', initFn: initializeRequestsDb, migrationFn: runRequestMigrations },
-    { id: 'production-planner', name: 'Gestor de Proyectos', dbFile: 'planner.db', initFn: initializePlannerDb, migrationFn: runPlannerMigrations },
-    { id: 'warehouse-management', name: 'Gestión de Almacenes', dbFile: 'warehouse.db', initFn: initializeWarehouseDb, migrationFn: runWarehouseMigrations },
-    { id: 'cost-assistant', name: 'Asistente de Costos', dbFile: 'cost-assistant.db', initFn: initializeCostAssistantDb, migrationFn: runCostAssistantMigrations },
-    { id: 'tickets', name: 'Soporte Técnico', dbFile: 'tickets.db', initFn: initializeTicketsDb, migrationFn: runTicketMigrations },
-    { id: 'licenses', name: 'Gestión de Licencias', dbFile: 'licenses.db', initFn: initializeLicensesDb, migrationFn: runLicensesMigrations },
-];
 
 // This path is configured to work correctly within the Next.js build output directory,
 // which is crucial for serverless environments.
@@ -233,7 +206,7 @@ async function checkAndApplyMigrations(db: import('better-sqlite3').Database) {
         if (!customerColumns.has('monthlyHoursBalance')) db.exec(`ALTER TABLE customers ADD COLUMN monthlyHoursBalance REAL`);
 
 
-        const usersToUpdate = db.prepare('SELECT id, password FROM users').all() as User[];
+        const usersToUpdate = db.prepare('SELECT id, password FROM users').all() as any[];
         const updateUserPassword = db.prepare('UPDATE users SET password = ? WHERE id = ?');
         let updatedCount = 0;
         for (const user of usersToUpdate) {
@@ -351,7 +324,7 @@ async function checkAndApplyMigrations(db: import('better-sqlite3').Database) {
         console.error("Failed to apply migrations:", error);
     }
 }
-async function initializeMainDatabase(db: import('better-sqlite3').Database) {
+export async function initializeMainDatabase(db: import('better-sqlite3').Database) {
     const mainSchema = `
         CREATE TABLE users (
             id INTEGER PRIMARY KEY,
@@ -495,32 +468,6 @@ async function initializeMainDatabase(db: import('better-sqlite3').Database) {
     const roleInsert = db.prepare('INSERT INTO roles (id, name, permissions) VALUES (@id, @name, @permissions)');
     initialRoles.forEach(role => roleInsert.run({ ...role, permissions: JSON.stringify(role.permissions) }));
     
-    const initialQueries: ImportQuery[] = [
-        { type: 'customers', query: "SELECT CLIENTE, NOMBRE, DIRECCION, TELEFONO1, CONTRIBUYENTE, MONEDA, LIMITE_CREDITO, CONDICION_PAGO, VENDEDOR, ACTIVO, E_MAIL, EMAIL_DOC_ELECTRONICO FROM SOFTLAND.GAREND.CLIENTE WHERE ACTIVO = 'S'" },
-        { type: 'products', query: "SELECT ARTICULO, DESCRIPCION, CLASIFICACION_2, ULTIMO_INGRESO, ACTIVO, NOTAS, UNIDAD_VENTA, CANASTA_BASICA, CODIGO_HACIENDA FROM SOFTLAND.GAREND.ARTICULO WHERE ACTIVO = 'S'" },
-        { type: 'exemptions', query: "SELECT CODIGO, DESCRIPCION, CLIENTE, NUM_AUTOR, FECHA_RIGE, FECHA_VENCE, PORCENTAJE, TIPO_DOC, NOMBRE_INSTITUCION, CODIGO_INSTITUCION FROM SOFTLAND.GAREND.EXO_CLIENTE" },
-        { type: 'stock', query: "SELECT ARTICULO, BODEGA, CANT_DISPONIBLE FROM SOFTLAND.GAREND.EXISTENCIA_BODEGA WHERE CANT_DISPONIBLE > 0" },
-        { type: 'locations', query: "" },
-        { type: 'cabys', query: "SELECT [CODIGO], [DESCRIPCION], [IMPUESTO] FROM [SOFTLAND].[GAREND].[CODIGO_HACIENDA]" },
-    ];
-    const queryInsert = db.prepare('INSERT OR IGNORE INTO import_queries (type, query) VALUES (@type, @query)');
-    initialQueries.forEach(q => queryInsert.run(q));
-
     console.log(`Database ${DB_FILE} initialized with default users, company settings, and roles.`);
     await checkAndApplyMigrations(db);
 }
-// The rest of db.ts remains the same...
-// ... (omitting the rest of the file for brevity as it's unchanged) ...
-
-    
-
-// Re-exporting functions that were causing import errors
-export { getUnreadSuggestionsCount, getSuggestions, markSuggestionAsRead, deleteSuggestion } from './suggestions-actions';
-export { getAllRoles, saveAllRoles, resetDefaultRoles } from './roles-db';
-export { getAllCustomers, getAllProducts, getAllStock, getAllExemptions, getCabysCatalog } from './data-access-db';
-export { getCompanySettings, saveCompanySettings, getApiSettings, saveApiSettings, getExemptionLaws, saveExemptionLaws, getAndCacheExchangeRate } from './settings-db';
-export { importData, importAllDataFromFiles } from './import-service';
-export { getLogs, clearLogs } from './logger';
-export { getSqlConfig, saveSqlConfig, saveImportQueries, getImportQueries, testSqlConnection } from './config-db-client';
-export { backupAllForUpdate, restoreAllFromUpdateBackup, listAllUpdateBackups, deleteOldUpdateBackups, uploadBackupFile, factoryReset, getDbModules } from './maintenance-db';
-export { getStockSettings, saveStockSettings } from './stock-db';

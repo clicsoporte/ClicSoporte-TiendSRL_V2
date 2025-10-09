@@ -13,8 +13,10 @@ import { logError, logInfo } from "../../../../modules/core/lib/logger";
 import { Loader2, FileUp, Database, Save } from "lucide-react";
 import type { Company, SqlConfig, ImportQuery } from '../../../../modules/core/types';
 import { usePageTitle } from "../../../../modules/core/hooks/usePageTitle";
-import { importData, getCompanySettings, saveCompanySettings, testSqlConnection, saveSqlConfig, saveImportQueries, getImportQueries, importAllDataFromFiles } from '../../../../modules/core/lib/db';
-import { getSqlConfig } from '../../../../modules/core/lib/config-db';
+import { getCompanySettings, saveCompanySettings } from '../../../../modules/core/lib/settings-db';
+import { importData, importAllDataFromFiles } from '../../../../modules/core/lib/import-service';
+import { testSqlConnection, saveSqlConfig, saveImportQueries, getImportQueries } from '../../../../modules/core/lib/config-db-client';
+import { getSqlConfig as getSqlConfigServer } from '../../../../modules/core/lib/config-db';
 import { useAuthorization } from '../../../../modules/core/hooks/useAuthorization';
 import { Input } from '../../../../components/ui/input';
 import { Label } from '../../../../components/ui/label';
@@ -64,7 +66,7 @@ export default function ImportDataPage() {
         const loadConfig = async () => {
             const [company, sql, queries] = await Promise.all([
                 getCompanySettings(),
-                getSqlConfig(),
+                getSqlConfigServer(),
                 getImportQueries()
             ]);
             setCompanyData(company);

@@ -6,7 +6,7 @@
 "use server";
 
 import { connectDb } from './db';
-import type { SqlConfig } from '../types';
+import type { SqlConfig, ImportQuery } from '../types';
 
 /**
  * Retrieves the SQL Server connection configuration from the database.
@@ -29,4 +29,34 @@ export async function getSqlConfig(): Promise<SqlConfig | null> {
         console.error("Failed to get SQL config:", error);
         return null;
     }
+}
+
+/**
+ * Saves the SQL Server connection configuration to the database.
+ * @param {SqlConfig} config - The configuration object to save.
+ */
+export async function saveSqlConfig(config: SqlConfig): Promise<void> {
+    const db = await connectDb();
+    const upsert = db.prepare('INSERT OR REPLACE INTO sql_config (key, value) VALUES (?, ?)');
+    const transaction = db.transaction((conf) => {
+        for (const key in conf) {
+            upsert.run(key, conf[key as keyof SqlConfig]);
+        }
+    });
+    transaction(config);
+}
+
+/**
+ * Saves the SQL import queries to the database.
+ * @param {ImportQuery[]} queries - The array of queries to save.
+ */
+export async function saveImportQueries(queries: ImportQuery[]): Promise<void> {
+    const db = await connectDb();
+    const upsert = db.prepare('INSERT OR REPLACE INTO import_queries (type, query) VALUES (?, ?)');
+    const transaction = db.transaction((qs) => {
+        for (const q of qs) {
+            upsert.run(q.type, q.query);
+        }
+    });
+    transaction(queries);
 }
