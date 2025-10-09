@@ -664,6 +664,7 @@ export type Ticket = {
     dueDate?: string;
     erpCustomerId?: string | null;
     ticketCustomerId?: number | null;
+    customerName: string; // Denormalized for quick display
     assigneeId?: number | null;
     helpTopicId?: number | null;
 };
@@ -688,5 +689,12 @@ export type NewTicketPayload = {
     customerName: string;
     customerEmail: string;
     customerPhone?: string;
+    helpTopicId?: number;
 };
 
+export type HelpTopic = {
+    id: number;
+    name: string;
+    defaultPriority?: TicketPriority;
+    defaultAssigneeId?: number | null;
+};

@@ -5,7 +5,7 @@
 "use server";
 
 import { connectDb } from '../../core/lib/db';
-import type { Ticket, NewTicketPayload, User, TicketCustomer, TicketThread } from '@/modules/core/types';
+import type { Ticket, NewTicketPayload, User, TicketCustomer, TicketThread, HelpTopic } from '@/modules/core/types';
 
 const TICKETS_DB_FILE = 'tickets.db';
 
@@ -24,8 +24,7 @@ export async function initializeTicketsDb(db: import('better-sqlite3').Database)
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT UNIQUE NOT NULL,
             defaultPriority TEXT,
-            defaultAssigneeId INTEGER,
-            slaHours INTEGER
+            defaultAssigneeId INTEGER
         );
 
         CREATE TABLE IF NOT EXISTS tickets (
@@ -78,6 +77,15 @@ export async function initializeTicketsDb(db: import('better-sqlite3').Database)
 
     db.prepare(`INSERT OR IGNORE INTO ticket_settings (key, value) VALUES ('ticketPrefix', 'CAS-')`).run();
     db.prepare(`INSERT OR IGNORE INTO ticket_settings (key, value) VALUES ('nextTicketNumber', '1')`).run();
+
+    // Insert default help topics
+    const topics = [
+        { id: 1, name: 'Soporte General', defaultPriority: 'medium', defaultAssigneeId: null },
+        { id: 2, name: 'Consulta de Facturación', defaultPriority: 'medium', defaultAssigneeId: null },
+        { id: 3, name: 'Problema con Impresora', defaultPriority: 'high', defaultAssigneeId: null }
+    ];
+    const insertTopic = db.prepare('INSERT OR IGNORE INTO help_topics (id, name, defaultPriority, defaultAssigneeId) VALUES (@id, @name, @defaultPriority, @defaultAssigneeId)');
+    topics.forEach(topic => insertTopic.run(topic));
     
     console.log(`Database ${TICKETS_DB_FILE} initialized for Support Tickets.`);
     await runTicketMigrations(db);
@@ -89,6 +97,26 @@ export async function runTicketMigrations(db: import('better-sqlite3').Database)
 
     if (!ticketsColumns.has('customerName')) {
         db.exec(`ALTER TABLE tickets ADD COLUMN customerName TEXT;`);
+    }
+
+    const helpTopicsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='help_topics'`).get();
+    if (!helpTopicsTable) {
+        db.exec(`
+            CREATE TABLE IF NOT EXISTS help_topics (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT UNIQUE NOT NULL,
+                defaultPriority TEXT,
+                defaultAssigneeId INTEGER
+            );
+        `);
+        // Populate with some defaults if it didn't exist
+        const topics = [
+            { id: 1, name: 'Soporte General', defaultPriority: 'medium', defaultAssigneeId: null },
+            { id: 2, name: 'Consulta de Facturación', defaultPriority: 'medium', defaultAssigneeId: null },
+            { id: 3, name: 'Problema con Impresora', defaultPriority: 'high', defaultAssigneeId: null }
+        ];
+        const insertTopic = db.prepare('INSERT OR IGNORE INTO help_topics (id, name, defaultPriority, defaultAssigneeId) VALUES (@id, @name, @defaultPriority, @defaultAssigneeId)');
+        topics.forEach(topic => insertTopic.run(topic));
     }
 }
 
@@ -109,7 +137,6 @@ export async function addTicket(payload: NewTicketPayload, user: User): Promise<
         let ticketCustomerId: number | null = null;
         let erpCustomerId: string | null = payload.erpCustomerId;
 
-        // If it's not a customer from the ERP, create a new entry in ticket_customers.
         if (!erpCustomerId) {
             const existingCustomer = db.prepare('SELECT id FROM ticket_customers WHERE email = ?').get(payload.customerEmail) as { id: number } | undefined;
             if (existingCustomer) {
@@ -124,15 +151,26 @@ export async function addTicket(payload: NewTicketPayload, user: User): Promise<
         const { prefix, number } = getNextTicketNumber(db);
         const consecutive = `${prefix}${number.toString().padStart(6, '0')}`;
         const now = new Date().toISOString();
+        
+        let priority = payload.priority;
+        let assigneeId = null;
+
+        if (payload.helpTopicId) {
+            const topic = db.prepare('SELECT * FROM help_topics WHERE id = ?').get(payload.helpTopicId) as HelpTopic | undefined;
+            if (topic) {
+                if (topic.defaultPriority) priority = topic.defaultPriority;
+                if (topic.defaultAssigneeId) assigneeId = topic.defaultAssigneeId;
+            }
+        }
 
         const ticketInsertInfo = db.prepare(`
-            INSERT INTO tickets (consecutive, subject, status, priority, createdAt, updatedAt, erpCustomerId, ticketCustomerId, customerName, assigneeId)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(consecutive, payload.subject, 'open', 'medium', now, now, erpCustomerId, ticketCustomerId, payload.customerName, null);
+            INSERT INTO tickets (consecutive, subject, status, priority, createdAt, updatedAt, erpCustomerId, ticketCustomerId, customerName, assigneeId, helpTopicId)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(consecutive, payload.subject, 'open', priority, now, now, erpCustomerId, ticketCustomerId, payload.customerName, assigneeId, payload.helpTopicId);
         
         const newTicketId = ticketInsertInfo.lastInsertRowid;
 
-        const threadInsertInfo = db.prepare(`
+        db.prepare(`
             INSERT INTO ticket_threads (ticketId, userId, userName, type, content, createdAt)
             VALUES (?, ?, ?, ?, ?, ?)
         `).run(newTicketId, user.id, user.name, 'message', payload.content, now);
@@ -239,4 +277,14 @@ export async function updateTicketDetails(ticketId: number, updates: Partial<Pic
 
     transaction();
     return db.prepare('SELECT * FROM tickets WHERE id = ?').get(ticketId) as Ticket;
+}
+
+export async function getHelpTopics(): Promise<HelpTopic[]> {
+    const db = await connectDb(TICKETS_DB_FILE);
+    try {
+        return db.prepare('SELECT * FROM help_topics ORDER BY name ASC').all() as HelpTopic[];
+    } catch (error) {
+        console.error("Failed to get help topics:", error);
+        return [];
+    }
 }

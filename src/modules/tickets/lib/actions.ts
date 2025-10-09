@@ -5,8 +5,8 @@
 'use client';
 
 import { logInfo, logError } from '@/modules/core/lib/logger';
-import type { Ticket, NewTicketPayload, User, TicketThread } from '@/modules/core/types';
-import { addTicket, getTickets as getTicketsServer, getTicketById as getTicketByIdServer, getTicketThread as getTicketThreadServer, addThreadEntry as addThreadEntryServer, updateTicketDetails as updateTicketDetailsServer } from './db';
+import type { Ticket, NewTicketPayload, User, TicketThread, HelpTopic } from '@/modules/core/types';
+import { addTicket, getTickets as getTicketsServer, getTicketById as getTicketByIdServer, getTicketThread as getTicketThreadServer, addThreadEntry as addThreadEntryServer, updateTicketDetails as updateTicketDetailsServer, getHelpTopics as getHelpTopicsServer } from './db';
 
 /**
  * Saves a new ticket to the database.
@@ -77,4 +77,12 @@ export async function updateTicketDetails(ticketId: number, updates: Partial<Pic
     const updatedTicket = await updateTicketDetailsServer(ticketId, updates, user);
     await logInfo(`Ticket #${ticketId} details updated by ${user.name}`, { updates });
     return updatedTicket;
+}
+
+/**
+ * Fetches all available help topics.
+ * @returns A promise that resolves to an array of help topics.
+ */
+export async function getHelpTopics(): Promise<HelpTopic[]> {
+    return getHelpTopicsServer();
 }
