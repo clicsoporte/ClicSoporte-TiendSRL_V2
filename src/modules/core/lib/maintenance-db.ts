@@ -8,6 +8,7 @@ import fs from 'fs';
 import path from 'path';
 import { DB_MODULES } from './data';
 import type { UpdateBackupInfo, DatabaseModule } from '../types';
+import { addLog } from './logger-db';
 
 const dbDirectory = path.join(process.cwd(), 'dbs');
 const UPDATE_BACKUP_DIR = 'update_backups';

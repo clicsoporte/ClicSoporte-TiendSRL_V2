@@ -137,5 +137,3 @@ export const adminTools: Tool[] = [
         textColor: "text-white",
       }
 ];
-
-    

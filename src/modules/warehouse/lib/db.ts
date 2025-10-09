@@ -5,7 +5,9 @@
  */
 "use server";
 
-import { connectDb, getAllStock, getStockSettings as getStockSettingsFromMain } from '../../core/lib/db';
+import { connectDb } from '../../core/lib/db';
+import { getAllStock } from '../../core/lib/data-access-db';
+import { getStockSettings as getStockSettingsFromMain } from '../../core/lib/stock-db';
 import type { WarehouseLocation, WarehouseInventoryItem, MovementLog, WarehouseSettings, StockSettings, StockInfo, ItemLocation } from '../../core/types';
 
 const WAREHOUSE_DB_FILE = 'warehouse.db';

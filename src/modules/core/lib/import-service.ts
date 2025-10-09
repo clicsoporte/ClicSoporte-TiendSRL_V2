@@ -9,14 +9,14 @@ import fs from 'fs';
 import path from 'path';
 import Papa from 'papaparse';
 import { connectDb } from './db';
-import type { ImportQuery, Product, Customer, Exemption, StockInfo } from '../types';
+import type { ImportQuery, Product, Customer, Exemption, StockInfo, Company } from '../types';
 import { getCompanySettings } from './settings-db';
 import { getSqlConfig } from './config-db';
 import { executeQuery } from './sql-service';
 
 type ImportType = 'customers' | 'products' | 'exemptions' | 'stock' | 'cabys' | 'locations';
 
-const importTypeFieldMapping: { [key in ImportType]: keyof Awaited<ReturnType<typeof getCompanySettings>> } = {
+const importTypeFieldMapping: { [key in ImportType]: keyof Company } = {
     customers: 'customerFilePath',
     products: 'productFilePath',
     exemptions: 'exemptionFilePath',
@@ -35,7 +35,7 @@ async function parseCsv(filePath: string): Promise<any[]> {
             header: true,
             skipEmptyLines: true,
             complete: (results) => resolve(results.data),
-            error: (error) => reject(error),
+            error: (error: any) => reject(error),
         });
     });
 }

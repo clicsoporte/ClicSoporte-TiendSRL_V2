@@ -526,40 +526,6 @@ export async function getOrderHistory(orderId: number): Promise<ProductionOrderH
 }
 
 
-export async function rejectCancellationRequest(payload: RejectCancellationPayload): Promise<ProductionOrder> {
-    const db = await connectDb(PLANNER_DB_FILE);
-    const { entityId: orderId, notes, updatedBy } = payload;
-
-    const currentOrder = db.prepare('SELECT * FROM production_orders WHERE id = ?').get(orderId) as ProductionOrder | undefined;
-    if (!currentOrder) {
-        throw new Error("La orden no fue encontrada.");
-    }
-    
-    if (currentOrder.pendingAction === 'none') {
-        throw new Error("La orden no tiene una solicitud de cancelación pendiente.");
-    }
-    
-    const transaction = db.transaction(() => {
-        db.prepare(`
-            UPDATE production_orders SET
-                pendingAction = 'none',
-                lastStatusUpdateNotes = @notes,
-                lastStatusUpdateBy = @updatedBy,
-                previousStatus = NULL
-            WHERE id = @orderId
-        `).run({
-            notes,
-            updatedBy,
-            orderId,
-        });
-
-        const historyStmt = db.prepare('INSERT INTO production_order_history (orderId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)');
-        historyStmt.run(orderId, new Date().toISOString(), currentOrder.status, updatedBy, `Rechazada solicitud administrativa: ${notes}`);
-    });
-
-    transaction();
-    return db.prepare('SELECT * FROM production_orders WHERE id = ?').get(orderId) as ProductionOrder;
-}
 
 export async function addNote(payload: NotePayload): Promise<ProductionOrder> {
     const db = await connectDb(PLANNER_DB_FILE);

@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getWarehouseData } from '@/modules/warehouse/lib/actions';
-import { importAllDataFromFiles } from '@/modules/core/lib/db';
+import { importAllDataFromFiles } from '@/modules/core/lib/import-service';
 import type { WarehouseLocation, WarehouseInventoryItem, Product, StockInfo, StockSettings, ItemLocation, Customer } from '@/modules/core/types';
 import { Search, MapPin, Package, Building, Waypoints, Box, Layers, Warehouse as WarehouseIcon, RefreshCw, Loader2, Info, User } from 'lucide-react';
 import { useDebounce } from 'use-debounce';
@@ -201,7 +201,7 @@ export default function WarehousePage() {
             });
         }
         
-        return Object.values(groupedByItem).sort((a, b) => a.product?.id.localeCompare(b.product?.id || '') || 0);
+        return Object.values(groupedByItem).sort((a, b) => (a.product?.id || '').localeCompare(b.product?.id || ''));
 
     }, [debouncedSearchTerm, products, customers, inventory, itemLocations, stock, warehouseSettings, renderLocationPath]);
 

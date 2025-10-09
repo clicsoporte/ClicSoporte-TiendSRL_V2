@@ -108,20 +108,6 @@ export async function getOrderHistory(orderId: number): Promise<ProductionOrderH
     return getOrderHistoryServer(orderId);
 }
 
-/**
- * Rejects a cancellation request for an order.
- * @param payload - The rejection details.
- */
-export async function rejectCancellationRequest(payload: RejectCancellationPayload): Promise<ProductionOrder> {
-    const updatedOrder = await updatePendingActionServer({
-        entityId: payload.entityId,
-        action: 'none',
-        notes: payload.notes,
-        updatedBy: payload.updatedBy
-    });
-    await logInfo(`Admin action request for project ${updatedOrder.consecutive} was rejected by ${payload.updatedBy}`, { notes: payload.notes });
-    return updatedOrder;
-}
 
 /**
  * Adds a note to a production order without changing its status.

@@ -4,7 +4,7 @@
 'use client';
 
 import { logInfo, logError } from '@/modules/core/lib/logger';
-import type { Ticket, NewTicketPayload, User, TicketThread, HelpTopic, TicketCustomer, ClientCompany } from '@/modules/core/types';
+import type { Ticket, NewTicketPayload, User, TicketThread, HelpTopic, ClientCompany } from '@/modules/core/types';
 import { 
     addTicket, 
     getTickets as getTicketsServer, 
@@ -16,11 +16,9 @@ import {
     addHelpTopic as addHelpTopicServer,
     updateHelpTopic as updateHelpTopicServer,
     deleteHelpTopic as deleteHelpTopicServer,
-    addTicketCustomer as addTicketCustomerServer,
-    getClientCompanies as getClientCompaniesServer,
     addClientCompany as addClientCompanyServer,
-    getTicketCustomerById as getTicketCustomerByIdServer,
-    deleteTicket as deleteTicketServer,
+    getClientCompanies as getClientCompaniesServer,
+    deleteTicket as deleteTicketServer
 } from './db';
 
 /**
@@ -40,21 +38,6 @@ export async function saveTicket(payload: NewTicketPayload, user: User): Promise
         return createdTicket;
     } catch (error) {
         logError("Error saving ticket from client action", { error: (error as Error).message });
-        throw error;
-    }
-}
-
-/**
- * Adds a new standalone customer to the ticket system.
- * @param payload - The data for the new customer.
- */
-export async function addTicketCustomer(payload: Omit<TicketCustomer, 'id' | 'createdAt' | 'notes'>): Promise<TicketCustomer> {
-    try {
-        const newCustomer = await addTicketCustomerServer(payload);
-        await logInfo(`New ticket contact created: ${payload.name}`);
-        return newCustomer;
-    } catch (error) {
-        logError("Error saving ticket customer from client action", { error: (error as Error).message });
         throw error;
     }
 }
@@ -89,10 +72,6 @@ export async function getTickets(): Promise<Ticket[]> {
  */
 export async function getTicketById(id: number): Promise<Ticket | null> {
     return getTicketByIdServer(id);
-}
-
-export async function getTicketCustomerById(id: number): Promise<TicketCustomer | null> {
-    return getTicketCustomerByIdServer(id);
 }
 
 /**
@@ -163,5 +142,6 @@ export async function deleteHelpTopic(id: number): Promise<void> {
 }
 
 export async function deleteTicket(id: number): Promise<void> {
+    await logInfo(`Ticket with ID ${id} deleted.`);
     return deleteTicketServer(id);
 }

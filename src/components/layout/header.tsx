@@ -12,7 +12,7 @@ import { useAuth } from "@/modules/core/hooks/useAuth";
 import { useAuthorization } from "@/modules/core/hooks/useAuthorization";
 import { useToast } from "@/modules/core/hooks/use-toast";
 import { logError, logInfo } from "@/modules/core/lib/logger";
-import { importAllDataFromFiles } from "@/modules/core/lib/db";
+import { importAllDataFromFiles } from "@/modules/core/lib/import-service";
 import { addSuggestion } from "@/modules/core/lib/suggestions-actions";
 import { format, parseISO } from 'date-fns';
 import { cn } from "@/lib/utils";

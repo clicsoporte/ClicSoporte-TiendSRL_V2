@@ -5,7 +5,7 @@
 "use server";
 
 import { connectDb } from './db';
-import type { Product, Customer, StockInfo, Exemption, CabysItem } from '@/modules/core/types';
+import type { Product, Customer, StockInfo, Exemption } from '@/modules/core/types';
 
 /**
  * Retrieves all customers from the database.
@@ -69,12 +69,12 @@ export async function getAllExemptions(): Promise<Exemption[]> {
 
 /**
  * Retrieves the full CABYS catalog from the database.
- * @returns {Promise<CabysItem[]>}
+ * @returns {Promise<{code: string, description: string, taxRate: number}[]>}
  */
-export async function getCabysCatalog(): Promise<CabysItem[]> {
+export async function getCabysCatalog(): Promise<{code: string, description: string, taxRate: number}[]> {
     const db = await connectDb();
     try {
-        return db.prepare('SELECT * FROM cabys_catalog').all() as CabysItem[];
+        return db.prepare('SELECT * FROM cabys_catalog').all() as {code: string, description: string, taxRate: number}[];
     } catch (error) {
         console.error("Failed to get CABYS catalog:", error);
         return [];

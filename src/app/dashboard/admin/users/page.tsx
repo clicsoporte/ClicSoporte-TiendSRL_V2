@@ -57,7 +57,7 @@ import { Input } from "../../../../components/ui/input";
 import { Label } from "../../../../components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../../components/ui/select";
 import { getAllUsers, saveAllUsers, addUser as addUserAction } from "../../../../modules/core/lib/auth-client";
-import { getAllRoles } from "../../../../modules/core/lib/db";
+import { getAllRoles } from "../../../../modules/core/lib/roles-db";
 import { Separator } from "../../../../components/ui/separator";
 import { usePageTitle } from "../../../../modules/core/hooks/usePageTitle";
 import { Skeleton } from "../../../../components/ui/skeleton";
