@@ -10,8 +10,8 @@ import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError, logInfo } from '@/modules/core/lib/logger';
 import { useAuth } from '@/modules/core/hooks/useAuth';
-import type { NewTicketPayload } from '@/modules/core/types';
-import { saveTicket } from '../lib/actions';
+import type { NewTicketPayload, Ticket, TicketPriority, TicketStatus } from '@/modules/core/types';
+import { saveTicket, getTickets } from '../lib/actions';
 import { useDebounce } from 'use-debounce';
 
 
@@ -33,35 +33,71 @@ const initialState = {
     newTicket: emptyTicket,
     customerSearchTerm: '',
     isCustomerSearchOpen: false,
+    tickets: [] as Ticket[],
+    searchTerm: '',
+    statusFilter: 'all',
+    priorityFilter: 'all',
+};
+
+const priorityConfig: { [key in TicketPriority]: { label: string, variant: 'default' | 'secondary' | 'destructive' | 'outline' } } = {
+    low: { label: "Baja", variant: "secondary" },
+    medium: { label: "Media", variant: "default" },
+    high: { label: "Alta", variant: "outline" },
+    urgent: { label: "Urgente", variant: "destructive" }
+};
+
+const statusConfig: { [key in TicketStatus]: { label: string, color: string } } = {
+    open: { label: "Abierto", color: "bg-green-500" },
+    in_progress: { label: "En Progreso", color: "bg-blue-500" },
+    on_hold: { label: "En Espera", color: "bg-yellow-500" },
+    closed: { label: "Cerrado", color: "bg-gray-500" },
 };
 
 export const useTickets = () => {
-    const { isAuthorized, hasPermission } = useAuthorization(['dashboard:access']); // Basic permission for now
+    const { isAuthorized } = useAuthorization(['dashboard:access']); // Basic permission for now
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
     const { user, customers, companyData } = useAuth();
 
     const [state, setState] = useState(initialState);
     const [debouncedCustomerSearch] = useDebounce(state.customerSearchTerm, companyData?.searchDebounceTime ?? 500);
+    const [debouncedSearchTerm] = useDebounce(state.searchTerm, companyData?.searchDebounceTime ?? 500);
+
 
     const updateState = (newState: Partial<typeof state>) => {
         setState(prevState => ({ ...prevState, ...newState }));
     };
     
+    const loadInitialData = useCallback(async () => {
+        updateState({ isLoading: true });
+        try {
+            const fetchedTickets = await getTickets();
+            updateState({ tickets: fetchedTickets });
+        } catch (error) {
+            logError("Failed to load tickets", { error: (error as Error).message });
+            toast({ title: "Error", description: "No se pudieron cargar los tickets.", variant: "destructive" });
+        } finally {
+            updateState({ isLoading: false });
+        }
+    }, [toast]);
+    
     useEffect(() => {
         setTitle("Soporte Técnico");
         if (isAuthorized) {
-            // Placeholder to load initial data in the future
-            // loadInitialData();
-            updateState({ isLoading: false });
+            loadInitialData();
         }
-    }, [setTitle, isAuthorized]);
+    }, [setTitle, isAuthorized, loadInitialData]);
     
     const actions = {
         setNewTicketDialogOpen: (isOpen: boolean) => updateState({ isNewTicketDialogOpen: isOpen }),
         setCustomerSearchTerm: (term: string) => updateState({ customerSearchTerm: term }),
         setCustomerSearchOpen: (isOpen: boolean) => updateState({ isCustomerSearchOpen: isOpen }),
+        setSearchTerm: (term: string) => updateState({ searchTerm: term }),
+        setStatusFilter: (status: string) => updateState({ statusFilter: status }),
+        setPriorityFilter: (priority: string) => updateState({ priorityFilter: priority }),
         
+        clearFilters: () => updateState({ searchTerm: '', statusFilter: 'all', priorityFilter: 'all' }),
+
         handleNewTicketChange: (field: keyof NewTicketPayload, value: string | number | null) => {
             updateState({ newTicket: { ...state.newTicket, [field]: value } });
         },
@@ -81,8 +117,7 @@ export const useTickets = () => {
                     customerSearchTerm: `[${customer.id}] ${customer.name}`
                 });
             } else {
-                // Clear fields if the search is cleared
-                 updateState({
+                updateState({
                     newTicket: {
                         ...state.newTicket,
                         erpCustomerId: null,
@@ -106,15 +141,12 @@ export const useTickets = () => {
                 const createdTicket = await saveTicket(state.newTicket, user);
                 toast({ title: "Ticket Creado", description: `El ticket #${createdTicket.consecutive} ha sido creado.` });
                 
-                // Reset form and close dialog
                 updateState({
                     isNewTicketDialogOpen: false,
                     newTicket: emptyTicket,
                     customerSearchTerm: '',
+                    tickets: [createdTicket, ...state.tickets]
                 });
-
-                // In the future, we'll add the new ticket to the local state
-                // updateState({ tickets: [createdTicket, ...state.tickets] });
 
             } catch (error: any) {
                 logError("Failed to create ticket", { error: error.message });
@@ -126,6 +158,8 @@ export const useTickets = () => {
     };
 
     const selectors = {
+        priorityConfig,
+        statusConfig,
         customerOptions: useMemo(() => {
             if (debouncedCustomerSearch.length < 2) return [];
             const searchTerms = debouncedCustomerSearch.toLowerCase().split(' ').filter(Boolean);
@@ -134,6 +168,16 @@ export const useTickets = () => {
                 return searchTerms.every(term => targetText.includes(term));
             }).map(c => ({ value: c.id, label: `[${c.id}] ${c.name} (${c.taxId})` }));
         }, [customers, debouncedCustomerSearch]),
+        filteredTickets: useMemo(() => {
+            return state.tickets.filter(ticket => {
+                const searchMatch = debouncedSearchTerm 
+                    ? `${ticket.consecutive} ${ticket.subject} ${ticket.customerName}`.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
+                    : true;
+                const statusMatch = state.statusFilter === 'all' || ticket.status === state.statusFilter;
+                const priorityMatch = state.priorityFilter === 'all' || ticket.priority === state.priorityFilter;
+                return searchMatch && statusMatch && priorityMatch;
+            });
+        }, [state.tickets, debouncedSearchTerm, state.statusFilter, state.priorityFilter])
     };
     
     return {

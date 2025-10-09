@@ -5,7 +5,7 @@
 "use server";
 
 import { connectDb } from '../../core/lib/db';
-import type { Ticket, NewTicketPayload, User } from '@/modules/core/types';
+import type { Ticket, NewTicketPayload, User, TicketCustomer, TicketThread } from '@/modules/core/types';
 
 const TICKETS_DB_FILE = 'tickets.db';
 
@@ -40,6 +40,7 @@ export async function initializeTicketsDb(db: import('better-sqlite3').Database)
             
             erpCustomerId TEXT, -- From intratool.db customers table
             ticketCustomerId INTEGER, -- From this db's ticket_customers table
+            customerName TEXT, -- Denormalized for quick display
             
             assigneeId INTEGER, -- User ID from intratool.db
             helpTopicId INTEGER,
@@ -83,7 +84,12 @@ export async function initializeTicketsDb(db: import('better-sqlite3').Database)
 }
 
 export async function runTicketMigrations(db: import('better-sqlite3').Database) {
-    // Future migrations for the tickets module will go here.
+    const ticketsTableInfo = db.prepare(`PRAGMA table_info(tickets)`).all() as { name: string }[];
+    const ticketsColumns = new Set(ticketsTableInfo.map(c => c.name));
+
+    if (!ticketsColumns.has('customerName')) {
+        db.exec(`ALTER TABLE tickets ADD COLUMN customerName TEXT;`);
+    }
 }
 
 async function getNextTicketNumber(db: import('better-sqlite3').Database): Promise<{ prefix: string; number: number }> {
@@ -120,9 +126,9 @@ export async function addTicket(payload: NewTicketPayload, user: User): Promise<
         const now = new Date().toISOString();
 
         const ticketInsertInfo = db.prepare(`
-            INSERT INTO tickets (consecutive, subject, status, priority, createdAt, updatedAt, erpCustomerId, ticketCustomerId, assigneeId)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(consecutive, payload.subject, 'open', 'medium', now, now, erpCustomerId, ticketCustomerId, null);
+            INSERT INTO tickets (consecutive, subject, status, priority, createdAt, updatedAt, erpCustomerId, ticketCustomerId, customerName, assigneeId)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(consecutive, payload.subject, 'open', 'medium', now, now, erpCustomerId, ticketCustomerId, payload.customerName, null);
         
         const newTicketId = ticketInsertInfo.lastInsertRowid;
 
@@ -138,4 +144,15 @@ export async function addTicket(payload: NewTicketPayload, user: User): Promise<
     });
 
     return transaction();
+}
+
+export async function getTickets(): Promise<Ticket[]> {
+    const db = await connectDb(TICKETS_DB_FILE);
+    try {
+        const stmt = db.prepare('SELECT * FROM tickets ORDER BY createdAt DESC');
+        return stmt.all() as Ticket[];
+    } catch (error) {
+        console.error("Failed to get tickets:", error);
+        return [];
+    }
 }

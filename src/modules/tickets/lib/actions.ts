@@ -6,7 +6,7 @@
 
 import { logInfo, logError } from '@/modules/core/lib/logger';
 import type { Ticket, NewTicketPayload, User } from '@/modules/core/types';
-import { addTicket } from './db';
+import { addTicket, getTickets as getTicketsServer } from './db';
 
 /**
  * Saves a new ticket to the database.
@@ -27,4 +27,12 @@ export async function saveTicket(payload: NewTicketPayload, user: User): Promise
         logError("Error saving ticket from client action", { error: (error as Error).message });
         throw error;
     }
+}
+
+/**
+ * Fetches all tickets from the server.
+ * @returns A promise that resolves to an array of all tickets.
+ */
+export async function getTickets(): Promise<Ticket[]> {
+    return getTicketsServer();
 }
