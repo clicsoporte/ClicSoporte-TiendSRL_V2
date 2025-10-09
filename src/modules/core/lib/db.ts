@@ -22,7 +22,7 @@ import { initializeTicketsDb, runTicketMigrations } from '../../tickets/lib/db';
 import { initializeLicensesDb, runLicensesMigrations } from '../../licenses/lib/db';
 import { getExchangeRate as fetchExchangeRateFromApi } from '../lib/api-actions';
 import { getSqlConfig } from './config-db';
-import { logError, logInfo, logWarn } from './logger';
+import { addLog as dbAddLog } from './logger-db';
 
 
 const DB_FILE = 'intratool.db';
@@ -82,10 +82,10 @@ export async function connectDb(dbFile: string = DB_FILE): Promise<Database.Data
                 fs.unlinkSync(dbPath);
             }
             fs.renameSync(restoreFilePath, dbPath);
-            await logWarn(`Database for module ${dbFile} was restored from a backup on startup.`);
+            await dbAddLog({ type: "WARN", message: `Database for module ${dbFile} was restored from a backup on startup.` });
         } catch(e: any) {
             console.error(`Failed to apply restore for ${dbFile}: ${e.message}`);
-            logError(`Failed to apply restore for ${dbFile}`, { error: e.message });
+            await dbAddLog({ type: "ERROR", message: `Failed to apply restore for ${dbFile}`, details: { error: e.message } });
             if (fs.existsSync(restoreFilePath)) fs.unlinkSync(restoreFilePath);
         }
     }

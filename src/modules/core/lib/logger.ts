@@ -5,7 +5,8 @@
  */
 "use server";
 
-import { addLog as dbAddLog, getLogs as dbGetLogs, clearLogs as dbClearLogs } from './db';
+import { getLogs as dbGetLogs, clearLogs as dbClearLogs } from './db';
+import { addLog as dbAddLog } from './logger-db'; // Corrected import
 import type { LogEntry, DateRange } from "@/modules/core/types";
 
 /**
