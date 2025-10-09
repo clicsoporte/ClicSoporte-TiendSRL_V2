@@ -59,7 +59,7 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
         return { error: 'XML malformado o ilegible.', details: {} };
     }
     
-    const rootNode = json.FacturaElectronica;
+    const rootNode = json.FacturaElectronica || json.TiqueteElectronico;
     
     if (!rootNode) {
         const detectedRoot = Object.keys(json)[0] || 'N/A';

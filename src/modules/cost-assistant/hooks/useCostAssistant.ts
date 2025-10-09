@@ -283,21 +283,23 @@ export const useCostAssistant = () => {
         });
     }, [state.lines, state.transportCost, state.otherCosts]);
     
-    // This effect synchronizes the calculated costs back into the main state, preventing the infinite loop.
+    // This effect synchronizes the calculated costs back into the main state.
     useEffect(() => {
-        setState(prevState => ({...prevState, lines: linesWithCalculatedCosts }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [state.transportCost, state.otherCosts]); // Only re-run when global costs change
+        // We compare to avoid an infinite loop. Only update if there's a difference in calculated values.
+        if (JSON.stringify(state.lines) !== JSON.stringify(linesWithCalculatedCosts)) {
+             setState(prevState => ({...prevState, lines: linesWithCalculatedCosts }));
+        }
+    }, [linesWithCalculatedCosts, state.lines]);
 
     const totals = useMemo(() => {
         const totalPurchaseCost = state.lines.reduce((sum, line) => sum + (line.unitCostWithTax * line.quantity), 0);
         const totalAdditionalCosts = state.transportCost + state.otherCosts;
-        const totalFinalCost = totalPurchaseCost + totalAdditionalCosts;
-        const totalSellValue = linesWithCalculatedCosts.reduce((sum, line) => sum + (line.finalSellPrice * line.quantity), 0);
+        const totalFinalCost = state.lines.reduce((sum, line) => sum + (line.unitCostWithoutTax * line.quantity), 0);
+        const totalSellValue = state.lines.reduce((sum, line) => sum + (line.finalSellPrice * line.quantity), 0);
         const estimatedGrossProfit = totalSellValue - totalFinalCost;
 
         return { totalPurchaseCost, totalAdditionalCosts, totalFinalCost, totalSellValue, estimatedGrossProfit };
-    }, [state.lines, linesWithCalculatedCosts, state.transportCost, state.otherCosts]);
+    }, [state.lines, state.transportCost, state.otherCosts]);
 
 
     const actions = {

@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview This file defines the core TypeScript types used throughout the application.
  * Using centralized types helps ensure data consistency and provides autocompletion benefits.
@@ -664,6 +663,16 @@ export type HelpTopic = {
     name: string;
     defaultPriority?: TicketPriority;
     defaultAssigneeId?: number | null;
+};
+
+export type ClientCompany = {
+    id: number;
+    name: string;
+    taxId: string;
+    address: string;
+    phone: string;
+    email: string;
+    createdAt: string;
 };
 
 export type TicketCustomer = {
