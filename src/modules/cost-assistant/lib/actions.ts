@@ -25,7 +25,7 @@ const parseDecimal = (str: any): number => {
         return parseFloat(s.replace(/\./g, '').replace(',', '.'));
     }
     
-    // If no comma exists, any dot is a decimal separator.
+    // If no comma exists, treat as a standard float.
     return parseFloat(s);
 };
 
@@ -235,20 +235,23 @@ export async function exportForERP(lines: CostAssistantLine[]): Promise<string> 
         const row: any = {
             'NOMBRE (Requerido)': line.description,
             'UNIDAD DE MEDIDA (Requerido)': '78-Unid-Unidad',
-            'PRECIO (Sin impuestos) (Requerido)': line.sellPriceWithoutTax,
+            'PRECIO (Sin impuestos) (Requerido)': line.sellPriceWithoutTax.toFixed(5),
             'MONEDA': 'CRC',
-            'IMP.01': line.taxCode || '08',
+            'IMP.01': line.taxCode || '08', // Use the tax code from XML
             'CÓDIGO CABYS': line.cabysCode,
             'ESTADO': 'A',
-            'Actividad economica': '4651.0', // Default as per example
+            'ACTIVIDAD ECONOMICA': '4651.0',
         };
 
         // Add the SKU to the correct column based on its type
-        const codeType = line.supplierCodeType || '04'; // Default to '04' if not present
-        if (['01', '02', '03', '04', '99'].includes(codeType)) {
+        // Following the user's example where type 01 maps to column 04
+        const codeType = line.supplierCodeType || '04';
+        if (codeType === '01') {
+            row['CODIGOS 04'] = line.supplierCode;
+        } else if (['02', '03', '04', '99'].includes(codeType)) {
             row[`CODIGOS ${codeType}`] = line.supplierCode;
         } else {
-            row['CODIGOS 99'] = line.supplierCode; // Fallback to '99'
+            row['CODIGOS 99'] = line.supplierCode; // Fallback
         }
 
         return row;
@@ -273,10 +276,30 @@ export async function exportForERP(lines: CostAssistantLine[]): Promise<string> 
     
     const worksheet = XLSX.utils.aoa_to_sheet(ws_data);
     
-    // Add data starting from the third row
-    XLSX.utils.sheet_add_json(worksheet, dataForExport, {
+    // Create an array of objects for sheet_add_json, but ensure the order of columns
+    const headers = [
+        'CODIGOS 01', 'CODIGOS 02', 'CODIGOS 03', 'CODIGOS 04', 'CODIGOS 99', 'PARTIDA ARANCELARIA (Opcional)',
+        'NOMBRE (Requerido)', 'DESCRIPCION (Opcional)', 'UNIDAD DE MEDIDA (Requerido)', 'UNIDAD DE MEDIDA COMERCIAL (Opcional)',
+        'PRECIO (Sin impuestos) (Requerido)', 'MONEDA', 'ACTIVIDAD ECONOMICA', 'BASE IMPONIBLE',
+        'IMP.01', 'IMP.02', 'IMPUESTO ESPECIFICO', 'CANTIDAD UNIDAD MEDIDA', 'PORCENTAJE', 'VOLUMEN UNIDAD CONSUMO',
+        'IMPUESTO UNIDAD', 'TIPO DE PRODUCTO', 'IMP.07', 'IMP.08', 'IMP.12', 'IMP.99', 'IMP.99 DESCRIPCIÓN',
+        'MUESTRA DESCRIPCION PDF (OPCIONAL)', 'CÓDIGO CABYS', 'ESTADO', 'REGISTRO DE MEDICAMENTO', 'FORMA FARMACÉUTICA'
+    ];
+
+    const jsonData = dataForExport.map(item => {
+        const orderedItem: any = {};
+        // Use a much wider range of columns to ensure all possible headers are covered.
+        const allHeaders = ['CODIGOS 01', 'CODIGOS 02', 'CODIGOS 03', 'CODIGOS 04', 'CODIGOS 99', 'PARTIDA ARANCELARIA (Opcional)', 'NOMBRE (Requerido)', 'DESCRIPCION (Opcional)', 'UNIDAD DE MEDIDA (Requerido)', 'UNIDAD DE MEDIDA COMERCIAL (Opcional)', 'PRECIO (Sin impuestos) (Requerido)', 'MONEDA', 'ACTIVIDAD ECONOMICA', 'BASE IMPONIBLE', 'IMP.01', 'IMP.02', 'IMPUESTO ESPECIFICO', 'CANTIDAD UNIDAD MEDIDA', 'PORCENTAJE', 'VOLUMEN UNIDAD CONSUMO', 'IMPUESTO UNIDAD', 'TIPO DE PRODUCTO', 'IMP.07', 'IMP.08', 'IMP.12', 'IMP.99', 'IMP.99 DESCRIPCIÓN', 'MUESTRA DESCRIPCION PDF (OPCIONAL)', 'CÓDIGO CABYS', 'ESTADO', 'REGISTRO DE MEDICAMENTO', 'FORMA FARMACÉUTICA'];
+        allHeaders.forEach(header => {
+            orderedItem[header] = item[header] || null;
+        });
+        return orderedItem;
+    });
+
+    XLSX.utils.sheet_add_json(worksheet, jsonData, {
+        header: headers,
         origin: "A3",
-        skipHeader: true // We've already created the complex header
+        skipHeader: true 
     });
     
     const workbook = XLSX.utils.book_new();
