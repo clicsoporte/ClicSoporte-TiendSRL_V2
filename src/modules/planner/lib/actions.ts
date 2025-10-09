@@ -45,7 +45,7 @@ export async function getProductionOrders(options: {
  */
 export async function saveProductionOrder(order: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'machineId' | 'previousStatus' | 'scheduledStartDate' | 'scheduledEndDate' | 'requestedBy' | 'hasBeenModified' | 'lastModifiedBy' | 'lastModifiedAt'>, requestedBy: string): Promise<ProductionOrder> {
     const createdOrder = await addOrder(order, requestedBy);
-    await logInfo(`Production order ${createdOrder.consecutive} created by ${requestedBy}`, { customer: createdOrder.customerName, product: createdOrder.productDescription, quantity: createdOrder.quantity });
+    await logInfo(`Project ${createdOrder.consecutive} created by ${requestedBy}`, { customer: createdOrder.customerName, project: createdOrder.productDescription });
     return createdOrder;
 }
 
@@ -56,7 +56,7 @@ export async function saveProductionOrder(order: Omit<ProductionOrder, 'id' | 'c
  */
 export async function updateProductionOrder(payload: UpdateProductionOrderPayload): Promise<ProductionOrder> {
     const updatedOrder = await updateOrder(payload);
-    await logInfo(`Production order ${updatedOrder.consecutive} edited by ${payload.updatedBy}`, { orderId: payload.orderId });
+    await logInfo(`Project ${updatedOrder.consecutive} edited by ${payload.updatedBy}`, { orderId: payload.orderId });
     return updatedOrder;
 }
 
@@ -67,7 +67,7 @@ export async function updateProductionOrder(payload: UpdateProductionOrderPayloa
  */
 export async function updateProductionOrderStatus(payload: UpdateStatusPayload): Promise<ProductionOrder> {
     const updatedOrder = await updateStatus(payload);
-    await logInfo(`Status of order ${updatedOrder.consecutive} updated to '${payload.status}' by ${payload.updatedBy}`, { notes: payload.notes, orderId: payload.orderId });
+    await logInfo(`Status of project ${updatedOrder.consecutive} updated to '${payload.status}' by ${payload.updatedBy}`, { notes: payload.notes, orderId: payload.orderId });
     return updatedOrder;
 }
 
@@ -78,7 +78,7 @@ export async function updateProductionOrderStatus(payload: UpdateStatusPayload):
  */
 export async function updateProductionOrderDetails(payload: UpdateOrderDetailsPayload): Promise<ProductionOrder> {
     const updatedOrder = await updateDetails(payload);
-    await logInfo(`Details for order ${updatedOrder.consecutive} updated by ${payload.updatedBy}`, { details: payload });
+    await logInfo(`Details for project ${updatedOrder.consecutive} updated by ${payload.updatedBy}`, { details: payload });
     return updatedOrder;
 }
 
@@ -95,7 +95,7 @@ export async function getPlannerSettings(): Promise<PlannerSettings> {
  * @param settings - The settings object to save.
  */
 export async function savePlannerSettings(settings: PlannerSettings): Promise<void> {
-    await logInfo('Planner settings updated.');
+    await logInfo('Project Manager settings updated.');
     return saveSettings(settings);
 }
 
@@ -119,7 +119,7 @@ export async function rejectCancellationRequest(payload: RejectCancellationPaylo
         notes: payload.notes,
         updatedBy: payload.updatedBy
     });
-    await logInfo(`Admin action request for order ${updatedOrder.consecutive} was rejected by ${payload.updatedBy}`, { notes: payload.notes });
+    await logInfo(`Admin action request for project ${updatedOrder.consecutive} was rejected by ${payload.updatedBy}`, { notes: payload.notes });
     return updatedOrder;
 }
 
@@ -130,7 +130,7 @@ export async function rejectCancellationRequest(payload: RejectCancellationPaylo
  */
 export async function addNoteToOrder(payload: NotePayload): Promise<ProductionOrder> {
     const updatedOrder = await addNoteServer(payload);
-    await logInfo(`Note added to order ${updatedOrder.consecutive} by ${payload.updatedBy}.`);
+    await logInfo(`Note added to project ${updatedOrder.consecutive} by ${payload.updatedBy}.`);
     return updatedOrder;
 }
 
@@ -141,6 +141,6 @@ export async function addNoteToOrder(payload: NotePayload): Promise<ProductionOr
  */
 export async function updatePendingAction(payload: AdministrativeActionPayload): Promise<ProductionOrder> {
     const updatedOrder = await updatePendingActionServer(payload);
-    await logInfo(`Administrative action '${payload.action}' initiated for order ${updatedOrder.consecutive} by ${payload.updatedBy}.`);
+    await logInfo(`Administrative action '${payload.action}' initiated for project ${updatedOrder.consecutive} by ${payload.updatedBy}.`);
     return updatedOrder;
 }

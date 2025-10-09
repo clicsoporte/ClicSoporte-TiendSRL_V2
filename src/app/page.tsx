@@ -19,9 +19,9 @@ async function CompanyInfo() {
       <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary text-primary-foreground">
         <Network className="h-8 w-8" />
       </div>
-      <CardTitle className="text-3xl font-bold">{companyData?.systemName || "Clic-Tools"}</CardTitle>
+      <CardTitle className="text-3xl font-bold">{companyData?.systemName || "Clic-Soporte"}</CardTitle>
       <CardDescription>
-        Inicia sesión para acceder a tus herramientas
+        Inicia sesión para acceder al centro de comando
       </CardDescription>
     </CardHeader>
   );

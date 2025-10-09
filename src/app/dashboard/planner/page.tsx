@@ -45,7 +45,7 @@ export default function PlannerPage() {
         return (
             <main className="flex-1 p-4 md:p-6">
                 <div className="flex justify-between items-center mb-6">
-                    <h1 className="text-2xl font-bold">Órdenes de Producción</h1>
+                    <h1 className="text-2xl font-bold">Gestor de Proyectos</h1>
                     <Skeleton className="h-10 w-32" />
                 </div>
                 <Card>
@@ -107,9 +107,9 @@ export default function PlannerPage() {
                                     <Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
-                                    <DropdownMenuLabel>Acciones de Orden</DropdownMenuLabel>
+                                    <DropdownMenuLabel>Acciones del Proyecto</DropdownMenuLabel>
                                     <DropdownMenuSeparator/>
-                                    {canEdit && <DropdownMenuItem onSelect={() => { actions.setOrderToEdit(order); actions.setEditOrderDialogOpen(true); }}><Pencil className="mr-2"/> Editar Orden</DropdownMenuItem>}
+                                    {canEdit && <DropdownMenuItem onSelect={() => { actions.setOrderToEdit(order); actions.setEditOrderDialogOpen(true); }}><Pencil className="mr-2"/> Editar Proyecto</DropdownMenuItem>}
                                     <DropdownMenuItem onSelect={() => actions.openAddNoteDialog(order)}><MessageSquarePlus className="mr-2" /> Añadir Nota</DropdownMenuItem>
                                     <DropdownMenuItem onSelect={() => actions.handleExportSingleOrderPDF(order)}><FileDown className="mr-2"/> Exportar a PDF</DropdownMenuItem>
                                     <DropdownMenuSeparator/>
@@ -124,12 +124,12 @@ export default function PlannerPage() {
                                     {canHold && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'on-hold')} className="text-gray-600"><Pause className="mr-2"/> Poner en Espera</DropdownMenuItem>}
                                     {canMaintain && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'in-maintenance')} className="text-gray-600"><Wrench className="mr-2"/> Poner en Mantenimiento</DropdownMenuItem>}
                                     
-                                    {canComplete && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'completed')} className="text-indigo-600"><PackageCheck className="mr-2"/> Marcar como Completada</DropdownMenuItem>}
+                                    {canComplete && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'completed')} className="text-indigo-600"><PackageCheck className="mr-2"/> Marcar como Completado</DropdownMenuItem>}
                                     {canReceive && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'received-in-warehouse')} className="text-gray-700"><PackageCheck className="mr-2"/> Recibir en Bodega</DropdownMenuItem>}
                                     <DropdownMenuSeparator/>
                                     {canRequestUnapproval && <DropdownMenuItem onSelect={() => actions.openAdminActionDialog(order, 'unapproval-request')} className="text-orange-600"><AlertTriangle className="mr-2"/> Solicitar Desaprobación</DropdownMenuItem>}
                                     <DropdownMenuSeparator/>
-                                    {canCancelPending && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'canceled')} className="text-red-600"><XCircle className="mr-2"/> Cancelar Orden</DropdownMenuItem>}
+                                    {canCancelPending && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'canceled')} className="text-red-600"><XCircle className="mr-2"/> Cancelar Proyecto</DropdownMenuItem>}
                                     {canRequestCancel && <DropdownMenuItem onSelect={() => actions.openAdminActionDialog(order, 'cancellation-request')} className="text-red-600 font-bold"><XCircle className="mr-2"/> Solicitar Cancelación</DropdownMenuItem>}
                                     {canReopen && <DropdownMenuItem onSelect={() => { actions.setOrderToUpdate(order); actions.setReopenDialogOpen(true); }} className="text-orange-600"><Undo2 className="mr-2"/> Reabrir</DropdownMenuItem>}
                                 </DropdownMenuContent>
@@ -160,7 +160,7 @@ export default function PlannerPage() {
                             </Select>
                         </div>
                         <div className="space-y-1">
-                             <p className="font-semibold text-muted-foreground">{state.plannerSettings?.assignmentLabel || 'Máquina'}</p>
+                             <p className="font-semibold text-muted-foreground">{state.plannerSettings?.assignmentLabel || 'Asignado a'}</p>
                             <Select value={order.machineId || 'none'} onValueChange={(value) => actions.handleDetailUpdate(order.id, { machineId: value })}>
                                 <SelectTrigger className="h-8 w-40 border-0 focus:ring-0">
                                     <SelectValue placeholder="Sin Asignar" />
@@ -231,7 +231,7 @@ export default function PlannerPage() {
                                     <AlertDialogHeader>
                                         <AlertDialogTitle>Gestionar Solicitud Pendiente</AlertDialogTitle>
                                         <AlertDialogDescription>
-                                            La orden tiene una solicitud de "{order.pendingAction === 'unapproval-request' ? 'Desaprobación' : 'Cancelación'}" pendiente. Puedes aprobar o rechazar esta solicitud.
+                                            El proyecto tiene una solicitud de "{order.pendingAction === 'unapproval-request' ? 'Desaprobación' : 'Cancelación'}" pendiente. Puedes aprobar o rechazar esta solicitud.
                                         </AlertDialogDescription>
                                     </AlertDialogHeader>
                                     <div className="py-4 space-y-2">
@@ -247,7 +247,7 @@ export default function PlannerPage() {
                             </AlertDialog>
                         </div>
                     )}
-                     {order.notes && (<div className="mt-4 text-xs bg-muted p-2 rounded-md"><p className="font-semibold">Notas de la Orden:</p><p className="text-muted-foreground">"{order.notes}"</p></div>)}
+                     {order.notes && (<div className="mt-4 text-xs bg-muted p-2 rounded-md"><p className="font-semibold">Notas del Proyecto:</p><p className="text-muted-foreground">"{order.notes}"</p></div>)}
                      {order.lastStatusUpdateNotes && (<div className="mt-2 text-xs bg-muted p-2 rounded-md"><p className="font-semibold">Última nota de estado:</p><p className="text-muted-foreground">"{order.lastStatusUpdateNotes}" - <span className="italic">{order.lastStatusUpdateBy}</span></p></div>)}
                      {order.hasBeenModified && order.lastModifiedBy && (<div className="mt-2 text-xs text-red-700 bg-red-100 p-2 rounded-md"><p className="font-semibold">Última Modificación por:</p><p className="">{order.lastModifiedBy} el {format(parseISO(order.lastModifiedAt as string), "dd/MM/yy 'a las' HH:mm")}</p></div>)}
                 </CardContent>
@@ -262,26 +262,26 @@ export default function PlannerPage() {
     return (
         <main className="flex-1 p-4 md:p-6 lg:p-8">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
-                <h1 className="text-lg font-semibold md:text-2xl">Órdenes de Producción</h1>
+                <h1 className="text-lg font-semibold md:text-2xl">Gestor de Proyectos</h1>
                  <div className="flex items-center gap-2 md:gap-4 flex-wrap">
                     <Button variant="outline" onClick={() => actions.loadInitialData()} disabled={state.isLoading}>
                         {state.isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCcw className="mr-2 h-4 w-4" />}
                         Refrescar
                     </Button>
                      <div className="flex items-center gap-1">
-                        <Button variant={state.viewingArchived ? "outline" : "secondary"} onClick={() => actions.setViewingArchived(false)}>Activas</Button>
-                        <Button variant={state.viewingArchived ? "secondary" : "outline"} onClick={() => actions.setViewingArchived(true)}>Archivadas</Button>
+                        <Button variant={state.viewingArchived ? "outline" : "secondary"} onClick={() => actions.setViewingArchived(false)}>Activos</Button>
+                        <Button variant={state.viewingArchived ? "secondary" : "outline"} onClick={() => actions.setViewingArchived(true)}>Archivados</Button>
                      </div>
                      {selectors.hasPermission('planner:create') && (
                         <Dialog open={state.isNewOrderDialogOpen} onOpenChange={actions.setNewOrderDialogOpen}>
                             <DialogTrigger asChild>
-                                <Button><FilePlus className="mr-2"/> Nueva Orden</Button>
+                                <Button><FilePlus className="mr-2"/> Nuevo Proyecto</Button>
                             </DialogTrigger>
                             <DialogContent className="sm:max-w-3xl">
                                 <form onSubmit={(e) => { e.preventDefault(); actions.handleCreateOrder(); }}>
                                     <DialogHeader>
-                                        <DialogTitle>Crear Nueva Orden de Producción</DialogTitle>
-                                        <DialogDescription>Complete los detalles para enviar una nueva orden a producción.</DialogDescription>
+                                        <DialogTitle>Crear Nuevo Proyecto</DialogTitle>
+                                        <DialogDescription>Complete los detalles para enviar un nuevo proyecto.</DialogDescription>
                                     </DialogHeader>
                                     <ScrollArea className="h-[60vh] md:h-auto">
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4">
@@ -299,24 +299,24 @@ export default function PlannerPage() {
                                                 />
                                             </div>
                                             <div className="space-y-2">
-                                                <Label htmlFor="product-search">Producto</Label>
+                                                <Label htmlFor="product-search">Descripción del Proyecto</Label>
                                                 <SearchInput
                                                     options={selectors.productOptions}
                                                     onSelect={actions.handleSelectProduct}
                                                     value={state.productSearchTerm}
                                                     onValueChange={actions.setProductSearchTerm}
-                                                    placeholder="Buscar producto..."
+                                                    placeholder="Buscar o describir el proyecto..."
                                                     onKeyDown={actions.handleProductInputKeyDown}
                                                     open={state.isProductSearchOpen}
                                                     onOpenChange={actions.setProductSearchOpen}
                                                 />
                                             </div>
                                             <div className="space-y-2">
-                                                <Label htmlFor="new-order-purchase-order">Nº Orden de Compra (Opcional)</Label>
+                                                <Label htmlFor="new-order-purchase-order">Nº OC Cliente (Opcional)</Label>
                                                 <Input id="new-order-purchase-order" placeholder="Ej: OC-12345" value={state.newOrder.purchaseOrder || ''} onChange={(e) => actions.setNewOrder({ purchaseOrder: e.target.value })} />
                                             </div>
                                             <div className="space-y-2">
-                                                <Label htmlFor="new-order-quantity">Cantidad Solicitada</Label>
+                                                <Label htmlFor="new-order-quantity">Cantidad</Label>
                                                 <Input id="new-order-quantity" type="number" placeholder="0.00" value={state.newOrder.quantity || ''} onChange={e => actions.setNewOrder({ quantity: Number(e.target.value) })} required />
                                             </div>
                                             <div className="space-y-2">
@@ -342,13 +342,13 @@ export default function PlannerPage() {
                                             </div>
                                             <div className="space-y-2 col-span-1 md:col-span-2">
                                                 <Label htmlFor="new-order-notes">Notas Adicionales</Label>
-                                                <Textarea id="new-order-notes" placeholder="Instrucciones especiales, detalles del pedido, etc." value={state.newOrder.notes || ''} onChange={e => actions.setNewOrder({ notes: e.target.value })} />
+                                                <Textarea id="new-order-notes" placeholder="Instrucciones especiales, detalles del proyecto, etc." value={state.newOrder.notes || ''} onChange={e => actions.setNewOrder({ notes: e.target.value })} />
                                             </div>
                                         </div>
                                     </ScrollArea>
                                     <DialogFooter>
                                         <DialogClose asChild><Button type="button" variant="ghost">Cancelar</Button></DialogClose>
-                                        <Button type="submit" disabled={state.isSubmitting}>{state.isSubmitting && <Loader2 className="mr-2 animate-spin"/>}Crear Orden</Button>
+                                        <Button type="submit" disabled={state.isSubmitting}>{state.isSubmitting && <Loader2 className="mr-2 animate-spin"/>}Crear Proyecto</Button>
                                     </DialogFooter>
                                 </form>
                             </DialogContent>
@@ -359,7 +359,7 @@ export default function PlannerPage() {
             <Card>
                 <CardContent className="p-4 space-y-4">
                     <div className="flex flex-col md:flex-row gap-4">
-                        <Input placeholder="Buscar por Nº orden, cliente o producto..." value={state.searchTerm} onChange={(e) => actions.setSearchTerm(e.target.value)} className="max-w-sm" />
+                        <Input placeholder="Buscar por Nº proyecto, cliente o descripción..." value={state.searchTerm} onChange={(e) => actions.setSearchTerm(e.target.value)} className="max-w-sm" />
                         <Select value={state.statusFilter} onValueChange={actions.setStatusFilter}>
                             <SelectTrigger className="w-full md:w-[180px]"><SelectValue placeholder="Filtrar por estado..." /></SelectTrigger>
                             <SelectContent>
@@ -412,8 +412,8 @@ export default function PlannerPage() {
                 ) : (
                     <div className="col-span-full flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
                         <div className="flex flex-col items-center gap-2 text-center">
-                            <h3 className="text-2xl font-bold tracking-tight">No se encontraron órdenes.</h3>
-                            <p className="text-sm text-muted-foreground">Intenta ajustar los filtros de búsqueda o crea una nueva orden.</p>
+                            <h3 className="text-2xl font-bold tracking-tight">No se encontraron proyectos.</h3>
+                            <p className="text-sm text-muted-foreground">Intenta ajustar los filtros de búsqueda o crea un nuevo proyecto.</p>
                         </div>
                     </div>
                 )}
@@ -432,7 +432,7 @@ export default function PlannerPage() {
                 <DialogContent className="sm:max-w-3xl">
                     <form onSubmit={actions.handleEditOrder}>
                         <DialogHeader>
-                            <DialogTitle>Editar Orden de Producción - {state.orderToEdit?.consecutive}</DialogTitle>
+                            <DialogTitle>Editar Proyecto - {state.orderToEdit?.consecutive}</DialogTitle>
                             <DialogDescription>Modifique los campos necesarios y guarde los cambios.</DialogDescription>
                         </DialogHeader>
                         <ScrollArea className="h-[60vh] md:h-auto">
@@ -442,7 +442,7 @@ export default function PlannerPage() {
                                     <Input value={state.orderToEdit?.customerName || ''} disabled />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label>Producto</Label>
+                                    <Label>Descripción</Label>
                                     <Input value={state.orderToEdit?.productDescription || ''} disabled />
                                 </div>
                                 <div className="space-y-2">
@@ -474,7 +474,7 @@ export default function PlannerPage() {
             <Dialog open={state.isStatusDialogOpen} onOpenChange={actions.setStatusDialogOpen}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Actualizar Estado de la Orden</DialogTitle>
+                        <DialogTitle>Actualizar Estado del Proyecto</DialogTitle>
                         <DialogDescription>Estás a punto de cambiar el estado a "{state.newStatus ? selectors.statusConfig[state.newStatus]?.label : ''}".</DialogDescription>
                     </DialogHeader>
                     <div className="py-4 space-y-4">
@@ -511,8 +511,8 @@ export default function PlannerPage() {
              <Dialog open={state.isReopenDialogOpen} onOpenChange={(isOpen) => { actions.setReopenDialogOpen(isOpen); if (!isOpen) { actions.setReopenStep(0); actions.setReopenConfirmationText(''); }}}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2"><AlertTriangle className="text-destructive" /> Reabrir Orden Finalizada</DialogTitle>
-                        <DialogDescription>Estás a punto de reabrir la orden {state.orderToUpdate?.consecutive}. Esta acción es irreversible y moverá la orden de nuevo a "Pendiente".</DialogDescription>
+                        <DialogTitle className="flex items-center gap-2"><AlertTriangle className="text-destructive" /> Reabrir Proyecto Finalizado</DialogTitle>
+                        <DialogDescription>Estás a punto de reabrir el proyecto {state.orderToUpdate?.consecutive}. Esta acción es irreversible y moverá el proyecto de nuevo a "Pendiente".</DialogDescription>
                     </DialogHeader>
                     <div className="py-4 space-y-4">
                         <div className="flex items-center space-x-2">
@@ -528,7 +528,7 @@ export default function PlannerPage() {
                     </div>
                     <DialogFooter>
                         <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
-                        <Button onClick={actions.handleReopenOrder} disabled={state.reopenStep !== 2 || state.reopenConfirmationText !== 'REABRIR' || state.isSubmitting}>{state.isSubmitting && <Loader2 className="mr-2 animate-spin"/>}Reabrir Orden</Button>
+                        <Button onClick={actions.handleReopenOrder} disabled={state.reopenStep !== 2 || state.reopenConfirmationText !== 'REABRIR' || state.isSubmitting}>{state.isSubmitting && <Loader2 className="mr-2 animate-spin"/>}Reabrir Proyecto</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -536,8 +536,8 @@ export default function PlannerPage() {
             <Dialog open={state.isHistoryDialogOpen} onOpenChange={actions.setHistoryDialogOpen}>
                 <DialogContent className="sm:max-w-2xl">
                     <DialogHeader>
-                        <DialogTitle>Historial de Cambios - Orden {state.historyOrder?.consecutive}</DialogTitle>
-                        <DialogDescription>Registro de todos los cambios de estado para esta orden.</DialogDescription>
+                        <DialogTitle>Historial de Cambios - Proyecto {state.historyOrder?.consecutive}</DialogTitle>
+                        <DialogDescription>Registro de todos los cambios de estado para este proyecto.</DialogDescription>
                     </DialogHeader>
                     <div className="py-4">
                         {state.isHistoryLoading ? (
@@ -558,7 +558,7 @@ export default function PlannerPage() {
                                 </Table>
                             </ScrollArea>
                         ) : (
-                            <p className="text-center text-muted-foreground py-8">No hay historial de cambios para esta orden.</p>
+                            <p className="text-center text-muted-foreground py-8">No hay historial de cambios para este proyecto.</p>
                         )}
                     </div>
                 </DialogContent>
@@ -567,8 +567,8 @@ export default function PlannerPage() {
             <Dialog open={state.isAddNoteDialogOpen} onOpenChange={actions.setAddNoteDialogOpen}>
                 <DialogContent>
                      <DialogHeader>
-                        <DialogTitle>Añadir Nota a la Orden {state.notePayload?.orderId}</DialogTitle>
-                        <DialogDescription>Agrega una nota o actualización a la orden sin cambiar su estado actual.</DialogDescription>
+                        <DialogTitle>Añadir Nota al Proyecto {state.notePayload?.orderId}</DialogTitle>
+                        <DialogDescription>Agrega una nota o actualización al proyecto sin cambiar su estado actual.</DialogDescription>
                     </DialogHeader>
                      <div className="py-4 space-y-2">
                         <Label htmlFor="add-note-textarea">Nota</Label>

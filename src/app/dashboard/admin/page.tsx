@@ -17,7 +17,7 @@ export default function AdminDashboardPage() {
     const { unreadSuggestionsCount } = useAuth();
 
     useEffect(() => {
-        setTitle("Configuración");
+        setTitle("Administración");
     }, [setTitle]);
 
     const isAuthorized = hasPermission('admin:settings:general'); // Example check
@@ -84,7 +84,7 @@ export default function AdminDashboardPage() {
         <div className="grid gap-8">
           <div>
             <h2 className="mb-4 text-2xl font-bold tracking-tight">
-              Herramientas de Administración
+              Centro de Administración
             </h2>
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {visibleAdminTools.map((tool) => {

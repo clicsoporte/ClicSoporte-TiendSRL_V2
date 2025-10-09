@@ -7,8 +7,8 @@ import { AuthProvider } from "@/modules/core/hooks/useAuth";
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
 export const metadata: Metadata = {
-  title: "Clic-Tools",
-  description: "Your integrated tools dashboard.",
+  title: "Clic-Soporte",
+  description: "Centro de comando para empresas de servicios de TI.",
 };
 
 export default function RootLayout({

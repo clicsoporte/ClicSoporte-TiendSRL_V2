@@ -26,9 +26,9 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 const defaultColors = [ '#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#ff7300', '#0088fe', '#00c49f', '#ffbb28' ];
 
 const availableColumns = [
-    { id: 'consecutive', label: 'Nº Orden (OP)' },
+    { id: 'consecutive', label: 'Nº Proyecto' },
     { id: 'customerName', label: 'Cliente' },
-    { id: 'productDescription', label: 'Producto' },
+    { id: 'productDescription', label: 'Descripción' },
     { id: 'quantity', label: 'Cant.' },
     { id: 'deliveryDate', label: 'Fecha Entrega' },
     { id: 'scheduledDate', label: 'Fecha Programada' },
@@ -56,12 +56,12 @@ export default function PlannerSettingsPage() {
     const [newMachine, setNewMachine] = useState({ id: "", name: "" });
 
     useEffect(() => {
-        setTitle("Configuración del Planificador");
+        setTitle("Configuración del Gestor de Proyectos");
         const loadSettings = async () => {
             setIsLoading(true);
             const currentSettings = await getPlannerSettings();
             if (!currentSettings.assignmentLabel) {
-                currentSettings.assignmentLabel = 'Máquina Asignada';
+                currentSettings.assignmentLabel = 'Asignado a';
             }
             if (!currentSettings.customStatuses || currentSettings.customStatuses.length < 4) {
                  currentSettings.customStatuses = [
@@ -96,11 +96,11 @@ export default function PlannerSettingsPage() {
 
     const handleAddMachine = () => {
         if (!settings || !newMachine.id || !newMachine.name) {
-            toast({ title: "Datos incompletos", description: "El ID y el Nombre de la máquina son requeridos.", variant: "destructive" });
+            toast({ title: "Datos incompletos", description: "El ID y el Nombre de la asignación son requeridos.", variant: "destructive" });
             return;
         }
         if (settings.machines.some(m => m.id === newMachine.id)) {
-            toast({ title: "ID Duplicado", description: "Ya existe una máquina con ese ID.", variant: "destructive" });
+            toast({ title: "ID Duplicado", description: "Ya existe una asignación con ese ID.", variant: "destructive" });
             return;
         }
         setSettings(prev => prev ? { ...prev, machines: [...prev.machines, newMachine] } : null);
@@ -152,7 +152,7 @@ export default function PlannerSettingsPage() {
         if (!settings) return;
         try {
             await savePlannerSettings(settings);
-            toast({ title: "Configuración Guardada", description: "Los ajustes del planificador han sido guardados." });
+            toast({ title: "Configuración Guardada", description: "Los ajustes del gestor de proyectos han sido guardados." });
             await logInfo("Planner settings updated", { settings });
         } catch (error: any) {
             logError("Failed to save planner settings", { error: error.message });
@@ -181,21 +181,21 @@ export default function PlannerSettingsPage() {
             <div className="mx-auto max-w-4xl space-y-6">
                 <Card>
                     <CardHeader>
-                        <CardTitle>Configuración General del Planificador</CardTitle>
-                        <CardDescription>Ajustes generales para el módulo de planificación de producción.</CardDescription>
+                        <CardTitle>Configuración del Gestor de Proyectos</CardTitle>
+                        <CardDescription>Ajustes generales para el módulo de planificación de proyectos y tareas.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                              <div className="space-y-2">
-                                <Label htmlFor="orderPrefix">Prefijo de Orden de Producción</Label>
+                                <Label htmlFor="orderPrefix">Prefijo de Proyecto</Label>
                                 <Input
                                     id="orderPrefix"
-                                    value={settings.orderPrefix || 'OP-'}
+                                    value={settings.orderPrefix || 'PROJ-'}
                                     onChange={(e) => setSettings(prev => prev ? { ...prev, orderPrefix: e.target.value } : null)}
                                 />
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="nextOrderNumber">Próximo Número de Orden</Label>
+                                <Label htmlFor="nextOrderNumber">Próximo Número de Proyecto</Label>
                                 <Input
                                     id="nextOrderNumber"
                                     type="number"
@@ -211,7 +211,7 @@ export default function PlannerSettingsPage() {
                                     onChange={(e) => setSettings(prev => prev ? { ...prev, assignmentLabel: e.target.value } : null)}
                                 />
                                 <p className="text-sm text-muted-foreground">
-                                    Cambia el texto que se muestra para la asignación (ej: "Máquina", "Proceso", "Operario").
+                                    Cambia el texto que se muestra para la asignación (ej: "Técnico", "Recurso", "Encargado").
                                 </p>
                             </div>
                         </div>
@@ -234,7 +234,7 @@ export default function PlannerSettingsPage() {
                                 <Label htmlFor="use-warehouse">Habilitar paso de "Recibido en Bodega"</Label>
                             </div>
                             <p className="text-sm text-muted-foreground mt-2">
-                                Si se activa, las órdenes completadas necesitarán un paso adicional para ser archivadas.
+                                Si se activa, los proyectos completados necesitarán un paso adicional para ser archivados.
                             </p>
                              <div className="flex items-center space-x-2">
                                 <Switch
@@ -242,10 +242,10 @@ export default function PlannerSettingsPage() {
                                     checked={settings.requireMachineForStart}
                                     onCheckedChange={(checked) => setSettings(prev => prev ? { ...prev, requireMachineForStart: checked } : null)}
                                 />
-                                <Label htmlFor="require-machine">Requerir asignación para iniciar la orden</Label>
+                                <Label htmlFor="require-machine">Requerir asignación para iniciar el proyecto</Label>
                             </div>
                             <p className="text-sm text-muted-foreground mt-2">
-                               Si se activa, será obligatorio realizar una asignación a la orden antes de poder cambiar su estado a "En Progreso".
+                               Si se activa, será obligatorio realizar una asignación al proyecto antes de poder cambiar su estado a "En Progreso".
                             </p>
                         </div>
                     </CardContent>
@@ -258,7 +258,7 @@ export default function PlannerSettingsPage() {
                                 <CardTitle>Gestión de Asignaciones</CardTitle>
                             </AccordionTrigger>
                             <AccordionContent className="p-6 pt-0">
-                                <CardDescription className="mb-4">Añade o elimina las opciones de asignación disponibles (máquinas, procesos, etc.).</CardDescription>
+                                <CardDescription className="mb-4">Añade o elimina las opciones de asignación disponibles (técnicos, recursos, etc.).</CardDescription>
                                 <div className="space-y-4">
                                     <div className="max-h-60 overflow-y-auto pr-2 space-y-2">
                                         {settings.machines.map(machine => (
@@ -277,11 +277,11 @@ export default function PlannerSettingsPage() {
                                     <div className="flex items-end gap-2 pt-2">
                                         <div className="grid flex-1 gap-2">
                                             <Label htmlFor="machine-id">ID de Asignación</Label>
-                                            <Input id="machine-id" value={newMachine.id} onChange={(e) => setNewMachine(prev => ({ ...prev, id: e.target.value }))} placeholder="Ej: M01" />
+                                            <Input id="machine-id" value={newMachine.id} onChange={(e) => setNewMachine(prev => ({ ...prev, id: e.target.value }))} placeholder="Ej: JUG" />
                                         </div>
                                         <div className="grid flex-1 gap-2">
                                             <Label htmlFor="machine-name">Nombre de Asignación</Label>
-                                            <Input id="machine-name" value={newMachine.name} onChange={(e) => setNewMachine(prev => ({ ...prev, name: e.target.value }))} placeholder="Ej: Prensa Heidelberg" />
+                                            <Input id="machine-name" value={newMachine.name} onChange={(e) => setNewMachine(prev => ({ ...prev, name: e.target.value }))} placeholder="Ej: Jonathan Ugalde" />
                                         </div>
                                         <Button size="icon" onClick={handleAddMachine}>
                                             <PlusCircle className="h-4 w-4" />
@@ -295,7 +295,7 @@ export default function PlannerSettingsPage() {
                     <Card>
                         <AccordionItem value="custom-statuses">
                             <AccordionTrigger className="p-6">
-                                <CardTitle>Estados Personalizados de Órdenes</CardTitle>
+                                <CardTitle>Estados Personalizados de Proyectos</CardTitle>
                             </AccordionTrigger>
                             <AccordionContent className="p-6 pt-0">
                                 <CardDescription className="mb-4">Define hasta 4 estados adicionales para tu flujo de trabajo. Solo se mostrarán si están activos y tienen un nombre.</CardDescription>
@@ -367,7 +367,7 @@ export default function PlannerSettingsPage() {
                                 <CardTitle>Detección de Cambios</CardTitle>
                             </AccordionTrigger>
                             <AccordionContent className="p-6 pt-0">
-                                <CardDescription className="mb-4">Selecciona qué campos, al ser modificados después de que una orden sea aprobada, activarán la alerta "Modificado".</CardDescription>
+                                <CardDescription className="mb-4">Selecciona qué campos, al ser modificados después de que un proyecto sea aprobado, activarán la alerta "Modificado".</CardDescription>
                                 <div className="space-y-4 p-4 border rounded-md">
                                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                                         {availableFieldsToTrack.map(field => (
@@ -392,7 +392,7 @@ export default function PlannerSettingsPage() {
                                 <CardTitle>Configuración de Exportación a PDF</CardTitle>
                             </AccordionTrigger>
                             <AccordionContent className="p-6 pt-0">
-                                <CardDescription className="mb-4">Personaliza el contenido y formato de los reportes PDF del planificador.</CardDescription>
+                                <CardDescription className="mb-4">Personaliza el contenido y formato de los reportes PDF de proyectos.</CardDescription>
                                 <div className="space-y-6">
                                      <div className="space-y-2">
                                         <Label htmlFor="pdf-top-legend">Leyenda Superior del PDF (Opcional)</Label>

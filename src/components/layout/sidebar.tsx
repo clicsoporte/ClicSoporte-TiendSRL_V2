@@ -31,6 +31,7 @@ import {
   Search,
   PackagePlus,
   MessageSquare,
+  Ticket,
 } from "lucide-react";
 import type { Tool } from "../../modules/core/types";
 import { UserNav } from "./user-nav";
@@ -101,12 +102,12 @@ export function AppSidebar() {
       textColor: "text-white",
     },
     {
-      id: "quoter",
-      name: "Cotizador",
-      description: "Crear y gestionar cotizaciones para clientes.",
-      href: "/dashboard/quoter",
-      icon: SheetIcon,
-      bgColor: "bg-green-500",
+      id: "tickets",
+      name: "Soporte Técnico",
+      description: "Gestionar tickets y dar soporte a los clientes.",
+      href: "/dashboard/tickets",
+      icon: Ticket,
+      bgColor: "bg-blue-500",
       textColor: "text-white",
     },
     {
@@ -120,8 +121,8 @@ export function AppSidebar() {
     },
      {
       id: "planner",
-      name: "Planificador OP",
-      description: "Gestionar y visualizar la carga de producción.",
+      name: "Gestor de Proyectos",
+      description: "Gestionar y visualizar proyectos y tareas.",
       href: "/dashboard/planner",
       icon: CalendarCheck,
       bgColor: "bg-purple-500",
@@ -174,7 +175,7 @@ export function AppSidebar() {
             </Link>
           </Button>
           <h2 className="text-lg font-semibold tracking-tight text-sidebar-foreground">
-            {companyData?.systemName || 'Clic-Tools'}
+            {companyData?.systemName || 'Clic-Soporte'}
           </h2>
         </SidebarHeader>
         <SidebarContent>
@@ -216,11 +217,11 @@ export function AppSidebar() {
                     <SidebarMenuButton
                         asChild
                         isActive={isActive("/dashboard/admin")}
-                        tooltip={{ children: "Configuración", badgeCount: unreadSuggestionsCount }}
+                        tooltip={{ children: "Administración", badgeCount: unreadSuggestionsCount }}
                     >
                         <Link href="/dashboard/admin" onClick={handleLinkClick} className="relative">
                            <Wrench />
-                           <span>Configuración</span>
+                           <span>Administración</span>
                         </Link>
                     </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -238,7 +239,7 @@ export function AppSidebar() {
             </div>
           </div>
            <div className="text-center text-xs text-sidebar-foreground/50 p-2 group-data-[collapsible=icon]:hidden">
-                Clic-Tools v1.5 - ClicSoporte
+                Clic-Soporte v2.0
            </div>
         </SidebarFooter>
       </Sidebar>
