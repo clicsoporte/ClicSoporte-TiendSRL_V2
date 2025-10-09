@@ -25,7 +25,7 @@ const parseDecimal = (str: any): number => {
         return parseFloat(s.replace(/\./g, '').replace(',', '.'));
     }
     
-    // If no comma exists, treat as a standard float.
+    // If no comma exists, treat as a standard float, respecting the dot as decimal separator
     return parseFloat(s);
 };
 
@@ -104,7 +104,7 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
         const codigosComerciales = Array.isArray(codigosComercialesRaw) ? codigosComercialesRaw : [codigosComercialesRaw];
         
         if (codigosComerciales.length > 0) {
-            const preferredCodeNode = codigosComerciales.find((c: any) => c.Tipo === '01' || c.Tipo === '04');
+            const preferredCodeNode = codigosComerciales.find((c: any) => c.Tipo === '01');
             if (preferredCodeNode && preferredCodeNode.Codigo) {
                 supplierCode = preferredCodeNode.Codigo;
                 supplierCodeType = preferredCodeNode.Tipo;
@@ -230,78 +230,52 @@ export async function deleteDraft(id: string): Promise<void> {
 }
 
 export async function exportForERP(lines: CostAssistantLine[]): Promise<string> {
-    // Map data to the specific column structure of the ERP template
-    const dataForExport = lines.map(line => {
-        const row: any = {
-            'NOMBRE (Requerido)': line.description,
-            'UNIDAD DE MEDIDA (Requerido)': '78-Unid-Unidad',
-            'PRECIO (Sin impuestos) (Requerido)': line.sellPriceWithoutTax.toFixed(5),
-            'MONEDA': 'CRC',
-            'IMP.01': line.taxCode || '08', // Use the tax code from XML
-            'CÓDIGO CABYS': line.cabysCode,
-            'ESTADO': 'A',
-            'ACTIVIDAD ECONOMICA': '4651.0',
-        };
-
-        // Add the SKU to the correct column based on its type
-        // Following the user's example where type 01 maps to column 04
-        const codeType = line.supplierCodeType || '04';
-        if (codeType === '01') {
-            row['CODIGOS 04'] = line.supplierCode;
-        } else if (['02', '03', '04', '99'].includes(codeType)) {
-            row[`CODIGOS ${codeType}`] = line.supplierCode;
-        } else {
-            row['CODIGOS 99'] = line.supplierCode; // Fallback
-        }
-
-        return row;
-    });
-
-    // Define the full header structure based on the user's image
-    const ws_data = [
-        [
-            "CODIGOS (Requerido)", null, null, null, null, "PARTIDA ARANCELARIA (Opcional)", "NOMBRE (Requerido)", 
-            "DESCRIPCION (Opcional)", "UNIDAD DE MEDIDA (Requerido)", "UNIDAD DE MEDIDA COMERCIAL (Opcional)", 
-            "PRECIO (Sin impuestos) (Requerido)", "MONEDA", "ACTIVIDAD ECONOMICA", "BASE IMPONIBLE", "IMPUESTOS (Opcional)", 
-            null, null, null, null, null, null, null, null, null, null, null, null, "MUESTRA DESCRIPCION PDF (OPCIONAL)", 
-            "CÓDIGO CABYS", "ESTADO", "REGISTRO DE MEDICAMENTO", "FORMA FARMACÉUTICA"
-        ],
-        [
-            "01", "02", "03", "04", "99", null, null, null, null, null, null, null, null, null,
-            "IMP.01", "IMP.02", "IMPUESTO ESPECIFICO", "CANTIDAD UNIDAD MEDIDA", "PORCENTAJE",
-            "VOLUMEN UNIDAD CONSUMO", "IMPUESTO UNIDAD", "TIPO DE PRODUCTO", "IMP.07", "IMP.08",
-            "IMP.12", "IMP.99", "IMP.99 DESCRIPCIÓN"
-        ]
+    // This function now generates an Excel file that matches the user's ERP template.
+    
+    const headerRow1 = [
+        "CODIGOS (Requerido)", "NOMBRE (Requerido)", "UNIDAD DE MEDIDA (Requerido)", 
+        "PRECIO (Sin impuestos) (Requerido)", "MONEDA", "ACTIVIDAD ECONOMICA", 
+        "IMPUESTOS (Opcional)", "CÓDIGO CABYS", "ESTADO"
+    ];
+    const headerRow2 = [
+        "04", null, null, null, null, null, "IMP.01"
     ];
     
+    // Create the AoA (Array of Arrays) for the worksheet
+    const ws_data = [headerRow1, headerRow2];
+    
+    // Map data to the correct structure for the ERP template
+    lines.forEach(line => {
+        const row: (string | number | null)[] = new Array(headerRow1.length).fill(null);
+
+        row[0] = line.supplierCode; // CODIGOS 04
+        row[1] = line.description; // NOMBRE
+        row[2] = '78-Unid-Unidad'; // UNIDAD DE MEDIDA
+        row[3] = Number(line.sellPriceWithoutTax.toFixed(5)); // PRECIO
+        row[4] = 'CRC'; // MONEDA
+        row[5] = '4651.0'; // ACTIVIDAD ECONOMICA
+        row[6] = line.taxCode; // IMP.01
+        row[7] = line.cabysCode; // CÓDIGO CABYS
+        row[8] = 'A'; // ESTADO
+        
+        ws_data.push(row);
+    });
+
     const worksheet = XLSX.utils.aoa_to_sheet(ws_data);
     
-    // Create an array of objects for sheet_add_json, but ensure the order of columns
-    const headers = [
-        'CODIGOS 01', 'CODIGOS 02', 'CODIGOS 03', 'CODIGOS 04', 'CODIGOS 99', 'PARTIDA ARANCELARIA (Opcional)',
-        'NOMBRE (Requerido)', 'DESCRIPCION (Opcional)', 'UNIDAD DE MEDIDA (Requerido)', 'UNIDAD DE MEDIDA COMERCIAL (Opcional)',
-        'PRECIO (Sin impuestos) (Requerido)', 'MONEDA', 'ACTIVIDAD ECONOMICA', 'BASE IMPONIBLE',
-        'IMP.01', 'IMP.02', 'IMPUESTO ESPECIFICO', 'CANTIDAD UNIDAD MEDIDA', 'PORCENTAJE', 'VOLUMEN UNIDAD CONSUMO',
-        'IMPUESTO UNIDAD', 'TIPO DE PRODUCTO', 'IMP.07', 'IMP.08', 'IMP.12', 'IMP.99', 'IMP.99 DESCRIPCIÓN',
-        'MUESTRA DESCRIPCION PDF (OPCIONAL)', 'CÓDIGO CABYS', 'ESTADO', 'REGISTRO DE MEDICAMENTO', 'FORMA FARMACÉUTICA'
+    // Define column widths for better readability
+    worksheet['!cols'] = [
+        { wch: 15 }, // CODIGOS 04
+        { wch: 60 }, // NOMBRE
+        { wch: 20 }, // UNIDAD DE MEDIDA
+        { wch: 20 }, // PRECIO
+        { wch: 10 }, // MONEDA
+        { wch: 20 }, // ACTIVIDAD ECONOMICA
+        { wch: 10 }, // IMP.01
+        { wch: 20 }, // CÓDIGO CABYS
+        { wch: 10 }, // ESTADO
     ];
 
-    const jsonData = dataForExport.map(item => {
-        const orderedItem: any = {};
-        // Use a much wider range of columns to ensure all possible headers are covered.
-        const allHeaders = ['CODIGOS 01', 'CODIGOS 02', 'CODIGOS 03', 'CODIGOS 04', 'CODIGOS 99', 'PARTIDA ARANCELARIA (Opcional)', 'NOMBRE (Requerido)', 'DESCRIPCION (Opcional)', 'UNIDAD DE MEDIDA (Requerido)', 'UNIDAD DE MEDIDA COMERCIAL (Opcional)', 'PRECIO (Sin impuestos) (Requerido)', 'MONEDA', 'ACTIVIDAD ECONOMICA', 'BASE IMPONIBLE', 'IMP.01', 'IMP.02', 'IMPUESTO ESPECIFICO', 'CANTIDAD UNIDAD MEDIDA', 'PORCENTAJE', 'VOLUMEN UNIDAD CONSUMO', 'IMPUESTO UNIDAD', 'TIPO DE PRODUCTO', 'IMP.07', 'IMP.08', 'IMP.12', 'IMP.99', 'IMP.99 DESCRIPCIÓN', 'MUESTRA DESCRIPCION PDF (OPCIONAL)', 'CÓDIGO CABYS', 'ESTADO', 'REGISTRO DE MEDICAMENTO', 'FORMA FARMACÉUTICA'];
-        allHeaders.forEach(header => {
-            orderedItem[header] = item[header] || null;
-        });
-        return orderedItem;
-    });
-
-    XLSX.utils.sheet_add_json(worksheet, jsonData, {
-        header: headers,
-        origin: "A3",
-        skipHeader: true 
-    });
-    
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Articulos');
     
