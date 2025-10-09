@@ -1,4 +1,5 @@
 
+
 /**
  * @fileoverview Server-side functions for the support tickets database.
  */
@@ -287,4 +288,21 @@ export async function getHelpTopics(): Promise<HelpTopic[]> {
         console.error("Failed to get help topics:", error);
         return [];
     }
+}
+
+export async function addHelpTopic(topic: Omit<HelpTopic, 'id'>): Promise<HelpTopic> {
+    const db = await connectDb(TICKETS_DB_FILE);
+    const info = db.prepare('INSERT INTO help_topics (name, defaultPriority, defaultAssigneeId) VALUES (?, ?, ?)').run(topic.name, topic.defaultPriority, topic.defaultAssigneeId);
+    return db.prepare('SELECT * FROM help_topics WHERE id = ?').get(info.lastInsertRowid) as HelpTopic;
+}
+
+export async function updateHelpTopic(topic: HelpTopic): Promise<HelpTopic> {
+    const db = await connectDb(TICKETS_DB_FILE);
+    db.prepare('UPDATE help_topics SET name = ?, defaultPriority = ?, defaultAssigneeId = ? WHERE id = ?').run(topic.name, topic.defaultPriority, topic.defaultAssigneeId, topic.id);
+    return topic;
+}
+
+export async function deleteHelpTopic(id: number): Promise<void> {
+    const db = await connectDb(TICKETS_DB_FILE);
+    db.prepare('DELETE FROM help_topics WHERE id = ?').run(id);
 }

@@ -1,4 +1,5 @@
 
+
 /**
  * @fileoverview Client-side functions for interacting with the ticket module's server-side DB functions.
  */
@@ -6,7 +7,18 @@
 
 import { logInfo, logError } from '@/modules/core/lib/logger';
 import type { Ticket, NewTicketPayload, User, TicketThread, HelpTopic } from '@/modules/core/types';
-import { addTicket, getTickets as getTicketsServer, getTicketById as getTicketByIdServer, getTicketThread as getTicketThreadServer, addThreadEntry as addThreadEntryServer, updateTicketDetails as updateTicketDetailsServer, getHelpTopics as getHelpTopicsServer } from './db';
+import { 
+    addTicket, 
+    getTickets as getTicketsServer, 
+    getTicketById as getTicketByIdServer, 
+    getTicketThread as getTicketThreadServer, 
+    addThreadEntry as addThreadEntryServer, 
+    updateTicketDetails as updateTicketDetailsServer, 
+    getHelpTopics as getHelpTopicsServer,
+    addHelpTopic as addHelpTopicServer,
+    updateHelpTopic as updateHelpTopicServer,
+    deleteHelpTopic as deleteHelpTopicServer
+} from './db';
 
 /**
  * Saves a new ticket to the database.
@@ -85,4 +97,30 @@ export async function updateTicketDetails(ticketId: number, updates: Partial<Pic
  */
 export async function getHelpTopics(): Promise<HelpTopic[]> {
     return getHelpTopicsServer();
+}
+
+/**
+ * Adds a new help topic.
+ * @param topic - The help topic data.
+ * @returns The newly created help topic.
+ */
+export async function addHelpTopic(topic: Omit<HelpTopic, 'id'>): Promise<HelpTopic> {
+    return addHelpTopicServer(topic);
+}
+
+/**
+ * Updates an existing help topic.
+ * @param topic - The help topic data to update.
+ * @returns The updated help topic.
+ */
+export async function updateHelpTopic(topic: HelpTopic): Promise<HelpTopic> {
+    return updateHelpTopicServer(topic);
+}
+
+/**
+ * Deletes a help topic.
+ * @param id - The ID of the help topic to delete.
+ */
+export async function deleteHelpTopic(id: number): Promise<void> {
+    return deleteHelpTopicServer(id);
 }
