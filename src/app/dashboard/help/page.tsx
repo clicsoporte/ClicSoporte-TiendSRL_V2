@@ -65,7 +65,7 @@ export default function HelpPage() {
                     ¡Bienvenido a <strong>{companyData?.systemName || "la Aplicación"}</strong>! Piensa en este sistema como tu navaja suiza digital para las tareas diarias de la empresa. Ha sido diseñado para ser súper rápido y fácil de usar desde cualquier computadora en la oficina.
                     </p>
                     <p>
-                    El objetivo es simple: tener todas las herramientas importantes (como hacer cotizaciones, solicitudes de compra o planificar la producción) en un solo lugar, con la flexibilidad de obtener datos tanto de archivos de texto como directamente desde el ERP.
+                    El objetivo es simple: tener todas las herramientas importantes (como hacer cotizaciones, solicitudes de compra o gestionar proyectos) en un solo lugar, con la flexibilidad de obtener datos tanto de archivos de texto como directamente desde el ERP.
                     </p>
                 </AccordionContent>
                 </AccordionItem>
@@ -184,7 +184,7 @@ export default function HelpPage() {
                         <strong>Paso 1: Crear Solicitud (<FilePlusIcon className="inline h-4 w-4" />):</strong> Haz clic en "Nueva Solicitud" para abrir el formulario. Busca al cliente y el artículo de la misma forma que en el cotizador. Completa los campos como la cantidad requerida y la fecha en que lo necesitas.
                     </li>
                      <li>
-                        <strong>Paso 2: Integración con Planificador.</strong> Antes de guardar, fíjate en la casilla **"Generar OP al Recibir"**. Si marcas esta opción, en cuanto la solicitud sea marcada como "Recibida", el sistema creará automáticamente una Orden de Producción en el Gestor de Proyectos con los datos de esta compra.
+                        <strong>Paso 2: Integración con Gestor de Proyectos.</strong> Antes de guardar, fíjate en la casilla **"Generar Proyecto al Recibir"**. Si marcas esta opción, en cuanto la solicitud sea marcada como "Recibida", el sistema creará automáticamente un **Proyecto** en el Gestor de Proyectos con los datos de esta compra.
                     </li>
                     <li>
                         <strong>Paso 3: Entender el Flujo de Estados.</strong> Las solicitudes pasan por varios estados para un seguimiento claro:
@@ -213,46 +213,46 @@ export default function HelpPage() {
                 <AccordionItem value="item-planner">
                 <AccordionTrigger className="text-lg font-semibold">
                     <CalendarCheck className="mr-4 h-6 w-6 text-purple-500" />
-                    Tutorial: Módulo Gestor de Proyectos (OP)
+                    Tutorial: Módulo Gestor de Proyectos
                 </AccordionTrigger>
                 <AccordionContent className="prose max-w-none text-base space-y-4">
                     <p>
-                    Organiza y visualiza la carga de trabajo del taller o la producción. Permite un seguimiento detallado de cada orden.
+                    Organiza y visualiza la carga de trabajo del taller o la producción. Permite un seguimiento detallado de cada proyecto.
                     </p>
                     <ul className="list-disc space-y-3 pl-6">
                         <li>
-                            <strong>Paso 1: Crear Órdenes.</strong> Similar a los otros módulos, crea una nueva orden de producción buscando al cliente y el producto. Establece la cantidad, la fecha de entrega y la prioridad.
+                            <strong>Paso 1: Crear Proyectos.</strong> Similar a los otros módulos, crea un nuevo proyecto buscando al cliente y el producto. Establece la cantidad, la fecha de entrega y la prioridad.
                         </li>
                         <li>
                             <strong>Paso 2: Flujo de Estados y Trazabilidad.</strong>
                             <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
-                                <li><strong>Pendiente:</strong> La orden ha sido creada y espera aprobación.</li>
-                                <li><strong>Aprobada (<CheckCircle className="inline h-4 w-4 text-green-600"/>):</strong> La orden está autorizada para producción.</li>
-                                <li><strong>En Cola (<Hourglass className="inline h-4 w-4 text-cyan-600"/>):</strong> La orden está lista, esperando que se libere un recurso (ej: una máquina) para poder iniciar.</li>
-                                <li><strong>En Progreso (<Play className="inline h-4 w-4 text-blue-600"/>):</strong> La orden se está produciendo activamente.</li>
+                                <li><strong>Pendiente:</strong> El proyecto ha sido creado y espera aprobación.</li>
+                                <li><strong>Aprobado (<CheckCircle className="inline h-4 w-4 text-green-600"/>):</strong> El proyecto está autorizado para producción.</li>
+                                <li><strong>En Cola (<Hourglass className="inline h-4 w-4 text-cyan-600"/>):</strong> El proyecto está listo, esperando que se libere un recurso (ej: una máquina) para poder iniciar.</li>
+                                <li><strong>En Progreso (<Play className="inline h-4 w-4 text-blue-600"/>):</strong> El proyecto se está produciendo activamente.</li>
                                 <li><strong>En Espera / Mantenimiento (<Pause className="inline h-4 w-4 text-gray-600"/>):</strong> La producción se detuvo temporalmente.</li>
-                                <li><strong>Completada (<PackageCheck className="inline h-4 w-4 text-teal-600"/>):</strong> La producción ha finalizado.</li>
+                                <li><strong>Completado (<PackageCheck className="inline h-4 w-4 text-teal-600"/>):</strong> La producción ha finalizado.</li>
                                 <li><strong>En Bodega (<Warehouse className="inline h-4 w-4 text-gray-700"/>):</strong> (Opcional) El producto terminado ya está en el almacén.</li>
                             </ul>
                         </li>
                         <li>
                             <strong>Paso 3: Alertas y Solicitudes de Cambio.</strong>
                             <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
-                                <li><strong>Aviso de "Modificado" (<AlertTriangle className="inline h-4 w-4 text-red-600" />):</strong> Si una orden se edita después de ser aprobada, aparecerá esta alerta para notificar a todos sobre el cambio.</li>
-                                <li><strong>Solicitar Desaprobación (<Undo2 className="inline h-4 w-4 text-orange-600"/>):</strong> Si una orden ya aprobada necesita un cambio mayor (ej: cambiar de producto), un usuario puede "Solicitar Desaprobación". Esto bloquea la orden y requiere que un administrador la apruebe o rechace para devolverla al estado "Pendiente".</li>
-                                <li><strong>Solicitar Cancelación (<XCircle className="inline h-4 w-4 text-red-600"/>):</strong> Similar a la desaprobación, permite pedir la cancelación de una orden que ya está en el flujo, requiriendo aprobación administrativa.</li>
+                                <li><strong>Aviso de "Modificado" (<AlertTriangle className="inline h-4 w-4 text-red-600" />):</strong> Si un proyecto se edita después de ser aprobado, aparecerá esta alerta para notificar a todos sobre el cambio.</li>
+                                <li><strong>Solicitar Desaprobación (<Undo2 className="inline h-4 w-4 text-orange-600"/>):</strong> Si un proyecto ya aprobado necesita un cambio mayor (ej: cambiar de producto), un usuario puede "Solicitar Desaprobación". Esto bloquea el proyecto y requiere que un administrador la apruebe o rechace para devolverlo al estado "Pendiente".</li>
+                                <li><strong>Solicitar Cancelación (<XCircle className="inline h-4 w-4 text-red-600"/>):</strong> Similar a la desaprobación, permite pedir la cancelación de un proyecto que ya está en el flujo, requiriendo aprobación administrativa.</li>
                             </ul>
                         </li>
                         <li>
                             <strong>Paso 4: Programación y Prioridades.</strong>
                             <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
                                 <li><strong>Programación por Rango:</strong> Haz clic en el área de "Fecha Programada" para abrir un calendario y seleccionar un rango de fechas de inicio y fin.</li>
-                                <li><strong>Asignación:</strong> Asigna cada orden a una máquina, proceso u operario específico desde el menú desplegable. Estas opciones se configuran en Administración.</li>
+                                <li><strong>Asignación:</strong> Asigna cada proyecto a una máquina, proceso u operario específico desde el menú desplegable. Estas opciones se configuran en Administración.</li>
                                 <li><strong>Prioridades y Cuenta Regresiva:</strong> Usa el selector de prioridad y fíjate en el indicador de días restantes (basado en la fecha de entrega) para organizar el trabajo.</li>
                             </ul>
                         </li>
                         <li>
-                            <strong>Historial (<History className="inline h-4 w-4"/>):</strong> Haz clic en el icono de historial en cualquier orden para ver un registro detallado de cada cambio de estado, quién lo hizo y cuándo.
+                            <strong>Historial (<History className="inline h-4 w-4"/>):</strong> Haz clic en el icono de historial en cualquier proyecto para ver un registro detallado de cada cambio de estado, quién lo hizo y cuándo.
                         </li>
                     </ul>
                 </AccordionContent>
@@ -489,7 +489,7 @@ export default function HelpPage() {
                             </div>
                              <div className="flex items-start gap-4">
                                 <Factory className="mt-1 h-6 w-6 text-purple-700 shrink-0" />
-                                <div><h4 className="font-semibold">Config. Gestor de Proyectos</h4><p>Personaliza el Gestor de Proyectos. Aquí puedes crear y nombrar las "máquinas" o "procesos" que se asignarán a las órdenes de producción.</p></div>
+                                <div><h4 className="font-semibold">Config. Gestor de Proyectos</h4><p>Personaliza el Gestor de Proyectos. Aquí puedes crear y nombrar las opciones de asignación (ej: "Técnicos", "Máquinas") que se usarán en los proyectos.</p></div>
                             </div>
                              <div className="flex items-start gap-4">
                                 <Store className="mt-1 h-6 w-6 text-amber-700 shrink-0" />
@@ -522,7 +522,7 @@ export default function HelpPage() {
                                         <li><strong>Crear un Punto de Restauración (<Save className="inline h-4 w-4"/>):</strong> Genera una copia de seguridad completa de todas las bases de datos del sistema. Es vital hacer esto antes de una actualización.</li>
                                         <li><strong>Restaurar desde un Backup:</strong> Selecciona una fecha de la lista de puntos de restauración disponibles. Cada punto tiene un ícono de descarga (<Download className="inline h-4 w-4"/>) para que puedas guardar una copia local. Usa el checkbox para ver todos los puntos guardados.</li>
                                         <li><strong>Limpiar Backups Antiguos (<Trash2 className="inline h-4 w-4"/>):</strong> Para ahorrar espacio, esta opción elimina todos los puntos de restauración excepto el más reciente, garantizando que siempre tengas un respaldo.</li>
-                                        <li><strong>Zona de Peligro (<AlertTriangle className="inline h-4 w-4"/>):</strong> Permite resetear los datos de un módulo específico (ej: borrar todas las órdenes de producción) sin afectar al resto del sistema, o hacer un reseteo de fábrica total que borra todo.</li>
+                                        <li><strong>Zona de Peligro (<AlertTriangle className="inline h-4 w-4"/>):</strong> Permite resetear los datos de un módulo específico (ej: borrar todos los proyectos) sin afectar al resto del sistema, o hacer un reseteo de fábrica total que borra todo.</li>
                                     </ul>
                                 </div>
                             </div>
@@ -589,7 +589,7 @@ export default function HelpPage() {
                         <h4 className="font-semibold">Proceso de Actualización Seguro:</h4>
                         <ol className="list-decimal space-y-3 pl-6">
                             <li>
-                                <strong>Paso 1: Realizar una Copia de Seguridad (<Copy className="inline h-4 w-4"/>).</strong> Este es el paso más importante. Antes de tocar nada, ve al directorio de la aplicación en tu servidor y haz una copia de seguridad completa de la carpeta `dbs/`. Esta carpeta contiene todas tus bases de datos (usuarios, órdenes, solicitudes, etc.).
+                                <strong>Paso 1: Realizar una Copia de Seguridad (<Copy className="inline h-4 w-4"/>).</strong> Este es el paso más importante. Antes de tocar nada, ve al directorio de la aplicación en tu servidor y haz una copia de seguridad completa de la carpeta `dbs/`. Esta carpeta contiene todas tus bases de datos (usuarios, proyectos, solicitudes, etc.).
                             </li>
                             <li>
                                 <strong>Paso 2: Reemplazar Archivos.</strong> Detén la aplicación (por ejemplo, usando `pm2 stop clic-tools`). Luego, borra todos los archivos y carpetas de la versión anterior **excepto** la carpeta `dbs/` y, si existe, el archivo `.env.local`. Después, copia todos los archivos de la nueva versión en su lugar.
@@ -639,7 +639,7 @@ export default function HelpPage() {
                                 <strong>NUEVA FUNCIONALIDAD: Paquetes de Soporte.</strong> Se permite configurar paquetes de servicios y asignarlos a clientes para validar la cobertura en los tickets.
                             </li>
                              <li>
-                                <strong>Integración Compras-Proyectos:</strong> Se añade la opción en Solicitudes de Compra para generar automáticamente una Orden de Producción al recibir el material.
+                                <strong>Integración Compras-Proyectos:</strong> Se añade la opción en Solicitudes de Compra para generar automáticamente un Proyecto al recibir el material.
                             </li>
                         </ul>
                         <h4 className="font-semibold text-lg">Versión 1.5.2</h4>
@@ -661,5 +661,6 @@ export default function HelpPage() {
     </main>
   );
 }
+
 
 

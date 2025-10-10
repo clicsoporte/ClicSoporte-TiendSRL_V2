@@ -15,7 +15,7 @@
 
 -   **Filosofía de Diseño**:
     -   **Server-Centric**: La mayor parte de la lógica crítica se ejecuta en el servidor (`'use server'`), mejorando la seguridad y el rendimiento.
-    -   **Modularidad**: Cada herramienta (Cotizador, Planificador, Tickets, etc.) tiene su propia base de datos (`.db`), asegurando un desacoplamiento total. Un error o reseteo en un módulo no afecta a los demás.
+    -   **Modularidad**: Cada herramienta (Cotizador, Gestor de Proyectos, Tickets, etc.) tiene su propia base de datos (`.db`), asegurando un desacoplamiento total. Un error o reseteo en un módulo no afecta a los demás.
     -   **Independencia y Resiliencia**: El sistema funciona sobre su propia base de datos SQLite. Los datos del ERP (clientes, productos, etc.) se **sincronizan** a esta base de datos local. Esto significa que la aplicación es extremadamente rápida y puede seguir funcionando incluso si el servidor del ERP no está disponible temporalmente.
     -   **Doble Modo de Importación**:
         1.  **Desde Archivos**: El método tradicional, cargando datos desde archivos de texto (`.txt` o `.csv`). Ideal para una configuración rápida o como método de respaldo.
@@ -55,16 +55,16 @@
 
 ### 3.3. Solicitud de Compra (`/dashboard/requests`)
 - **Flujo de Aprobación:** Gestiona el ciclo de vida de una solicitud, desde "Pendiente" hasta "Recibida" y opcionalmente "En Bodega".
-- **Integración con Planificador:** Permite marcar una solicitud para que, al ser recibida, genere automáticamente una **Orden de Producción** en el Planificador.
+- **Integración con Gestor de Proyectos:** Permite marcar una solicitud para que, al ser recibida, genere automáticamente un **Proyecto** en el Gestor de Proyectos.
 - **Alertas y Trazabilidad:** Las solicitudes modificadas post-aprobación se marcan visualmente, y cada cambio queda en un historial.
 - **Paginación de Archivados**: Las solicitudes archivadas se cargan por páginas, y la búsqueda es eficiente sobre todo el historial.
 
 ### 3.4. Gestor de Proyectos (`/dashboard/planner`)
-- **Gestión de Órdenes:** Permite crear, editar y visualizar órdenes de producción, mostrando siempre el nombre y la cédula del cliente para mayor claridad.
-- **Flujo de Estados Completo:** Controla el ciclo de vida de una orden (Pendiente, Aprobada, En Progreso, Completada, etc.).
-- **Trazabilidad:** Cada cambio de estado, nota o modificación queda registrada en un historial detallado por orden.
-- **Alertas Visuales:** Las órdenes modificadas después de ser aprobadas se marcan visualmente para alertar a los supervisores.
-- **Paginación de Archivados**: Para manejar un gran volumen de datos, las órdenes archivadas se cargan por páginas.
+- **Gestión de Proyectos:** Permite crear, editar y visualizar proyectos, mostrando siempre el nombre y la cédula del cliente para mayor claridad.
+- **Flujo de Estados Completo:** Controla el ciclo de vida de un proyecto (Pendiente, Aprobado, En Progreso, Completado, etc.).
+- **Trazabilidad:** Cada cambio de estado, nota o modificación queda registrada en un historial detallado por proyecto.
+- **Alertas Visuales:** Los proyectos modificados después de ser aprobados se marcan visualmente para alertar a los supervisores.
+- **Paginación de Archivados**: Para manejar un gran volumen de datos, los proyectos archivados se cargan por páginas.
 
 ### 3.5. Soporte Técnico (Tickets) (`/dashboard/tickets`)
 - **Gestión Centralizada:** Permite crear y dar seguimiento a los tickets de soporte de los clientes.
@@ -157,7 +157,7 @@ Actualizar la aplicación a una nueva versión sin perder datos es un proceso cr
 ### Proceso de Actualización Seguro:
 
 1.  **Paso 1: Realizar una Copia de Seguridad (¡CRÍTICO!)**
-    -   Antes de hacer cualquier cambio, haz una copia de seguridad completa de la carpeta `dbs/`. Esta carpeta contiene todos los datos de tu aplicación (usuarios, órdenes, solicitudes, tickets, etc.). Simplemente copia y pega esta carpeta en un lugar seguro.
+    -   Antes de hacer cualquier cambio, haz una copia de seguridad completa de la carpeta `dbs/`. Esta carpeta contiene todos los datos de tu aplicación (usuarios, proyectos, solicitudes, tickets, etc.). Simplemente copia y pega esta carpeta en un lugar seguro.
     -   Haz también una copia del archivo `.env.local` si lo estás usando para la conexión SQL.
 
 2.  **Paso 2: Reemplazar los Archivos de la Aplicación**
