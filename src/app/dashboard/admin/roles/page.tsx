@@ -55,6 +55,10 @@ import { ScrollArea } from "../../../../components/ui/scroll-area";
 const permissionGroups = {
     "Acceso General": ["dashboard:access"],
     "Cotizador": ["quotes:create", "quotes:generate", "quotes:drafts:create", "quotes:drafts:read", "quotes:drafts:delete"],
+    "Asistente de Costos": ["cost-assistant:access"],
+    "Soporte Técnico": ["tickets:create", "tickets:read:all", "tickets:update", "tickets:delete", "tickets:admin:settings"],
+    "Gestión de Licencias": ["licenses:read", "licenses:manage"],
+    "Hoja de Tiempos": ["timesheet:create", "timesheet:read:all", "timesheet:edit:all", "timesheet:delete:all"],
     "Solicitud de Compra (Lectura y Creación)": ["requests:read", "requests:create"],
     "Solicitud de Compra (Edición)": ["requests:edit:pending", "requests:edit:approved"],
     "Solicitud de Compra (Acciones)": ["requests:reopen", "requests:status:approve", "requests:status:ordered", "requests:status:received", "requests:status:cancel"],
@@ -80,11 +84,23 @@ const permissionGroups = {
 
 const permissionTranslations: { [key: string]: string } = {
     "dashboard:access": "Acceso al Panel",
+    "cost-assistant:access": "Acceder al Asistente",
     "quotes:create": "Cotizador: Acceder y Crear",
     "quotes:generate": "Cotizador: Generar PDF Final",
     "quotes:drafts:create": "Borradores: Crear",
     "quotes:drafts:read": "Borradores: Cargar",
     "quotes:drafts:delete": "Borradores: Eliminar",
+    "tickets:create": "Tickets: Crear",
+    "tickets:read:all": "Tickets: Ver Todos",
+    "tickets:update": "Tickets: Actualizar",
+    "tickets:delete": "Tickets: Eliminar",
+    "tickets:admin:settings": "Tickets: Administrar Configuración",
+    "licenses:read": "Licencias: Leer",
+    "licenses:manage": "Licencias: Gestionar (Crear/Editar/Eliminar)",
+    "timesheet:create": "Tiempos: Registrar",
+    "timesheet:read:all": "Tiempos: Ver Todos",
+    "timesheet:edit:all": "Tiempos: Editar Todos",
+    "timesheet:delete:all": "Tiempos: Eliminar Todos",
     "requests:read": "Compras: Leer",
     "requests:create": "Compras: Crear",
     "requests:edit:pending": "Compras: Editar (Pendientes)",
@@ -375,7 +391,7 @@ export default function RolesPage() {
                     <CardTitle className="text-xl">{role.name}</CardTitle>
                     <Badge variant="secondary" className="w-fit">{role.id}</Badge>
                   </div>
-                  {role.id !== 'admin' && role.id !== 'viewer' && role.id !== 'planner-user' && role.id !== 'requester-user' && (
+                  {role.id !== 'admin' && role.id !== 'viewer' && role.id !== 'planner-user' && role.id !== 'requester-user' && role.id !== 'support-agent' && (
                     <AlertDialog>
                         <AlertDialogTrigger asChild>
                              <Button variant="ghost" size="icon" onClick={() => setRoleToDelete(role)}>
@@ -433,5 +449,3 @@ export default function RolesPage() {
       </main>
   );
 }
-
-    

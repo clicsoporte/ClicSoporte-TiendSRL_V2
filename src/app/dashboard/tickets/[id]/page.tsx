@@ -18,7 +18,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { useToast } from '@/modules/core/hooks/use-toast';
+import { useToast } from '@/components/ui/use-toast';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -93,7 +93,10 @@ export default function TicketDetailPage() {
     };
 
     const handleDeleteTicket = async () => {
-        if (!ticket) return;
+        if (!ticket || !hasPermission('tickets:delete')) {
+            toast({ title: "Acción no permitida", variant: "destructive" });
+            return;
+        };
         setIsDeleting(true);
         try {
             await actions.deleteTicket(ticket.id);
@@ -135,8 +138,8 @@ export default function TicketDetailPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                            <DropdownMenuItem disabled>Editar Ticket</DropdownMenuItem>
-                            {hasPermission('tickets:update') && (
+                            {hasPermission('tickets:update') && <DropdownMenuItem disabled>Editar Ticket</DropdownMenuItem>}
+                            {hasPermission('tickets:delete') && (
                                 <AlertDialog>
                                     <AlertDialogTrigger asChild>
                                         <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive">Eliminar Ticket</DropdownMenuItem>

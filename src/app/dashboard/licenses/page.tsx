@@ -28,9 +28,9 @@ import { useAuth } from '@/modules/core/hooks/useAuth';
 
 export default function LicensesPage() {
     const { state, actions, selectors } = useLicenses();
-    const { hasPermission } = useAuth();
+    const { hasPermission, isAuthorized } = useAuth();
     
-    if (state.isLoading) {
+    if (state.isLoading || !isAuthorized) {
         return (
              <main className="flex-1 p-4 md:p-6 lg:p-8">
                 <Card>
@@ -56,7 +56,7 @@ export default function LicensesPage() {
                             <CardDescription>Administra las licencias de software de tus clientes.</CardDescription>
                         </div>
                         <div className="flex gap-2">
-                             <Button variant="outline" onClick={() => actions.setIsSoftwareDialogOpen(true)}>Gestionar Software</Button>
+                             {hasPermission('licenses:manage') && <Button variant="outline" onClick={() => actions.setIsSoftwareDialogOpen(true)}>Gestionar Software</Button>}
                             {hasPermission('licenses:manage') && (
                                 <Dialog open={state.isFormOpen} onOpenChange={(open) => { actions.setIsFormOpen(open); if (!open) actions.resetCurrentLicense(); }}>
                                     <DialogTrigger asChild>

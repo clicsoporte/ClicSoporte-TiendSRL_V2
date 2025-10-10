@@ -73,7 +73,7 @@ export default function AdminDashboardPage() {
             case 'stock-settings':
                 return hasPermission('admin:settings:stock');
             case 'tickets-settings':
-                return hasPermission('tickets:admin');
+                return hasPermission('tickets:admin:settings');
             case 'log-viewer':
                 return hasPermission('admin:logs:read');
             default:

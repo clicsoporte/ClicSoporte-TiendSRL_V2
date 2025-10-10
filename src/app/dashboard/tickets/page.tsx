@@ -137,58 +137,13 @@ export default function TicketsPage() {
             <div className="flex items-center justify-between mb-6 gap-2">
                 <h1 className="text-2xl font-bold">Gestión de Tickets de Soporte</h1>
                 <div className="flex gap-2">
-                     <Button variant="outline" asChild>
-                        <Link href="/dashboard/tickets/customers">
-                            <Users className="mr-2 h-4 w-4" />
-                            Gestionar Empresas
-                        </Link>
-                    </Button>
-
-                    {hasPermission('tickets:create') && (
-                         <Dialog open={isNewCustomerDialogOpen} onOpenChange={actions.setNewCustomerDialogOpen}>
-                            <DialogTrigger asChild>
-                                <Button variant="outline"><UserPlus className="mr-2 h-4 w-4"/>Nueva Empresa</Button>
-                            </DialogTrigger>
-                            <DialogContent onPointerDownOutside={(e) => e.preventDefault()}>
-                                <DialogHeader>
-                                    <DialogTitle>Añadir Nueva Empresa Cliente</DialogTitle>
-                                    <DialogDescription>
-                                        Añade una nueva empresa que no existe en el ERP, para darle seguimiento a tickets.
-                                    </DialogDescription>
-                                </DialogHeader>
-                                <div className="space-y-4 py-4">
-                                     <div className="space-y-2">
-                                        <Label htmlFor="company-name">Nombre / Razón Social</Label>
-                                        <Input id="company-name" value={newCustomer.name} onChange={e => actions.handleNewCustomerChange('name', e.target.value)} required/>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="company-taxid">Cédula Jurídica</Label>
-                                        <Input id="company-taxid" value={newCustomer.taxId} onChange={e => actions.handleNewCustomerChange('taxId', e.target.value)} required />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="company-address">Dirección</Label>
-                                        <Input id="company-address" value={newCustomer.address} onChange={e => actions.handleNewCustomerChange('address', e.target.value)} />
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="space-y-2">
-                                            <Label htmlFor="company-phone">Teléfono</Label>
-                                            <Input id="company-phone" value={newCustomer.phone} onChange={e => actions.handleNewCustomerChange('phone', e.target.value)} />
-                                        </div>
-                                         <div className="space-y-2">
-                                            <Label htmlFor="company-email">Correo Electrónico</Label>
-                                            <Input id="company-email" type="email" value={newCustomer.email} onChange={e => actions.handleNewCustomerChange('email', e.target.value)} />
-                                        </div>
-                                    </div>
-                                </div>
-                                <DialogFooter>
-                                    <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
-                                    <Button onClick={actions.handleCreateCustomer} disabled={isSubmitting}>
-                                         {isSubmitting && <Loader2 className="mr-2 animate-spin" />}
-                                        Crear Empresa
-                                    </Button>
-                                </DialogFooter>
-                            </DialogContent>
-                        </Dialog>
+                     {hasPermission('tickets:admin:settings') && (
+                        <Button variant="outline" asChild>
+                            <Link href="/dashboard/admin/tickets">
+                                <Users className="mr-2 h-4 w-4" />
+                                Configuración
+                            </Link>
+                        </Button>
                     )}
                     {hasPermission('tickets:create') && (
                          <Dialog open={isNewTicketDialogOpen} onOpenChange={(open) => { actions.setNewTicketDialogOpen(open); if(!open) actions.resetNewTicketForm(); }}>
