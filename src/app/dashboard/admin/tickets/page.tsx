@@ -121,10 +121,10 @@ export default function TicketSettingsPage() {
                                     </div>
                                      <div className="space-y-2">
                                         <Label htmlFor="default-service">Servicio por Defecto (Opcional)</Label>
-                                        <Select value={state.currentTopic.defaultServiceId || ''} onValueChange={(v) => actions.setCurrentTopic({ ...state.currentTopic, defaultServiceId: v })}>
+                                        <Select value={state.currentTopic.defaultServiceId || 'none'} onValueChange={(v) => actions.setCurrentTopic({ ...state.currentTopic, defaultServiceId: v === 'none' ? null : v })}>
                                             <SelectTrigger id="default-service"><SelectValue placeholder="Ninguno"/></SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value="">Ninguno</SelectItem>
+                                                <SelectItem value="none">Ninguno</SelectItem>
                                                 {companyData?.servicesCatalog.map(service => (
                                                     <SelectItem key={service.id} value={service.id}>{service.name}</SelectItem>
                                                 ))}
