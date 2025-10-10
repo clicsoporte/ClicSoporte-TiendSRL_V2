@@ -229,5 +229,3 @@ export async function comparePasswords(userId: number, password: string, clientI
     }
     return isMatch;
 }
-
-    

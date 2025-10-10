@@ -71,5 +71,3 @@ export async function resetDefaultRoles(): Promise<void> {
 
     transaction(initialRoles);
 }
-
-    

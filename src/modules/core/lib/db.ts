@@ -74,7 +74,7 @@ export async function connectDb(dbFile: string = DB_FILE): Promise<Database.Data
             db.pragma('journal_mode = WAL');
 
             const moduleConfig = DB_MODULES.find(m => m.dbFile === dbFile);
-            const mainTable = moduleConfig?.id === 'clic-tools-main' ? 'users' : moduleConfig?.id === 'purchase-requests' ? 'purchase_requests' : moduleConfig?.id === 'production-planner' ? 'production_orders' : moduleConfig?.id === 'warehouse-management' ? 'locations' : moduleConfig?.id === 'cost-assistant' ? 'cost_analysis_drafts' : moduleConfig?.id === 'tickets' ? 'tickets' : moduleConfig?.id === 'licenses' ? 'licenses' : null;
+            const mainTable = moduleConfig?.id === 'clic-tools-main' ? 'users' : moduleConfig?.id === 'purchase-requests' ? 'purchase_requests' : moduleConfig?.id === 'production-planner' ? 'production_orders' : moduleConfig?.id === 'warehouse-management' ? 'locations' : moduleConfig?.id === 'cost-assistant' ? 'cost_analysis_drafts' : moduleConfig?.id === 'tickets' ? 'tickets' : moduleConfig?.id === 'licenses' ? 'licenses' : moduleConfig?.id === 'timesheet' ? 'time_entries' : null;
             
             if (mainTable) {
                 const tableCheck = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name=?`).get(mainTable);
@@ -282,9 +282,9 @@ export async function getLogs(filters: {
         params.push(filters.dateRange.from.toISOString());
     }
      if(filters.dateRange?.to) {
-        whereClauses.push('timestamp <= ?');
         const toDate = new Date(filters.dateRange.to);
         toDate.setDate(toDate.getDate() + 1); // Include the whole day
+        whereClauses.push('timestamp < ?');
         params.push(toDate.toISOString());
     }
 
@@ -328,5 +328,3 @@ export async function clearLogs(clearedBy: string, type: 'operational' | 'system
     
     await dbAddLog({ type: "WARN", message: `Logs cleared by ${clearedBy}`, details: { type, deleteAllTime, affectedRows: info.changes } });
 }
-
-    

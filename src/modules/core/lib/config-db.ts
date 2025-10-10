@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview This file contains server-side functions specifically for reading
  * configuration from the database. It is separated to avoid circular dependencies.
@@ -44,6 +45,21 @@ export async function saveSqlConfig(config: SqlConfig): Promise<void> {
         }
     });
     transaction(config);
+}
+
+/**
+ * Retrieves all import queries from the database.
+ * @returns {Promise<ImportQuery[]>} A promise that resolves to an array of import queries.
+ */
+export async function getImportQueries(): Promise<ImportQuery[]> {
+    const db = await connectDb();
+    try {
+        const rows = db.prepare('SELECT * FROM import_queries').all() as ImportQuery[];
+        return rows || [];
+    } catch (error) {
+        console.error("Failed to get import queries:", error);
+        return [];
+    }
 }
 
 /**

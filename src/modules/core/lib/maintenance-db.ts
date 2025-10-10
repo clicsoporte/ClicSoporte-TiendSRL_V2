@@ -160,5 +160,3 @@ export async function factoryReset(moduleId: string): Promise<void> {
 export async function getDbModules(): Promise<Omit<DatabaseModule, 'initFn' | 'migrationFn'>[]> {
     return DB_MODULES.map(({ id, name, dbFile }) => ({ id, name, dbFile }));
 }
-
-    

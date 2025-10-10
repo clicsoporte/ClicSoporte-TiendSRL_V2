@@ -87,6 +87,3 @@ export async function deleteTimeEntry(entryId: number): Promise<void> {
     const db = await connectDb(TIMESHEET_DB_FILE);
     db.prepare('DELETE FROM time_entries WHERE id = ?').run(entryId);
 }
-
-
-    

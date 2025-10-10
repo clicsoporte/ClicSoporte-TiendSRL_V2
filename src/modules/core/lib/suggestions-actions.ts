@@ -62,5 +62,3 @@ export async function getUnreadSuggestionsCount(): Promise<number> {
     const result = db.prepare('SELECT COUNT(*) as count FROM suggestions WHERE isRead = 0').get() as { count: number };
     return result.count;
 }
-
-    

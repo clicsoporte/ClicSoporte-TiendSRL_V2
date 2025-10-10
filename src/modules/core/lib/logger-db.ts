@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Server-side database functions specifically for the logger.
  * This file is separated to prevent circular dependencies between the main db.ts and logger.ts.
