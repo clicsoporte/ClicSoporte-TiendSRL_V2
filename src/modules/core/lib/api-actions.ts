@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Server Actions for fetching data from external APIs.
  * This file contains functions that are executed only on the server, providing a secure
@@ -5,7 +6,7 @@
  */
 "use server";
 
-import { getApiSettings } from './db';
+import { getApiSettings } from './settings-db';
 import { logError, logWarn } from './logger';
 
 /**

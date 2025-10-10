@@ -152,8 +152,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     return () => {
         isMounted = false;
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [loadAuthData, pathname, router]);
 
   const contextValue: AuthContextType = {
     user,
@@ -225,5 +224,3 @@ export const useAuth = (): AuthContextType => {
     }
     return context;
 };
-
-    
