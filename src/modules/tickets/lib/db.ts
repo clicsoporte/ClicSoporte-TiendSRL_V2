@@ -256,7 +256,8 @@ export async function addTicket(payload: NewTicketPayload, user: User): Promise<
         return newTicket;
     });
 
-    return JSON.parse(JSON.stringify(transaction()));
+    const result = transaction();
+    return JSON.parse(JSON.stringify(result));
 }
 
 export async function addClientCompany(payload: Omit<ClientCompany, 'id' | 'createdAt'>): Promise<ClientCompany> {
@@ -405,7 +406,8 @@ export async function updateHelpTopic(topic: HelpTopic): Promise<HelpTopic> {
     const db = await connectDb(TICKETS_DB_FILE);
     db.prepare('UPDATE help_topics SET name = ?, defaultPriority = ?, defaultAssigneeId = ?, defaultServiceId = ? WHERE id = ?')
         .run(topic.name, topic.defaultPriority, topic.defaultAssigneeId, topic.defaultServiceId, topic.id);
-    return JSON.parse(JSON.stringify(topic));
+    const result = db.prepare('SELECT * FROM help_topics WHERE id = ?').get(topic.id) as HelpTopic;
+    return JSON.parse(JSON.stringify(result));
 }
 
 export async function deleteHelpTopic(id: number): Promise<void> {
@@ -421,7 +423,8 @@ export async function deleteTicket(id: number): Promise<void> {
 export async function getCustomerSupportInfo(companyId: number): Promise<{ customer: Customer | null; supportPackage: SupportPackage | null, services: Service[] }> {
     const mainDb = await connectDb();
     
-    const customer = mainDb.prepare('SELECT * FROM customers WHERE id = ?').get(companyId) as Customer | null;
+    const customerRow = mainDb.prepare('SELECT * FROM customers WHERE id = ?').get(companyId) as Customer | null;
+    const customer = customerRow ? JSON.parse(JSON.stringify(customerRow)) as Customer : null;
     
     if (!customer?.supportPackageId) {
         return { customer: null, supportPackage: null, services: [] };
@@ -432,7 +435,7 @@ export async function getCustomerSupportInfo(companyId: number): Promise<{ custo
     const services = companySettings?.servicesCatalog || [];
 
     const result = {
-        customer: JSON.parse(JSON.stringify(customer)),
+        customer: customer,
         supportPackage: supportPackage ? JSON.parse(JSON.stringify(supportPackage)) : null,
         services: JSON.parse(JSON.stringify(services)),
     };
