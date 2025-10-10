@@ -4,7 +4,7 @@
  */
 "use server";
 
-import { connectDb, getSuggestions as dbGetSuggestions, markSuggestionAsRead as dbMarkSuggestionAsRead, deleteSuggestion as dbDeleteSuggestion, getUnreadSuggestionsCount as dbGetUnreadSuggestionsCount } from './db';
+import { connectDb } from './db';
 import type { Suggestion } from '../types';
 import { revalidatePath } from 'next/cache';
 import { logInfo } from './logger';
@@ -28,7 +28,8 @@ export async function addSuggestion(content: string, userId: number, userName: s
  * @returns {Promise<Suggestion[]>} A promise that resolves to an array of suggestion entries.
  */
 export async function getSuggestions(): Promise<Suggestion[]> {
-  return dbGetSuggestions();
+  const db = await connectDb();
+  return db.prepare('SELECT * FROM suggestions ORDER BY timestamp DESC').all() as Suggestion[];
 }
 
 /**
@@ -36,7 +37,8 @@ export async function getSuggestions(): Promise<Suggestion[]> {
  * @param {number} id - The ID of the suggestion to mark as read.
  */
 export async function markSuggestionAsRead(id: number): Promise<void> {
-  await dbMarkSuggestionAsRead(id);
+  const db = await connectDb();
+  db.prepare('UPDATE suggestions SET isRead = 1 WHERE id = ?').run(id);
   revalidatePath('/dashboard/admin/suggestions');
 }
 
@@ -45,7 +47,8 @@ export async function markSuggestionAsRead(id: number): Promise<void> {
  * @param {number} id - The ID of the suggestion to delete.
  */
 export async function deleteSuggestion(id: number): Promise<void> {
-  await dbDeleteSuggestion(id);
+  const db = await connectDb();
+  db.prepare('DELETE FROM suggestions WHERE id = ?').run(id);
   revalidatePath('/dashboard/admin/suggestions');
 }
 
@@ -54,5 +57,7 @@ export async function deleteSuggestion(id: number): Promise<void> {
  * @returns {Promise<number>} A promise that resolves to the number of unread suggestions.
  */
 export async function getUnreadSuggestionsCount(): Promise<number> {
-    return dbGetUnreadSuggestionsCount();
+    const db = await connectDb();
+    const result = db.prepare('SELECT COUNT(*) as count FROM suggestions WHERE isRead = 0').get() as { count: number };
+    return result.count;
 }
