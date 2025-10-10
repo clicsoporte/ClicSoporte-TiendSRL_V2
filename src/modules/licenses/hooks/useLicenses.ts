@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Custom hook for managing the state and logic of the Licenses page.
  */
@@ -24,10 +23,10 @@ import { getClientCompanies } from '@/modules/tickets/lib/actions';
 import { useDebounce } from 'use-debounce';
 import { add } from 'date-fns';
 
-const emptyLicense: Omit<License, 'id' | 'createdAt'> = {
-    licenseKey: '',
+const emptyLicense: Omit<License, 'id' | 'createdAt' | 'licenseKey'> = {
     softwareId: 0,
     clientCompanyId: null,
+    hardwareId: '',
     isPerpetual: false,
     expirationDate: '',
     status: 'active',
@@ -52,7 +51,7 @@ export const useLicenses = () => {
         clientCompanies: [] as ClientCompany[],
         isFormOpen: false,
         isEditing: false,
-        currentLicense: emptyLicense as License | Omit<License, 'id' | 'createdAt'>,
+        currentLicense: emptyLicense as License | Omit<License, 'id' | 'createdAt' | 'licenseKey'>,
         isSoftwareDialogOpen: false,
         newSoftwareProduct: emptySoftwareProduct,
         licenseToDelete: null as License | null,
@@ -120,7 +119,7 @@ export const useLicenses = () => {
                 updateState({ licenses: state.licenses.map(l => l.id === updated.id ? updated : l) });
                 toast({ title: "Licencia Actualizada" });
             } else {
-                const newLicense = await addLicenseServer(state.currentLicense as Omit<License, 'id' | 'createdAt'>);
+                const newLicense = await addLicenseServer(state.currentLicense as Omit<License, 'id' | 'createdAt' | 'licenseKey'>);
                 updateState({ licenses: [newLicense, ...state.licenses] });
                 toast({ title: "Licencia Creada" });
             }
