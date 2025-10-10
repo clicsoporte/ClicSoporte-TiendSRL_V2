@@ -34,7 +34,8 @@ export async function getProductionOrders(options: {
         dateRange?: DateRange;
     };
 }): Promise<{ activeOrders: ProductionOrder[], archivedOrders: ProductionOrder[], totalArchivedCount: number }> {
-    return getOrders(options);
+    const result = await getOrders(options);
+    return JSON.parse(JSON.stringify(result));
 }
 
 /**
@@ -46,7 +47,7 @@ export async function getProductionOrders(options: {
 export async function saveProductionOrder(order: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'assignmentId' | 'previousStatus' | 'scheduledStartDate' | 'scheduledEndDate' | 'requestedBy' | 'hasBeenModified' | 'lastModifiedBy' | 'lastModifiedAt'| 'lastStatusUpdateBy' | 'lastStatusUpdateNotes' | 'approvedBy' >, requestedBy: string): Promise<ProductionOrder> {
     const createdOrder = await addOrder(order, requestedBy);
     await logInfo(`Project ${createdOrder.consecutive} created by ${requestedBy}`, { customer: createdOrder.customerName, project: createdOrder.productDescription });
-    return createdOrder;
+    return JSON.parse(JSON.stringify(createdOrder));
 }
 
 /**
@@ -57,7 +58,7 @@ export async function saveProductionOrder(order: Omit<ProductionOrder, 'id' | 'c
 export async function updateProductionOrder(payload: UpdateProductionOrderPayload): Promise<ProductionOrder> {
     const updatedOrder = await updateOrder(payload);
     await logInfo(`Project ${updatedOrder.consecutive} edited by ${payload.updatedBy}`, { orderId: payload.orderId });
-    return updatedOrder;
+    return JSON.parse(JSON.stringify(updatedOrder));
 }
 
 /**
@@ -68,7 +69,7 @@ export async function updateProductionOrder(payload: UpdateProductionOrderPayloa
 export async function updateProductionOrderStatus(payload: UpdateStatusPayload): Promise<ProductionOrder> {
     const updatedOrder = await updateStatus(payload);
     await logInfo(`Status of project ${updatedOrder.consecutive} updated to '${payload.status}' by ${payload.updatedBy}`, { notes: payload.notes, orderId: payload.orderId });
-    return updatedOrder;
+    return JSON.parse(JSON.stringify(updatedOrder));
 }
 
 /**
@@ -79,7 +80,7 @@ export async function updateProductionOrderStatus(payload: UpdateStatusPayload):
 export async function updateProductionOrderDetails(payload: UpdateOrderDetailsPayload): Promise<ProductionOrder> {
     const updatedOrder = await updateDetails(payload);
     await logInfo(`Details for project ${updatedOrder.consecutive} updated by ${payload.updatedBy}`, { details: payload });
-    return updatedOrder;
+    return JSON.parse(JSON.stringify(updatedOrder));
 }
 
 /**
@@ -87,7 +88,8 @@ export async function updateProductionOrderDetails(payload: UpdateOrderDetailsPa
  * @returns The current planner settings.
  */
 export async function getPlannerSettings(): Promise<PlannerSettings> {
-    return getSettings();
+    const settings = await getSettings();
+    return JSON.parse(JSON.stringify(settings));
 }
 
 /**
@@ -105,7 +107,8 @@ export async function savePlannerSettings(settings: PlannerSettings): Promise<vo
  * @returns A promise that resolves to an array of history entries.
  */
 export async function getOrderHistory(orderId: number): Promise<ProductionOrderHistoryEntry[]> {
-    return getOrderHistoryServer(orderId);
+    const history = await getOrderHistoryServer(orderId);
+    return JSON.parse(JSON.stringify(history));
 }
 
 
@@ -117,7 +120,7 @@ export async function getOrderHistory(orderId: number): Promise<ProductionOrderH
 export async function addNoteToOrder(payload: NotePayload): Promise<ProductionOrder> {
     const updatedOrder = await addNoteServer(payload);
     await logInfo(`Note added to project ${updatedOrder.consecutive} by ${payload.updatedBy}.`);
-    return updatedOrder;
+    return JSON.parse(JSON.stringify(updatedOrder));
 }
 
 /**
@@ -128,5 +131,5 @@ export async function addNoteToOrder(payload: NotePayload): Promise<ProductionOr
 export async function updatePendingAction(payload: AdministrativeActionPayload): Promise<ProductionOrder> {
     const updatedOrder = await updatePendingActionServer(payload);
     await logInfo(`Administrative action '${payload.action}' initiated for project ${updatedOrder.consecutive} by ${payload.updatedBy}.`);
-    return updatedOrder;
+    return JSON.parse(JSON.stringify(updatedOrder));
 }

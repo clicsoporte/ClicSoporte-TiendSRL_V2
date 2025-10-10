@@ -5,9 +5,12 @@
 
 import { connectDb } from '../../core/lib/db';
 import type { License, SoftwareProduct } from '@/modules/core/types';
-import crypto from 'crypto';
+import { SignJWT } from 'jose';
 
 const LICENSES_DB_FILE = 'licenses.db';
+
+// Ensure you have a secret key in your environment variables
+const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'your-super-secret-key-for-licenses');
 
 export async function initializeLicensesDb(db: import('better-sqlite3').Database) {
     const schema = `
@@ -38,8 +41,8 @@ export async function initializeLicensesDb(db: import('better-sqlite3').Database
         { name: 'Antivirus Kaspersky', isInternal: false },
         { name: 'Microsoft Office 365', isInternal: false },
     ];
-    const insert = db.prepare('INSERT OR IGNORE INTO software_products (name, isInternal) VALUES (@name, @isInternal)');
-    defaultProducts.forEach(p => insert.run({ ...p, isInternal: p.isInternal ? 1 : 0 }));
+    const insertTopic = db.prepare('INSERT OR IGNORE INTO software_products (name, isInternal) VALUES (@name, @isInternal)');
+    defaultProducts.forEach(p => insertTopic.run({ ...p, isInternal: p.isInternal ? 1 : 0 }));
 
     console.log(`Database ${LICENSES_DB_FILE} initialized for License Management.`);
     await runLicensesMigrations(db);
@@ -49,12 +52,14 @@ export async function runLicensesMigrations(db: import('better-sqlite3').Databas
     // Future migrations for the licenses module can be added here.
 }
 
-function generateLicenseKey(): string {
-  const segments = [];
-  for (let i = 0; i < 4; i++) {
-    segments.push(crypto.randomBytes(4).toString('hex').toUpperCase());
-  }
-  return segments.join('-');
+async function generateLicenseKey(payload: { clientCompanyId: number | null, expirationDate: string }): Promise<string> {
+  const jwt = await new SignJWT(payload)
+    .setProtectedHeader({ alg: 'HS256' })
+    .setIssuedAt()
+    .setIssuer('urn:clic-tools:issuer')
+    .setAudience('urn:clic-tools:audience')
+    .sign(JWT_SECRET);
+  return jwt;
 }
 
 // --- License Actions ---
@@ -67,7 +72,7 @@ export async function getLicenses(): Promise<License[]> {
 export async function addLicense(license: Omit<License, 'id' | 'createdAt'>): Promise<License> {
     const db = await connectDb(LICENSES_DB_FILE);
     
-    const key = license.licenseKey || generateLicenseKey();
+    const key = license.licenseKey || await generateLicenseKey({ clientCompanyId: license.clientCompanyId, expirationDate: license.expirationDate });
 
     const info = db.prepare(`
         INSERT INTO licenses (licenseKey, softwareId, clientCompanyId, isPerpetual, expirationDate, status, createdAt)

@@ -32,7 +32,8 @@ export async function getPurchaseRequests(options: {
         dateRange?: DateRange;
     };
 }): Promise<{ requests: PurchaseRequest[], totalArchivedCount: number }> {
-    return getRequests(options);
+    const result = await getRequests(options);
+    return JSON.parse(JSON.stringify(result));
 }
 
 /**
@@ -44,7 +45,7 @@ export async function getPurchaseRequests(options: {
 export async function savePurchaseRequest(request: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'receivedDate' | 'previousStatus'>, requestedBy: string): Promise<PurchaseRequest> {
     const createdRequest = await addRequest(request, requestedBy);
     await logInfo(`Purchase request ${createdRequest.consecutive} created by ${requestedBy}`, { item: createdRequest.itemDescription, quantity: createdRequest.quantity });
-    return createdRequest;
+    return JSON.parse(JSON.stringify(createdRequest));
 }
 
 /**
@@ -55,7 +56,7 @@ export async function savePurchaseRequest(request: Omit<PurchaseRequest, 'id' | 
 export async function updatePurchaseRequest(payload: UpdatePurchaseRequestPayload): Promise<PurchaseRequest> {
     const updatedRequest = await updateRequest(payload);
     await logInfo(`Purchase request ${updatedRequest.consecutive} edited by ${payload.updatedBy}`, { requestId: payload.requestId });
-    return updatedRequest;
+    return JSON.parse(JSON.stringify(updatedRequest));
 }
 
 /**
@@ -66,7 +67,7 @@ export async function updatePurchaseRequest(payload: UpdatePurchaseRequestPayloa
 export async function updatePurchaseRequestStatus(payload: UpdateRequestStatusPayload): Promise<PurchaseRequest> {
     const updatedRequest = await updateStatus(payload);
     await logInfo(`Status of request ${updatedRequest.consecutive} updated to '${payload.status}' by ${payload.updatedBy}`, { notes: payload.notes, requestId: payload.requestId });
-    return updatedRequest;
+    return JSON.parse(JSON.stringify(updatedRequest));
 }
 
 /**
@@ -75,7 +76,8 @@ export async function updatePurchaseRequestStatus(payload: UpdateRequestStatusPa
  * @returns A promise that resolves to an array of history entries.
  */
 export async function getRequestHistory(requestId: number): Promise<PurchaseRequestHistoryEntry[]> {
-    return getRequestHistoryServer(requestId);
+    const history = await getRequestHistoryServer(requestId);
+    return JSON.parse(JSON.stringify(history));
 }
 
 /**
@@ -83,7 +85,8 @@ export async function getRequestHistory(requestId: number): Promise<PurchaseRequ
  * @returns The current request settings.
  */
 export async function getRequestSettings(): Promise<RequestSettings> {
-    return getSettings();
+    const settings = await getSettings();
+    return JSON.parse(JSON.stringify(settings));
 }
 
 /**
@@ -107,7 +110,7 @@ export async function rejectCancellationRequest(payload: RejectCancellationPaylo
         updatedBy: payload.updatedBy
     });
     await logInfo(`Admin action request for request ${updatedRequest.consecutive} was rejected by ${payload.updatedBy}`, { notes: payload.notes });
-    return updatedRequest;
+    return JSON.parse(JSON.stringify(updatedRequest));
 }
 
 /**
@@ -118,5 +121,5 @@ export async function rejectCancellationRequest(payload: RejectCancellationPaylo
 export async function updatePendingAction(payload: AdministrativeActionPayload): Promise<PurchaseRequest> {
     const updatedRequest = await updatePendingActionServer(payload);
     await logInfo(`Administrative action '${payload.action}' initiated for request ${updatedRequest.consecutive} by ${payload.updatedBy}.`);
-    return updatedRequest;
+    return JSON.parse(JSON.stringify(updatedRequest));
 }

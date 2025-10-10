@@ -36,7 +36,7 @@ export async function saveTicket(payload: NewTicketPayload, user: User): Promise
             subject: payload.subject,
             customer: payload.customerName 
         });
-        return createdTicket;
+        return JSON.parse(JSON.stringify(createdTicket));
     } catch (error) {
         logError("Error saving ticket from client action", { error: (error as Error).message });
         throw error;
@@ -47,7 +47,7 @@ export async function addClientCompany(payload: Omit<ClientCompany, 'id' | 'crea
     try {
         const newCompany = await addClientCompanyServer(payload);
         await logInfo(`New client company created: ${payload.name}`);
-        return newCompany;
+        return JSON.parse(JSON.stringify(newCompany));
     } catch (error) {
         logError("Error saving client company from client action", { error: (error as Error).message });
         throw error;
@@ -55,7 +55,8 @@ export async function addClientCompany(payload: Omit<ClientCompany, 'id' | 'crea
 }
 
 export async function getClientCompanies(): Promise<ClientCompany[]> {
-    return getClientCompaniesServer();
+    const companies = await getClientCompaniesServer();
+    return JSON.parse(JSON.stringify(companies));
 }
 
 /**
@@ -63,7 +64,8 @@ export async function getClientCompanies(): Promise<ClientCompany[]> {
  * @returns A promise that resolves to an array of all tickets.
  */
 export async function getTickets(): Promise<Ticket[]> {
-    return getTicketsServer();
+    const tickets = await getTicketsServer();
+    return JSON.parse(JSON.stringify(tickets));
 }
 
 /**
@@ -72,7 +74,8 @@ export async function getTickets(): Promise<Ticket[]> {
  * @returns A promise that resolves to the ticket object or null if not found.
  */
 export async function getTicketById(id: number): Promise<Ticket | null> {
-    return getTicketByIdServer(id);
+    const ticket = await getTicketByIdServer(id);
+    return ticket ? JSON.parse(JSON.stringify(ticket)) : null;
 }
 
 /**
@@ -81,7 +84,8 @@ export async function getTicketById(id: number): Promise<Ticket | null> {
  * @returns A promise that resolves to an array of thread entries.
  */
 export async function getTicketThread(ticketId: number): Promise<TicketThread[]> {
-    return getTicketThreadServer(ticketId);
+    const thread = await getTicketThreadServer(ticketId);
+    return JSON.parse(JSON.stringify(thread));
 }
 
 /**
@@ -92,7 +96,7 @@ export async function getTicketThread(ticketId: number): Promise<TicketThread[]>
 export async function addThreadEntry(payload: { ticketId: number; userId: number; userName: string; content: string; type: 'message' | 'note' }): Promise<TicketThread> {
     const newEntry = await addThreadEntryServer(payload);
     await logInfo(`Reply added to ticket #${payload.ticketId} by ${payload.userName}`);
-    return newEntry;
+    return JSON.parse(JSON.stringify(newEntry));
 }
 
 /**
@@ -105,7 +109,7 @@ export async function addThreadEntry(payload: { ticketId: number; userId: number
 export async function updateTicketDetails(ticketId: number, updates: Partial<Pick<Ticket, 'status' | 'priority' | 'assigneeId'>>, user: User): Promise<Ticket> {
     const updatedTicket = await updateTicketDetailsServer(ticketId, updates, user);
     await logInfo(`Ticket #${ticketId} details updated by ${user.name}`, { updates });
-    return updatedTicket;
+    return JSON.parse(JSON.stringify(updatedTicket));
 }
 
 /**
@@ -113,7 +117,8 @@ export async function updateTicketDetails(ticketId: number, updates: Partial<Pic
  * @returns A promise that resolves to an array of help topics.
  */
 export async function getHelpTopics(): Promise<HelpTopic[]> {
-    return getHelpTopicsServer();
+    const topics = await getHelpTopicsServer();
+    return JSON.parse(JSON.stringify(topics));
 }
 
 /**
@@ -122,7 +127,8 @@ export async function getHelpTopics(): Promise<HelpTopic[]> {
  * @returns The newly created help topic.
  */
 export async function addHelpTopic(topic: Omit<HelpTopic, 'id'>): Promise<HelpTopic> {
-    return addHelpTopicServer(topic);
+    const newTopic = await addHelpTopicServer(topic);
+    return JSON.parse(JSON.stringify(newTopic));
 }
 
 /**
@@ -131,7 +137,8 @@ export async function addHelpTopic(topic: Omit<HelpTopic, 'id'>): Promise<HelpTo
  * @returns The updated help topic.
  */
 export async function updateHelpTopic(topic: HelpTopic): Promise<HelpTopic> {
-    return updateHelpTopicServer(topic);
+    const updatedTopic = await updateHelpTopicServer(topic);
+    return JSON.parse(JSON.stringify(updatedTopic));
 }
 
 /**
@@ -148,5 +155,6 @@ export async function deleteTicket(id: number): Promise<void> {
 }
 
 export async function getCustomerSupportInfo(companyId: number): Promise<{ customer: Customer | ClientCompany | null; supportPackage: SupportPackage | null, services: Service[] }> {
-    return getCustomerSupportInfoServer(companyId);
+    const info = await getCustomerSupportInfoServer(companyId);
+    return JSON.parse(JSON.stringify(info));
 }

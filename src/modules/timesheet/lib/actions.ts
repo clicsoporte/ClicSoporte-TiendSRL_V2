@@ -19,7 +19,7 @@ export const addTimeEntry = async (payload: Partial<NewTimeEntryPayload>): Promi
     try {
         const entry = await addTimeEntryServer(payload);
         await logInfo(`Time entry created for ticket #${payload.ticketId}`, { entryId: entry.id });
-        return entry;
+        return JSON.parse(JSON.stringify(entry));
     } catch (error) {
         logError("Error creating time entry from client action", { error: (error as Error).message });
         throw error;
@@ -27,14 +27,15 @@ export const addTimeEntry = async (payload: Partial<NewTimeEntryPayload>): Promi
 };
 
 export const getEntriesForTicket = async (ticketId: number): Promise<TimeEntry[]> => {
-    return getEntriesForTicketServer(ticketId);
+    const entries = await getEntriesForTicketServer(ticketId);
+    return JSON.parse(JSON.stringify(entries));
 };
 
 export const stopTimeEntry = async (entryId: number, notes: string, isBillable: boolean): Promise<TimeEntry> => {
     try {
         const updatedEntry = await stopTimeEntryServer(entryId, notes, isBillable);
         await logInfo(`Timer stopped for entry #${entryId}`, { duration: updatedEntry.duration });
-        return updatedEntry;
+        return JSON.parse(JSON.stringify(updatedEntry));
     } catch (error) {
         logError("Error stopping timer from client action", { error: (error as Error).message });
         throw error;
@@ -50,5 +51,3 @@ export const deleteTimeEntry = async (entryId: number): Promise<void> => {
         throw error;
     }
 }
-
-    

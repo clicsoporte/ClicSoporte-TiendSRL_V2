@@ -21,13 +21,13 @@ export const getLicenses = async (): Promise<License[]> => getLicensesServer();
 export async function addLicense(license: Omit<License, 'id' | 'createdAt'>): Promise<License> {
     const newLicense = await addLicenseServer(license);
     await logInfo('New license created', { softwareId: newLicense.softwareId, clientCompanyId: newLicense.clientCompanyId });
-    return newLicense;
+    return JSON.parse(JSON.stringify(newLicense));
 }
 
 export async function updateLicense(license: License): Promise<License> {
     const updatedLicense = await updateLicenseServer(license);
     await logInfo('License updated', { licenseId: updatedLicense.id });
-    return updatedLicense;
+    return JSON.parse(JSON.stringify(updatedLicense));
 }
 
 export async function deleteLicense(id: number): Promise<void> {
@@ -41,12 +41,10 @@ export const getSoftwareProducts = async (): Promise<SoftwareProduct[]> => getSo
 export async function addSoftwareProduct(product: Omit<SoftwareProduct, 'id'>): Promise<SoftwareProduct> {
     const newProduct = await addSoftwareProductServer(product);
     await logInfo('New software product added', { name: newProduct.name, isInternal: newProduct.isInternal });
-    return newProduct;
+    return JSON.parse(JSON.stringify(newProduct));
 }
 
 export async function deleteSoftwareProduct(id: number): Promise<void> {
     await logInfo(`Software product with ID ${id} deleted.`);
     return deleteSoftwareProductServer(id);
 }
-
-    
