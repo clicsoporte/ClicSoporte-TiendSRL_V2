@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Client-side functions for the Cost Assistant module.
  */
@@ -220,9 +219,9 @@ export async function getAllDrafts(userId: number): Promise<CostAnalysisDraft[]>
     return getAllDraftsServer(userId);
 }
 
-export async function saveDraft(draft: Omit<CostAnalysisDraft, 'id' | 'createdAt'>): Promise<CostAnalysisDraft> {
+export async function saveDraft(draft: Omit<CostAnalysisDraft, 'id' | 'createdAt'>): Promise<void> {
     await logInfo('Cost analysis draft saved', { name: draft.name, userId: draft.userId });
-    return saveDraftServer(draft);
+    await saveDraftServer(draft);
 }
 
 export async function deleteDraft(id: string): Promise<void> {

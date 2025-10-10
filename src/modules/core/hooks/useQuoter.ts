@@ -15,7 +15,7 @@ import {
   saveQuoteDraft,
   getAllQuoteDrafts,
   deleteQuoteDraft,
-} from "@/modules/core/lib/db";
+} from "@/modules/quoter/lib/actions";
 import { saveCompanySettings } from "@/modules/core/lib/settings-db";
 import { format, parseISO, isValid } from 'date-fns';
 import { useDebounce } from "use-debounce";
@@ -603,11 +603,11 @@ export const useQuoter = () => {
   const loadDrafts = async () => {
     if (isAuthLoading || !currentUser) return;
     const draftsFromDb = await getAllQuoteDrafts(currentUser.id);
-    const enrichedDrafts = draftsFromDb.map(draft => ({
+    const enrichedDrafts = draftsFromDb.map((draft: QuoteDraft) => ({
         ...draft,
         customer: customers.find(c => c.id === draft.customerId) || null
     }));
-    setSavedDrafts(enrichedDrafts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+    setSavedDrafts(enrichedDrafts.sort((a: QuoteDraft, b: QuoteDraft) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
   };
 
   const handleLoadDraft = (draft: QuoteDraft) => {

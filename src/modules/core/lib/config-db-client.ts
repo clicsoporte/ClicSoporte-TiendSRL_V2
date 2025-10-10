@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Client-side actions for database configuration.
  */

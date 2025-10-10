@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Client-side functions for interacting with the ticket module's server-side DB functions.
  */

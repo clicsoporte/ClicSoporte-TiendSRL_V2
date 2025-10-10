@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Custom hook for managing the state and logic of the CostAssistantPage component.
  */
@@ -236,7 +235,7 @@ export const useCostAssistant = () => {
         };
 
         try {
-            const savedDraft = await saveDraft(newDraft);
+            await saveDraft(newDraft);
             toast({ title: "Borrador Guardado", description: `El análisis "${draftName}" ha sido guardado.` });
         } catch (error: any) {
             logError("Failed to save draft", { error: error.message });

@@ -79,7 +79,7 @@ export async function runCostAssistantMigrations(db: import('better-sqlite3').Da
 
 export async function getCostAssistantSettings(): Promise<CostAssistantSettings> {
     const db = await connectDb(DB_FILE);
-    const row = db.prepare(`SELECT value FROM cost_assistant_settings WHERE key = 'columnVisibility'`).get() as { value: string } | undefined;
+    const row = db.prepare(`SELECT value FROM warehouse_config WHERE key = 'settings'`).get() as { value: string } | undefined;
     if (row) {
         return {
             columnVisibility: JSON.parse(row.value)
@@ -114,7 +114,7 @@ export async function getAllDrafts(userId: number): Promise<CostAnalysisDraft[]>
     return JSON.parse(JSON.stringify(parsedDrafts));
 }
 
-export async function saveDraft(draft: Omit<CostAnalysisDraft, 'id' | 'createdAt'>): Promise<CostAnalysisDraft> {
+export async function saveDraft(draft: Omit<CostAnalysisDraft, 'id' | 'createdAt'>): Promise<void> {
     const db = await connectDb(DB_FILE);
     const id = crypto.randomUUID();
     const createdAt = new Date().toISOString();
@@ -135,14 +135,6 @@ export async function saveDraft(draft: Omit<CostAnalysisDraft, 'id' | 'createdAt
         globalCosts: JSON.stringify(draftToSave.globalCosts),
         processedInvoices: JSON.stringify(draftToSave.processedInvoices),
     });
-    
-    const savedDraft = db.prepare('SELECT * FROM cost_analysis_drafts WHERE id = ?').get(id) as any;
-     return JSON.parse(JSON.stringify({
-        ...savedDraft,
-        lines: JSON.parse(savedDraft.lines || '[]'),
-        globalCosts: JSON.parse(savedDraft.globalCosts || '{}'),
-        processedInvoices: JSON.parse(savedDraft.processedInvoices || '[]'),
-    }));
 }
 
 export async function deleteDraft(id: string): Promise<void> {
