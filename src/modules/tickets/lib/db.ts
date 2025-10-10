@@ -280,6 +280,22 @@ export async function addClientCompany(payload: Omit<ClientCompany, 'id' | 'crea
     return JSON.parse(JSON.stringify(result));
 }
 
+export async function updateClientCompany(payload: ClientCompany): Promise<ClientCompany> {
+    const db = await connectDb(TICKETS_DB_FILE);
+    db.prepare(`
+        UPDATE client_companies 
+        SET name = @name, taxId = @taxId, address = @address, phone = @phone, email = @email 
+        WHERE id = @id
+    `).run(payload);
+    return JSON.parse(JSON.stringify(payload));
+}
+
+export async function deleteClientCompany(id: number): Promise<void> {
+    const db = await connectDb(TICKETS_DB_FILE);
+    db.prepare('DELETE FROM client_companies WHERE id = ?').run(id);
+}
+
+
 export async function getClientCompanies(): Promise<ClientCompany[]> {
     const db = await connectDb(TICKETS_DB_FILE);
     const results = db.prepare('SELECT * FROM client_companies ORDER BY name ASC').all() as ClientCompany[];
@@ -423,22 +439,30 @@ export async function deleteTicket(id: number): Promise<void> {
     db.prepare('DELETE FROM tickets WHERE id = ?').run(id);
 }
 
-export async function getCustomerSupportInfo(companyId: number): Promise<{ customer: Customer | ClientCompany | null; supportPackage: SupportPackage | null, services: Service[] }> {
+export async function getCustomerSupportInfo(companyId: number | string): Promise<{ customer: Customer | ClientCompany | null; supportPackage: SupportPackage | null, services: Service[] }> {
     const mainDb = await connectDb();
     
-    const customerRow = mainDb.prepare('SELECT * FROM customers WHERE id = ?').get(companyId) as Customer | null;
-    
-    if (!customerRow?.supportPackageId) {
-        // Fallback to check client_companies if not found in main customers table
+    // Check if the ID is a string, which implies it's from the ERP (customers table)
+    let customer: Customer | ClientCompany | null = null;
+    if (typeof companyId === 'string') {
+        customer = mainDb.prepare('SELECT * FROM customers WHERE id = ?').get(companyId) as Customer | null;
+    } else { // It's a number, so it's from the local client_companies table
         const ticketsDb = await connectDb(TICKETS_DB_FILE);
-        const clientCompany = ticketsDb.prepare('SELECT * FROM client_companies WHERE id = ?').get(companyId) as ClientCompany | null;
-        return JSON.parse(JSON.stringify({ customer: clientCompany ? JSON.parse(JSON.stringify(clientCompany)) : null, supportPackage: null, services: [] }));
+        customer = ticketsDb.prepare('SELECT * FROM client_companies WHERE id = ?').get(companyId) as ClientCompany | null;
     }
     
-    const customer = JSON.parse(JSON.stringify(customerRow)) as Customer;
+    if (!customer) {
+        return { customer: null, supportPackage: null, services: [] };
+    }
 
+    const customerWithSupportInfo = customer as (Customer | ClientCompany) & { supportPackageId?: string };
+
+    if (!customerWithSupportInfo.supportPackageId) {
+        return { customer: JSON.parse(JSON.stringify(customer)), supportPackage: null, services: [] };
+    }
+    
     const companySettings = await getCompanySettings();
-    const supportPackage = companySettings?.supportPackages.find(p => p.id === customer.supportPackageId) || null;
+    const supportPackage = companySettings?.supportPackages.find(p => p.id === customerWithSupportInfo.supportPackageId) || null;
     const services = companySettings?.servicesCatalog || [];
 
     const result = {
