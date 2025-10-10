@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Server-side functions for the support tickets database.
  */
@@ -10,6 +9,9 @@ import type { Ticket, NewTicketPayload, User, TicketCustomer, TicketThread, Help
 import crypto from 'crypto';
 
 const TICKETS_DB_FILE = 'tickets.db';
+
+// Ensure you have a secret key in your environment variables
+const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'your-super-secret-key-for-licenses');
 
 export async function initializeTicketsDb(db: import('better-sqlite3').Database) {
     const schema = `
