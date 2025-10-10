@@ -1,11 +1,10 @@
-
 'use client';
 
 import { useTickets } from "@/modules/tickets/hooks/useTickets";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
-import { FilePlus, Loader2, FilterX, UserPlus, Paperclip } from "lucide-react";
+import { FilePlus, Loader2, FilterX, UserPlus, Paperclip, Users } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -114,6 +113,13 @@ export default function TicketsPage() {
             <div className="flex items-center justify-between mb-6 gap-2">
                 <h1 className="text-2xl font-bold">Gestión de Tickets de Soporte</h1>
                 <div className="flex gap-2">
+                     <Button variant="outline" asChild>
+                        <Link href="/dashboard/tickets/customers">
+                            <Users className="mr-2 h-4 w-4" />
+                            Gestionar Empresas
+                        </Link>
+                    </Button>
+
                     {hasPermission('tickets:create') && (
                          <Dialog open={isNewCustomerDialogOpen} onOpenChange={actions.setNewCustomerDialogOpen}>
                             <DialogTrigger asChild>
