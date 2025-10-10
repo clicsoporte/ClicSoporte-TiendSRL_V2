@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview This file contains client-side functions for interacting with server-side database logic related to the company.
  * This abstraction layer prevents direct DB access from the client and ensures that server-side
@@ -6,7 +7,7 @@
 'use client';
 
 import type { Company } from '../types';
-import { saveCompanySettings, getCompanySettings } from './db';
+import { saveCompanySettings, getCompanySettings } from './settings-db';
 
 /**
  * Saves the company's general settings via the server.

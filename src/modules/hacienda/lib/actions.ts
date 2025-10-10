@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Server Actions for the Hacienda module.
  * These server-only functions are responsible for securely interacting
@@ -6,7 +7,8 @@
 'use server';
 
 import { logError } from '@/modules/core/lib/logger';
-import { getApiSettings, getCabysCatalog } from '@/modules/core/lib/db';
+import { getApiSettings } from '@/modules/core/lib/settings-db';
+import { getCabysCatalog } from '@/modules/core/lib/data-access-db';
 import type { HaciendaContributorInfo, HaciendaExemptionApiResponse, EnrichedExemptionInfo } from '../../core/types';
 import fs from 'fs';
 import path from 'path';

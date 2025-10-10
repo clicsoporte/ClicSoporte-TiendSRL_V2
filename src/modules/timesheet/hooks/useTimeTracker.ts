@@ -4,7 +4,7 @@
  */
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import type { TimeEntry } from '@/modules/core/types';
@@ -171,5 +171,3 @@ export const useTimeTracker = (ticketId: number) => {
         formatDuration,
     };
 };
-
-    

@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview System maintenance page for administrators.
  * This page provides critical, high-risk functionalities such as database
@@ -31,7 +32,7 @@ import { usePageTitle } from "../../../modules/core/hooks/usePageTitle";
 import { Checkbox } from '../../../components/ui/checkbox';
 import { Label } from '../../../components/ui/label';
 import { Input } from '../../../components/ui/input';
-import { restoreAllFromUpdateBackup, listAllUpdateBackups, deleteOldUpdateBackups, uploadBackupFile, backupAllForUpdate, factoryReset, getDbModules } from '../../../modules/core/lib/db';
+import { restoreAllFromUpdateBackup, listAllUpdateBackups, deleteOldUpdateBackups, uploadBackupFile, backupAllForUpdate, factoryReset, getDbModules } from '../../../modules/core/lib/maintenance-db';
 import type { UpdateBackupInfo, DatabaseModule } from '../../../modules/core/types';
 import { useAuthorization } from "../../../modules/core/hooks/useAuthorization";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -83,7 +84,7 @@ export default function MaintenancePage() {
             setUpdateBackups(backups);
             setDbModules(modules);
             if (backups.length > 0) {
-                const latestTimestamp = backups.reduce((latest, current) => new Date(current.date) > new Date(latest) ? current.date : latest, backups[0].date);
+                const latestTimestamp = backups.reduce((latest: string, current: UpdateBackupInfo) => new Date(current.date) > new Date(latest) ? current.date : latest, backups[0].date);
                 setSelectedRestoreTimestamp(latestTimestamp);
             }
         } catch(error: any) {

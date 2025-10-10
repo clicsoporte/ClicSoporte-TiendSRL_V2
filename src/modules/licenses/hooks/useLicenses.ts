@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Custom hook for managing the state and logic of the Licenses page.
  */
@@ -50,7 +51,7 @@ export const useLicenses = () => {
         clientCompanies: [] as ClientCompany[],
         isFormOpen: false,
         isEditing: false,
-        currentLicense: emptyLicense,
+        currentLicense: emptyLicense as License | Omit<License, 'id' | 'createdAt'>,
         isSoftwareDialogOpen: false,
         newSoftwareProduct: emptySoftwareProduct,
         licenseToDelete: null as License | null,
@@ -113,12 +114,12 @@ export const useLicenses = () => {
         }
         updateState({ isSubmitting: true });
         try {
-            if (state.isEditing && state.currentLicense.id) {
-                const updated = await updateLicenseServer(state.currentLicense as License);
+            if (state.isEditing && 'id' in state.currentLicense) {
+                const updated = await updateLicenseServer(state.currentLicense);
                 updateState({ licenses: state.licenses.map(l => l.id === updated.id ? updated : l) });
                 toast({ title: "Licencia Actualizada" });
             } else {
-                const newLicense = await addLicenseServer(state.currentLicense);
+                const newLicense = await addLicenseServer(state.currentLicense as Omit<License, 'id' | 'createdAt'>);
                 updateState({ licenses: [newLicense, ...state.licenses] });
                 toast({ title: "Licencia Creada" });
             }
@@ -229,5 +230,3 @@ export const useLicenses = () => {
         selectors
     };
 };
-
-    

@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Main page for the Analytics module.
  * Displays key performance indicators and visualizations from across the application.
@@ -7,8 +8,8 @@
 import { useAnalytics } from '@/modules/analytics/hooks/useAnalytics';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AreaChart, BarChart, Bell, Box, CalendarCheck, FileText, Hourglass, Ticket, Users } from 'lucide-react';
-import { Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { AreaChart, BarChart as BarChartIcon, Bell, Box, CalendarCheck, FileText, Hourglass, Ticket, Users } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
 import { Button } from '@/components/ui/button';
 import { Calendar as CalendarIcon } from 'lucide-react';

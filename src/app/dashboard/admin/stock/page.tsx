@@ -11,7 +11,7 @@ import { logError, logInfo } from "@/modules/core/lib/logger";
 import type { Warehouse, StockSettings } from "@/modules/core/types";
 import { usePageTitle } from "@/modules/core/hooks/usePageTitle";
 import { useAuthorization } from "@/modules/core/hooks/useAuthorization";
-import { getStockSettings, saveStockSettings } from "@/modules/core/lib/db";
+import { getStockSettings, saveStockSettings } from "@/modules/core/lib/stock-db";
 import { PlusCircle, Trash2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";

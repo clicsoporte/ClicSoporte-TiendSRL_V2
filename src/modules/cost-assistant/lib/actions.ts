@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Client-side functions for the Cost Assistant module.
  */
@@ -219,7 +220,7 @@ export async function getAllDrafts(userId: number): Promise<CostAnalysisDraft[]>
     return getAllDraftsServer(userId);
 }
 
-export async function saveDraft(draft: CostAnalysisDraft): Promise<CostAnalysisDraft> {
+export async function saveDraft(draft: Omit<CostAnalysisDraft, 'id' | 'createdAt'>): Promise<CostAnalysisDraft> {
     await logInfo('Cost analysis draft saved', { name: draft.name, userId: draft.userId });
     return saveDraftServer(draft);
 }
@@ -242,7 +243,7 @@ export async function exportForERP(lines: CostAssistantLine[]): Promise<string> 
     ];
     
     // Create the AoA (Array of Arrays) for the worksheet
-    const ws_data = [headerRow1, headerRow2];
+    const ws_data: (string|number|null)[][] = [headerRow1, headerRow2];
     
     // Map data to the correct structure for the ERP template
     lines.forEach(line => {

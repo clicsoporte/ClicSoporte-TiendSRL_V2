@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Custom hook `useQuoter` for managing the state and logic of the QuoterPage component.
  * This hook encapsulates the entire business logic of the quoting tool, including state management for
@@ -603,11 +604,11 @@ export const useQuoter = () => {
   const loadDrafts = async () => {
     if (isAuthLoading || !currentUser) return;
     const draftsFromDb = await getAllQuoteDrafts(currentUser.id);
-    const enrichedDrafts = draftsFromDb.map(draft => ({
+    const enrichedDrafts = draftsFromDb.map((draft: QuoteDraft) => ({
         ...draft,
         customer: customers.find(c => c.id === draft.customerId) || null
     }));
-    setSavedDrafts(enrichedDrafts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+    setSavedDrafts(enrichedDrafts.sort((a: QuoteDraft, b: QuoteDraft) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
   };
 
   const handleLoadDraft = (draft: QuoteDraft) => {

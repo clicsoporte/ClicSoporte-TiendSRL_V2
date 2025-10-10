@@ -1,10 +1,11 @@
+
 /**
  * @fileoverview Server-side functions for the purchase requests database.
  */
 "use server";
 
 import { connectDb } from '../../core/lib/db';
-import type { PurchaseRequest, RequestSettings, UpdateRequestStatusPayload, PurchaseRequestHistoryEntry, UpdatePurchaseRequestPayload, RejectCancellationPayload, PurchaseRequestStatus, DateRange, AdministrativeAction, AdministrativeActionPayload } from '../../core/types';
+import type { PurchaseRequest, RequestSettings, UpdateRequestStatusPayload, PurchaseRequestHistoryEntry, UpdatePurchaseRequestPayload, RejectCancellationPayload, PurchaseRequestStatus, DateRange, AdministrativeAction, AdministrativeActionPayload, ProductionOrder } from '../../core/types';
 import { format, parseISO } from 'date-fns';
 import { addOrder as addPlannerOrder } from '../../planner/lib/db';
 
@@ -461,6 +462,7 @@ export async function updateStatus(payload: UpdateRequestStatusPayload): Promise
                     priority: 'medium',
                     notes: `Generado desde SC-${req.consecutive}. OC Cliente: ${req.purchaseOrder || 'N/A'}.`,
                     purchaseOrder: req.purchaseOrder,
+                    pendingAction: 'none',
                  }, updatedBy);
             }
         }

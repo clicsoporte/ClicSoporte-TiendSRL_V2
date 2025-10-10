@@ -22,6 +22,7 @@ import Link from "next/link";
 import { useAuth } from "@/modules/core/hooks/useAuth";
 import { useDropzone } from 'react-dropzone';
 import { useMemo } from 'react';
+import type { TicketPriority } from '@/modules/core/types';
 
 export default function TicketsPage() {
     const { state, actions, selectors } = useTickets();
@@ -116,34 +117,44 @@ export default function TicketsPage() {
                     {hasPermission('tickets:create') && (
                          <Dialog open={isNewCustomerDialogOpen} onOpenChange={actions.setNewCustomerDialogOpen}>
                             <DialogTrigger asChild>
-                                <Button variant="outline"><UserPlus className="mr-2 h-4 w-4"/>Nuevo Cliente</Button>
+                                <Button variant="outline"><UserPlus className="mr-2 h-4 w-4"/>Nueva Empresa</Button>
                             </DialogTrigger>
                             <DialogContent>
                                 <DialogHeader>
-                                    <DialogTitle>Crear Nuevo Cliente de Soporte</DialogTitle>
+                                    <DialogTitle>Añadir Nueva Empresa Cliente</DialogTitle>
                                     <DialogDescription>
-                                        Añade un nuevo cliente que no existe en el ERP.
+                                        Añade una nueva empresa que no existe en el ERP, para darle seguimiento a tickets.
                                     </DialogDescription>
                                 </DialogHeader>
                                 <div className="space-y-4 py-4">
                                      <div className="space-y-2">
-                                        <Label htmlFor="customer-name">Nombre Completo</Label>
-                                        <Input id="customer-name" value={newCustomer.name} onChange={e => actions.handleNewCustomerChange('name', e.target.value)} required/>
+                                        <Label htmlFor="company-name">Nombre / Razón Social</Label>
+                                        <Input id="company-name" value={newCustomer.name} onChange={e => actions.handleNewCustomerChange('name', e.target.value)} required/>
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="customer-email">Correo Electrónico</Label>
-                                        <Input id="customer-email" type="email" value={newCustomer.email} onChange={e => actions.handleNewCustomerChange('email', e.target.value)} required/>
+                                        <Label htmlFor="company-taxid">Cédula Jurídica</Label>
+                                        <Input id="company-taxid" value={newCustomer.taxId} onChange={e => actions.handleNewCustomerChange('taxId', e.target.value)} required />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="customer-phone">Teléfono</Label>
-                                        <Input id="customer-phone" value={newCustomer.phone} onChange={e => actions.handleNewCustomerChange('phone', e.target.value)} />
+                                        <Label htmlFor="company-address">Dirección</Label>
+                                        <Input id="company-address" value={newCustomer.address} onChange={e => actions.handleNewCustomerChange('address', e.target.value)} />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="company-phone">Teléfono</Label>
+                                            <Input id="company-phone" value={newCustomer.phone} onChange={e => actions.handleNewCustomerChange('phone', e.target.value)} />
+                                        </div>
+                                         <div className="space-y-2">
+                                            <Label htmlFor="company-email">Correo Electrónico</Label>
+                                            <Input id="company-email" type="email" value={newCustomer.email} onChange={e => actions.handleNewCustomerChange('email', e.target.value)} />
+                                        </div>
                                     </div>
                                 </div>
                                 <DialogFooter>
                                     <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
                                     <Button onClick={actions.handleCreateCustomer} disabled={isSubmitting}>
                                          {isSubmitting && <Loader2 className="mr-2 animate-spin" />}
-                                        Crear Cliente
+                                        Crear Empresa
                                     </Button>
                                 </DialogFooter>
                             </DialogContent>
@@ -219,13 +230,13 @@ export default function TicketsPage() {
                                         </div>
                                         <div className="md:col-span-1 space-y-4">
                                             <div className="space-y-2">
-                                                <Label htmlFor="customer-search">Buscar Contacto (Cliente)</Label>
+                                                <Label htmlFor="customer-search">Empresa Cliente</Label>
                                                 <SearchInput
-                                                    options={selectors.contactOptions}
-                                                    onSelect={actions.handleSelectContact}
+                                                    options={selectors.clientCompanyOptions}
+                                                    onSelect={actions.handleSelectCompany}
                                                     value={customerSearchTerm}
                                                     onValueChange={actions.setCustomerSearchTerm}
-                                                    placeholder="Buscar por nombre, correo..."
+                                                    placeholder="Buscar por nombre o cédula..."
                                                     open={isCustomerSearchOpen}
                                                     onOpenChange={actions.setCustomerSearchOpen}
                                                 />

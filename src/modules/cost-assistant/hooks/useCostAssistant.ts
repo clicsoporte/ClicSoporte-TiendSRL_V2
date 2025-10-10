@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Custom hook for managing the state and logic of the CostAssistantPage component.
  */
@@ -39,6 +40,8 @@ const initialColumnVisibility = {
     finalSellPrice: true,
     profitPerLine: true,
 };
+
+type ColumnVisibility = typeof initialColumnVisibility;
 
 type ExportStatus = 'idle' | 'generating' | 'ready';
 
@@ -146,7 +149,7 @@ export const useCostAssistant = () => {
         })}`;
     };
 
-    const setColumnVisibility = (column: keyof typeof state.columnVisibility, isVisible: boolean) => {
+    const setColumnVisibility = (column: keyof ColumnVisibility, isVisible: boolean) => {
         setState(prevState => ({
             ...prevState,
             columnVisibility: {
@@ -221,7 +224,8 @@ export const useCostAssistant = () => {
     const saveDraftAction = async (draftName: string) => {
         if (!user || !draftName) return;
 
-        const newDraft: Omit<CostAnalysisDraft, 'id' | 'createdAt' | 'userId'> & { name: string } = {
+        const newDraft: Omit<CostAnalysisDraft, 'id' | 'createdAt'> = {
+            userId: user.id,
             name: draftName,
             lines: state.lines,
             globalCosts: {
@@ -232,7 +236,7 @@ export const useCostAssistant = () => {
         };
 
         try {
-            const savedDraft = await saveDraft(newDraft, user.id);
+            const savedDraft = await saveDraft(newDraft);
             toast({ title: "Borrador Guardado", description: `El análisis "${draftName}" ha sido guardado.` });
         } catch (error: any) {
             logError("Failed to save draft", { error: error.message });
