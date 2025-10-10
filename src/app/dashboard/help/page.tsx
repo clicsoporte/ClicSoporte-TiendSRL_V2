@@ -17,7 +17,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "../../../components/ui/accordion";
-import { Code, FileUp, FileTerminal, Network, ShieldCheck, Users, Building, FileDown, PlusCircle, UserCog, DatabaseZap, Keyboard, DollarSign, ShieldQuestion, LifeBuoy, Rocket, Boxes, CalendarCheck, ShoppingCart, Truck, PackageCheck, Factory, CheckCircle, XCircle, ShieldAlert, Search, Wrench, Map, PackagePlus, BookMarked, Save, Copy, Folder, AlertTriangle, ToggleRight, FilePlusIcon, Warehouse, Send, Loader2, Play, Pause, History, Undo2, Info, BadgeInfo, CreditCard, MessageSquare, Trash2, Download, Briefcase, Store, ListChecks, Hourglass } from "lucide-react";
+import { Code, FileUp, FileTerminal, Network, ShieldCheck, Users, Building, FileDown, PlusCircle, UserCog, DatabaseZap, Keyboard, DollarSign, ShieldQuestion, LifeBuoy, Rocket, Boxes, CalendarCheck, ShoppingCart, Truck, PackageCheck, Factory, CheckCircle, XCircle, ShieldAlert, Search, Wrench, Map, PackagePlus, BookMarked, Save, Copy, Folder, AlertTriangle, ToggleRight, FilePlusIcon, Warehouse, Send, Loader2, Play, Pause, History, Undo2, Info, BadgeInfo, CreditCard, MessageSquare, Trash2, Download, Briefcase, Store, ListChecks, Hourglass, Ticket, KeyRound, AreaChart, FileScan } from "lucide-react";
 import { Skeleton } from "../../../components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAuth } from "@/modules/core/hooks/useAuth";
@@ -141,6 +141,34 @@ export default function HelpPage() {
                         </ol>
                     </AccordionContent>
                 </AccordionItem>
+
+                 <AccordionItem value="item-cost-assistant">
+                    <AccordionTrigger className="text-lg font-semibold">
+                        <FileScan className="mr-4 h-6 w-6 text-orange-600" />
+                        Tutorial: Asistente de Costos
+                    </AccordionTrigger>
+                    <AccordionContent className="prose max-w-none text-base space-y-4">
+                        <p>Esta herramienta automatiza el tedioso proceso de calcular los precios de venta a partir de las facturas de compra.</p>
+                        <ol className="list-decimal space-y-4 pl-6">
+                            <li>
+                                <strong>Paso 1: Cargar Facturas.</strong> Arrastra y suelta uno o varios archivos XML de facturas electrónicas de tus proveedores en el área designada (<UploadCloud className="inline h-4 w-4"/>). El sistema leerá automáticamente cada factura y extraerá todos los productos con sus costos y cantidades.
+                            </li>
+                            <li>
+                                <strong>Paso 2: Añadir Costos Adicionales.</strong> En la tarjeta "Costos Adicionales", ingresa el costo total del transporte, aduanas u otros gastos asociados a la importación o compra. El sistema prorrateará estos costos de manera inteligente entre todos los artículos cargados, dándote un costo unitario real.
+                            </li>
+                            <li>
+                                <strong>Paso 3: Ajustar Márgenes de Ganancia.</strong> Por defecto, cada artículo tiene un margen del 20%. Puedes ajustar este porcentaje individualmente en la columna "Margen". El "P.V.P Unitario Sugerido" se recalculará automáticamente.
+                            </li>
+                            <li>
+                                <strong>Paso 4: Guardar y Exportar.</strong>
+                                <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
+                                    <li>Si necesitas continuar más tarde, usa el botón <strong>"Guardar Borrador"</strong> (<Save className="inline h-4 w-4"/>).</li>
+                                    <li>Cuando estés listo, haz clic en <strong>"Exportar para ERP"</strong> (<FileDown className="inline h-4 w-4"/>). Esto generará un archivo Excel con el formato exacto que tu ERP necesita para una importación masiva de precios, ahorrándote horas de trabajo manual.</li>
+                                </ul>
+                            </li>
+                        </ol>
+                    </AccordionContent>
+                </AccordionItem>
                 
                 <AccordionItem value="item-requests">
                 <AccordionTrigger className="text-lg font-semibold">
@@ -153,10 +181,13 @@ export default function HelpPage() {
                     </p>
                     <ul className="list-disc space-y-3 pl-6">
                     <li>
-                        <strong>Paso 1: Crear Solicitud (<FilePlusIcon className="inline h-4 w-4" />):</strong> Haz clic en "Nueva Solicitud" para abrir el formulario. Busca al cliente y el artículo de la misma forma que en el cotizador. Completa los campos como la cantidad requerida, la fecha en que lo necesitas y el proveedor (si lo conoces).
+                        <strong>Paso 1: Crear Solicitud (<FilePlusIcon className="inline h-4 w-4" />):</strong> Haz clic en "Nueva Solicitud" para abrir el formulario. Busca al cliente y el artículo de la misma forma que en el cotizador. Completa los campos como la cantidad requerida y la fecha en que lo necesitas.
+                    </li>
+                     <li>
+                        <strong>Paso 2: Integración con Planificador.</strong> Antes de guardar, fíjate en la casilla **"Generar OP al Recibir"**. Si marcas esta opción, en cuanto la solicitud sea marcada como "Recibida", el sistema creará automáticamente una Orden de Producción en el Gestor de Proyectos con los datos de esta compra.
                     </li>
                     <li>
-                        <strong>Paso 2: Entender el Flujo de Estados.</strong> Las solicitudes pasan por varios estados para un seguimiento claro:
+                        <strong>Paso 3: Entender el Flujo de Estados.</strong> Las solicitudes pasan por varios estados para un seguimiento claro:
                         <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
                             <li><strong>Pendiente:</strong> La solicitud ha sido creada y está esperando aprobación.</li>
                             <li><strong>Aprobada (<CheckCircle className="inline h-4 w-4 text-green-600"/>):</strong> Un usuario con permisos ha aprobado la compra.</li>
@@ -173,7 +204,7 @@ export default function HelpPage() {
                         <strong>Solicitar Cancelación:</strong> Si una solicitud ya está Aprobada u Ordenada, no se puede cancelar directamente. En su lugar, un usuario con permisos puede "Solicitar Cancelación". Esto pone la solicitud en un estado de espera y notifica a un administrador, quien debe aprobar o rechazar la cancelación, dejando un registro del motivo.
                     </li>
                     <li>
-                        <strong>Paso 4: Navegar en el Historial.</strong> Para mantener la velocidad, la vista de "Archivadas" carga los datos por páginas. Puedes elegir ver 50, 100 o 200 registros por página y navegar entre ellas. Los filtros de búsqueda se aplicarán a todo el historial, no solo a la página actual.
+                        <strong>Paso 5: Navegar en el Historial.</strong> Para mantener la velocidad, la vista de "Archivadas" carga los datos por páginas. Puedes elegir ver 50, 100 o 200 registros por página y navegar entre ellas. Los filtros de búsqueda se aplicarán a todo el historial, no solo a la página actual.
                     </li>
                     </ul>
                 </AccordionContent>
@@ -182,7 +213,7 @@ export default function HelpPage() {
                 <AccordionItem value="item-planner">
                 <AccordionTrigger className="text-lg font-semibold">
                     <CalendarCheck className="mr-4 h-6 w-6 text-purple-500" />
-                    Tutorial: Módulo Planificador OP
+                    Tutorial: Módulo Gestor de Proyectos (OP)
                 </AccordionTrigger>
                 <AccordionContent className="prose max-w-none text-base space-y-4">
                     <p>
@@ -226,6 +257,91 @@ export default function HelpPage() {
                     </ul>
                 </AccordionContent>
                 </AccordionItem>
+                
+                 <AccordionItem value="item-tickets">
+                    <AccordionTrigger className="text-lg font-semibold">
+                        <Ticket className="mr-4 h-6 w-6 text-blue-500" />
+                        Tutorial: Módulo de Soporte Técnico (Tickets)
+                    </AccordionTrigger>
+                    <AccordionContent className="prose max-w-none text-base space-y-4">
+                        <p>Esta herramienta es el centro de operaciones para gestionar las solicitudes de soporte de los clientes.</p>
+                        <ol className="list-decimal space-y-4 pl-6">
+                            <li>
+                                <strong>Paso 1: Crear un Nuevo Ticket.</strong>
+                                <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
+                                    <li>Haz clic en <strong>"Nuevo Ticket"</strong>. En el formulario, busca al cliente y selecciona el <strong>"Servicio Requerido"</strong> del catálogo.</li>
+                                    <li>Al seleccionar un cliente, el sistema mostrará automáticamente su <strong>Paquete de Soporte</strong> y las horas disponibles. Al seleccionar un servicio, una alerta te dirá si está <strong>cubierto por el paquete</strong>.</li>
+                                    <li>Completa el asunto, la descripción del problema y asigna el ticket a un técnico o déjalo sin asignar para que el sistema lo haga automáticamente según el tema.</li>
+                                </ul>
+                            </li>
+                            <li>
+                                <strong>Paso 2: Registrar Tiempo.</strong>
+                                <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
+                                    <li>Dentro de un ticket, verás una sección de <strong>"Control de Tiempo"</strong>.</li>
+                                    <li>Haz clic en <strong>"Iniciar Cronómetro"</strong> para empezar a contar el tiempo en tiempo real. Cuando termines, haz clic en <strong>"Detener Cronómetro"</strong>. El sistema te pedirá una nota y te preguntará si el tiempo es facturable.</li>
+                                    <li>Si olvidaste iniciar el cronómetro, puedes usar <strong>"Añadir Entrada Manual"</strong> para registrar el tiempo a posteriori.</li>
+                                    <li>El historial de tiempo se irá acumulando en una tabla dentro del ticket.</li>
+                                </ul>
+                            </li>
+                             <li>
+                                <strong>Paso 3: Comunicarse y Resolver.</strong>
+                                <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
+                                    <li>Usa el cuadro de respuesta para comunicarte. Cada mensaje queda registrado en la conversación del ticket.</li>
+                                    <li>Actualiza los detalles del ticket (estado, prioridad, asignado) en el panel lateral derecho para mantener a todos informados.</li>
+                                </ul>
+                            </li>
+                        </ol>
+                    </AccordionContent>
+                </AccordionItem>
+
+                 <AccordionItem value="item-licenses">
+                    <AccordionTrigger className="text-lg font-semibold">
+                        <KeyRound className="mr-4 h-6 w-6 text-indigo-500" />
+                        Tutorial: Módulo de Gestión de Licencias
+                    </AccordionTrigger>
+                    <AccordionContent className="prose max-w-none text-base space-y-4">
+                        <p>Centraliza y controla todas las licencias de software, tanto las tuyas como las de tus clientes.</p>
+                        <ol className="list-decimal space-y-4 pl-6">
+                            <li>
+                                <strong>Paso 1: Gestionar Catálogo de Software.</strong>
+                                <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
+                                    <li>En la página principal del módulo, haz clic en <strong>"Gestionar Software"</strong>.</li>
+                                    <li>Aquí puedes añadir todos los productos que licencias (ej: "Antivirus Anual", "Microsoft 365 Business", "Suscripción Clic-Soporte"). Marca la casilla "Es Software Propio" si es un producto desarrollado por ti.</li>
+                                </ul>
+                            </li>
+                            <li>
+                                <strong>Paso 2: Crear y Asignar Licencias.</strong>
+                                <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
+                                    <li>Haz clic en <strong>"Nueva Licencia"</strong>.</li>
+                                    <li>Selecciona el cliente, el producto de software que le corresponde, pega la clave de licencia y establece la fecha de vencimiento. Si la licencia no vence, marca la casilla "Licencia Perpetua".</li>
+                                    <li>La tabla principal te mostrará todas las licencias, con insignias de colores que te alertan sobre las que están activas, vencidas o por vencer.</li>
+                                </ul>
+                            </li>
+                        </ol>
+                    </AccordionContent>
+                </AccordionItem>
+
+                 <AccordionItem value="item-analytics">
+                    <AccordionTrigger className="text-lg font-semibold">
+                        <AreaChart className="mr-4 h-6 w-6 text-rose-600" />
+                        Tutorial: Módulo de Analíticas
+                    </AccordionTrigger>
+                    <AccordionContent className="prose max-w-none text-base space-y-4">
+                        <p>Este es tu centro de inteligencia de negocio. Ofrece una vista de alto nivel sobre el rendimiento de tus operaciones.</p>
+                        <ul className="list-disc space-y-3 pl-6">
+                             <li>
+                                <strong>Filtro por Fechas:</strong> Utiliza el selector de rango de fechas en la parte superior para analizar el rendimiento en periodos específicos (ej: este mes, el último trimestre).
+                            </li>
+                            <li>
+                                <strong>KPIs Generales:</strong> Las tarjetas superiores te dan un resumen instantáneo de la carga de trabajo actual: cuántos tickets están abiertos o en progreso, cuántos proyectos están activos y cuántas solicitudes de compra están pendientes.
+                            </li>
+                            <li>
+                                <strong>Análisis de Tiempo:</strong> El gráfico de barras te muestra cuántas horas ha registrado cada técnico, separadas por "Facturables" y "No Facturables". Esto te ayuda a entender la productividad del equipo y la rentabilidad de los servicios.
+                            </li>
+                        </ul>
+                    </AccordionContent>
+                </AccordionItem>
+
 
                 <AccordionItem value="item-warehouse">
                     <AccordionTrigger className="text-lg font-semibold">
@@ -361,7 +477,7 @@ export default function HelpPage() {
                             </div>
                             <div className="flex items-start gap-4">
                                 <Briefcase className="mt-1 h-6 w-6 text-orange-500 shrink-0" />
-                                <div><h4 className="font-semibold">Configuración General</h4><p>Establece la identidad de tu empresa (nombre, logo, cédula jurídica) que aparecerá en los documentos y ajusta parámetros globales de la interfaz, como el tiempo de espera de la búsqueda.</p></div>
+                                <div><h4 className="font-semibold">Configuración General</h4><p>Establece la identidad de tu empresa (nombre, logo, cédula jurídica), ajusta parámetros globales de la interfaz y gestiona los paquetes de soporte y el catálogo de servicios.</p></div>
                             </div>
                              <div className="flex items-start gap-4">
                                 <MessageSquare className="mt-1 h-6 w-6 text-green-600 shrink-0" />
@@ -373,7 +489,7 @@ export default function HelpPage() {
                             </div>
                              <div className="flex items-start gap-4">
                                 <Factory className="mt-1 h-6 w-6 text-purple-700 shrink-0" />
-                                <div><h4 className="font-semibold">Config. Planificador</h4><p>Personaliza el Planificador de Producción. Aquí puedes crear y nombrar las "máquinas" o "procesos" que se asignarán a las órdenes de producción.</p></div>
+                                <div><h4 className="font-semibold">Config. Gestor de Proyectos</h4><p>Personaliza el Gestor de Proyectos. Aquí puedes crear y nombrar las "máquinas" o "procesos" que se asignarán a las órdenes de producción.</p></div>
                             </div>
                              <div className="flex items-start gap-4">
                                 <Store className="mt-1 h-6 w-6 text-amber-700 shrink-0" />
@@ -386,6 +502,10 @@ export default function HelpPage() {
                              <div className="flex items-start gap-4">
                                 <Boxes className="mt-1 h-6 w-6 text-green-700 shrink-0" />
                                 <div><h4 className="font-semibold">Config. Inventario</h4><p>Gestiona las bodegas del sistema. Puedes añadir nuevas bodegas, marcar una como predeterminada o decidir si una bodega debe ser visible en los desgloses de inventario.</p></div>
+                            </div>
+                             <div className="flex items-start gap-4">
+                                <Ticket className="mt-1 h-6 w-6 text-blue-700 shrink-0" />
+                                <div><h4 className="font-semibold">Config. Soporte Técnico</h4><p>Define los "Temas de Ayuda" para clasificar los tickets y permite pre-asignarles una prioridad, un técnico o un servicio por defecto para automatizar el flujo de trabajo.</p></div>
                             </div>
                             <div className="flex items-start gap-4">
                                 <FileUp className="mt-1 h-6 w-6 text-cyan-500 shrink-0" />
@@ -497,36 +617,39 @@ export default function HelpPage() {
                         Control de Cambios (Changelog)
                     </AccordionTrigger>
                     <AccordionContent className="prose max-w-none text-base space-y-4">
-                        <h4 className="font-semibold text-lg">Versión 1.5.2 <Badge variant="secondary">Actual</Badge></h4>
+                         <h4 className="font-semibold text-lg">Versión 2.0.0 <Badge variant="secondary">Actual</Badge></h4>
+                        <p className="text-sm text-muted-foreground">Lanzamiento: Noviembre 2024</p>
+                        <ul className="list-disc space-y-3 pl-6">
+                           <li>
+                                <strong>NUEVO MÓDULO: Soporte Técnico.</strong> Se introduce un sistema completo de gestión de tickets.
+                            </li>
+                             <li>
+                                <strong>NUEVO MÓDULO: Gestión de Licencias.</strong> Herramienta para administrar licencias de software de clientes.
+                            </li>
+                            <li>
+                                <strong>NUEVO MÓDULO: Asistente de Costos.</strong> Herramienta para procesar facturas XML de compra y calcular precios de venta.
+                            </li>
+                             <li>
+                                <strong>NUEVO MÓDULO: Analíticas y Reportes.</strong> Un panel central con KPIs de todos los módulos.
+                            </li>
+                            <li>
+                                <strong>NUEVA FUNCIONALIDAD: Control de Tiempo.</strong> Se añade un cronómetro y registro de horas en el módulo de Tickets.
+                            </li>
+                             <li>
+                                <strong>NUEVA FUNCIONALIDAD: Paquetes de Soporte.</strong> Se permite configurar paquetes de servicios y asignarlos a clientes para validar la cobertura en los tickets.
+                            </li>
+                             <li>
+                                <strong>Integración Compras-Proyectos:</strong> Se añade la opción en Solicitudes de Compra para generar automáticamente una Orden de Producción al recibir el material.
+                            </li>
+                        </ul>
+                        <h4 className="font-semibold text-lg">Versión 1.5.2</h4>
                         <p className="text-sm text-muted-foreground">Lanzamiento: Octubre 2024</p>
                         <ul className="list-disc space-y-3 pl-6">
                            <li>
                                 <strong>Mejora de UX en Cotizador:</strong> Se ha mejorado la interfaz del Cotizador en dispositivos móviles. Ahora, en pantallas pequeñas, los campos de Cantidad y Precio tienen más espacio, y se ha añadido una opción para mostrar u ocultar columnas secundarias, mejorando la usabilidad.
                             </li>
-                        </ul>
-                        <h4 className="font-semibold text-lg">Versión 1.5.1</h4>
-                        <p className="text-sm text-muted-foreground">Lanzamiento: Octubre 2024</p>
-                        <ul className="list-disc space-y-3 pl-6">
-                            <li>
-                                <strong>Nueva Funcionalidad: Buzón de Sugerencias.</strong> Se añadió una herramienta para que los usuarios puedan enviar feedback directamente a los administradores.
-                            </li>
                              <li>
-                                <strong>Mejora Crítica de Auditoría:</strong> La acción de "Limpiar Logs" ahora siempre deja un registro de quién y cuándo se realizó la limpieza, incluso si se borran todos los datos.
-                            </li>
-                            <li>
-                                <strong>Mejora de UX: Eliminación de Parpadeos.</strong> Se eliminaron los parpadeos (recargas visuales de página completa) al usar los botones de "Refrescar" en el Buzón de Sugerencias y el Visor de Eventos, y al guardar cambios en las configuraciones.
-                            </li>
-                            <li>
-                                <strong>Mejora de UX: Actualización Instantánea.</strong> La fecha de "Última Sincronización" en el panel principal ahora se actualiza instantáneamente después de una sincronización del ERP, sin necesidad de recargar la página.
-                            </li>
-                            <li>
-                                <strong>Implementación de Logging Completo:</strong> Se añadió registro de eventos (auditoría) para acciones críticas en todos los módulos: inicio/cierre de sesión, gestión de usuarios, guardado de configuraciones, backups, etc.
-                            </li>
-                             <li>
-                                <strong>Corrección de Error en Cotizador:</strong> Se solucionó un fallo que impedía aplicar correctamente la exoneración de un cliente a los nuevos productos añadidos a una cotización.
-                            </li>
-                             <li>
-                                <strong>Corrección de Error de Configuración:</strong> Se solucionó un error de `next.config.js` y se aumentó el límite de subida de archivos a 50MB para prevenir problemas con backups o imágenes grandes.
+                                <strong>Implementación de Logging Completo:</strong> Se añadió registro de eventos (auditoría) para acciones críticas en todos los módulos.
                             </li>
                         </ul>
                     </AccordionContent>
@@ -538,4 +661,5 @@ export default function HelpPage() {
     </main>
   );
 }
+
 
