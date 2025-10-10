@@ -234,9 +234,10 @@ export default function TicketsPage() {
                                             </div>
                                              <div className="space-y-2">
                                                 <Label htmlFor="new-ticket-service">Servicio Requerido</Label>
-                                                <Select value={newTicket.serviceId || ''} onValueChange={(v) => actions.handleNewTicketChange('serviceId', v)} required>
+                                                <Select value={newTicket.serviceId || "none"} onValueChange={(v) => actions.handleNewTicketChange('serviceId', v === 'none' ? null : v)} required>
                                                     <SelectTrigger id="new-ticket-service"><SelectValue placeholder="Seleccione un servicio..."/></SelectTrigger>
                                                     <SelectContent>
+                                                        <SelectItem value="none">Ninguno</SelectItem>
                                                         {companyData?.servicesCatalog.map(service => (
                                                             <SelectItem key={service.id} value={service.id}>{service.name}</SelectItem>
                                                         ))}
