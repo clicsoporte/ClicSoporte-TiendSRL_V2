@@ -59,7 +59,7 @@ export default function LicensesPage() {
                         </div>
                         <div className="flex gap-2">
                              {hasPermission('licenses:manage') && <Button variant="outline" onClick={() => actions.setIsSoftwareDialogOpen(true)}>Gestionar Software</Button>}
-                             {hasPermission('licenses:manage') && <Button variant="outline" onClick={actions.generateNewKeys} disabled={state.isSubmitting}><Server className="mr-2 h-4 w-4"/>Generar Claves</Button>}
+                             {hasPermission('licenses:manage') && <Button variant="outline" onClick={actions.handleGenerateKeys} disabled={state.isSubmitting}><Server className="mr-2 h-4 w-4"/>Generar Claves</Button>}
                             {hasPermission('licenses:manage') && (
                                 <Dialog open={state.isFormOpen} onOpenChange={(open) => { actions.setIsFormOpen(open); if (!open) actions.resetCurrentLicense(); }}>
                                     <DialogTrigger asChild>

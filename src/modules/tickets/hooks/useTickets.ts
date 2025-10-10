@@ -321,7 +321,7 @@ export const useTickets = () => {
         statusConfig,
         supportUsers: useMemo(() => {
             if (!users) return [];
-            return users.filter(u => u.role === 'admin' || u.role === 'support-agent'); // Simplified logic
+            return users.filter(u => u.role === 'admin' || u.role === 'support-agent');
         }, [users]),
         clientCompanyOptions: useMemo(() => {
             if (debouncedCustomerSearch.length < 2) return [];

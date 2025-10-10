@@ -24,7 +24,7 @@ import { getClientCompanies } from '@/modules/tickets/lib/actions';
 import { useDebounce } from 'use-debounce';
 import { add } from 'date-fns';
 
-const emptyLicense: Omit<License, 'id' | 'createdAt' | 'licenseKey'> = {
+const emptyLicense: Partial<License> = {
     softwareId: 0,
     clientCompanyId: null,
     hardwareId: '',
@@ -52,7 +52,7 @@ export const useLicenses = () => {
         clientCompanies: [] as ClientCompany[],
         isFormOpen: false,
         isEditing: false,
-        currentLicense: emptyLicense as License | Omit<License, 'id' | 'createdAt' | 'licenseKey'>,
+        currentLicense: emptyLicense,
         isSoftwareDialogOpen: false,
         newSoftwareProduct: emptySoftwareProduct,
         licenseToDelete: null as License | null,
@@ -116,7 +116,7 @@ export const useLicenses = () => {
         updateState({ isSubmitting: true });
         try {
             if (state.isEditing && 'id' in state.currentLicense) {
-                const updated = await updateLicenseServer(state.currentLicense);
+                const updated = await updateLicenseServer(state.currentLicense as License);
                 updateState({ licenses: state.licenses.map(l => l.id === updated.id ? updated : l) });
                 toast({ title: "Licencia Actualizada" });
             } else {
@@ -183,20 +183,14 @@ export const useLicenses = () => {
         updateState({ currentLicense: emptyLicense, isEditing: false, companySearchTerm: '' });
     };
 
-    const setExpirationDatePreset = (preset: 'perpetual' | number) => {
-        if (preset === 'perpetual') {
-            updateState({
-                currentLicense: { ...state.currentLicense, isPerpetual: true, expirationDate: '' }
-            });
-        } else {
-            const newDate = add(new Date(), { days: preset });
-            updateState({
-                currentLicense: { ...state.currentLicense, isPerpetual: false, expirationDate: newDate.toISOString().split('T')[0] }
-            });
-        }
+    const setExpirationDatePreset = (days: number) => {
+        const newDate = add(new Date(), { days });
+        updateState({
+            currentLicense: { ...state.currentLicense, isPerpetual: false, expirationDate: newDate.toISOString().split('T')[0] }
+        });
     };
     
-    const generateNewKeysAction = async () => {
+    const handleGenerateKeys = async () => {
         updateState({ isSubmitting: true });
         try {
             const result = await generateNewKeys();
@@ -259,7 +253,7 @@ export const useLicenses = () => {
         handleDeleteSoftware,
         resetCurrentLicense,
         setExpirationDatePreset,
-        generateNewKeys: generateNewKeysAction,
+        handleGenerateKeys,
         downloadLicenseFile,
     };
 
