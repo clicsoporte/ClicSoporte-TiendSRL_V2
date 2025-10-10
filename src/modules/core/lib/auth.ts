@@ -38,7 +38,7 @@ export async function login(email: string, passwordProvided: string): Promise<Us
         // Do not send the password hash back to the client.
         const { password, ...userWithoutPassword } = user;
         await logInfo(`User '${user.name}' logged in successfully.`, logMeta);
-        return userWithoutPassword as User;
+        return JSON.parse(JSON.stringify(userWithoutPassword));
       }
     }
     await logWarn(`Failed login attempt for email: ${email}`, logMeta);
@@ -70,10 +70,11 @@ export async function getAllUsers(): Promise<User[]> {
         const stmt = db.prepare('SELECT * FROM users ORDER BY name');
         const users = stmt.all() as User[];
         // Ensure passwords are never sent to the client.
-        return users.map(u => {
+        const safeUsers = users.map(u => {
             const { password, ...userWithoutPassword } = u;
             return userWithoutPassword;
-        }) as User[];
+        });
+        return JSON.parse(JSON.stringify(safeUsers));
     } catch (error) {
         console.error("Failed to get all users:", error);
         return [];
@@ -88,12 +89,11 @@ export async function getAllUsers(): Promise<User[]> {
 export async function getUserById(id: number): Promise<User | null> {
     const db = await connectDb();
     try {
-        const stmt = db.prepare('SELECT * FROM users WHERE id = ?');
-        const user = stmt.get(id) as User | undefined;
+        const user = db.prepare('SELECT * FROM users WHERE id = ?').get(id) as User | undefined;
         if (!user) return null;
         
         const { password, ...userWithoutPassword } = user;
-        return userWithoutPassword as User;
+        return JSON.parse(JSON.stringify(userWithoutPassword));
 
     } catch (error) {
         console.error(`Failed to get user by ID ${id}:`, error);
@@ -141,7 +141,7 @@ export async function addUser(userData: Omit<User, 'id' | 'avatar' | 'recentActi
 
   const { password, ...userWithoutPassword } = userToCreate;
   await logInfo(`Admin added a new user: ${userToCreate.name}`, { role: userToCreate.role });
-  return userWithoutPassword as User;
+  return JSON.parse(JSON.stringify(userWithoutPassword));
 }
 
 /**
