@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Server-side functions for the support tickets database.
  */
@@ -63,17 +62,17 @@ export async function initializeTicketsDb(db: import('better-sqlite3').Database)
             updatedAt TEXT NOT NULL,
             dueDate TEXT,
             
-            contactId INTEGER,
+            companyId INTEGER,
             
             -- Denormalized for quick display & for customers not in the company structure
             customerName TEXT, 
-            companyName TEXT, 
+            companyName TEXT, -- Denormalized company name
 
             assigneeId INTEGER, -- User ID from intratool.db
             helpTopicId INTEGER,
             serviceId TEXT, -- From main DB services catalog
 
-            FOREIGN KEY (contactId) REFERENCES company_contacts(id) ON DELETE SET NULL,
+            FOREIGN KEY (companyId) REFERENCES client_companies(id) ON DELETE SET NULL,
             FOREIGN KEY (helpTopicId) REFERENCES help_topics(id)
         );
 
@@ -152,13 +151,13 @@ export async function runTicketMigrations(db: import('better-sqlite3').Database)
                     createdAt TEXT NOT NULL,
                     updatedAt TEXT NOT NULL,
                     dueDate TEXT,
-                    contactId INTEGER,
+                    companyId INTEGER,
                     customerName TEXT,
                     companyName TEXT,
                     assigneeId INTEGER,
                     helpTopicId INTEGER,
                     serviceId TEXT,
-                    FOREIGN KEY (contactId) REFERENCES company_contacts(id) ON DELETE SET NULL,
+                    FOREIGN KEY (companyId) REFERENCES client_companies(id) ON DELETE SET NULL,
                     FOREIGN KEY (helpTopicId) REFERENCES help_topics(id)
                 );
             `);
@@ -216,7 +215,7 @@ export async function addTicket(payload: NewTicketPayload, user: User): Promise<
     const db = await connectDb(TICKETS_DB_FILE);
 
     const transaction = db.transaction(() => {
-        const { prefix, number } = getNextTicketNumber.call({db: db}) as { prefix: string, number: number };
+        const { prefix, number } = getNextTicketNumber(db);
         const consecutive = `${prefix}${number.toString().padStart(6, '0')}`;
         const now = new Date().toISOString();
         
@@ -231,7 +230,7 @@ export async function addTicket(payload: NewTicketPayload, user: User): Promise<
             }
         }
         
-        // Find company name if contactId is provided
+        // Find company name if companyId is provided
         let companyName = payload.companyName || '';
         if(payload.companyId) {
             const company = db.prepare('SELECT name FROM client_companies WHERE id = ?').get(payload.companyId) as { name: string } | undefined;
@@ -239,9 +238,9 @@ export async function addTicket(payload: NewTicketPayload, user: User): Promise<
         }
 
         const ticketInsertInfo = db.prepare(`
-            INSERT INTO tickets (consecutive, subject, status, priority, createdAt, updatedAt, contactId, customerName, companyName, assigneeId, helpTopicId, serviceId, dueDate)
+            INSERT INTO tickets (consecutive, subject, status, priority, createdAt, updatedAt, companyId, customerName, companyName, assigneeId, helpTopicId, serviceId, dueDate)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(consecutive, payload.subject, 'open', priority, now, now, payload.contactId, payload.customerName, companyName, assigneeId, payload.helpTopicId, payload.serviceId, payload.dueDate || null);
+        `).run(consecutive, payload.subject, 'open', priority, now, now, payload.companyId, payload.customerName, companyName, assigneeId, payload.helpTopicId, payload.serviceId, payload.dueDate || null);
         
         const newTicketId = ticketInsertInfo.lastInsertRowid;
 

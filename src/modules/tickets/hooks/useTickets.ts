@@ -9,13 +9,13 @@ import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError, logInfo } from '@/modules/core/lib/logger';
 import { useAuth } from '@/modules/core/hooks/useAuth';
-import type { NewTicketPayload, Ticket, TicketPriority, TicketStatus, TicketThread, User, HelpTopic, ClientCompany, Service, SupportPackage } from '@/modules/core/types';
+import type { NewTicketPayload, Ticket, TicketPriority, TicketStatus, TicketThread, User, HelpTopic, ClientCompany, Service, SupportPackage, Customer } from '@/modules/core/types';
 import {
     saveTicket, getTickets, getTicketById as getTicketByIdServer,
     getTicketThread as getTicketThreadServer,
     addThreadEntry as addThreadEntryServer,
     updateTicketDetails as updateTicketDetailsServer,
-    getHelpTopics, addTicketCustomer, addClientCompany,
+    getHelpTopics, addClientCompany,
     deleteTicket,
     getCustomerSupportInfo,
 } from '../lib/actions';
@@ -27,7 +27,6 @@ const emptyTicket: NewTicketPayload = {
     content: '',
     status: 'open',
     priority: 'medium',
-    contactId: null,
     customerName: '',
     customerEmail: '',
     customerPhone: '',
@@ -59,7 +58,7 @@ const initialState = {
     priorityFilter: 'all',
     currentThread: [] as TicketThread[],
     clientCompanies: [] as ClientCompany[],
-    customerSupportInfo: null as { customer: ClientCompany | null, supportPackage: SupportPackage | null, services: Service[] } | null,
+    customerSupportInfo: null as { customer: Customer | ClientCompany | null, supportPackage: SupportPackage | null, services: Service[] } | null,
 };
 
 const priorityConfig: { [key in TicketPriority]: { label: string, variant: 'default' | 'secondary' | 'destructive' | 'outline' } } = {

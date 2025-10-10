@@ -51,7 +51,7 @@ const initialState = {
     drafts: [] as CostAnalysisDraft[],
     transportCost: 0,
     otherCosts: 0,
-    columnVisibility: initialColumnVisibility,
+    columnVisibility: initialColumnVisibility as ColumnVisibility,
     exportStatus: 'idle' as ExportStatus,
     exportFileName: null as string | null,
 };
