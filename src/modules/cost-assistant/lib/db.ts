@@ -5,6 +5,7 @@
 
 import { connectDb } from '../../core/lib/db';
 import type { CostAnalysisDraft } from '@/modules/core/types';
+import crypto from 'crypto';
 
 const DB_FILE = 'cost-assistant.db';
 
@@ -48,6 +49,7 @@ export async function initializeCostAssistantDb(db: import('better-sqlite3').Dat
     db.prepare(`INSERT OR IGNORE INTO cost_assistant_settings (key, value) VALUES ('columnVisibility', ?)`).run(JSON.stringify(initialColumnVisibility));
 
     console.log(`Database ${DB_FILE} initialized for Cost Assistant.`);
+    await runCostAssistantMigrations(db);
 }
 
 export async function runCostAssistantMigrations(db: import('better-sqlite3').Database) {
@@ -112,19 +114,29 @@ export async function getAllDrafts(userId: number): Promise<CostAnalysisDraft[]>
     return JSON.parse(JSON.stringify(parsedDrafts));
 }
 
-export async function saveDraft(draft: CostAnalysisDraft): Promise<CostAnalysisDraft> {
+export async function saveDraft(draft: Omit<CostAnalysisDraft, 'id' | 'createdAt'>): Promise<CostAnalysisDraft> {
     const db = await connectDb(DB_FILE);
+    const id = crypto.randomUUID();
+    const createdAt = new Date().toISOString();
+
+    const draftToSave = {
+        id,
+        createdAt,
+        ...draft
+    };
+
     db.prepare(`
         INSERT OR REPLACE INTO cost_analysis_drafts 
         (id, createdAt, userId, name, lines, globalCosts, processedInvoices) 
         VALUES (@id, @createdAt, @userId, @name, @lines, @globalCosts, @processedInvoices)
     `).run({
-        ...draft,
-        lines: JSON.stringify(draft.lines),
-        globalCosts: JSON.stringify(draft.globalCosts),
-        processedInvoices: JSON.stringify(draft.processedInvoices),
+        ...draftToSave,
+        lines: JSON.stringify(draftToSave.lines),
+        globalCosts: JSON.stringify(draftToSave.globalCosts),
+        processedInvoices: JSON.stringify(draftToSave.processedInvoices),
     });
-    const savedDraft = db.prepare('SELECT * FROM cost_analysis_drafts WHERE id = ?').get(draft.id) as any;
+    
+    const savedDraft = db.prepare('SELECT * FROM cost_analysis_drafts WHERE id = ?').get(id) as any;
      return JSON.parse(JSON.stringify({
         ...savedDraft,
         lines: JSON.parse(savedDraft.lines || '[]'),

@@ -4,7 +4,8 @@
  */
 'use client';
 
-import { saveSqlConfig as saveSqlConfigServer, testSqlConnection as testSqlConnectionServer, getImportQueries as getImportQueriesServer, saveImportQueries as saveImportQueriesServer } from './config-db';
+import { saveSqlConfig as saveSqlConfigServer, getImportQueries as getImportQueriesServer, saveImportQueries as saveImportQueriesServer } from './config-db';
+import { testSqlConnection as testSqlConnectionServer } from './sql-service';
 import type { SqlConfig, ImportQuery } from '../types';
 
 export async function saveSqlConfig(config: SqlConfig): Promise<void> {

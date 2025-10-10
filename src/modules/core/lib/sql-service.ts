@@ -7,7 +7,7 @@
 'use server';
 
 import sql from 'mssql';
-import { logError } from './logger';
+import { logError, logInfo } from './logger';
 import { getSqlConfig } from './config-db';
 
 let pool: sql.ConnectionPool | null = null;
@@ -150,5 +150,22 @@ export async function executeQuery(query: string): Promise<any[]> {
         }
         
         throw new Error(`Error en la consulta SQL: ${err.message}`);
+    }
+}
+
+
+/**
+ * Tests the connection to the SQL server.
+ * Throws an error if the connection fails.
+ */
+export async function testSqlConnection(): Promise<void> {
+    try {
+        const connection = await getConnectionPool();
+        // A simple query to confirm the connection is live.
+        await connection.request().query('SELECT 1');
+        logInfo('SQL Server connection test successful.');
+    } catch (err: any) {
+        logError('SQL Server connection test failed', { error: err.message });
+        throw new Error(`La prueba de conexión falló: ${err.message}`);
     }
 }
