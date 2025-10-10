@@ -59,6 +59,7 @@ export type SupportPackage = {
   name: string;
   includedServices: string[]; // Array of service IDs
   excludedServices: string[]; // Array of service IDs
+  defaultHours?: number; // Bolsa de horas
 };
 
 export type Service = {

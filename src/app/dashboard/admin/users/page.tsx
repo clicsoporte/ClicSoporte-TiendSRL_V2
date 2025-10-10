@@ -243,6 +243,17 @@ export default function UsersPage() {
         setUserToDelete(user);
         setDeleteAlertOpen(true);
     }
+    
+    const handlePackageChange = (packageId: string) => {
+        if (!currentUserToEdit) return;
+
+        const selectedPackage = companyData?.supportPackages.find(p => p.id === packageId);
+        setCurrentUserToEdit({
+            ...currentUserToEdit,
+            supportPackageId: packageId === 'none' ? undefined : packageId,
+            monthlyHoursBalance: selectedPackage?.defaultHours ?? 0,
+        });
+    }
 
     if (isAuthorized === null) {
         return null;
@@ -442,7 +453,7 @@ export default function UsersPage() {
                             <h4 className="text-base font-medium">Planes de Soporte (para clientes del ERP)</h4>
                             <div className="space-y-2">
                                 <Label htmlFor="support-package">Paquete de Soporte Asignado</Label>
-                                <Select value={currentUserToEdit.supportPackageId || 'none'} onValueChange={value => setCurrentUserToEdit({...currentUserToEdit, supportPackageId: value === 'none' ? undefined : value })}>
+                                <Select value={currentUserToEdit.supportPackageId || 'none'} onValueChange={handlePackageChange}>
                                     <SelectTrigger id="support-package">
                                         <SelectValue placeholder="Ninguno" />
                                     </SelectTrigger>
@@ -500,5 +511,3 @@ export default function UsersPage() {
     </>
   );
 }
-
-    
