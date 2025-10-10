@@ -21,7 +21,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SearchInput } from '@/components/ui/search-input';
-import { PlusCircle, MoreVertical, KeyRound, Copy, CalendarIcon, Loader2, FilterX, Trash2 } from 'lucide-react';
+import { PlusCircle, MoreVertical, KeyRound, Copy, CalendarIcon, Loader2, FilterX, Trash2, History, X } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/modules/core/hooks/useAuth';
@@ -96,7 +96,7 @@ export default function LicensesPage() {
                                                     <Label htmlFor="license-key">Clave de Licencia</Label>
                                                     <Textarea id="license-key" value={state.currentLicense.licenseKey} onChange={(e) => actions.handleCurrentLicenseChange('licenseKey', e.target.value)} placeholder="Pega aquí la clave de licencia, o deja en blanco para generar una."/>
                                                 </div>
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
                                                      <div className="space-y-2">
                                                         <Label htmlFor="expiration-date">Fecha de Vencimiento</Label>
                                                         <Popover>
@@ -108,15 +108,20 @@ export default function LicensesPage() {
                                                             </PopoverTrigger>
                                                             <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={state.currentLicense.expirationDate ? parseISO(state.currentLicense.expirationDate) : undefined} onSelect={(date) => actions.handleCurrentLicenseChange('expirationDate', date?.toISOString().split('T')[0] || '')} initialFocus/></PopoverContent>
                                                         </Popover>
+                                                        <div className="flex flex-wrap gap-2 mt-2">
+                                                            <Button type="button" size="sm" variant="secondary" onClick={() => actions.setExpirationDatePreset(30)}>Prueba (30 Días)</Button>
+                                                            <Button type="button" size="sm" variant="secondary" onClick={() => actions.setExpirationDatePreset(365)}>Anual (1 Año)</Button>
+                                                            <Button type="button" size="sm" variant="secondary" onClick={() => actions.setExpirationDatePreset('perpetual')}>Perpetua</Button>
+                                                        </div>
                                                     </div>
-                                                     <div className="flex items-center space-x-2 pb-2">
+                                                     <div className="flex items-center space-x-2 pt-8">
                                                         <Checkbox id="is-perpetual" checked={state.currentLicense.isPerpetual} onCheckedChange={(checked) => actions.handleCurrentLicenseChange('isPerpetual', !!checked)} />
                                                         <Label htmlFor="is-perpetual">Licencia Perpetua</Label>
                                                     </div>
                                                 </div>
                                             </div>
                                             <DialogFooter>
-                                                <DialogClose asChild><Button variant="ghost" type="button">Cancelar</Button></DialogClose>
+                                                <DialogClose asChild><Button type="button" variant="ghost">Cancelar</Button></DialogClose>
                                                 <Button type="submit" disabled={state.isSubmitting}>{state.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}{state.isEditing ? "Guardar Cambios" : "Crear Licencia"}</Button>
                                             </DialogFooter>
                                         </form>
@@ -226,5 +231,3 @@ export default function LicensesPage() {
         </main>
     );
 }
-
-    

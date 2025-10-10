@@ -22,6 +22,7 @@ import {
 } from '../lib/actions';
 import { getClientCompanies } from '@/modules/tickets/lib/actions';
 import { useDebounce } from 'use-debounce';
+import { add } from 'date-fns';
 
 const emptyLicense: Omit<License, 'id' | 'createdAt'> = {
     licenseKey: '',
@@ -182,6 +183,19 @@ export const useLicenses = () => {
         updateState({ currentLicense: emptyLicense, isEditing: false, companySearchTerm: '' });
     };
 
+    const setExpirationDatePreset = (preset: 'perpetual' | number) => {
+        if (preset === 'perpetual') {
+            updateState({
+                currentLicense: { ...state.currentLicense, isPerpetual: true, expirationDate: '' }
+            });
+        } else {
+            const newDate = add(new Date(), { days: preset });
+            updateState({
+                currentLicense: { ...state.currentLicense, isPerpetual: false, expirationDate: newDate.toISOString().split('T')[0] }
+            });
+        }
+    };
+
     const clientCompanyOptions = useMemo(() => {
         if (debouncedCompanySearch.length < 2) return [];
         const searchTerms = debouncedCompanySearch.toLowerCase().split(' ').filter(Boolean);
@@ -214,6 +228,7 @@ export const useLicenses = () => {
         handleCreateSoftware,
         handleDeleteSoftware,
         resetCurrentLicense,
+        setExpirationDatePreset,
     };
 
     const selectors = {
