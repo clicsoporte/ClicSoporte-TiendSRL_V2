@@ -5,7 +5,8 @@
 "use server";
 
 import { connectDb } from '../../core/lib/db';
-import type { Ticket, NewTicketPayload, User, TicketCustomer, TicketThread, HelpTopic, ClientCompany } from '@/modules/core/types';
+import { getCompanySettings } from '../../core/lib/settings-db';
+import type { Ticket, NewTicketPayload, User, TicketCustomer, TicketThread, HelpTopic, ClientCompany, SupportPackage, Service } from '@/modules/core/types';
 import crypto from 'crypto';
 
 const TICKETS_DB_FILE = 'tickets.db';
@@ -232,12 +233,9 @@ export async function addTicket(payload: NewTicketPayload, user: User): Promise<
         
         // Find company name if contactId is provided
         let companyName = payload.companyName || '';
-        if(payload.contactId) {
-            const contact = db.prepare('SELECT companyId FROM company_contacts WHERE id = ?').get(payload.contactId) as { companyId: number } | undefined;
-            if (contact) {
-                const company = db.prepare('SELECT name FROM client_companies WHERE id = ?').get(contact.companyId) as { name: string } | undefined;
-                if(company) companyName = company.name;
-            }
+        if(payload.companyId) {
+            const company = db.prepare('SELECT name FROM client_companies WHERE id = ?').get(payload.companyId) as { name: string } | undefined;
+            if(company) companyName = company.name;
         }
 
         const ticketInsertInfo = db.prepare(`
@@ -367,7 +365,7 @@ export async function updateTicketDetails(ticketId: number, updates: Partial<Pic
         query += ' WHERE id = ?';
         params.push(ticketId);
 
-        if (updates) {
+        if (params.length > 2) { // more than just updatedAt and id
             db.prepare(query).run(...params);
 
             if (historyNotes.length > 0) {
@@ -418,4 +416,27 @@ export async function deleteHelpTopic(id: number): Promise<void> {
 export async function deleteTicket(id: number): Promise<void> {
     const db = await connectDb(TICKETS_DB_FILE);
     db.prepare('DELETE FROM tickets WHERE id = ?').run(id);
+}
+
+export async function getCustomerSupportInfo(companyId: number): Promise<{ customer: ClientCompany | null; supportPackage: SupportPackage | null, services: Service[] }> {
+    const mainDb = await connectDb();
+    const ticketsDb = await connectDb(TICKETS_DB_FILE);
+    
+    const customer = mainDb.prepare('SELECT * FROM customers WHERE id = ?').get(companyId) as Customer | null;
+    
+    if (!customer?.supportPackageId) {
+        return { customer: null, supportPackage: null, services: [] };
+    }
+    
+    const companySettings = await getCompanySettings();
+    const supportPackage = companySettings?.supportPackages.find(p => p.id === customer.supportPackageId) || null;
+    const services = companySettings?.servicesCatalog || [];
+
+    const result = {
+        customer: JSON.parse(JSON.stringify(customer)),
+        supportPackage: supportPackage ? JSON.parse(JSON.stringify(supportPackage)) : null,
+        services: JSON.parse(JSON.stringify(services)),
+    };
+
+    return result;
 }

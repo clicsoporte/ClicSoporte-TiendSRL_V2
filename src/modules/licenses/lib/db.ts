@@ -33,7 +33,7 @@ export async function initializeLicensesDb(db: import('better-sqlite3').Database
     `;
     db.exec(schema);
 
-    // Insert some default software products
+    // Insert default software products
     const defaultProducts = [
         { name: 'Clic-Soporte SaaS', isInternal: true },
         { name: 'Antivirus Kaspersky', isInternal: false },
@@ -43,6 +43,7 @@ export async function initializeLicensesDb(db: import('better-sqlite3').Database
     defaultProducts.forEach(p => insert.run({ ...p, isInternal: p.isInternal ? 1 : 0 }));
 
     console.log(`Database ${LICENSES_DB_FILE} initialized for License Management.`);
+    await runLicensesMigrations(db);
 }
 
 export async function runLicensesMigrations(db: import('better-sqlite3').Database) {
@@ -98,7 +99,8 @@ export async function updateLicense(license: License): Promise<License> {
         ...license,
         isPerpetual: license.isPerpetual ? 1 : 0,
     });
-    return JSON.parse(JSON.stringify(license));
+    const result = db.prepare('SELECT * FROM licenses WHERE id = ?').get(license.id) as License;
+    return JSON.parse(JSON.stringify(result));
 }
 
 export async function deleteLicense(id: number): Promise<void> {

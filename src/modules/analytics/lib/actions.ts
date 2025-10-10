@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Server-side functions for aggregating analytics data.
  */
@@ -52,11 +53,13 @@ async function getTicketKpis(range?: DateRange): Promise<Kpi> {
     const { filteredQuery, params } = applyDateFilter('SELECT status FROM tickets {{WHERE}}', range, 'createdAt');
     const tickets = db.prepare(filteredQuery).all(...params) as Pick<Ticket, 'status'>[];
     
-    return tickets.reduce((acc, ticket) => {
+    const result = tickets.reduce((acc, ticket) => {
         acc.total++;
         acc[ticket.status] = (acc[ticket.status] || 0) + 1;
         return acc;
     }, { total: 0 } as Kpi);
+
+    return JSON.parse(JSON.stringify(result));
 }
 
 async function getProjectKpis(range?: DateRange): Promise<Kpi> {
@@ -64,11 +67,12 @@ async function getProjectKpis(range?: DateRange): Promise<Kpi> {
     const { filteredQuery, params } = applyDateFilter('SELECT status FROM production_orders {{WHERE}}', range, 'requestDate');
     const projects = db.prepare(filteredQuery).all(...params) as Pick<ProductionOrder, 'status'>[];
 
-    return projects.reduce((acc, project) => {
+    const result = projects.reduce((acc, project) => {
         acc.total++;
         acc[project.status] = (acc[project.status] || 0) + 1;
         return acc;
     }, { total: 0 } as Kpi);
+    return JSON.parse(JSON.stringify(result));
 }
 
 async function getRequestKpis(range?: DateRange): Promise<Kpi> {
@@ -76,11 +80,12 @@ async function getRequestKpis(range?: DateRange): Promise<Kpi> {
     const { filteredQuery, params } = applyDateFilter('SELECT status FROM purchase_requests {{WHERE}}', range, 'requestDate');
     const requests = db.prepare(filteredQuery).all(...params) as Pick<PurchaseRequest, 'status'>[];
 
-    return requests.reduce((acc, request) => {
+    const result = requests.reduce((acc, request) => {
         acc.total++;
         acc[request.status] = (acc[request.status] || 0) + 1;
         return acc;
     }, { total: 0 } as Kpi);
+    return JSON.parse(JSON.stringify(result));
 }
 
 async function getTimeTrackingKpis(range?: DateRange): Promise<TimeTrackingKpi> {
@@ -131,7 +136,7 @@ async function getTimeTrackingKpis(range?: DateRange): Promise<TimeTrackingKpi> 
         nonBillable: parseFloat(u.nonBillable.toFixed(2)),
     })).sort((a,b) => (b.billable + b.nonBillable) - (a.billable + a.nonBillable));
 
-    return result;
+    return JSON.parse(JSON.stringify(result));
 }
 
 export async function getAnalyticsData(range?: DateRange): Promise<AnalyticsData> {
