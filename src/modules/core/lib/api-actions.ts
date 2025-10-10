@@ -8,6 +8,7 @@
 
 import { getApiSettings } from './settings-db';
 import { logError, logWarn } from './logger';
+import type { HaciendaExemptionApiResponse } from '../types';
 
 /**
  * Fetches the current USD to CRC exchange rate from the configured API endpoint.
@@ -45,7 +46,7 @@ export async function getExchangeRate(): Promise<any> {
  * @param {string} authNumber - The authorization number of the exemption to check.
  * @returns {Promise<any>} The JSON response from the external API or an error object.
  */
-export async function getExemptionStatus(authNumber: string): Promise<any> {
+export async function getExemptionStatus(authNumber: string): Promise<HaciendaExemptionApiResponse | { error: boolean; message: string; status?: number }> {
     if (!authNumber) {
         return { error: true, message: "Authorization number is required", status: 400 };
     }

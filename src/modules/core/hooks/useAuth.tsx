@@ -44,6 +44,13 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const FullPageLoader = () => (
+    <div className="flex h-screen w-full items-center justify-center bg-background">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+    </div>
+);
+
+
 /**
  * The provider component that wraps the authenticated parts of the application.
  * It handles the initial loading of all authentication-related data.
@@ -178,31 +185,10 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
 
   const isDashboardRoute = pathname.startsWith('/dashboard');
 
+  // While loading, show a full-page loader to prevent any content flash
+  // on authenticated routes. Public routes will render immediately.
   if (isLoading && isDashboardRoute) {
-    return (
-        <div className="flex h-screen bg-muted/40">
-            <div className="hidden md:flex flex-col w-64 border-r p-4 gap-4">
-                 <div className="flex items-center gap-2 mb-4">
-                    <Skeleton className="h-10 w-10 rounded-lg"/>
-                    <Skeleton className="h-6 w-32"/>
-                </div>
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-            </div>
-            <div className="flex-1 flex flex-col">
-                <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background/80 px-4 backdrop-blur-sm md:px-6">
-                    <Skeleton className="h-8 w-48"/>
-                    <div className="ml-auto flex items-center gap-4">
-                       <Skeleton className="h-9 w-9 rounded-full" />
-                    </div>
-                </header>
-                <main className="flex flex-1 items-center justify-center">
-                    <Loader2 className="h-12 w-12 animate-spin text-primary" />
-                </main>
-            </div>
-        </div>
-    );
+    return <FullPageLoader />;
   }
 
   return (

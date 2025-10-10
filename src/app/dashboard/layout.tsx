@@ -48,16 +48,8 @@ export default function DashboardLayout({
     }
   }, [isLoading, user, router]);
 
-  // While loading, show a full-page loader to prevent content flash.
-  if (isLoading) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center bg-background">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  // If there is a user, render the full dashboard layout.
+  // The AuthProvider now handles the main loading state, so we just need
+  // to check if there's a user before rendering the layout.
   if (user) {
     return (
         <PageTitleProvider initialTitle="Panel">
@@ -73,6 +65,7 @@ export default function DashboardLayout({
     );
   }
   
-  // Fallback: if not loading and no user, render nothing while redirecting.
+  // While isLoading is true, AuthProvider shows a full-page loader.
+  // If not loading and no user, this returns null while redirecting.
   return null;
 }

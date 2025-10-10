@@ -18,7 +18,8 @@ import {
     deleteHelpTopic as deleteHelpTopicServer,
     addClientCompany as addClientCompanyServer,
     getClientCompanies as getClientCompaniesServer,
-    deleteTicket as deleteTicketServer
+    deleteTicket as deleteTicketServer,
+    getCustomerSupportInfo as getCustomerSupportInfoServer
 } from './db';
 
 /**
@@ -146,22 +147,6 @@ export async function deleteTicket(id: number): Promise<void> {
     return deleteTicketServer(id);
 }
 
-export async function getCustomerSupportInfo(customerId: string): Promise<{ customer: Customer | null, supportPackage: SupportPackage | null, services: Service[] }> {
-    const mainDb = await connectDb();
-    const customer = mainDb.prepare('SELECT * FROM customers WHERE id = ?').get(customerId) as Customer | null;
-    
-    if (!customer || !customer.supportPackageId) {
-        return { customer, supportPackage: null, services: [] };
-    }
-
-    const companySettingsRow = mainDb.prepare('SELECT supportPackages, servicesCatalog FROM company_settings WHERE id = 1').get() as { supportPackages: string, servicesCatalog: string } | undefined;
-    if (!companySettingsRow) {
-        return { customer, supportPackage: null, services: [] };
-    }
-
-    const allPackages = JSON.parse(companySettingsRow.supportPackages || '[]') as SupportPackage[];
-    const allServices = JSON.parse(companySettingsRow.servicesCatalog || '[]') as Service[];
-    const supportPackage = allPackages.find(p => p.id === customer.supportPackageId) || null;
-    
-    return { customer, supportPackage, services: allServices };
+export async function getCustomerSupportInfo(companyId: number): Promise<{ customer: ClientCompany | null; supportPackage: SupportPackage | null, services: Service[] }> {
+    return getCustomerSupportInfoServer(companyId);
 }
