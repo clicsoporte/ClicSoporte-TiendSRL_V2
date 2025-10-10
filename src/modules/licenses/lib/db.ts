@@ -19,7 +19,7 @@ export async function initializeLicensesDb(db: import('better-sqlite3').Database
 
         CREATE TABLE IF NOT EXISTS licenses (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            licenseKey TEXT NOT NULL UNIQUE, -- Now stores the downloadable JSON license content
+            licenseKey TEXT NOT NULL, -- Now stores the downloadable JSON license content
             softwareId INTEGER NOT NULL,
             clientCompanyId INTEGER,
             hardwareId TEXT,
