@@ -10,7 +10,19 @@ import crypto from 'crypto';
 const DB_FILE = 'cost-assistant.db';
 
 export type CostAssistantSettings = {
-    columnVisibility: { [key: string]: boolean }
+    columnVisibility: {
+        cabysCode: boolean;
+        supplierCode: boolean;
+        description: boolean;
+        quantity: boolean;
+        unitCostWithoutTax: boolean;
+        unitCostWithTax: boolean;
+        taxRate: boolean;
+        margin: boolean;
+        sellPriceWithoutTax: boolean;
+        finalSellPrice: boolean;
+        profitPerLine: boolean;
+    }
 };
 
 export async function initializeCostAssistantDb(db: import('better-sqlite3').Database) {
@@ -79,7 +91,7 @@ export async function runCostAssistantMigrations(db: import('better-sqlite3').Da
 
 export async function getCostAssistantSettings(): Promise<CostAssistantSettings> {
     const db = await connectDb(DB_FILE);
-    const row = db.prepare(`SELECT value FROM warehouse_config WHERE key = 'settings'`).get() as { value: string } | undefined;
+    const row = db.prepare(`SELECT value FROM cost_assistant_settings WHERE key = 'columnVisibility'`).get() as { value: string } | undefined;
     if (row) {
         return {
             columnVisibility: JSON.parse(row.value)
@@ -114,7 +126,7 @@ export async function getAllDrafts(userId: number): Promise<CostAnalysisDraft[]>
     return JSON.parse(JSON.stringify(parsedDrafts));
 }
 
-export async function saveDraft(draft: Omit<CostAnalysisDraft, 'id' | 'createdAt'>): Promise<void> {
+export async function saveDraft(draft: Omit<CostAnalysisDraft, 'id' | 'createdAt'>): Promise<CostAnalysisDraft> {
     const db = await connectDb(DB_FILE);
     const id = crypto.randomUUID();
     const createdAt = new Date().toISOString();
@@ -135,6 +147,9 @@ export async function saveDraft(draft: Omit<CostAnalysisDraft, 'id' | 'createdAt
         globalCosts: JSON.stringify(draftToSave.globalCosts),
         processedInvoices: JSON.stringify(draftToSave.processedInvoices),
     });
+    
+    const result = db.prepare('SELECT * FROM cost_analysis_drafts WHERE id = ?').get(id);
+    return JSON.parse(JSON.stringify(result));
 }
 
 export async function deleteDraft(id: string): Promise<void> {
