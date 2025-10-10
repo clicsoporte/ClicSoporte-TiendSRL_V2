@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Centralized logging functions that interact with the database logger.
  * These server-side functions abstract away the direct database calls, providing a clean API
@@ -58,3 +59,5 @@ export async function getLogs(filters: {
 export async function clearLogs(clearedBy: string, type: 'operational' | 'system' | 'all', deleteAllTime: boolean) {
   return await dbClearLogs(clearedBy, type, deleteAllTime);
 }
+
+    

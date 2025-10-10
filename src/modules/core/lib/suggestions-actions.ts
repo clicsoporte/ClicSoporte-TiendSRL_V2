@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Server Actions specifically for handling user suggestions.
  * This file isolates the database logic for suggestions to prevent bundling issues.
@@ -61,3 +62,5 @@ export async function getUnreadSuggestionsCount(): Promise<number> {
     const result = db.prepare('SELECT COUNT(*) as count FROM suggestions WHERE isRead = 0').get() as { count: number };
     return result.count;
 }
+
+    

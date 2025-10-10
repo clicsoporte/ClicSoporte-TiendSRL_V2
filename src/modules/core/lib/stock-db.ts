@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Server-side functions for managing stock settings (warehouses).
  * Separated to avoid circular dependencies.
@@ -32,3 +33,5 @@ export async function saveStockSettings(settings: StockSettings): Promise<void> 
     const db = await connectDb();
     db.prepare("INSERT OR REPLACE INTO stock_settings (key, value) VALUES ('warehouses', ?)").run(JSON.stringify(settings.warehouses));
 }
+
+    

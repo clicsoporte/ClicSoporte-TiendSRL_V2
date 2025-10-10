@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Server-side functions for managing system-wide settings.
  * Separated to avoid circular dependencies.
@@ -17,7 +18,21 @@ export async function getCompanySettings(): Promise<Company | null> {
     const db = await connectDb();
     try {
         const row = db.prepare('SELECT * FROM company_settings WHERE id = 1').get() as Company | undefined;
-        return row || initialCompany;
+        if (row) {
+            return {
+                ...row,
+                supportPackages: JSON.parse(row.supportPackages as any || '[]'),
+                servicesCatalog: JSON.parse(row.servicesCatalog as any || '[]')
+            };
+        }
+        // If no settings exist, insert the initial ones.
+        db.prepare(`INSERT OR IGNORE INTO company_settings (id, name, taxId, address, phone, email, systemName, quotePrefix, nextQuoteNumber, decimalPlaces, quoterShowTaxId, searchDebounceTime, syncWarningHours, importMode, supportPackages, servicesCatalog) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+            initialCompany.name, initialCompany.taxId, initialCompany.address, initialCompany.phone, initialCompany.email, initialCompany.systemName,
+            initialCompany.quotePrefix, initialCompany.nextQuoteNumber, initialCompany.decimalPlaces, true, initialCompany.searchDebounceTime, initialCompany.syncWarningHours, initialCompany.importMode, 
+            JSON.stringify(initialCompany.supportPackages), JSON.stringify(initialCompany.servicesCatalog)
+        );
+        return initialCompany;
+
     } catch (error) {
         console.error("Failed to get company settings:", error);
         return initialCompany;
@@ -149,3 +164,5 @@ export async function getAndCacheExchangeRate(forceRefresh: boolean = false): Pr
     
     return { rate: null, date: null };
 }
+
+    

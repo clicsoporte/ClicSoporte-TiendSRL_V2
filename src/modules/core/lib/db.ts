@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview This file handles the SQLite database connection and provides
  * server-side functions for all database operations. It includes initialization,
@@ -9,8 +10,8 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
-import { initialUsers, initialCompany, initialRoles, DB_MODULES } from './data';
-import type { Company, LogEntry, DateRange } from '@/modules/core/types';
+import { initialUsers, initialRoles, DB_MODULES } from './data';
+import type { LogEntry, DateRange } from '@/modules/core/types';
 import bcrypt from 'bcryptjs';
 import { addLog as dbAddLog } from './logger-db';
 
@@ -121,209 +122,6 @@ export async function connectDb(dbFile: string = DB_FILE): Promise<Database.Data
     return db!;
 }
 
-
-/**
- * Checks the database schema and applies necessary alterations (migrations).
- * This makes the app more resilient to schema changes over time without data loss.
- * @param {Database.Database} db - The database instance to check.
- */
-async function checkAndApplyMigrations(db: import('better-sqlite3').Database) {
-    // Main DB Migrations
-    try {
-        const companyTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='company_settings'`).get();
-        if(!companyTable) return; // DB not initialized yet, migrations will fail.
-        
-        const companyTableInfo = db.prepare(`PRAGMA table_info(company_settings)`).all() as { name: string }[];
-        const companyColumns = new Set(companyTableInfo.map(c => c.name));
-        
-        if (!companyColumns.has('decimalPlaces')) {
-            console.log("MIGRATION: Adding decimalPlaces column to company_settings.");
-            db.exec(`ALTER TABLE company_settings ADD COLUMN decimalPlaces INTEGER DEFAULT 2`);
-        }
-        
-        if (companyColumns.has('importPath')) {
-            console.log("MIGRATION: Dropping importPath column from company_settings.");
-            db.exec(`ALTER TABLE company_settings DROP COLUMN importPath`);
-        }
-        
-        if (!companyColumns.has('customerFilePath')) db.exec(`ALTER TABLE company_settings ADD COLUMN customerFilePath TEXT`);
-        if (!companyColumns.has('productFilePath')) db.exec(`ALTER TABLE company_settings ADD COLUMN productFilePath TEXT`);
-        if (!companyColumns.has('exemptionFilePath')) db.exec(`ALTER TABLE company_settings ADD COLUMN exemptionFilePath TEXT`);
-        if (!companyColumns.has('stockFilePath')) db.exec(`ALTER TABLE company_settings ADD COLUMN stockFilePath TEXT`);
-        if (!companyColumns.has('locationFilePath')) db.exec(`ALTER TABLE company_settings ADD COLUMN locationFilePath TEXT`);
-        if (!companyColumns.has('cabysFilePath')) db.exec(`ALTER TABLE company_settings ADD COLUMN cabysFilePath TEXT`);
-        if (!companyColumns.has('importMode')) db.exec(`ALTER TABLE company_settings ADD COLUMN importMode TEXT DEFAULT 'file'`);
-        if (!companyColumns.has('logoUrl')) db.exec(`ALTER TABLE company_settings ADD COLUMN logoUrl TEXT`);
-        if (!companyColumns.has('searchDebounceTime')) db.exec(`ALTER TABLE company_settings ADD COLUMN searchDebounceTime INTEGER DEFAULT 500`);
-        if (!companyColumns.has('lastSyncTimestamp')) db.exec(`ALTER TABLE company_settings ADD COLUMN lastSyncTimestamp TEXT`);
-        if (!companyColumns.has('syncWarningHours')) db.exec(`ALTER TABLE company_settings ADD COLUMN syncWarningHours INTEGER DEFAULT 12`);
-        if (!companyColumns.has('quoterShowTaxId')) db.exec(`ALTER TABLE company_settings ADD COLUMN quoterShowTaxId BOOLEAN DEFAULT TRUE`);
-        if (!companyColumns.has('supportPackages')) db.exec(`ALTER TABLE company_settings ADD COLUMN supportPackages TEXT`);
-        if (!companyColumns.has('servicesCatalog')) db.exec(`ALTER TABLE company_settings ADD COLUMN servicesCatalog TEXT`);
-
-
-        const adminUser = db.prepare('SELECT role FROM users WHERE id = 1').get() as { role: string } | undefined;
-        if (adminUser && adminUser.role !== 'admin') {
-            console.log("MIGRATION: Ensuring user with ID 1 is an admin.");
-            db.prepare(`UPDATE users SET role = 'admin' WHERE id = 1`).run();
-        }
-
-        const draftsTableInfo = db.prepare(`PRAGMA table_info(quote_drafts)`).all() as { name: string }[];
-        const draftColumns = new Set(draftsTableInfo.map(c => c.name));
-        if (!draftColumns.has('userId')) db.exec(`ALTER TABLE quote_drafts ADD COLUMN userId INTEGER;`);
-        if (!draftColumns.has('customerId')) {
-            db.exec(`ALTER TABLE quote_drafts ADD COLUMN customerId TEXT;`);
-            
-            const oldDrafts = db.prepare('SELECT id, customer FROM quote_drafts WHERE customer IS NOT NULL').all() as {id: string, customer: string}[];
-            for(const draft of oldDrafts) {
-                try {
-                    const customerObj = JSON.parse(draft.customer);
-                    if (customerObj && customerObj.id) {
-                        db.prepare('UPDATE quote_drafts SET customerId = ? WHERE id = ?').run(customerObj.id, draft.id);
-                    }
-                } catch {}
-            }
-        }
-        if (!draftColumns.has('lines')) db.exec(`ALTER TABLE quote_drafts ADD COLUMN lines TEXT;`);
-        if (!draftColumns.has('totals')) db.exec(`ALTER TABLE quote_drafts ADD COLUMN totals TEXT;`);
-        if (!draftColumns.has('notes')) db.exec(`ALTER TABLE quote_drafts ADD COLUMN notes TEXT;`);
-        if (!draftColumns.has('currency')) db.exec(`ALTER TABLE quote_drafts ADD COLUMN currency TEXT;`);
-        if (!draftColumns.has('exchangeRate')) db.exec(`ALTER TABLE quote_drafts ADD COLUMN exchangeRate REAL;`);
-        if (!draftColumns.has('purchaseOrderNumber')) db.exec(`ALTER TABLE quote_drafts ADD COLUMN purchaseOrderNumber TEXT;`);
-        if (!draftColumns.has('customerDetails')) db.exec(`ALTER TABLE quote_drafts ADD COLUMN customerDetails TEXT;`);
-        if (!draftColumns.has('deliveryAddress')) db.exec(`ALTER TABLE quote_drafts ADD COLUMN deliveryAddress TEXT;`);
-        if (!draftColumns.has('deliveryDate')) db.exec(`ALTER TABLE quote_drafts ADD COLUMN deliveryDate TEXT;`);
-        if (!draftColumns.has('sellerName')) db.exec(`ALTER TABLE quote_drafts ADD COLUMN sellerName TEXT;`);
-        if (!draftColumns.has('sellerType')) db.exec(`ALTER TABLE quote_drafts ADD COLUMN sellerType TEXT;`);
-        if (!draftColumns.has('quoteDate')) db.exec(`ALTER TABLE quote_drafts ADD COLUMN quoteDate TEXT;`);
-        if (!draftColumns.has('validUntilDate')) db.exec(`ALTER TABLE quote_drafts ADD COLUMN validUntilDate TEXT;`);
-        if (!draftColumns.has('paymentTerms')) db.exec(`ALTER TABLE quote_drafts ADD COLUMN paymentTerms TEXT;`);
-        if (!draftColumns.has('creditDays')) db.exec(`ALTER TABLE quote_drafts ADD COLUMN creditDays INTEGER;`);
-        
-        const customerTableInfo = db.prepare(`PRAGMA table_info(customers)`).all() as { name: string }[];
-        const customerColumns = new Set(customerTableInfo.map(c => c.name));
-        if (!customerColumns.has('supportPackageId')) db.exec(`ALTER TABLE customers ADD COLUMN supportPackageId TEXT`);
-        if (!customerColumns.has('monthlyHoursBalance')) db.exec(`ALTER TABLE customers ADD COLUMN monthlyHoursBalance REAL`);
-
-
-        const usersToUpdate = db.prepare('SELECT id, password FROM users').all() as any[];
-        const updateUserPassword = db.prepare('UPDATE users SET password = ? WHERE id = ?');
-        let updatedCount = 0;
-        for (const user of usersToUpdate) {
-            if (user.password && !user.password.startsWith('$2a$')) {
-                const hashedPassword = bcrypt.hashSync(user.password, SALT_ROUNDS);
-                updateUserPassword.run(hashedPassword, user.id);
-                updatedCount++;
-            }
-        }
-        if (updatedCount > 0) {
-            console.log(`MIGRATION: Successfully hashed ${updatedCount} plaintext password(s).`);
-        }
-
-        const exemptionsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='exemptions'`).get();
-        if (!exemptionsTable) {
-            console.log("MIGRATION: Creating exemptions table.");
-            db.exec(`
-                CREATE TABLE exemptions (
-                    code TEXT PRIMARY KEY, description TEXT, customer TEXT, authNumber TEXT, startDate TEXT, endDate TEXT, percentage REAL, docType TEXT,
-                    institutionName TEXT, institutionCode TEXT
-                );
-            `);
-        }
-        
-        const apiTableInfo = db.prepare(`PRAGMA table_info(api_settings)`).all() as { name: string }[];
-        if (!apiTableInfo.some(col => col.name === 'haciendaExemptionApi')) {
-            console.log("MIGRATION: Adding haciendaExemptionApi column to api_settings.");
-            db.exec(`ALTER TABLE api_settings ADD COLUMN haciendaExemptionApi TEXT`);
-        }
-        if (!apiTableInfo.some(col => col.name === 'haciendaTributariaApi')) {
-            console.log("MIGRATION: Adding haciendaTributariaApi column to api_settings.");
-            db.exec(`ALTER TABLE api_settings ADD COLUMN haciendaTributariaApi TEXT`);
-        }
-        
-        const lawsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='exemption_laws'`).get();
-        if (!lawsTable) {
-             console.log("MIGRATION: Creating exemption_laws table.");
-             db.exec(`CREATE TABLE exemption_laws (docType TEXT PRIMARY KEY, institutionName TEXT NOT NULL, authNumber TEXT)`);
-        }
-
-        if (apiTableInfo.some(col => col.name === 'zonaFrancaLaw')) {
-             console.log("MIGRATION: Dropping zonaFrancaLaw column from api_settings.");
-             db.exec(`
-                CREATE TABLE api_settings_new (id INTEGER PRIMARY KEY DEFAULT 1, exchangeRateApi TEXT, haciendaExemptionApi TEXT, haciendaTributariaApi TEXT);
-                INSERT INTO api_settings_new (id, exchangeRateApi, haciendaExemptionApi, haciendaTributariaApi) SELECT id, exchangeRateApi, haciendaExemptionApi, haciendaTributariaApi FROM api_settings;
-                DROP TABLE api_settings;
-                ALTER TABLE api_settings_new RENAME TO api_settings;
-             `);
-        }
-
-        const stockTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='stock'`).get();
-        if (!stockTable) {
-            console.log("MIGRATION: Creating stock table.");
-            db.exec(`CREATE TABLE IF NOT EXISTS stock (itemId TEXT PRIMARY KEY, stockByWarehouse TEXT NOT NULL, totalStock REAL NOT NULL);`);
-        }
-
-        const stockSettingsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='stock_settings'`).get();
-         if (!stockSettingsTable) {
-            console.log("MIGRATION: Creating stock_settings table.");
-            db.exec(`CREATE TABLE IF NOT EXISTS stock_settings (key TEXT PRIMARY KEY, value TEXT);`);
-            const oldStockSettings = db.prepare("SELECT value FROM company_settings WHERE key = 'stockSettings'").get() as { value: string } | undefined;
-            if (oldStockSettings) {
-                console.log("MIGRATION: Moving stock settings to new table.");
-                db.prepare("INSERT INTO stock_settings (key, value) VALUES ('warehouses', ?)").run(oldStockSettings.value);
-                db.prepare("DELETE FROM company_settings WHERE key = 'stockSettings'").run();
-            }
-        }
-        
-        const sqlConfigTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='sql_config'`).get();
-        if (!sqlConfigTable) {
-            console.log("MIGRATION: Creating sql_config table.");
-            db.exec(`CREATE TABLE IF NOT EXISTS sql_config (key TEXT PRIMARY KEY, value TEXT);`);
-        }
-        
-        const importQueriesTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='import_queries'`).get();
-        if (!importQueriesTable) {
-            console.log("MIGRATION: Creating import_queries table.");
-            db.exec(`CREATE TABLE IF NOT EXISTS import_queries (type TEXT PRIMARY KEY, query TEXT);`);
-        }
-        
-        const cabysCatalogTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='cabys_catalog'`).get();
-        if (!cabysCatalogTable) {
-            console.log("MIGRATION: Creating cabys_catalog table.");
-            db.exec(`
-                CREATE TABLE cabys_catalog (
-                    code TEXT PRIMARY KEY,
-                    description TEXT NOT NULL,
-                    taxRate REAL
-                );
-            `);
-        }
-
-        const exchangeRatesTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='exchange_rates'`).get();
-        if (!exchangeRatesTable) {
-            console.log("MIGRATION: Creating exchange_rates table.");
-            db.exec(`CREATE TABLE exchange_rates (date TEXT PRIMARY KEY, rate REAL NOT NULL);`);
-        }
-
-        const suggestionsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='suggestions'`).get();
-        if (!suggestionsTable) {
-            console.log("MIGRATION: Creating suggestions table.");
-            db.exec(`
-                CREATE TABLE suggestions (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    content TEXT NOT NULL,
-                    userId INTEGER,
-                    userName TEXT,
-                    isRead INTEGER DEFAULT 0,
-                    timestamp TEXT NOT NULL
-                );
-            `);
-        }
-
-    } catch (error) {
-        console.error("Failed to apply migrations:", error);
-    }
-}
 export async function initializeMainDatabase(db: import('better-sqlite3').Database) {
     const mainSchema = `
         CREATE TABLE users (
@@ -447,26 +245,88 @@ export async function initializeMainDatabase(db: import('better-sqlite3').Databa
         userInsert.run({ ...user, password: hashedPassword });
     });
 
-    db.prepare(`INSERT OR IGNORE INTO company_settings (id, name, taxId, address, phone, email, systemName, quotePrefix, nextQuoteNumber, decimalPlaces, quoterShowTaxId, searchDebounceTime, syncWarningHours, importMode, supportPackages, servicesCatalog) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
-        initialCompany.name, initialCompany.taxId, initialCompany.address, initialCompany.phone, initialCompany.email, initialCompany.systemName,
-        initialCompany.quotePrefix, initialCompany.nextQuoteNumber, initialCompany.decimalPlaces, true, initialCompany.searchDebounceTime, initialCompany.syncWarningHours, initialCompany.importMode, 
-        JSON.stringify(initialCompany.supportPackages), JSON.stringify(initialCompany.servicesCatalog)
-    );
-    
-    db.prepare(`INSERT OR IGNORE INTO api_settings (id, exchangeRateApi, haciendaExemptionApi, haciendaTributariaApi) VALUES (1, ?, ?, ?)`).run(
-        'https://api.hacienda.go.cr/indicadores/tc/dolar', 
-        'https://api.hacienda.go.cr/fe/ex?autorizacion=',
-        'https://api.hacienda.go.cr/fe/ae?identificacion='
-    );
-
-    db.prepare('INSERT OR IGNORE INTO exemption_laws (docType, institutionName, authNumber) VALUES (?, ?, ?)')
-        .run('99', 'Régimen de Zona Franca', '9635');
-    db.prepare('INSERT OR IGNORE INTO exemption_laws (docType, institutionName) VALUES (?, ?), (?, ?), (?, ?), (?, ?), (?, ?)')
-        .run('02', 'Exento para Compras Autorizadas', '03', 'Ventas a Diplomáticos', '04', 'Ventas a la CCSS', '05', 'Ventas a Instituciones Públicas', '06', 'Otros');
-
     const roleInsert = db.prepare('INSERT INTO roles (id, name, permissions) VALUES (@id, @name, @permissions)');
     initialRoles.forEach(role => roleInsert.run({ ...role, permissions: JSON.stringify(role.permissions) }));
     
-    console.log(`Database ${DB_FILE} initialized with default users, company settings, and roles.`);
-    await checkAndApplyMigrations(db);
+    console.log(`Database ${DB_FILE} initialized with default users and roles.`);
 }
+
+export async function getLogs(filters: {
+    type?: 'operational' | 'system' | 'all';
+    search?: string;
+    dateRange?: DateRange;
+} = {}): Promise<LogEntry[]> {
+    const db = await connectDb();
+    let query = 'SELECT * FROM logs';
+    const params: any[] = [];
+    const whereClauses: string[] = [];
+
+    if (filters.type && filters.type !== 'all') {
+        if (filters.type === 'operational') {
+            whereClauses.push('type = ?');
+            params.push('INFO');
+        } else if (filters.type === 'system') {
+            whereClauses.push('type IN (?, ?)');
+            params.push('WARN', 'ERROR');
+        }
+    }
+    
+    if (filters.search) {
+        whereClauses.push('(message LIKE ? OR details LIKE ?)');
+        const likeTerm = `%${filters.search}%`;
+        params.push(likeTerm, likeTerm);
+    }
+    
+    if(filters.dateRange?.from) {
+        whereClauses.push('timestamp >= ?');
+        params.push(filters.dateRange.from.toISOString());
+    }
+     if(filters.dateRange?.to) {
+        whereClauses.push('timestamp <= ?');
+        const toDate = new Date(filters.dateRange.to);
+        toDate.setDate(toDate.getDate() + 1); // Include the whole day
+        params.push(toDate.toISOString());
+    }
+
+    if (whereClauses.length > 0) {
+        query += ` WHERE ${whereClauses.join(' AND ')}`;
+    }
+
+    query += ' ORDER BY timestamp DESC LIMIT 500';
+
+    const logs = db.prepare(query).all(...params) as LogEntry[];
+    return logs;
+}
+
+export async function clearLogs(clearedBy: string, type: 'operational' | 'system' | 'all', deleteAllTime: boolean): Promise<void> {
+    const db = await connectDb();
+    
+    let whereClause = '';
+    const params: any[] = [];
+    
+    if (!deleteAllTime) {
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        whereClause += 'timestamp < ?';
+        params.push(thirtyDaysAgo.toISOString());
+    }
+
+    if (type !== 'all') {
+        if (whereClause) whereClause += ' AND ';
+        if (type === 'operational') {
+            whereClause += 'type = ?';
+            params.push('INFO');
+        } else if (type === 'system') {
+            whereClause += 'type IN (?, ?)';
+            params.push('WARN', 'ERROR');
+        }
+    }
+
+    const query = `DELETE FROM logs ${whereClause ? 'WHERE ' + whereClause : ''}`;
+    
+    const info = db.prepare(query).run(...params);
+    
+    await dbAddLog({ type: "WARN", message: `Logs cleared by ${clearedBy}`, details: { type, deleteAllTime, affectedRows: info.changes } });
+}
+
+    

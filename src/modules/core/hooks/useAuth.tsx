@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview This file defines a central authentication context and hook.
  * It provides a single source of truth for the current user, their role, company data,
@@ -109,7 +110,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
       setUnreadSuggestionsCount(unreadCount);
       setExchangeRateData(rateData || { rate: null, date: null });
 
-      const role = allRoles.find((r: Role) => r.id === currentUser.role);
+      const role = allRoles.find((r) => r.id === currentUser.role);
       setUserRole(role || null);
       
       return { isAuthenticated: true };
@@ -224,3 +225,5 @@ export const useAuth = (): AuthContextType => {
     }
     return context;
 };
+
+    
