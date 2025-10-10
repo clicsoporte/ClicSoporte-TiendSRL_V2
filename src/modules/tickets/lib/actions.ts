@@ -147,6 +147,6 @@ export async function deleteTicket(id: number): Promise<void> {
     return deleteTicketServer(id);
 }
 
-export async function getCustomerSupportInfo(companyId: number): Promise<{ customer: Customer | null; supportPackage: SupportPackage | null, services: Service[] }> {
+export async function getCustomerSupportInfo(companyId: number): Promise<{ customer: Customer | ClientCompany | null; supportPackage: SupportPackage | null, services: Service[] }> {
     return getCustomerSupportInfoServer(companyId);
 }
