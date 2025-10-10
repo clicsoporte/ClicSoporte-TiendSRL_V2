@@ -21,6 +21,8 @@ export type User = {
   recentActivity: string;
   securityQuestion?: string;
   securityAnswer?: string;
+  supportPackageId?: string;
+  monthlyHoursBalance?: number;
 };
 
 /**
@@ -717,7 +719,7 @@ export type Ticket = {
     updatedAt: string;
     dueDate?: string;
     
-    contactId: number | null;
+    companyId: number | null;
     
     // Denormalized for quick display & for customers not in the company structure
     customerName: string; 

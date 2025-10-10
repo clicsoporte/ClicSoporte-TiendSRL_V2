@@ -63,8 +63,9 @@ import { usePageTitle } from "../../../../modules/core/hooks/usePageTitle";
 import { Skeleton } from "../../../../components/ui/skeleton";
 import { Avatar, AvatarImage, AvatarFallback } from "../../../../components/ui/avatar";
 import { useAuthorization } from "../../../../modules/core/hooks/useAuthorization";
+import { useAuth } from "@/modules/core/hooks/useAuth";
 
-type NewUserForm = Omit<User, 'id' | 'avatar' | 'recentActivity' | 'securityQuestion' | 'securityAnswer'> & {
+type NewUserForm = Omit<User, 'id' | 'avatar' | 'recentActivity' | 'securityQuestion' | 'securityAnswer' | 'supportPackageId' | 'monthlyHoursBalance'> & {
     password: string;
 };
 
