@@ -6,6 +6,7 @@
 import { connectDb } from '../../core/lib/db';
 import type { PurchaseRequest, RequestSettings, UpdateRequestStatusPayload, PurchaseRequestHistoryEntry, UpdatePurchaseRequestPayload, RejectCancellationPayload, PurchaseRequestStatus, DateRange, AdministrativeAction, AdministrativeActionPayload } from '../../core/types';
 import { format, parseISO } from 'date-fns';
+import { addOrder as addPlannerOrder } from '../../planner/lib/db';
 
 const REQUESTS_DB_FILE = 'requests.db';
 
@@ -50,7 +51,8 @@ export async function initializeRequestsDb(db: import('better-sqlite3').Database
             previousStatus TEXT,
             lastModifiedBy TEXT,
             lastModifiedAt TEXT,
-            hasBeenModified BOOLEAN DEFAULT FALSE
+            hasBeenModified BOOLEAN DEFAULT FALSE,
+            createPlannerOrderOnReceive BOOLEAN DEFAULT FALSE
         );
         CREATE TABLE IF NOT EXISTS purchase_request_history (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -104,6 +106,7 @@ export async function runRequestMigrations(db: import('better-sqlite3').Database
     if (!columns.has('lastModifiedAt')) db.exec(`ALTER TABLE purchase_requests ADD COLUMN lastModifiedAt TEXT`);
     if (!columns.has('hasBeenModified')) db.exec(`ALTER TABLE purchase_requests ADD COLUMN hasBeenModified BOOLEAN DEFAULT FALSE`);
     if (!columns.has('clientTaxId')) db.exec(`ALTER TABLE purchase_requests ADD COLUMN clientTaxId TEXT`);
+    if (!columns.has('createPlannerOrderOnReceive')) db.exec(`ALTER TABLE purchase_requests ADD COLUMN createPlannerOrderOnReceive BOOLEAN DEFAULT FALSE`);
     
     const settingsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='request_settings'`).get();
     if(settingsTable){
@@ -275,11 +278,11 @@ export async function addRequest(request: Omit<PurchaseRequest, 'id' | 'consecut
         INSERT INTO purchase_requests (
             consecutive, requestDate, requiredDate, clientId, clientName, clientTaxId,
             itemId, itemDescription, quantity, unitSalePrice, erpOrderNumber, manualSupplier, route, shippingMethod, purchaseOrder,
-            status, pendingAction, notes, requestedBy, reopened, inventory, priority, purchaseType, arrivalDate
+            status, pendingAction, notes, requestedBy, reopened, inventory, priority, purchaseType, arrivalDate, createPlannerOrderOnReceive
         ) VALUES (
             @consecutive, @requestDate, @requiredDate, @clientId, @clientName, @clientTaxId,
             @itemId, @itemDescription, @quantity, @unitSalePrice, @erpOrderNumber, @manualSupplier, @route, @shippingMethod, @purchaseOrder,
-            @status, @pendingAction, @notes, @requestedBy, @reopened, @inventory, @priority, @purchaseType, @arrivalDate
+            @status, @pendingAction, @notes, @requestedBy, @reopened, @inventory, @priority, @purchaseType, @arrivalDate, @createPlannerOrderOnReceive
         )
     `);
 
@@ -297,6 +300,7 @@ export async function addRequest(request: Omit<PurchaseRequest, 'id' | 'consecut
         purchaseType: newRequest.purchaseType || 'single',
         arrivalDate: newRequest.arrivalDate || null,
         clientTaxId: newRequest.clientTaxId || null,
+        createPlannerOrderOnReceive: newRequest.createPlannerOrderOnReceive ? 1 : 0,
     };
 
     const info = stmt.run(preparedRequest);
@@ -346,6 +350,7 @@ export async function updateRequest(payload: UpdatePurchaseRequestPayload): Prom
                 priority = @priority,
                 purchaseType = @purchaseType,
                 arrivalDate = @arrivalDate,
+                createPlannerOrderOnReceive = @createPlannerOrderOnReceive,
                 lastModifiedBy = @updatedBy,
                 lastModifiedAt = @lastModifiedAt,
                 hasBeenModified = @hasBeenModified
@@ -353,6 +358,7 @@ export async function updateRequest(payload: UpdatePurchaseRequestPayload): Prom
         `).run({ 
             requestId, 
             ...dataToUpdate,
+            createPlannerOrderOnReceive: dataToUpdate.createPlannerOrderOnReceive ? 1 : 0,
             updatedBy,
             lastModifiedAt: new Date().toISOString(),
             hasBeenModified: hasBeenModified ? 1 : 0
@@ -439,6 +445,25 @@ export async function updateStatus(payload: UpdateRequestStatusPayload): Promise
         
         const historyStmt = db.prepare('INSERT INTO purchase_request_history (requestId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)');
         historyStmt.run(requestId, new Date().toISOString(), status, updatedBy, notes);
+
+        // --- Integration Logic ---
+        if (status === 'received' || status === 'received-in-warehouse') {
+            const req = db.prepare('SELECT * FROM purchase_requests WHERE id = ?').get(requestId) as PurchaseRequest;
+            if (req.createPlannerOrderOnReceive) {
+                 addPlannerOrder({
+                    deliveryDate: new Date().toISOString().split('T')[0],
+                    customerId: req.clientId,
+                    customerName: req.clientName,
+                    customerTaxId: req.clientTaxId,
+                    productId: req.itemId,
+                    productDescription: req.itemDescription,
+                    quantity: req.quantity,
+                    priority: 'medium',
+                    notes: `Generado desde SC-${req.consecutive}. OC Cliente: ${req.purchaseOrder || 'N/A'}.`,
+                    purchaseOrder: req.purchaseOrder,
+                 }, updatedBy);
+            }
+        }
     });
 
     transaction();

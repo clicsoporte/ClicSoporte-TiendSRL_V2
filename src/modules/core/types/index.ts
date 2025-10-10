@@ -380,6 +380,7 @@ export type PurchaseRequest = {
   lastModifiedBy?: string;
   lastModifiedAt?: string;
   hasBeenModified?: boolean;
+  createPlannerOrderOnReceive?: boolean; // New field
 };
 
 export type UpdatePurchaseRequestPayload = Partial<Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'receivedDate' | 'previousStatus'>> & {
@@ -742,13 +743,13 @@ export type NewTicketPayload = {
     content: string;
     status: TicketStatus;
     priority: TicketPriority;
-    contactId: number | null;
+    companyId: number | null;
+    serviceId: string | null;
     customerName: string;
     customerEmail: string;
     customerPhone?: string;
     companyName?: string;
     helpTopicId?: number;
-    serviceId?: string;
     assigneeId?: number | null;
     dueDate?: string;
 };
@@ -770,4 +771,15 @@ export type SoftwareProduct = {
     isInternal: boolean;
 };
 
+export type TimeEntry = {
+    id: number;
+    ticketId: number;
+    userId: number;
+    startTime: string;
+    endTime: string | null;
+    duration: number; // in milliseconds
+    notes: string | null;
+    isBillable: boolean;
+    createdAt: string;
+};
     
