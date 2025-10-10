@@ -24,6 +24,7 @@ export async function getCompanySettings(): Promise<Company | null> {
                 supportPackages: JSON.parse(row.supportPackages as any || '[]'),
                 servicesCatalog: JSON.parse(row.servicesCatalog as any || '[]')
             };
+            // Ensure the returned object is a plain JavaScript object
             return JSON.parse(JSON.stringify(settings));
         }
         // If no settings exist, insert the initial ones.
@@ -75,7 +76,7 @@ export async function getApiSettings(): Promise<ApiSettings | null> {
     const db = await connectDb();
     try {
         const row = db.prepare('SELECT * FROM api_settings WHERE id = 1').get();
-        return row as ApiSettings | null;
+        return JSON.parse(JSON.stringify(row)) as ApiSettings | null;
     } catch (error) {
         console.error("Failed to get API settings:", error);
         return null;
@@ -88,7 +89,7 @@ export async function getApiSettings(): Promise<ApiSettings | null> {
  */
 export async function saveApiSettings(settings: ApiSettings): Promise<void> {
     const db = await connectDb();
-    const stmt = db.prepare('UPDATE api_settings SET exchangeRateApi = ?, haciendaExemptionApi = ?, haciendaTributariaApi = ? WHERE id = 1');
+    const stmt = db.prepare('INSERT OR REPLACE INTO api_settings (id, exchangeRateApi, haciendaExemptionApi, haciendaTributariaApi) VALUES (1, ?, ?, ?)');
     stmt.run(settings.exchangeRateApi, settings.haciendaExemptionApi, settings.haciendaTributariaApi);
 }
 
@@ -99,7 +100,8 @@ export async function saveApiSettings(settings: ApiSettings): Promise<void> {
 export async function getExemptionLaws(): Promise<ExemptionLaw[]> {
     const db = await connectDb();
     try {
-        return db.prepare('SELECT * FROM exemption_laws').all() as ExemptionLaw[];
+        const results = db.prepare('SELECT * FROM exemption_laws').all() as ExemptionLaw[];
+        return JSON.parse(JSON.stringify(results));
     } catch (error) {
         console.error("Failed to get exemption laws:", error);
         return [];
