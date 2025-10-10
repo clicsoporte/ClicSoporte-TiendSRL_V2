@@ -33,6 +33,7 @@ import {
   FileScan,
   Ticket,
   KeyRound,
+  AreaChart,
 } from "lucide-react";
 import { initializeMainDatabase } from './db';
 import { runPlannerMigrations, initializePlannerDb } from '../../planner/lib/db';
@@ -41,6 +42,7 @@ import { runWarehouseMigrations, initializeWarehouseDb } from '../../warehouse/l
 import { runCostAssistantMigrations, initializeCostAssistantDb } from '../../cost-assistant/lib/db';
 import { runTicketMigrations, initializeTicketsDb } from '../../tickets/lib/db';
 import { runLicensesMigrations, initializeLicensesDb } from '../../licenses/lib/db';
+import { runTimesheetMigrations, initializeTimesheetDb } from "../../timesheet/lib/db";
 
 /**
  * Acts as a registry for all database modules in the application.
@@ -55,6 +57,7 @@ export const DB_MODULES: DatabaseModule[] = [
     { id: 'cost-assistant', name: 'Asistente de Costos', dbFile: 'cost-assistant.db', initFn: initializeCostAssistantDb, migrationFn: runCostAssistantMigrations },
     { id: 'tickets', name: 'Soporte Técnico', dbFile: 'tickets.db', initFn: initializeTicketsDb, migrationFn: runTicketMigrations },
     { id: 'licenses', name: 'Gestión de Licencias', dbFile: 'licenses.db', initFn: initializeLicensesDb, migrationFn: runLicensesMigrations },
+    { id: 'timesheet', name: 'Hoja de Tiempos', dbFile: 'timesheet.db', initFn: initializeTimesheetDb, migrationFn: runTimesheetMigrations },
 ];
 
 /**
@@ -191,6 +194,15 @@ export const mainTools: Tool[] = [
       textColor: "text-white",
     },
     {
+      id: "analytics",
+      name: "Analíticas",
+      description: "Ver KPIs y reportes de todos los módulos.",
+      href: "/dashboard/analytics",
+      icon: AreaChart,
+      bgColor: "bg-rose-600",
+      textColor: "text-white",
+    },
+    {
       id: "help",
       name: "Centro de Ayuda",
       description: "Consultar la documentación y guías de uso del sistema.",
@@ -279,6 +291,10 @@ export const initialRoles: Role[] = [
         "tickets:admin",
         "licenses:read",
         "licenses:manage",
+        "timesheet:create",
+        "timesheet:read:all",
+        "timesheet:edit:all",
+        "timesheet:delete:all"
     ],
   },
   {
@@ -319,6 +335,7 @@ export const initialRoles: Role[] = [
         "tickets:create",
         "tickets:read:all",
         "tickets:update",
+        "timesheet:create"
     ]
   }
 ];
