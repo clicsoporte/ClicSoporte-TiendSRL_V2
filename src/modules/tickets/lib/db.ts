@@ -213,9 +213,11 @@ async function getNextTicketNumber(db: import('better-sqlite3').Database): Promi
 
 export async function addTicket(payload: NewTicketPayload, user: User): Promise<Ticket> {
     const db = await connectDb(TICKETS_DB_FILE);
+    
+    // Get the next number before starting the transaction
+    const { prefix, number } = await getNextTicketNumber(db);
 
     const transaction = db.transaction(() => {
-        const { prefix, number } = getNextTicketNumber(db);
         const consecutive = `${prefix}${number.toString().padStart(6, '0')}`;
         const now = new Date().toISOString();
         
