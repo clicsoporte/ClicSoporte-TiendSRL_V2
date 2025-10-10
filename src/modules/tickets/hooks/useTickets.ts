@@ -149,46 +149,46 @@ export const useTickets = () => {
             updateState({ newCustomer: { ...state.newCustomer, [field]: value } });
         },
 
-        handleSelectCompany: async (entityId: string) => {
-            const isClientCompany = !/^\d+$/.test(entityId.split('-')[0]);
-            const id = isClientCompany ? parseInt(entityId, 10) : entityId;
+        handleSelectCompany: async (entityIdentifier: string) => {
+            const [type, id] = entityIdentifier.split('-');
+            const entityId = type === 'manual' ? parseInt(id, 10) : id;
 
             let companyName = '';
             let customerName = '';
             let customerEmail = '';
+            let companyId: number | null = null;
+            let supportInfoCustomer: Customer | ClientCompany | null = null;
 
-            const clientCompany = state.clientCompanies.find(c => c.id === id);
-            const erpCustomer = customers.find(c => c.id === id);
+            if (type === 'manual') {
+                const clientCompany = state.clientCompanies.find(c => c.id === entityId);
+                if (clientCompany) {
+                    companyName = clientCompany.name;
+                    customerName = clientCompany.name;
+                    customerEmail = clientCompany.email;
+                    companyId = clientCompany.id;
+                    supportInfoCustomer = clientCompany;
+                }
+            } else if (type === 'erp') {
+                const erpCustomer = customers.find(c => c.id === entityId);
+                if (erpCustomer) {
+                    companyName = erpCustomer.name;
+                    customerName = erpCustomer.name;
+                    customerEmail = erpCustomer.email || erpCustomer.electronicDocEmail;
+                    supportInfoCustomer = erpCustomer;
+                }
+            }
 
-            if (clientCompany) {
-                companyName = clientCompany.name;
-                customerName = clientCompany.name; // Asume el nombre de la empresa como contacto principal
-                customerEmail = clientCompany.email;
-                 updateState({
-                    newTicket: { ...state.newTicket, companyId: clientCompany.id, companyName: companyName, customerName, customerEmail },
-                    customerSearchTerm: companyName,
-                    isCustomerSearchOpen: false,
-                });
-                await actions.loadCustomerSupportInfo(clientCompany.id);
-            } else if (erpCustomer) {
-                companyName = erpCustomer.name;
-                customerName = erpCustomer.name;
-                customerEmail = erpCustomer.email || erpCustomer.electronicDocEmail;
-                updateState({
-                    newTicket: { ...state.newTicket, companyId: null, companyName: companyName, customerName, customerEmail }, // No link companyId for ERP customers yet
-                    customerSearchTerm: companyName,
-                    isCustomerSearchOpen: false,
-                });
-                // Find ERP customer in main DB by tax ID to get support info
-                 const mainCustomerWithSupport = customers.find(c => c.id === erpCustomer.id);
-                 if (mainCustomerWithSupport?.supportPackageId) {
-                    const supportInfo = await getCustomerSupportInfo(mainCustomerWithSupport.id);
-                    updateState({ customerSupportInfo: supportInfo });
-                 } else {
-                    updateState({ customerSupportInfo: null });
-                 }
+            updateState({
+                newTicket: { ...state.newTicket, companyId, companyName, customerName, customerEmail },
+                customerSearchTerm: companyName,
+                isCustomerSearchOpen: false,
+            });
+            
+            if (supportInfoCustomer) {
+                const supportInfo = await getCustomerSupportInfo(supportInfoCustomer.id);
+                updateState({ customerSupportInfo: supportInfo });
             } else {
-                 updateState({ customerSupportInfo: null });
+                updateState({ customerSupportInfo: null });
             }
         },
 
@@ -325,12 +325,12 @@ export const useTickets = () => {
             const clientCompanyResults = state.clientCompanies.filter(c =>
                 c.name.toLowerCase().includes(debouncedCustomerSearch.toLowerCase()) ||
                 c.taxId.includes(debouncedCustomerSearch)
-            ).map(c => ({ value: String(c.id), label: `${c.name} (${c.taxId})` }));
+            ).map(c => ({ value: `manual-${c.id}`, label: `${c.name} (${c.taxId})` }));
 
             const erpCustomerResults = customers.filter(c =>
                 c.name.toLowerCase().includes(debouncedCustomerSearch.toLowerCase()) ||
                 c.taxId.includes(debouncedCustomerSearch)
-            ).map(c => ({ value: c.id, label: `[ERP] ${c.name} (${c.taxId})` }));
+            ).map(c => ({ value: `erp-${c.id}`, label: `[ERP] ${c.name} (${c.taxId})` }));
 
             return [...clientCompanyResults, ...erpCustomerResults];
         }, [state.clientCompanies, customers, debouncedCustomerSearch]),
