@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview This file contains the configuration data for the admin section tools.
  * It defines the tools that appear on the administration dashboard.
