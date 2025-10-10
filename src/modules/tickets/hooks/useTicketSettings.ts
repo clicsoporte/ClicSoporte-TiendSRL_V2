@@ -8,13 +8,16 @@ import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError, logInfo } from '@/modules/core/lib/logger';
-import type { HelpTopic, TicketPriority } from '@/modules/core/types';
+import type { HelpTopic, TicketPriority, Role, User } from '@/modules/core/types';
 import { getHelpTopics, addHelpTopic, updateHelpTopic, deleteHelpTopic } from '../lib/actions';
+import { getAllUsers } from '@/modules/core/lib/auth-client';
+import { getAllRoles } from '@/modules/core/lib/roles-db';
 
 const emptyTopic: Omit<HelpTopic, 'id'> = {
     name: '',
     defaultPriority: 'medium',
     defaultAssigneeId: null,
+    defaultServiceId: null,
 };
 
 const priorityConfig: { [key in TicketPriority]: { label: string } } = {
@@ -34,15 +37,23 @@ export const useTicketSettings = () => {
     const [isEditing, setIsEditing] = useState(false);
     const [currentTopic, setCurrentTopic] = useState<HelpTopic | Omit<HelpTopic, 'id'>>(emptyTopic);
     const [topicToDelete, setTopicToDelete] = useState<HelpTopic | null>(null);
+    const [allUsers, setAllUsers] = useState<User[]>([]);
+    const [allRoles, setAllRoles] = useState<Role[]>([]);
     
-    const fetchHelpTopics = useCallback(async () => {
+    const fetchInitialData = useCallback(async () => {
         setIsLoading(true);
         try {
-            const topics = await getHelpTopics();
+            const [topics, users, roles] = await Promise.all([
+                getHelpTopics(),
+                getAllUsers(),
+                getAllRoles()
+            ]);
             setHelpTopics(topics);
+            setAllUsers(users);
+            setAllRoles(roles);
         } catch (error) {
             logError('Failed to fetch help topics', { error });
-            toast({ title: "Error", description: "No se pudieron cargar los temas de ayuda.", variant: "destructive" });
+            toast({ title: "Error", description: "No se pudieron cargar los datos de configuración.", variant: "destructive" });
         } finally {
             setIsLoading(false);
         }
@@ -50,9 +61,9 @@ export const useTicketSettings = () => {
 
     useEffect(() => {
         if (isAuthorized) {
-            fetchHelpTopics();
+            fetchInitialData();
         }
-    }, [isAuthorized, fetchHelpTopics]);
+    }, [isAuthorized, fetchInitialData]);
     
     const handleSaveTopic = async () => {
         if (!currentTopic.name) {
@@ -125,6 +136,8 @@ export const useTicketSettings = () => {
         },
         selectors: {
             priorityConfig,
+            allUsers,
+            allRoles,
         },
         isAuthorized,
         isLoading,

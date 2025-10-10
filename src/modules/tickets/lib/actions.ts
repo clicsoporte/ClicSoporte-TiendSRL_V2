@@ -4,9 +4,9 @@
 'use client';
 
 import { logInfo, logError } from '@/modules/core/lib/logger';
-import type { Ticket, NewTicketPayload, User, TicketThread, HelpTopic, ClientCompany } from '@/modules/core/types';
+import type { Ticket, NewTicketPayload, User, TicketThread, HelpTopic, ClientCompany, Customer, Service, SupportPackage } from '@/modules/core/types';
 import { 
-    addTicket, 
+    addTicket as addTicketServer, 
     getTickets as getTicketsServer, 
     getTicketById as getTicketByIdServer, 
     getTicketThread as getTicketThreadServer, 
@@ -29,7 +29,7 @@ import {
  */
 export async function saveTicket(payload: NewTicketPayload, user: User): Promise<Ticket> {
     try {
-        const createdTicket = await addTicket(payload, user);
+        const createdTicket = await addTicketServer(payload, user);
         await logInfo(`New ticket #${createdTicket.consecutive} created by ${user.name}`, { 
             ticketId: createdTicket.id, 
             subject: payload.subject,
@@ -144,4 +144,24 @@ export async function deleteHelpTopic(id: number): Promise<void> {
 export async function deleteTicket(id: number): Promise<void> {
     await logInfo(`Ticket with ID ${id} deleted.`);
     return deleteTicketServer(id);
+}
+
+export async function getCustomerSupportInfo(customerId: string): Promise<{ customer: Customer | null, supportPackage: SupportPackage | null, services: Service[] }> {
+    const mainDb = await connectDb();
+    const customer = mainDb.prepare('SELECT * FROM customers WHERE id = ?').get(customerId) as Customer | null;
+    
+    if (!customer || !customer.supportPackageId) {
+        return { customer, supportPackage: null, services: [] };
+    }
+
+    const companySettingsRow = mainDb.prepare('SELECT supportPackages, servicesCatalog FROM company_settings WHERE id = 1').get() as { supportPackages: string, servicesCatalog: string } | undefined;
+    if (!companySettingsRow) {
+        return { customer, supportPackage: null, services: [] };
+    }
+
+    const allPackages = JSON.parse(companySettingsRow.supportPackages || '[]') as SupportPackage[];
+    const allServices = JSON.parse(companySettingsRow.servicesCatalog || '[]') as Service[];
+    const supportPackage = allPackages.find(p => p.id === customer.supportPackageId) || null;
+    
+    return { customer, supportPackage, services: allServices };
 }

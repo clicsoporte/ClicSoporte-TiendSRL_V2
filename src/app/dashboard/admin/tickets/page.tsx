@@ -19,7 +19,7 @@ import { useAuth } from '@/modules/core/hooks/useAuth';
 
 export default function TicketSettingsPage() {
     const { setTitle } = usePageTitle();
-    const { users, userRole, roles } = useAuth();
+    const { companyData } = useAuth();
     const {
         state,
         actions,
@@ -29,15 +29,15 @@ export default function TicketSettingsPage() {
     } = useTicketSettings();
 
     const supportUsers = useMemo(() => {
-        if (!users || !roles) return [];
+        if (!selectors.allUsers) return [];
         // Find all roles that have ticket read permissions
-        const supportRoleIds = roles
+        const supportRoleIds = (selectors.allRoles || [])
             .filter(r => r.permissions.includes('tickets:read:all'))
             .map(r => r.id);
         
         // Filter users who have one of those roles
-        return users.filter(u => u.role && supportRoleIds.includes(u.role));
-    }, [users, roles]);
+        return selectors.allUsers.filter(u => u.role && supportRoleIds.includes(u.role));
+    }, [selectors.allUsers, selectors.allRoles]);
     
     useEffect(() => {
         setTitle("Configuración de Tickets");
@@ -78,7 +78,7 @@ export default function TicketSettingsPage() {
                             <DialogTrigger asChild>
                                 <Button><PlusCircle className="mr-2 h-4 w-4"/>Añadir Tema</Button>
                             </DialogTrigger>
-                            <DialogContent>
+                            <DialogContent className="sm:max-w-2xl">
                                 <DialogHeader>
                                     <DialogTitle>{state.isEditing ? 'Editar' : 'Añadir'} Tema de Ayuda</DialogTitle>
                                     <DialogDescription>
@@ -94,7 +94,7 @@ export default function TicketSettingsPage() {
                                             onChange={(e) => actions.setCurrentTopic({ ...state.currentTopic, name: e.target.value })}
                                         />
                                     </div>
-                                    <div className="grid grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div className="space-y-2">
                                             <Label htmlFor="default-priority">Prioridad por Defecto</Label>
                                             <Select value={state.currentTopic.defaultPriority || 'medium'} onValueChange={(v) => actions.setCurrentTopic({ ...state.currentTopic, defaultPriority: v as any })}>
@@ -119,6 +119,19 @@ export default function TicketSettingsPage() {
                                             </Select>
                                         </div>
                                     </div>
+                                     <div className="space-y-2">
+                                        <Label htmlFor="default-service">Servicio por Defecto (Opcional)</Label>
+                                        <Select value={state.currentTopic.defaultServiceId || ''} onValueChange={(v) => actions.setCurrentTopic({ ...state.currentTopic, defaultServiceId: v })}>
+                                            <SelectTrigger id="default-service"><SelectValue placeholder="Ninguno"/></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="">Ninguno</SelectItem>
+                                                {companyData?.servicesCatalog.map(service => (
+                                                    <SelectItem key={service.id} value={service.id}>{service.name}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <p className="text-xs text-muted-foreground">Si se elige, este servicio se seleccionará automáticamente al crear un ticket con este tema.</p>
+                                    </div>
                                 </div>
                                 <DialogFooter>
                                     <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
@@ -134,19 +147,22 @@ export default function TicketSettingsPage() {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Nombre del Tema</TableHead>
-                                    <TableHead>Prioridad por Defecto</TableHead>
+                                    <TableHead>Prioridad</TableHead>
                                     <TableHead>Asignado a</TableHead>
+                                    <TableHead>Servicio por Defecto</TableHead>
                                     <TableHead className="text-right">Acciones</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {state.helpTopics.map(topic => {
-                                    const assignee = users?.find(u => u.id === topic.defaultAssigneeId);
+                                    const assignee = selectors.allUsers?.find(u => u.id === topic.defaultAssigneeId);
+                                    const service = companyData?.servicesCatalog.find(s => s.id === topic.defaultServiceId);
                                     return (
                                         <TableRow key={topic.id}>
                                             <TableCell className="font-medium">{topic.name}</TableCell>
                                             <TableCell>{selectors.priorityConfig[topic.defaultPriority || 'medium'].label}</TableCell>
                                             <TableCell>{assignee?.name || 'Sin asignar'}</TableCell>
+                                            <TableCell>{service?.name || 'Ninguno'}</TableCell>
                                             <TableCell className="text-right">
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4"/></Button></DropdownMenuTrigger>

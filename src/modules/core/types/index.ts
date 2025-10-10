@@ -664,6 +664,7 @@ export type HelpTopic = {
     name: string;
     defaultPriority?: TicketPriority;
     defaultAssigneeId?: number | null;
+    defaultServiceId?: string | null;
 };
 
 export type ClientCompany = {
@@ -723,6 +724,7 @@ export type Ticket = {
     
     assigneeId?: number | null;
     helpTopicId?: number | null;
+    serviceId?: string | null;
 };
 
 export type TicketThread = {
@@ -746,6 +748,7 @@ export type NewTicketPayload = {
     customerPhone?: string;
     companyName?: string;
     helpTopicId?: number;
+    serviceId?: string;
     assigneeId?: number | null;
     dueDate?: string;
 };

@@ -47,7 +47,8 @@ export async function initializeTicketsDb(db: import('better-sqlite3').Database)
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT UNIQUE NOT NULL,
             defaultPriority TEXT,
-            defaultAssigneeId INTEGER
+            defaultAssigneeId INTEGER,
+            defaultServiceId TEXT
         );
 
         CREATE TABLE IF NOT EXISTS tickets (
@@ -68,6 +69,7 @@ export async function initializeTicketsDb(db: import('better-sqlite3').Database)
 
             assigneeId INTEGER, -- User ID from intratool.db
             helpTopicId INTEGER,
+            serviceId TEXT, -- From main DB services catalog
 
             FOREIGN KEY (contactId) REFERENCES company_contacts(id) ON DELETE SET NULL,
             FOREIGN KEY (helpTopicId) REFERENCES help_topics(id)
@@ -105,11 +107,11 @@ export async function initializeTicketsDb(db: import('better-sqlite3').Database)
 
     // Insert default help topics
     const topics = [
-        { id: 1, name: 'Soporte General', defaultPriority: 'medium', defaultAssigneeId: null },
-        { id: 2, name: 'Consulta de Facturación', defaultPriority: 'medium', defaultAssigneeId: null },
-        { id: 3, name: 'Problema con Impresora', defaultPriority: 'high', defaultAssigneeId: null }
+        { id: 1, name: 'Soporte General', defaultPriority: 'medium', defaultAssigneeId: null, defaultServiceId: null },
+        { id: 2, name: 'Consulta de Facturación', defaultPriority: 'medium', defaultAssigneeId: null, defaultServiceId: null },
+        { id: 3, name: 'Problema con Impresora', defaultPriority: 'high', defaultAssigneeId: null, defaultServiceId: null }
     ];
-    const insertTopic = db.prepare('INSERT OR IGNORE INTO help_topics (id, name, defaultPriority, defaultAssigneeId) VALUES (@id, @name, @defaultPriority, @defaultAssigneeId)');
+    const insertTopic = db.prepare('INSERT OR IGNORE INTO help_topics (id, name, defaultPriority, defaultAssigneeId, defaultServiceId) VALUES (@id, @name, @defaultPriority, @defaultAssigneeId, @defaultServiceId)');
     topics.forEach(topic => insertTopic.run(topic));
     
     console.log(`Database ${TICKETS_DB_FILE} initialized for Support Tickets.`);
@@ -125,6 +127,9 @@ export async function runTicketMigrations(db: import('better-sqlite3').Database)
     }
      if (!ticketsColumns.has('helpTopicId')) {
         db.exec(`ALTER TABLE tickets ADD COLUMN helpTopicId INTEGER;`);
+    }
+     if (!ticketsColumns.has('serviceId')) {
+        db.exec(`ALTER TABLE tickets ADD COLUMN serviceId TEXT;`);
     }
     if (!ticketsColumns.has('dueDate')) {
         db.exec(`ALTER TABLE tickets ADD COLUMN dueDate TEXT;`);
@@ -150,6 +155,7 @@ export async function runTicketMigrations(db: import('better-sqlite3').Database)
                     companyName TEXT,
                     assigneeId INTEGER,
                     helpTopicId INTEGER,
+                    serviceId TEXT,
                     FOREIGN KEY (contactId) REFERENCES company_contacts(id) ON DELETE SET NULL,
                     FOREIGN KEY (helpTopicId) REFERENCES help_topics(id)
                 );
@@ -167,22 +173,29 @@ export async function runTicketMigrations(db: import('better-sqlite3').Database)
 
 
     const helpTopicsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='help_topics'`).get();
-    if (!helpTopicsTable) {
-        db.exec(`
+    if (helpTopicsTable) {
+        const topicsTableInfo = db.prepare(`PRAGMA table_info(help_topics)`).all() as { name: string }[];
+        const topicsColumns = new Set(topicsTableInfo.map(c => c.name));
+        if (!topicsColumns.has('defaultServiceId')) {
+            db.exec(`ALTER TABLE help_topics ADD COLUMN defaultServiceId TEXT;`);
+        }
+    } else {
+         db.exec(`
             CREATE TABLE IF NOT EXISTS help_topics (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT UNIQUE NOT NULL,
                 defaultPriority TEXT,
-                defaultAssigneeId INTEGER
+                defaultAssigneeId INTEGER,
+                defaultServiceId TEXT
             );
         `);
         // Populate with some defaults if it didn't exist
         const topics = [
-            { id: 1, name: 'Soporte General', defaultPriority: 'medium', defaultAssigneeId: null },
-            { id: 2, name: 'Consulta de Facturación', defaultPriority: 'medium', defaultAssigneeId: null },
-            { id: 3, name: 'Problema con Impresora', defaultPriority: 'high', defaultAssigneeId: null }
+            { id: 1, name: 'Soporte General', defaultPriority: 'medium', defaultAssigneeId: null, defaultServiceId: null },
+            { id: 2, name: 'Consulta de Facturación', defaultPriority: 'medium', defaultAssigneeId: null, defaultServiceId: null },
+            { id: 3, name: 'Problema con Impresora', defaultPriority: 'high', defaultAssigneeId: null, defaultServiceId: null }
         ];
-        const insertTopic = db.prepare('INSERT OR IGNORE INTO help_topics (id, name, defaultPriority, defaultAssigneeId) VALUES (@id, @name, @defaultPriority, @defaultAssigneeId)');
+        const insertTopic = db.prepare('INSERT OR IGNORE INTO help_topics (id, name, defaultPriority, defaultAssigneeId, defaultServiceId) VALUES (@id, @name, @defaultPriority, @defaultAssigneeId, @defaultServiceId)');
         topics.forEach(topic => insertTopic.run(topic));
     }
 }
@@ -212,7 +225,7 @@ export async function addTicket(payload: NewTicketPayload, user: User): Promise<
             const topic = db.prepare('SELECT * FROM help_topics WHERE id = ?').get(payload.helpTopicId) as HelpTopic | undefined;
             if (topic) {
                 if (topic.defaultPriority && !payload.priority) priority = topic.defaultPriority;
-                if (topic.defaultAssigneeId && payload.assigneeId === undefined) assigneeId = topic.defaultAssigneeId;
+                if (topic.defaultAssigneeId !== undefined && payload.assigneeId === undefined) assigneeId = topic.defaultAssigneeId;
             }
         }
         
@@ -227,9 +240,9 @@ export async function addTicket(payload: NewTicketPayload, user: User): Promise<
         }
 
         const ticketInsertInfo = db.prepare(`
-            INSERT INTO tickets (consecutive, subject, status, priority, createdAt, updatedAt, contactId, customerName, companyName, assigneeId, helpTopicId, dueDate)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(consecutive, payload.subject, 'open', priority, now, now, payload.contactId, payload.customerName, companyName, assigneeId, payload.helpTopicId, payload.dueDate || null);
+            INSERT INTO tickets (consecutive, subject, status, priority, createdAt, updatedAt, contactId, customerName, companyName, assigneeId, helpTopicId, serviceId, dueDate)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(consecutive, payload.subject, 'open', priority, now, now, payload.contactId, payload.customerName, companyName, assigneeId, payload.helpTopicId, payload.serviceId, payload.dueDate || null);
         
         const newTicketId = ticketInsertInfo.lastInsertRowid;
 
@@ -246,40 +259,6 @@ export async function addTicket(payload: NewTicketPayload, user: User): Promise<
 
     return JSON.parse(JSON.stringify(transaction()));
 }
-
-export async function addTicketCustomer(payload: Omit<TicketCustomer, 'id' | 'createdAt' | 'notes'>): Promise<TicketCustomer> {
-    const db = await connectDb(TICKETS_DB_FILE);
-    const existing = db.prepare('SELECT id FROM company_contacts WHERE email = ?').get(payload.email);
-    if (existing) {
-        throw new Error('Ya existe un contacto de soporte con este correo electrónico.');
-    }
-    
-    // For standalone customers, we create a 'company' entry for them.
-    const company = {
-        name: payload.name,
-        taxId: payload.email, // Using email as unique ID for now for standalone customers.
-        address: '',
-        phone: payload.phone || '',
-        email: payload.email,
-        createdAt: new Date().toISOString()
-    }
-    
-    const companyInfo = db.prepare('INSERT INTO client_companies (name, taxId, address, phone, email, createdAt) VALUES (?, ?, ?, ?, ?, ?)').run(company.name, company.taxId, company.address, company.phone, company.email, company.createdAt);
-    const companyId = companyInfo.lastInsertRowid as number;
-
-    const contactInfo = db.prepare('INSERT INTO company_contacts (companyId, name, email, phone, isPrimary, createdAt) VALUES (?, ?, ?, ?, ?, ?)')
-      .run(companyId, payload.name, payload.email, payload.phone || null, true, new Date().toISOString());
-
-    const result = {
-        id: contactInfo.lastInsertRowid as number,
-        name: payload.name,
-        email: payload.email,
-        phone: payload.phone,
-        createdAt: company.createdAt
-    };
-    return JSON.parse(JSON.stringify(result));
-}
-
 
 export async function addClientCompany(payload: Omit<ClientCompany, 'id' | 'createdAt'>): Promise<ClientCompany> {
     const db = await connectDb(TICKETS_DB_FILE);
@@ -326,12 +305,6 @@ export async function getTicketById(id: number): Promise<Ticket | null> {
         console.error(`Failed to get ticket with id ${id}:`, error);
         return null;
     }
-}
-
-export async function getTicketCustomerById(id: number): Promise<TicketCustomer | null> {
-    // This function will need to be adapted to the new company/contact structure
-    // For now, it will fetch from a placeholder.
-    return null;
 }
 
 export async function getTicketThread(ticketId: number): Promise<TicketThread[]> {
@@ -423,14 +396,16 @@ export async function getHelpTopics(): Promise<HelpTopic[]> {
 
 export async function addHelpTopic(topic: Omit<HelpTopic, 'id'>): Promise<HelpTopic> {
     const db = await connectDb(TICKETS_DB_FILE);
-    const info = db.prepare('INSERT INTO help_topics (name, defaultPriority, defaultAssigneeId) VALUES (?, ?, ?)').run(topic.name, topic.defaultPriority, topic.defaultAssigneeId);
+    const info = db.prepare('INSERT INTO help_topics (name, defaultPriority, defaultAssigneeId, defaultServiceId) VALUES (?, ?, ?, ?)')
+        .run(topic.name, topic.defaultPriority, topic.defaultAssigneeId, topic.defaultServiceId);
     const result = db.prepare('SELECT * FROM help_topics WHERE id = ?').get(info.lastInsertRowid) as HelpTopic;
     return JSON.parse(JSON.stringify(result));
 }
 
 export async function updateHelpTopic(topic: HelpTopic): Promise<HelpTopic> {
     const db = await connectDb(TICKETS_DB_FILE);
-    db.prepare('UPDATE help_topics SET name = ?, defaultPriority = ?, defaultAssigneeId = ? WHERE id = ?').run(topic.name, topic.defaultPriority, topic.defaultAssigneeId, topic.id);
+    db.prepare('UPDATE help_topics SET name = ?, defaultPriority = ?, defaultAssigneeId = ?, defaultServiceId = ? WHERE id = ?')
+        .run(topic.name, topic.defaultPriority, topic.defaultAssigneeId, topic.defaultServiceId, topic.id);
     return JSON.parse(JSON.stringify(topic));
 }
 
