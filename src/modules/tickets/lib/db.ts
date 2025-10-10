@@ -13,7 +13,7 @@ const TICKETS_DB_FILE = 'tickets.db';
 // Ensure you have a secret key in your environment variables
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'your-super-secret-key-for-licenses');
 
-export async function initializeTicketsDb(db: import('better-sqlite3').Database) {
+export async function initializeTicketsDb(db: import('better-sqlite3').Database): Promise<void> {
     const schema = `
         CREATE TABLE IF NOT EXISTS client_companies (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

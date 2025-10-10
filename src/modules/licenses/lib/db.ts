@@ -12,7 +12,7 @@ const LICENSES_DB_FILE = 'licenses.db';
 // Ensure you have a secret key in your environment variables
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'your-super-secret-key-for-licenses');
 
-export async function initializeLicensesDb(db: import('better-sqlite3').Database) {
+export async function initializeLicensesDb(db: import('better-sqlite3').Database): Promise<void> {
     const schema = `
         CREATE TABLE IF NOT EXISTS software_products (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
