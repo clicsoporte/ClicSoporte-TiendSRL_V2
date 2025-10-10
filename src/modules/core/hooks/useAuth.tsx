@@ -7,8 +7,7 @@
 
 import React, { createContext, useState, useContext, ReactNode, FC, useEffect, useCallback } from "react";
 import type { User, Role, Company, Product, StockInfo, Customer, Exemption, ExemptionLaw } from "../types";
-import { getCurrentUser as getCurrentUserClient } from '../lib/auth-client';
-import { getAllUsers } from "@/modules/core/lib/auth";
+import { getCurrentUser as getCurrentUserClient, getAllUsers } from '../lib/auth-client';
 import { getAllRoles } from '../lib/roles-db';
 import { getCompanySettings, getAndCacheExchangeRate, getExemptionLaws } from '../lib/settings-db';
 import { getAllCustomers, getAllProducts, getAllStock, getAllExemptions } from '../lib/data-access-db';
@@ -91,7 +90,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
 
       const [
         allRoles, companySettings, dbCustomers, dbProducts, 
-        dbStock, rateData, dbExemptions, dbLaws, unreadCount, allUsers
+        dbStock, rateData, dbExemptions, dbLaws, unreadCount, allUsersData
       ] = await Promise.all([
         getAllRoles(), getCompanySettings(), getAllCustomers(), getAllProducts(), getAllStock(), 
         getAndCacheExchangeRate(), getAllExemptions(), getExemptionLaws(), 
@@ -99,7 +98,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
       ]);
 
       setUser(currentUser);
-      setUsers(allUsers);
+      setUsers(allUsersData);
       setCompanyData(companySettings);
       setCustomers(dbCustomers);
       setProducts(dbProducts);
@@ -110,7 +109,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
       setUnreadSuggestionsCount(unreadCount);
       setExchangeRateData(rateData || { rate: null, date: null });
 
-      const role = allRoles.find(r => r.id === currentUser.role);
+      const role = allRoles.find((r: Role) => r.id === currentUser.role);
       setUserRole(role || null);
       
       return { isAuthenticated: true };
@@ -141,7 +140,8 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
 
     const initialLoad = async () => {
         if (!isMounted) return;
-        const { isAuthenticated } = await loadAuthData();
+        const authResult = await loadAuthData();
+        const isAuthenticated = authResult?.isAuthenticated ?? false;
         if (isMounted && !isAuthenticated && pathname.startsWith('/dashboard')) {
             router.replace('/');
         }

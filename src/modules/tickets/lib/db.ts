@@ -200,8 +200,8 @@ async function getNextTicketNumber(db: import('better-sqlite3').Database): Promi
 export async function addTicket(payload: NewTicketPayload, user: User): Promise<Ticket> {
     const db = await connectDb(TICKETS_DB_FILE);
 
-    const transaction = db.transaction(async () => {
-        const { prefix, number } = await getNextTicketNumber(db);
+    const transaction = db.transaction(() => {
+        const { prefix, number } = getNextTicketNumber.call({db: db}) as { prefix: string, number: number };
         const consecutive = `${prefix}${number.toString().padStart(6, '0')}`;
         const now = new Date().toISOString();
         
@@ -244,7 +244,7 @@ export async function addTicket(payload: NewTicketPayload, user: User): Promise<
         return newTicket;
     });
 
-    return transaction();
+    return JSON.parse(JSON.stringify(transaction()));
 }
 
 export async function addTicketCustomer(payload: Omit<TicketCustomer, 'id' | 'createdAt' | 'notes'>): Promise<TicketCustomer> {
@@ -270,13 +270,14 @@ export async function addTicketCustomer(payload: Omit<TicketCustomer, 'id' | 'cr
     const contactInfo = db.prepare('INSERT INTO company_contacts (companyId, name, email, phone, isPrimary, createdAt) VALUES (?, ?, ?, ?, ?, ?)')
       .run(companyId, payload.name, payload.email, payload.phone || null, true, new Date().toISOString());
 
-    return {
+    const result = {
         id: contactInfo.lastInsertRowid as number,
         name: payload.name,
         email: payload.email,
         phone: payload.phone,
         createdAt: company.createdAt
     };
+    return JSON.parse(JSON.stringify(result));
 }
 
 
@@ -293,19 +294,22 @@ export async function addClientCompany(payload: Omit<ClientCompany, 'id' | 'crea
     `).run({ ...payload, createdAt: now });
 
     const newId = info.lastInsertRowid as number;
-    return { ...payload, id: newId, createdAt: now };
+    const result = { ...payload, id: newId, createdAt: now };
+    return JSON.parse(JSON.stringify(result));
 }
 
 export async function getClientCompanies(): Promise<ClientCompany[]> {
     const db = await connectDb(TICKETS_DB_FILE);
-    return db.prepare('SELECT * FROM client_companies ORDER BY name ASC').all() as ClientCompany[];
+    const results = db.prepare('SELECT * FROM client_companies ORDER BY name ASC').all() as ClientCompany[];
+    return JSON.parse(JSON.stringify(results));
 }
 
 export async function getTickets(): Promise<Ticket[]> {
     const db = await connectDb(TICKETS_DB_FILE);
     try {
         const stmt = db.prepare('SELECT * FROM tickets ORDER BY createdAt DESC');
-        return stmt.all() as Ticket[];
+        const results = stmt.all() as Ticket[];
+        return JSON.parse(JSON.stringify(results));
     } catch (error) {
         console.error("Failed to get tickets:", error);
         return [];
@@ -316,7 +320,8 @@ export async function getTicketById(id: number): Promise<Ticket | null> {
     const db = await connectDb(TICKETS_DB_FILE);
     try {
         const stmt = db.prepare('SELECT * FROM tickets WHERE id = ?');
-        return stmt.get(id) as Ticket | null;
+        const result = stmt.get(id) as Ticket | null;
+        return result ? JSON.parse(JSON.stringify(result)) : null;
     } catch (error) {
         console.error(`Failed to get ticket with id ${id}:`, error);
         return null;
@@ -333,7 +338,8 @@ export async function getTicketThread(ticketId: number): Promise<TicketThread[]>
     const db = await connectDb(TICKETS_DB_FILE);
     try {
         const stmt = db.prepare('SELECT * FROM ticket_threads WHERE ticketId = ? ORDER BY createdAt ASC');
-        return stmt.all(ticketId) as TicketThread[];
+        const results = stmt.all(ticketId) as TicketThread[];
+        return JSON.parse(JSON.stringify(results));
     } catch (error) {
         console.error(`Failed to get thread for ticket id ${ticketId}:`, error);
         return [];
@@ -352,7 +358,8 @@ export async function addThreadEntry(payload: { ticketId: number; userId: number
 
     db.prepare('UPDATE tickets SET updatedAt = ? WHERE id = ?').run(now, ticketId);
     
-    return db.prepare('SELECT * FROM ticket_threads WHERE id = ?').get(info.lastInsertRowid) as TicketThread;
+    const result = db.prepare('SELECT * FROM ticket_threads WHERE id = ?').get(info.lastInsertRowid) as TicketThread;
+    return JSON.parse(JSON.stringify(result));
 }
 
 export async function updateTicketDetails(ticketId: number, updates: Partial<Pick<Ticket, 'status' | 'priority' | 'assigneeId'>>, user: User): Promise<Ticket> {
@@ -399,13 +406,15 @@ export async function updateTicketDetails(ticketId: number, updates: Partial<Pic
     });
 
     transaction();
-    return db.prepare('SELECT * FROM tickets WHERE id = ?').get(ticketId) as Ticket;
+    const result = db.prepare('SELECT * FROM tickets WHERE id = ?').get(ticketId) as Ticket;
+    return JSON.parse(JSON.stringify(result));
 }
 
 export async function getHelpTopics(): Promise<HelpTopic[]> {
     const db = await connectDb(TICKETS_DB_FILE);
     try {
-        return db.prepare('SELECT * FROM help_topics ORDER BY name ASC').all() as HelpTopic[];
+        const results = db.prepare('SELECT * FROM help_topics ORDER BY name ASC').all() as HelpTopic[];
+        return JSON.parse(JSON.stringify(results));
     } catch (error) {
         console.error("Failed to get help topics:", error);
         return [];
@@ -415,13 +424,14 @@ export async function getHelpTopics(): Promise<HelpTopic[]> {
 export async function addHelpTopic(topic: Omit<HelpTopic, 'id'>): Promise<HelpTopic> {
     const db = await connectDb(TICKETS_DB_FILE);
     const info = db.prepare('INSERT INTO help_topics (name, defaultPriority, defaultAssigneeId) VALUES (?, ?, ?)').run(topic.name, topic.defaultPriority, topic.defaultAssigneeId);
-    return db.prepare('SELECT * FROM help_topics WHERE id = ?').get(info.lastInsertRowid) as HelpTopic;
+    const result = db.prepare('SELECT * FROM help_topics WHERE id = ?').get(info.lastInsertRowid) as HelpTopic;
+    return JSON.parse(JSON.stringify(result));
 }
 
 export async function updateHelpTopic(topic: HelpTopic): Promise<HelpTopic> {
     const db = await connectDb(TICKETS_DB_FILE);
     db.prepare('UPDATE help_topics SET name = ?, defaultPriority = ?, defaultAssigneeId = ? WHERE id = ?').run(topic.name, topic.defaultPriority, topic.defaultAssigneeId, topic.id);
-    return topic;
+    return JSON.parse(JSON.stringify(topic));
 }
 
 export async function deleteHelpTopic(id: number): Promise<void> {

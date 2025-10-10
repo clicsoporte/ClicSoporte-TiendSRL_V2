@@ -7,7 +7,7 @@
 import { connectDb } from './db';
 import type { Suggestion } from '../types';
 import { revalidatePath } from 'next/cache';
-import { logInfo } from './logger';
+import { addLog } from './logger-db';
 
 /**
  * Inserts a new suggestion into the database.
@@ -19,7 +19,7 @@ export async function addSuggestion(content: string, userId: number, userName: s
     const db = await connectDb();
     db.prepare('INSERT INTO suggestions (content, userId, userName, isRead, timestamp) VALUES (?, ?, ?, 0, ?)')
       .run(content, userId, userName, new Date().toISOString());
-    await logInfo('New suggestion submitted', { user: userName });
+    await addLog({ type: "INFO", message: 'New suggestion submitted', details: { user: userName } });
     revalidatePath('/dashboard/admin/suggestions');
 }
 

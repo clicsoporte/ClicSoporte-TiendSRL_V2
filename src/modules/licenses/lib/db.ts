@@ -59,7 +59,8 @@ function generateLicenseKey(): string {
 // --- License Actions ---
 export async function getLicenses(): Promise<License[]> {
     const db = await connectDb(LICENSES_DB_FILE);
-    return db.prepare('SELECT * FROM licenses ORDER BY createdAt DESC').all() as License[];
+    const results = db.prepare('SELECT * FROM licenses ORDER BY createdAt DESC').all() as License[];
+    return JSON.parse(JSON.stringify(results));
 }
 
 export async function addLicense(license: Omit<License, 'id' | 'createdAt'>): Promise<License> {
@@ -77,7 +78,8 @@ export async function addLicense(license: Omit<License, 'id' | 'createdAt'>): Pr
         createdAt: new Date().toISOString(),
     });
 
-    return db.prepare('SELECT * FROM licenses WHERE id = ?').get(info.lastInsertRowid) as License;
+    const result = db.prepare('SELECT * FROM licenses WHERE id = ?').get(info.lastInsertRowid) as License;
+    return JSON.parse(JSON.stringify(result));
 }
 
 export async function updateLicense(license: License): Promise<License> {
@@ -95,7 +97,7 @@ export async function updateLicense(license: License): Promise<License> {
         ...license,
         isPerpetual: license.isPerpetual ? 1 : 0,
     });
-    return license;
+    return JSON.parse(JSON.stringify(license));
 }
 
 export async function deleteLicense(id: number): Promise<void> {
@@ -106,7 +108,8 @@ export async function deleteLicense(id: number): Promise<void> {
 // --- Software Product Actions ---
 export async function getSoftwareProducts(): Promise<SoftwareProduct[]> {
     const db = await connectDb(LICENSES_DB_FILE);
-    return db.prepare('SELECT * FROM software_products ORDER BY name').all() as SoftwareProduct[];
+    const results = db.prepare('SELECT * FROM software_products ORDER BY name').all() as SoftwareProduct[];
+    return JSON.parse(JSON.stringify(results));
 }
 
 export async function addSoftwareProduct(product: Omit<SoftwareProduct, 'id'>): Promise<SoftwareProduct> {
@@ -114,12 +117,11 @@ export async function addSoftwareProduct(product: Omit<SoftwareProduct, 'id'>): 
     const info = db.prepare(`
         INSERT INTO software_products (name, isInternal) VALUES (@name, @isInternal)
     `).run({ ...product, isInternal: product.isInternal ? 1 : 0 });
-    return db.prepare('SELECT * FROM software_products WHERE id = ?').get(info.lastInsertRowid) as SoftwareProduct;
+    const result = db.prepare('SELECT * FROM software_products WHERE id = ?').get(info.lastInsertRowid) as SoftwareProduct;
+    return JSON.parse(JSON.stringify(result));
 }
 
 export async function deleteSoftwareProduct(id: number): Promise<void> {
     const db = await connectDb(LICENSES_DB_FILE);
     db.prepare('DELETE FROM software_products WHERE id = ?').run(id);
 }
-
-    
