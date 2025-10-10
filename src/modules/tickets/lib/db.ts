@@ -6,7 +6,7 @@
 
 import { connectDb } from '../../core/lib/db';
 import { getCompanySettings } from '../../core/lib/settings-db';
-import type { Ticket, NewTicketPayload, User, TicketCustomer, TicketThread, HelpTopic, ClientCompany, SupportPackage, Service } from '@/modules/core/types';
+import type { Ticket, NewTicketPayload, User, TicketCustomer, TicketThread, HelpTopic, ClientCompany, SupportPackage, Service, Customer } from '@/modules/core/types';
 import crypto from 'crypto';
 
 const TICKETS_DB_FILE = 'tickets.db';
@@ -418,7 +418,7 @@ export async function deleteTicket(id: number): Promise<void> {
     db.prepare('DELETE FROM tickets WHERE id = ?').run(id);
 }
 
-export async function getCustomerSupportInfo(companyId: number): Promise<{ customer: ClientCompany | null; supportPackage: SupportPackage | null, services: Service[] }> {
+export async function getCustomerSupportInfo(companyId: number): Promise<{ customer: Customer | null; supportPackage: SupportPackage | null, services: Service[] }> {
     const mainDb = await connectDb();
     const ticketsDb = await connectDb(TICKETS_DB_FILE);
     
