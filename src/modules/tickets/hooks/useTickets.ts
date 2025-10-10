@@ -272,7 +272,7 @@ export const useTickets = () => {
                 updateState({ currentThread: [...state.currentThread, newEntry] });
                 return newEntry;
             } catch (error: any) {
-                logError("Failed to add thread entry", { error: error.message });
+                logError("Failed to add thread entry", { error: (error as Error).message });
                 toast({ title: "Error al Responder", description: error.message, variant: "destructive" });
             } finally {
                 updateState({ isSubmitting: false });

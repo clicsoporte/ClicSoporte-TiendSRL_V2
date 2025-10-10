@@ -4,7 +4,7 @@ import { useTickets } from "@/modules/tickets/hooks/useTickets";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
-import { FilePlus, Loader2, FilterX, UserPlus, Paperclip, Users } from "lucide-react";
+import { FilePlus, Loader2, FilterX, UserPlus, Paperclip, Users, AlertCircle } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -22,12 +22,13 @@ import { useAuth } from "@/modules/core/hooks/useAuth";
 import { useDropzone } from 'react-dropzone';
 import { useMemo } from 'react';
 import type { TicketPriority } from '@/modules/core/types';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default function TicketsPage() {
     const { state, actions, selectors } = useTickets();
     const { isAuthorized, hasPermission } = useAuthorization(['tickets:read:all']);
     const router = useRouter();
-    const { users } = useAuth();
+    const { users, companyData } = useAuth();
     
     const { getRootProps, getInputProps, acceptedFiles } = useDropzone({
         // Placeholder for future file handling logic
@@ -47,6 +48,7 @@ export default function TicketsPage() {
         searchTerm,
         statusFilter,
         priorityFilter,
+        customerSupportInfo
     } = state;
 
     const supportUsers = useMemo(() => {
@@ -108,6 +110,28 @@ export default function TicketsPage() {
         )
     }
 
+    const serviceCoverage = useMemo(() => {
+        if (!customerSupportInfo || !newTicket.serviceId) {
+            return { covered: true, message: '' }; // Default to covered if no info
+        }
+        
+        const { supportPackage, services } = customerSupportInfo;
+        const selectedService = services.find(s => s.id === newTicket.serviceId);
+
+        if (!supportPackage || !selectedService) {
+            return { covered: false, message: 'Servicio no definido en un paquete. Se cobrará por separado.' };
+        }
+
+        if (supportPackage.includedServices.includes(selectedService.id)) {
+            return { covered: true, message: `Servicio "${selectedService.name}" INCLUIDO en el paquete ${supportPackage.name}.` };
+        }
+        if (supportPackage.excludedServices.includes(selectedService.id)) {
+            return { covered: false, message: `Servicio "${selectedService.name}" EXCLUIDO del paquete ${supportPackage.name}. Se cobrará por separado.` };
+        }
+        
+        return { covered: false, message: 'Servicio no especificado en el paquete. Se cobrará por separado.' };
+    }, [customerSupportInfo, newTicket.serviceId]);
+
     return (
         <main className="flex-1 p-4 md:p-6 lg:p-8">
             <div className="flex items-center justify-between mb-6 gap-2">
@@ -125,7 +149,7 @@ export default function TicketsPage() {
                             <DialogTrigger asChild>
                                 <Button variant="outline"><UserPlus className="mr-2 h-4 w-4"/>Nueva Empresa</Button>
                             </DialogTrigger>
-                            <DialogContent>
+                            <DialogContent onPointerDownOutside={(e) => e.preventDefault()}>
                                 <DialogHeader>
                                     <DialogTitle>Añadir Nueva Empresa Cliente</DialogTitle>
                                     <DialogDescription>
@@ -174,7 +198,7 @@ export default function TicketsPage() {
                                     Nuevo Ticket
                                 </Button>
                             </DialogTrigger>
-                            <DialogContent className="sm:max-w-4xl">
+                            <DialogContent className="sm:max-w-4xl" onPointerDownOutside={(e) => e.preventDefault()}>
                                 <form onSubmit={(e) => { e.preventDefault(); actions.handleCreateTicket(); }}>
                                     <DialogHeader>
                                         <DialogTitle>Crear Nuevo Ticket de Soporte</DialogTitle>
@@ -247,6 +271,32 @@ export default function TicketsPage() {
                                                     onOpenChange={actions.setCustomerSearchOpen}
                                                 />
                                             </div>
+                                            {customerSupportInfo && (
+                                                <Card className="bg-muted/50">
+                                                    <CardHeader className="p-3"><CardTitle className="text-base">Plan de Soporte</CardTitle></CardHeader>
+                                                    <CardContent className="p-3 pt-0 text-sm space-y-1">
+                                                        <p><strong>Paquete:</strong> {customerSupportInfo.supportPackage?.name || 'No Asignado'}</p>
+                                                        <p><strong>Horas Restantes:</strong> {customerSupportInfo.customer?.monthlyHoursBalance?.toFixed(2) || 'N/A'}</p>
+                                                    </CardContent>
+                                                </Card>
+                                            )}
+                                             <div className="space-y-2">
+                                                <Label htmlFor="new-ticket-service">Servicio Requerido</Label>
+                                                <Select value={newTicket.serviceId || ''} onValueChange={(v) => actions.handleNewTicketChange('serviceId', v)} required>
+                                                    <SelectTrigger id="new-ticket-service"><SelectValue placeholder="Seleccione un servicio..."/></SelectTrigger>
+                                                    <SelectContent>
+                                                        {companyData?.servicesCatalog.map(service => (
+                                                            <SelectItem key={service.id} value={service.id}>{service.name}</SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            {serviceCoverage.message && (
+                                                <Alert variant={serviceCoverage.covered ? 'default' : 'destructive'} className="text-xs">
+                                                    <AlertCircle className="h-4 w-4" />
+                                                    <AlertDescription>{serviceCoverage.message}</AlertDescription>
+                                                </Alert>
+                                            )}
                                             <div className="space-y-2">
                                                 <Label htmlFor="new-ticket-customer-name">Nombre del Contacto</Label>
                                                 <Input id="new-ticket-customer-name" value={newTicket.customerName} onChange={(e) => actions.handleNewTicketChange('customerName', e.target.value)} required />
