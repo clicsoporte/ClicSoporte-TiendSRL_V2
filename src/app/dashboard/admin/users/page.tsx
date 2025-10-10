@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Admin page for user management.
  * Allows admins to view, create, edit, and delete users.
@@ -90,8 +89,9 @@ const getInitials = (name: string) => {
  * Handles fetching users and roles, and provides UI for all CRUD operations.
  */
 export default function UsersPage() {
-    const { isAuthorized } = useAuthorization(['users:create', 'users:read', 'users:update', 'users:delete']);
+    const { isAuthorized, hasPermission } = useAuthorization(['users:create', 'users:read', 'users:update', 'users:delete']);
     const { toast } = useToast();
+    const { companyData } = useAuth();
     const [users, setUsers] = useState<User[]>([]);
     const [roles, setRoles] = useState<Role[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -435,6 +435,28 @@ export default function UsersPage() {
                                     ))}
                                 </SelectContent>
                             </Select>
+                        </div>
+                        <Separator className="my-6" />
+                        <div className="space-y-4">
+                            <h4 className="text-base font-medium">Planes de Soporte (para clientes del ERP)</h4>
+                            <div className="space-y-2">
+                                <Label htmlFor="support-package">Paquete de Soporte Asignado</Label>
+                                <Select value={currentUserToEdit.supportPackageId || 'none'} onValueChange={value => setCurrentUserToEdit({...currentUserToEdit, supportPackageId: value === 'none' ? undefined : value })}>
+                                    <SelectTrigger id="support-package">
+                                        <SelectValue placeholder="Ninguno" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="none">Ninguno</SelectItem>
+                                        {companyData?.supportPackages.map(pkg => (
+                                            <SelectItem key={pkg.id} value={pkg.id}>{pkg.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="monthly-hours">Horas Mensuales de Soporte</Label>
+                                <Input id="monthly-hours" type="number" value={currentUserToEdit.monthlyHoursBalance ?? ''} onChange={e => setCurrentUserToEdit({...currentUserToEdit, monthlyHoursBalance: e.target.value ? Number(e.target.value) : undefined})} />
+                            </div>
                         </div>
                         <Separator className="my-6" />
                          <div className="space-y-2">

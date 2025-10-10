@@ -27,11 +27,12 @@ const emptyTicket: NewTicketPayload = {
     content: '',
     status: 'open',
     priority: 'medium',
+    companyId: null,
+    serviceId: null,
     customerName: '',
     customerEmail: '',
     customerPhone: '',
-    companyId: null,
-    serviceId: null,
+    companyName: '',
 };
 
 const emptyCustomer: Omit<ClientCompany, 'id' | 'createdAt'> = {
@@ -79,7 +80,7 @@ export const useTickets = () => {
     const { isAuthorized } = useAuthorization(['tickets:read:all']);
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
-    const { user, companyData, users } = useAuth();
+    const { user, companyData, users, customers } = useAuth();
 
     const [state, setState] = useState(initialState);
     const [debouncedCustomerSearch] = useDebounce(state.customerSearchTerm, companyData?.searchDebounceTime ?? 500);
@@ -148,16 +149,47 @@ export const useTickets = () => {
             updateState({ newCustomer: { ...state.newCustomer, [field]: value } });
         },
 
-        handleSelectCompany: (companyId: string) => {
-            const id = parseInt(companyId, 10);
-            const company = state.clientCompanies.find(c => c.id === id);
-            if (company) {
-                updateState({
-                    newTicket: { ...state.newTicket, companyId: id },
-                    customerSearchTerm: company.name
+        handleSelectCompany: async (entityId: string) => {
+            const isClientCompany = !/^\d+$/.test(entityId.split('-')[0]);
+            const id = isClientCompany ? parseInt(entityId, 10) : entityId;
+
+            let companyName = '';
+            let customerName = '';
+            let customerEmail = '';
+
+            const clientCompany = state.clientCompanies.find(c => c.id === id);
+            const erpCustomer = customers.find(c => c.id === id);
+
+            if (clientCompany) {
+                companyName = clientCompany.name;
+                customerName = clientCompany.name; // Asume el nombre de la empresa como contacto principal
+                customerEmail = clientCompany.email;
+                 updateState({
+                    newTicket: { ...state.newTicket, companyId: clientCompany.id, companyName: companyName, customerName, customerEmail },
+                    customerSearchTerm: companyName,
+                    isCustomerSearchOpen: false,
                 });
+                await actions.loadCustomerSupportInfo(clientCompany.id);
+            } else if (erpCustomer) {
+                companyName = erpCustomer.name;
+                customerName = erpCustomer.name;
+                customerEmail = erpCustomer.email || erpCustomer.electronicDocEmail;
+                updateState({
+                    newTicket: { ...state.newTicket, companyId: null, companyName: companyName, customerName, customerEmail }, // No link companyId for ERP customers yet
+                    customerSearchTerm: companyName,
+                    isCustomerSearchOpen: false,
+                });
+                // Find ERP customer in main DB by tax ID to get support info
+                 const mainCustomerWithSupport = customers.find(c => c.id === erpCustomer.id);
+                 if (mainCustomerWithSupport?.supportPackageId) {
+                    const supportInfo = await getCustomerSupportInfo(mainCustomerWithSupport.id);
+                    updateState({ customerSupportInfo: supportInfo });
+                 } else {
+                    updateState({ customerSupportInfo: null });
+                 }
+            } else {
+                 updateState({ customerSupportInfo: null });
             }
-            updateState({ isCustomerSearchOpen: false });
         },
 
         handleCreateCustomer: async () => {
@@ -171,7 +203,7 @@ export const useTickets = () => {
                 toast({ title: "Empresa Creada", description: "La nueva empresa cliente ha sido añadida." });
                 updateState({ isNewCustomerDialogOpen: false, newCustomer: emptyCustomer, clientCompanies: [...state.clientCompanies, newCompany] });
             } catch (error: any) {
-                logError("Failed to create ticket customer", { error: error.message });
+                logError("Failed to create ticket customer", { error: (error as Error).message });
                 toast({ title: "Error", description: `No se pudo crear el cliente: ${error.message}`, variant: "destructive" });
             } finally {
                 updateState({ isSubmitting: false });
@@ -197,7 +229,7 @@ export const useTickets = () => {
                 });
 
             } catch (error: any) {
-                logError("Failed to create ticket", { error: error.message });
+                logError("Failed to create ticket", { error: (error as Error).message });
                 toast({ title: "Error", description: `No se pudo crear el ticket: ${error.message}`, variant: "destructive" });
             } finally {
                 updateState({ isSubmitting: false });
@@ -270,12 +302,12 @@ export const useTickets = () => {
         },
 
         resetNewTicketForm: () => {
-            updateState({ newTicket: emptyTicket, customerSearchTerm: '' });
+            updateState({ newTicket: emptyTicket, customerSearchTerm: '', customerSupportInfo: null });
         },
 
-        loadCustomerSupportInfo: async (companyId: number) => {
+        loadCustomerSupportInfo: async (id: number | string) => {
             try {
-                const info = await getCustomerSupportInfo(companyId);
+                const info = await getCustomerSupportInfo(id);
                 updateState({ customerSupportInfo: info });
             } catch (error: any) {
                 logError("Failed to load customer support info", { error: error.message });
@@ -289,11 +321,19 @@ export const useTickets = () => {
         statusConfig,
         clientCompanyOptions: useMemo(() => {
             if (debouncedCustomerSearch.length < 2) return [];
-            return state.clientCompanies.filter(c =>
+
+            const clientCompanyResults = state.clientCompanies.filter(c =>
                 c.name.toLowerCase().includes(debouncedCustomerSearch.toLowerCase()) ||
                 c.taxId.includes(debouncedCustomerSearch)
             ).map(c => ({ value: String(c.id), label: `${c.name} (${c.taxId})` }));
-        }, [state.clientCompanies, debouncedCustomerSearch]),
+
+            const erpCustomerResults = customers.filter(c =>
+                c.name.toLowerCase().includes(debouncedCustomerSearch.toLowerCase()) ||
+                c.taxId.includes(debouncedCustomerSearch)
+            ).map(c => ({ value: c.id, label: `[ERP] ${c.name} (${c.taxId})` }));
+
+            return [...clientCompanyResults, ...erpCustomerResults];
+        }, [state.clientCompanies, customers, debouncedCustomerSearch]),
         filteredTickets: useMemo(() => {
             return state.tickets.filter(ticket => {
                 const searchMatch = debouncedSearchTerm
