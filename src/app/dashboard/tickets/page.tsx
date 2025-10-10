@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useTickets } from "@/modules/tickets/hooks/useTickets";
@@ -22,7 +23,7 @@ import { useAuth } from "@/modules/core/hooks/useAuth";
 import { useDropzone } from 'react-dropzone';
 import { useMemo } from 'react';
 import type { TicketPriority } from '@/modules/core/types';
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function TicketsPage() {
     const { state, actions, selectors } = useTickets();
@@ -55,7 +56,28 @@ export default function TicketsPage() {
         if (!users) return [];
         return users.filter(u => u.role === 'admin' || u.role === 'support-agent');
     }, [users]);
+    
+    const serviceCoverage = useMemo(() => {
+        if (!customerSupportInfo || !newTicket.serviceId) {
+            return { covered: true, message: '' }; // Default to covered if no info
+        }
+        
+        const { supportPackage, services } = customerSupportInfo;
+        const selectedService = services.find(s => s.id === newTicket.serviceId);
 
+        if (!supportPackage || !selectedService) {
+            return { covered: false, message: 'Servicio no definido en un paquete. Se cobrará por separado.' };
+        }
+
+        if (supportPackage.includedServices.includes(selectedService.id)) {
+            return { covered: true, message: `Servicio "${selectedService.name}" INCLUIDO en el paquete ${supportPackage.name}.` };
+        }
+        if (supportPackage.excludedServices.includes(selectedService.id)) {
+            return { covered: false, message: `Servicio "${selectedService.name}" EXCLUIDO del paquete ${supportPackage.name}. Se cobrará por separado.` };
+        }
+        
+        return { covered: false, message: 'Servicio no especificado en el paquete. Se cobrará por separado.' };
+    }, [customerSupportInfo, newTicket.serviceId]);
 
     const renderTicketRow = (ticket: typeof tickets[0]) => {
         const { priorityConfig, statusConfig } = selectors;
@@ -109,28 +131,6 @@ export default function TicketsPage() {
              </main>
         )
     }
-
-    const serviceCoverage = useMemo(() => {
-        if (!customerSupportInfo || !newTicket.serviceId) {
-            return { covered: true, message: '' }; // Default to covered if no info
-        }
-        
-        const { supportPackage, services } = customerSupportInfo;
-        const selectedService = services.find(s => s.id === newTicket.serviceId);
-
-        if (!supportPackage || !selectedService) {
-            return { covered: false, message: 'Servicio no definido en un paquete. Se cobrará por separado.' };
-        }
-
-        if (supportPackage.includedServices.includes(selectedService.id)) {
-            return { covered: true, message: `Servicio "${selectedService.name}" INCLUIDO en el paquete ${supportPackage.name}.` };
-        }
-        if (supportPackage.excludedServices.includes(selectedService.id)) {
-            return { covered: false, message: `Servicio "${selectedService.name}" EXCLUIDO del paquete ${supportPackage.name}. Se cobrará por separado.` };
-        }
-        
-        return { covered: false, message: 'Servicio no especificado en el paquete. Se cobrará por separado.' };
-    }, [customerSupportInfo, newTicket.serviceId]);
 
     return (
         <main className="flex-1 p-4 md:p-6 lg:p-8">
@@ -232,6 +232,23 @@ export default function TicketsPage() {
                                                     </Select>
                                                 </div>
                                             </div>
+                                             <div className="space-y-2">
+                                                <Label htmlFor="new-ticket-service">Servicio Requerido</Label>
+                                                <Select value={newTicket.serviceId || ''} onValueChange={(v) => actions.handleNewTicketChange('serviceId', v)} required>
+                                                    <SelectTrigger id="new-ticket-service"><SelectValue placeholder="Seleccione un servicio..."/></SelectTrigger>
+                                                    <SelectContent>
+                                                        {companyData?.servicesCatalog.map(service => (
+                                                            <SelectItem key={service.id} value={service.id}>{service.name}</SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            {serviceCoverage.message && (
+                                                <Alert variant={serviceCoverage.covered ? 'default' : 'destructive'} className="text-xs">
+                                                    <AlertCircle className="h-4 w-4" />
+                                                    <AlertDescription>{serviceCoverage.message}</AlertDescription>
+                                                </Alert>
+                                            )}
 
                                             <div className="space-y-2">
                                                 <Label htmlFor="new-ticket-subject">Asunto</Label>
@@ -279,23 +296,6 @@ export default function TicketsPage() {
                                                         <p><strong>Horas Restantes:</strong> {customerSupportInfo.customer?.monthlyHoursBalance?.toFixed(2) || 'N/A'}</p>
                                                     </CardContent>
                                                 </Card>
-                                            )}
-                                             <div className="space-y-2">
-                                                <Label htmlFor="new-ticket-service">Servicio Requerido</Label>
-                                                <Select value={newTicket.serviceId || ''} onValueChange={(v) => actions.handleNewTicketChange('serviceId', v)} required>
-                                                    <SelectTrigger id="new-ticket-service"><SelectValue placeholder="Seleccione un servicio..."/></SelectTrigger>
-                                                    <SelectContent>
-                                                        {companyData?.servicesCatalog.map(service => (
-                                                            <SelectItem key={service.id} value={service.id}>{service.name}</SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-                                            {serviceCoverage.message && (
-                                                <Alert variant={serviceCoverage.covered ? 'default' : 'destructive'} className="text-xs">
-                                                    <AlertCircle className="h-4 w-4" />
-                                                    <AlertDescription>{serviceCoverage.message}</AlertDescription>
-                                                </Alert>
                                             )}
                                             <div className="space-y-2">
                                                 <Label htmlFor="new-ticket-customer-name">Nombre del Contacto</Label>
