@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Server-side functions for the licenses database.
  */

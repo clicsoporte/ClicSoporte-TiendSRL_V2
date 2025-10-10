@@ -225,7 +225,7 @@ export async function getSettings(): Promise<PlannerSettings> {
         else if (row.key === 'pdfTopLegend') settings.pdfTopLegend = row.value;
         else if (row.key === 'fieldsToTrackChanges') settings.fieldsToTrackChanges = JSON.parse(row.value);
     }
-    return settings;
+    return JSON.parse(JSON.stringify(settings));
 }
 
 export async function saveSettings(settings: PlannerSettings): Promise<void> {
@@ -276,10 +276,7 @@ export async function getOrders(options: {
         WHERE status IN (${archivedStatuses})
     `).get() as { count: number }).count;
 
-    // Combine and return
-    const allOrders = [...activeOrders, ...archivedOrders];
-
-    return { activeOrders, archivedOrders, totalArchivedCount };
+    return { activeOrders: JSON.parse(JSON.stringify(activeOrders)), archivedOrders: JSON.parse(JSON.stringify(archivedOrders)), totalArchivedCount };
 }
 
 
@@ -336,7 +333,7 @@ export async function addOrder(order: Omit<ProductionOrder, 'id' | 'consecutive'
     historyStmt.run(newOrderId, new Date().toISOString(), 'pending', newOrder.requestedBy, 'Orden creada');
 
     const createdOrder = db.prepare('SELECT * FROM production_orders WHERE id = ?').get(newOrderId) as ProductionOrder;
-    return createdOrder;
+    return JSON.parse(JSON.stringify(createdOrder));
 }
 
 export async function updateOrder(payload: UpdateProductionOrderPayload): Promise<ProductionOrder> {
@@ -403,7 +400,7 @@ export async function updateOrder(payload: UpdateProductionOrderPayload): Promis
     transaction();
     
     const updatedOrder = db.prepare('SELECT * FROM production_orders WHERE id = ?').get(orderId) as ProductionOrder;
-    return updatedOrder;
+    return JSON.parse(JSON.stringify(updatedOrder));
 }
 
 export async function updateStatus(payload: UpdateStatusPayload): Promise<ProductionOrder> {
@@ -454,7 +451,7 @@ export async function updateStatus(payload: UpdateStatusPayload): Promise<Produc
 
     transaction();
     const updatedOrder = db.prepare('SELECT * FROM production_orders WHERE id = ?').get(orderId) as ProductionOrder;
-    return updatedOrder;
+    return JSON.parse(JSON.stringify(updatedOrder));
 }
 
 export async function updateDetails(payload: UpdateOrderDetailsPayload): Promise<ProductionOrder> {
@@ -500,7 +497,7 @@ export async function updateDetails(payload: UpdateOrderDetailsPayload): Promise
     
     if (updates.length === 0) {
         const orderWithoutChanges = db.prepare('SELECT * FROM production_orders WHERE id = ?').get(orderId) as ProductionOrder;
-        return orderWithoutChanges;
+        return JSON.parse(JSON.stringify(orderWithoutChanges));
     };
 
     query += ` ${updates.join(', ')} WHERE id = @orderId`;
@@ -516,13 +513,14 @@ export async function updateDetails(payload: UpdateOrderDetailsPayload): Promise
 
     transaction();
     const updatedOrder = db.prepare('SELECT * FROM production_orders WHERE id = ?').get(orderId) as ProductionOrder;
-    return updatedOrder;
+    return JSON.parse(JSON.stringify(updatedOrder));
 }
 
 
 export async function getOrderHistory(orderId: number): Promise<ProductionOrderHistoryEntry[]> {
     const db = await connectDb(PLANNER_DB_FILE);
-    return db.prepare('SELECT * FROM production_order_history WHERE orderId = ? ORDER BY timestamp DESC').all(orderId) as ProductionOrderHistoryEntry[];
+    const results = db.prepare('SELECT * FROM production_order_history WHERE orderId = ? ORDER BY timestamp DESC').all(orderId) as ProductionOrderHistoryEntry[];
+    return JSON.parse(JSON.stringify(results));
 }
 
 
@@ -546,7 +544,7 @@ export async function addNote(payload: NotePayload): Promise<ProductionOrder> {
 
     transaction();
     const updatedOrder = db.prepare('SELECT * FROM production_orders WHERE id = ?').get(orderId) as ProductionOrder;
-    return updatedOrder;
+    return JSON.parse(JSON.stringify(updatedOrder));
 }
 
 export async function updatePendingAction(payload: AdministrativeActionPayload): Promise<ProductionOrder> {
@@ -572,5 +570,6 @@ export async function updatePendingAction(payload: AdministrativeActionPayload):
     });
     
     transaction();
-    return db.prepare('SELECT * FROM production_orders WHERE id = ?').get(entityId) as ProductionOrder;
+    const result = db.prepare('SELECT * FROM production_orders WHERE id = ?').get(entityId) as ProductionOrder;
+    return JSON.parse(JSON.stringify(result));
 }

@@ -170,7 +170,7 @@ export async function getSettings(): Promise<RequestSettings> {
         else if (row.key === 'pdfPaperSize') settings.pdfPaperSize = row.value as 'letter' | 'legal';
         else if (row.key === 'pdfOrientation') settings.pdfOrientation = row.value as 'portrait' | 'landscape';
     }
-    return settings;
+    return JSON.parse(JSON.stringify(settings));
 }
 
 export async function saveSettings(settings: RequestSettings): Promise<void> {
@@ -255,7 +255,7 @@ export async function getRequests(options: {
         totalArchivedCount = (db.prepare(`SELECT COUNT(*) as count FROM purchase_requests WHERE ${archivedWhereClause}`).get() as { count: number }).count;
     }
     
-    return { requests: allRequests, totalArchivedCount };
+    return { requests: JSON.parse(JSON.stringify(allRequests)), totalArchivedCount };
 }
 
 export async function addRequest(request: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'receivedDate' | 'previousStatus'>, requestedBy: string): Promise<PurchaseRequest> {
@@ -312,7 +312,7 @@ export async function addRequest(request: Omit<PurchaseRequest, 'id' | 'consecut
     historyStmt.run(newRequestId, new Date().toISOString(), 'pending', newRequest.requestedBy, 'Solicitud creada');
 
     const createdRequest = db.prepare('SELECT * FROM purchase_requests WHERE id = ?').get(newRequestId) as PurchaseRequest;
-    return createdRequest;
+    return JSON.parse(JSON.stringify(createdRequest));
 }
 
 export async function updateRequest(payload: UpdatePurchaseRequestPayload): Promise<PurchaseRequest> {
@@ -372,7 +372,7 @@ export async function updateRequest(payload: UpdatePurchaseRequestPayload): Prom
 
     transaction();
     const updatedRequest = db.prepare('SELECT * FROM purchase_requests WHERE id = ?').get(requestId) as PurchaseRequest;
-    return updatedRequest;
+    return JSON.parse(JSON.stringify(updatedRequest));
 }
 
 export async function updateStatus(payload: UpdateRequestStatusPayload): Promise<PurchaseRequest> {
@@ -468,12 +468,13 @@ export async function updateStatus(payload: UpdateRequestStatusPayload): Promise
 
     transaction();
     const updatedRequest = db.prepare('SELECT * FROM purchase_requests WHERE id = ?').get(requestId) as PurchaseRequest;
-    return updatedRequest;
+    return JSON.parse(JSON.stringify(updatedRequest));
 }
 
 export async function getRequestHistory(requestId: number): Promise<PurchaseRequestHistoryEntry[]> {
     const db = await connectDb(REQUESTS_DB_FILE);
-    return db.prepare('SELECT * FROM purchase_request_history WHERE requestId = ? ORDER BY timestamp DESC').all(requestId) as PurchaseRequestHistoryEntry[];
+    const results = db.prepare('SELECT * FROM purchase_request_history WHERE requestId = ? ORDER BY timestamp DESC').all(requestId) as PurchaseRequestHistoryEntry[];
+    return JSON.parse(JSON.stringify(results));
 }
 
 export async function rejectCancellation(payload: RejectCancellationPayload): Promise<PurchaseRequest> {
@@ -504,7 +505,8 @@ export async function rejectCancellation(payload: RejectCancellationPayload): Pr
     });
 
     transaction();
-    return db.prepare('SELECT * FROM purchase_requests WHERE id = ?').get(requestId) as PurchaseRequest;
+    const result = db.prepare('SELECT * FROM purchase_requests WHERE id = ?').get(requestId) as PurchaseRequest;
+    return JSON.parse(JSON.stringify(result));
 }
 
 export async function updatePendingAction(payload: AdministrativeActionPayload): Promise<PurchaseRequest> {
@@ -530,5 +532,6 @@ export async function updatePendingAction(payload: AdministrativeActionPayload):
     });
     
     transaction();
-    return db.prepare('SELECT * FROM purchase_requests WHERE id = ?').get(entityId) as PurchaseRequest;
+    const result = db.prepare('SELECT * FROM purchase_requests WHERE id = ?').get(entityId) as PurchaseRequest;
+    return JSON.parse(JSON.stringify(result));
 }
