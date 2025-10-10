@@ -8,10 +8,13 @@ import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError, logInfo } from '@/modules/core/lib/logger';
-import type { HelpTopic, TicketPriority, Role, User } from '@/modules/core/types';
+import type { HelpTopic, TicketPriority, Role, User, Service, SupportPackage, Company } from '@/modules/core/types';
 import { getHelpTopics, addHelpTopic, updateHelpTopic, deleteHelpTopic } from '../lib/actions';
 import { getAllUsers } from '@/modules/core/lib/auth-client';
 import { getAllRoles } from '@/modules/core/lib/roles-db';
+import { useAuth } from '@/modules/core/hooks/useAuth';
+import { saveCompanySettings } from '@/modules/core/lib/settings-db';
+
 
 const emptyTopic: Omit<HelpTopic, 'id'> = {
     name: '',
@@ -30,6 +33,7 @@ const priorityConfig: { [key in TicketPriority]: { label: string } } = {
 export const useTicketSettings = () => {
     const { isAuthorized } = useAuthorization(['tickets:admin']);
     const { toast } = useToast();
+    const { companyData, setCompanyData } = useAuth();
 
     const [isLoading, setIsLoading] = useState(true);
     const [helpTopics, setHelpTopics] = useState<HelpTopic[]>([]);
@@ -40,6 +44,10 @@ export const useTicketSettings = () => {
     const [allUsers, setAllUsers] = useState<User[]>([]);
     const [allRoles, setAllRoles] = useState<Role[]>([]);
     
+    // States for services and packages, now managed here
+    const [newService, setNewService] = useState({ id: "", name: "" });
+    const [newPackage, setNewPackage] = useState<Omit<SupportPackage, 'includedServices' | 'excludedServices'>>({ id: "", name: "", defaultHours: 0 });
+
     const fetchInitialData = useCallback(async () => {
         setIsLoading(true);
         try {
@@ -115,6 +123,71 @@ export const useTicketSettings = () => {
         setCurrentTopic(emptyTopic);
         setIsEditing(false);
     };
+
+    const handleAddService = () => {
+        if (!companyData || !newService.id || !newService.name) return;
+        const updatedCatalog = [...(companyData.servicesCatalog || []), newService];
+        setCompanyData({ ...companyData, servicesCatalog: updatedCatalog });
+        setNewService({ id: "", name: "" });
+      };
+    
+      const handleDeleteService = (serviceId: string) => {
+        if (!companyData) return;
+        const updatedCatalog = (companyData.servicesCatalog || []).filter(s => s.id !== serviceId);
+        const updatedPackages = (companyData.supportPackages || []).map(p => ({
+            ...p,
+            includedServices: p.includedServices.filter(sId => sId !== serviceId),
+            excludedServices: p.excludedServices.filter(sId => sId !== serviceId),
+        }));
+        setCompanyData({ ...companyData, servicesCatalog: updatedCatalog, supportPackages: updatedPackages });
+      };
+      
+      const handleAddPackage = () => {
+        if (!companyData || !newPackage.id || !newPackage.name) return;
+        const newPkg: SupportPackage = { ...newPackage, defaultHours: newPackage.defaultHours || 0, includedServices: [], excludedServices: [] };
+        const updatedPackages = [...(companyData.supportPackages || []), newPkg];
+        setCompanyData({ ...companyData, supportPackages: updatedPackages });
+        setNewPackage({ id: "", name: "", defaultHours: 0 });
+      };
+    
+      const handleDeletePackage = (packageId: string) => {
+        if (!companyData) return;
+        const updatedPackages = (companyData.supportPackages || []).filter(p => p.id !== packageId);
+        setCompanyData({ ...companyData, supportPackages: updatedPackages });
+      };
+      
+      const handlePackageServiceToggle = (packageId: string, serviceId: string, type: 'included' | 'excluded', checked: boolean) => {
+        if (!companyData) return;
+        const updatedPackages = (companyData.supportPackages || []).map(pkg => {
+            if (pkg.id === packageId) {
+                const listKey = type === 'included' ? 'includedServices' : 'excludedServices';
+                const otherListKey = type === 'included' ? 'excludedServices' : 'includedServices';
+                
+                let newList = [...pkg[listKey]];
+                let otherList = [...pkg[otherListKey]];
+    
+                if (checked) {
+                    if (!newList.includes(serviceId)) newList.push(serviceId);
+                    otherList = otherList.filter(sId => sId !== serviceId); // Ensure it's not in the other list
+                } else {
+                    newList = newList.filter(sId => sId !== serviceId);
+                }
+                return { ...pkg, [listKey]: newList, [otherListKey]: otherList };
+            }
+            return pkg;
+        });
+        setCompanyData({ ...companyData, supportPackages: updatedPackages });
+    };
+
+    const handleSaveAll = async () => {
+        if (!companyData) return;
+        await saveCompanySettings(companyData);
+        toast({
+          title: "Configuración Guardada",
+          description: "Los ajustes de soporte han sido actualizados.",
+        });
+        await logInfo("Configuración de soporte técnico guardada.");
+    };
     
     return {
         state: {
@@ -123,7 +196,9 @@ export const useTicketSettings = () => {
             isFormOpen,
             isEditing,
             currentTopic,
-            topicToDelete
+            topicToDelete,
+            newService,
+            newPackage
         },
         actions: {
             setFormOpen,
@@ -133,6 +208,14 @@ export const useTicketSettings = () => {
             handleDeleteTopic,
             setTopicToDelete,
             resetForm,
+            setNewService,
+            setNewPackage,
+            handleAddService,
+            handleDeleteService,
+            handleAddPackage,
+            handleDeletePackage,
+            handlePackageServiceToggle,
+            handleSaveAll
         },
         selectors: {
             priorityConfig,
