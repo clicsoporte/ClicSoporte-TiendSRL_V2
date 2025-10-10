@@ -19,9 +19,11 @@ import {
     deleteHelpTopic as deleteHelpTopicServer,
     addClientCompany as addClientCompanyServer,
     getClientCompanies as getClientCompaniesServer,
-    deleteTicket as deleteTicketServer,
-    getCustomerSupportInfo as getCustomerSupportInfoServer
+    deleteTicket as deleteTicketServer
 } from './db';
+import { getCompanySettings } from '@/modules/core/lib/settings-db';
+import { connectDb } from '@/modules/core/lib/db';
+
 
 /**
  * Saves a new ticket to the database.
@@ -149,5 +151,22 @@ export async function deleteTicket(id: number): Promise<void> {
 }
 
 export async function getCustomerSupportInfo(companyId: number): Promise<{ customer: Customer | null; supportPackage: SupportPackage | null, services: Service[] }> {
-    return getCustomerSupportInfoServer(companyId);
+    const mainDb = await connectDb();
+    
+    const customerRow = mainDb.prepare('SELECT * FROM customers WHERE id = ?').get(companyId);
+    const customer = customerRow ? JSON.parse(JSON.stringify(customerRow)) as Customer : null;
+    
+    if (!customer?.supportPackageId) {
+        return { customer: null, supportPackage: null, services: [] };
+    }
+    
+    const companySettings = await getCompanySettings();
+    const supportPackage = companySettings?.supportPackages.find(p => p.id === customer.supportPackageId) || null;
+    const services = companySettings?.servicesCatalog || [];
+
+    return {
+        customer,
+        supportPackage,
+        services,
+    };
 }

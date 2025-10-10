@@ -420,7 +420,6 @@ export async function deleteTicket(id: number): Promise<void> {
 
 export async function getCustomerSupportInfo(companyId: number): Promise<{ customer: Customer | null; supportPackage: SupportPackage | null, services: Service[] }> {
     const mainDb = await connectDb();
-    const ticketsDb = await connectDb(TICKETS_DB_FILE);
     
     const customer = mainDb.prepare('SELECT * FROM customers WHERE id = ?').get(companyId) as Customer | null;
     

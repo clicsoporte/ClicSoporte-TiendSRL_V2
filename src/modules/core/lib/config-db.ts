@@ -55,7 +55,7 @@ export async function getImportQueries(): Promise<ImportQuery[]> {
     const db = await connectDb();
     try {
         const rows = db.prepare('SELECT * FROM import_queries').all() as ImportQuery[];
-        return rows || [];
+        return JSON.parse(JSON.stringify(rows || []));
     } catch (error) {
         console.error("Failed to get import queries:", error);
         return [];

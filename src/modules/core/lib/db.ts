@@ -295,7 +295,7 @@ export async function getLogs(filters: {
     query += ' ORDER BY timestamp DESC LIMIT 500';
 
     const logs = db.prepare(query).all(...params) as LogEntry[];
-    return logs;
+    return JSON.parse(JSON.stringify(logs));
 }
 
 export async function clearLogs(clearedBy: string, type: 'operational' | 'system' | 'all', deleteAllTime: boolean): Promise<void> {

@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Server-side functions for accessing master data like customers, products, etc.
  * Separated to avoid circular dependencies.
@@ -15,7 +14,8 @@ import type { Product, Customer, StockInfo, Exemption } from '@/modules/core/typ
 export async function getAllCustomers(): Promise<Customer[]> {
     const db = await connectDb();
     try {
-        return db.prepare('SELECT * FROM customers').all() as Customer[];
+        const results = db.prepare('SELECT * FROM customers').all() as Customer[];
+        return JSON.parse(JSON.stringify(results));
     } catch (error) {
         console.error("Failed to get all customers:", error);
         return [];
@@ -29,7 +29,8 @@ export async function getAllCustomers(): Promise<Customer[]> {
 export async function getAllProducts(): Promise<Product[]> {
     const db = await connectDb();
     try {
-        return db.prepare('SELECT * FROM products').all() as Product[];
+        const results = db.prepare('SELECT * FROM products').all() as Product[];
+        return JSON.parse(JSON.stringify(results));
     } catch (error) {
         console.error("Failed to get all products:", error);
         return [];
@@ -61,7 +62,8 @@ export async function getAllStock(): Promise<StockInfo[]> {
 export async function getAllExemptions(): Promise<Exemption[]> {
     const db = await connectDb();
     try {
-        return db.prepare('SELECT * FROM exemptions').all() as Exemption[];
+        const results = db.prepare('SELECT * FROM exemptions').all() as Exemption[];
+        return JSON.parse(JSON.stringify(results));
     } catch (error) {
         console.error("Failed to get all exemptions:", error);
         return [];
@@ -75,7 +77,8 @@ export async function getAllExemptions(): Promise<Exemption[]> {
 export async function getCabysCatalog(): Promise<{code: string, description: string, taxRate: number}[]> {
     const db = await connectDb();
     try {
-        return db.prepare('SELECT * FROM cabys_catalog').all() as {code: string, description: string, taxRate: number}[];
+        const results = db.prepare('SELECT * FROM cabys_catalog').all() as {code: string, description: string, taxRate: number}[];
+        return JSON.parse(JSON.stringify(results));
     } catch (error) {
         console.error("Failed to get CABYS catalog:", error);
         return [];
