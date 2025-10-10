@@ -21,7 +21,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SearchInput } from '@/components/ui/search-input';
-import { PlusCircle, MoreVertical, KeyRound, Copy, CalendarIcon, Loader2, FilterX, Trash2, History, X, Download, Server } from 'lucide-react';
+import { PlusCircle, MoreVertical, KeyRound, Copy, CalendarIcon, Loader2, FilterX, Trash2, History, X, Download, Server, Edit } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/modules/core/hooks/useAuth';
@@ -30,6 +30,7 @@ import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 export default function LicensesPage() {
     const { state, actions, selectors } = useLicenses();
     const { hasPermission } = useAuthorization(['licenses:manage']);
+    const { user } = useAuth();
     
     if (state.isLoading) {
         return (
@@ -54,11 +55,11 @@ export default function LicensesPage() {
                     <div className="flex items-center justify-between">
                         <div>
                             <CardTitle>Gestión de Licencias</CardTitle>
-                            <CardDescription>Administra las licencias de software de tus clientes.</CardDescription>
+                            <CardDescription>Administra las licencias de software offline para tus clientes.</CardDescription>
                         </div>
                         <div className="flex gap-2">
                              {hasPermission('licenses:manage') && <Button variant="outline" onClick={() => actions.setIsSoftwareDialogOpen(true)}>Gestionar Software</Button>}
-                             {hasPermission('licenses:manage') && <Button variant="outline" onClick={actions.handleGenerateKeys} disabled={state.isSubmitting}><Server className="mr-2 h-4 w-4"/>Generar Claves</Button>}
+                             {hasPermission('licenses:manage') && <Button variant="outline" onClick={actions.generateNewKeys} disabled={state.isSubmitting}><Server className="mr-2 h-4 w-4"/>Generar Claves</Button>}
                             {hasPermission('licenses:manage') && (
                                 <Dialog open={state.isFormOpen} onOpenChange={(open) => { actions.setIsFormOpen(open); if (!open) actions.resetCurrentLicense(); }}>
                                     <DialogTrigger asChild>
@@ -114,7 +115,6 @@ export default function LicensesPage() {
                                                         <div className="flex flex-wrap gap-2 mt-2">
                                                             <Button type="button" size="sm" variant="secondary" onClick={() => actions.setExpirationDatePreset(30)}>Prueba (30 Días)</Button>
                                                             <Button type="button" size="sm" variant="secondary" onClick={() => actions.setExpirationDatePreset(365)}>Anual (1 Año)</Button>
-                                                            <Button type="button" size="sm" variant="secondary" onClick={() => actions.setExpirationDatePreset('perpetual')}>Perpetua</Button>
                                                         </div>
                                                     </div>
                                                      <div className="flex items-center space-x-2 pt-8">

@@ -17,7 +17,8 @@ import {
     deleteLicense as deleteLicenseServer,
     getSoftwareProducts, 
     addSoftwareProduct, 
-    deleteSoftwareProduct
+    deleteSoftwareProduct,
+    generateNewKeys
 } from '../lib/actions';
 import { getClientCompanies } from '@/modules/tickets/lib/actions';
 import { useDebounce } from 'use-debounce';
@@ -194,6 +195,36 @@ export const useLicenses = () => {
             });
         }
     };
+    
+    const generateNewKeysAction = async () => {
+        updateState({ isSubmitting: true });
+        try {
+            const result = await generateNewKeys();
+            if (result.success) {
+                toast({ title: "Éxito", description: result.message });
+            } else {
+                toast({ title: "Error", description: result.message, variant: 'destructive' });
+            }
+        } catch (error: any) {
+            toast({ title: "Error Crítico", description: error.message, variant: 'destructive' });
+        } finally {
+            updateState({ isSubmitting: false });
+        }
+    };
+    
+    const downloadLicenseFile = (license: License) => {
+        const blob = new Blob([license.licenseKey], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const softwareName = state.softwareProducts.find(p => p.id === license.softwareId)?.name.replace(/\s+/g, '_') || 'software';
+        const clientName = state.clientCompanies.find(c => c.id === license.clientCompanyId)?.name.replace(/\s+/g, '_') || 'cliente';
+        a.download = `license_${softwareName}_${clientName}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
 
     const clientCompanyOptions = useMemo(() => {
         if (debouncedCompanySearch.length < 2) return [];
@@ -228,6 +259,8 @@ export const useLicenses = () => {
         handleDeleteSoftware,
         resetCurrentLicense,
         setExpirationDatePreset,
+        generateNewKeys: generateNewKeysAction,
+        downloadLicenseFile,
     };
 
     const selectors = {

@@ -291,7 +291,7 @@ export const useTickets = () => {
                 });
                 return updatedTicket;
             } catch (error: any) {
-                logError("Failed to update ticket details", { error: error.message });
+                logError("Failed to update ticket details", { error: (error as Error).message });
                 toast({ title: "Error al Actualizar", description: error.message, variant: "destructive" });
                 return null;
             }
@@ -319,6 +319,10 @@ export const useTickets = () => {
     const selectors = {
         priorityConfig,
         statusConfig,
+        supportUsers: useMemo(() => {
+            if (!users) return [];
+            return users.filter(u => u.role === 'admin' || u.role === 'support-agent'); // Simplified logic
+        }, [users]),
         clientCompanyOptions: useMemo(() => {
             if (debouncedCustomerSearch.length < 2) return [];
 
