@@ -93,18 +93,18 @@ export async function getCostAssistantSettings(): Promise<CostAssistantSettings>
     const db = await connectDb(DB_FILE);
     const row = db.prepare(`SELECT value FROM cost_assistant_settings WHERE key = 'columnVisibility'`).get() as { value: string } | undefined;
     if (row) {
-        return {
+        return JSON.parse(JSON.stringify({
             columnVisibility: JSON.parse(row.value)
-        }
+        }));
     }
     // Return a default if not found
-    return {
+    return JSON.parse(JSON.stringify({
         columnVisibility: {
             cabysCode: true, supplierCode: true, description: true, quantity: true,
             unitCostWithoutTax: true, unitCostWithTax: false, taxRate: true,
             margin: true, sellPriceWithoutTax: true, finalSellPrice: true, profitPerLine: true
         }
-    };
+    }));
 }
 
 export async function saveCostAssistantSettings(settings: CostAssistantSettings): Promise<void> {

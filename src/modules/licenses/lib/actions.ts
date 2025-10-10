@@ -6,7 +6,7 @@
 import { logInfo, logError } from '@/modules/core/lib/logger';
 import type { License, SoftwareProduct } from '@/modules/core/types';
 import { 
-    getLicenses as getLicensesServer,
+    getLicenses as getLicensesServer, 
     addLicense as addLicenseServer,
     updateLicense as updateLicenseServer,
     deleteLicense as deleteLicenseServer,

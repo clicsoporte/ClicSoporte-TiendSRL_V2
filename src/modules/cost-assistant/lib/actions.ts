@@ -204,7 +204,7 @@ export async function processInvoiceXmls(xmlContents: string[]): Promise<{ lines
         }
     }
     
-    return { lines: allLines, processedInvoices };
+    return JSON.parse(JSON.stringify({ lines: allLines, processedInvoices }));
 }
 
 export async function getCostAssistantSettings(): Promise<CostAssistantSettings> {

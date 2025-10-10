@@ -129,13 +129,13 @@ export async function getWarehouseSettings(): Promise<WarehouseSettings> {
             if (typeof settings.enablePhysicalInventoryTracking !== 'boolean') {
                 settings.enablePhysicalInventoryTracking = false;
             }
-            return settings;
+            return JSON.parse(JSON.stringify(settings));
         }
     } catch (error) {
         console.error("Error fetching warehouse settings, returning default.", error);
     }
     // Return a default object if nothing is found or an error occurs
-    return {
+    return JSON.parse(JSON.stringify({
         locationLevels: [
             { type: 'building', name: 'Edificio' },
             { type: 'zone', name: 'Zona' },
@@ -144,7 +144,7 @@ export async function getWarehouseSettings(): Promise<WarehouseSettings> {
             { type: 'bin', name: 'Casilla' }
         ],
         enablePhysicalInventoryTracking: false
-    };
+    }));
 }
 
 export async function saveWarehouseSettings(settings: WarehouseSettings): Promise<void> {
@@ -156,7 +156,8 @@ export async function saveWarehouseSettings(settings: WarehouseSettings): Promis
 
 export async function getLocations(): Promise<WarehouseLocation[]> {
     const db = await connectDb(WAREHOUSE_DB_FILE);
-    return db.prepare('SELECT * FROM locations ORDER BY parentId, name').all() as WarehouseLocation[];
+    const results = db.prepare('SELECT * FROM locations ORDER BY parentId, name').all() as WarehouseLocation[];
+    return JSON.parse(JSON.stringify(results));
 }
 
 export async function addLocation(location: Omit<WarehouseLocation, 'id'>): Promise<WarehouseLocation> {
@@ -164,7 +165,7 @@ export async function addLocation(location: Omit<WarehouseLocation, 'id'>): Prom
     const { name, code, type, parentId } = location;
     const info = db.prepare('INSERT INTO locations (name, code, type, parentId) VALUES (?, ?, ?, ?)').run(name, code, type, parentId ?? null);
     const newLocation = db.prepare('SELECT * FROM locations WHERE id = ?').get(info.lastInsertRowid) as WarehouseLocation;
-    return newLocation;
+    return JSON.parse(JSON.stringify(newLocation));
 }
 
 export async function updateLocation(location: WarehouseLocation): Promise<WarehouseLocation> {
@@ -172,7 +173,7 @@ export async function updateLocation(location: WarehouseLocation): Promise<Wareh
     const { id, name, code, type, parentId } = location;
     db.prepare('UPDATE locations SET name = ?, code = ?, type = ?, parentId = ? WHERE id = ?').run(name, code, type, parentId ?? null, id);
     const updatedLocation = db.prepare('SELECT * FROM locations WHERE id = ?').get(id) as WarehouseLocation;
-    return updatedLocation;
+    return JSON.parse(JSON.stringify(updatedLocation));
 }
 
 export async function deleteLocation(id: number): Promise<void> {
@@ -184,7 +185,8 @@ export async function deleteLocation(id: number): Promise<void> {
 
 export async function getInventoryForItem(itemId: string): Promise<WarehouseInventoryItem[]> {
     const db = await connectDb(WAREHOUSE_DB_FILE);
-    return db.prepare('SELECT * FROM inventory WHERE itemId = ?').all(itemId) as WarehouseInventoryItem[];
+    const results = db.prepare('SELECT * FROM inventory WHERE itemId = ?').all(itemId) as WarehouseInventoryItem[];
+    return JSON.parse(JSON.stringify(results));
 }
 
 export async function updateInventory(itemId: string, locationId: number, quantityChange: number): Promise<void> {
@@ -248,16 +250,20 @@ export async function getWarehouseData(): Promise<{ locations: WarehouseLocation
 
 export async function getMovements(itemId?: string): Promise<MovementLog[]> {
     const db = await connectDb(WAREHOUSE_DB_FILE);
+    let results;
     if (itemId) {
-        return db.prepare('SELECT * FROM movements WHERE itemId = ? ORDER BY timestamp DESC').all(itemId) as MovementLog[];
+        results = db.prepare('SELECT * FROM movements WHERE itemId = ? ORDER BY timestamp DESC').all(itemId) as MovementLog[];
+    } else {
+        results = db.prepare('SELECT * FROM movements ORDER BY timestamp DESC').all() as MovementLog[];
     }
-    return db.prepare('SELECT * FROM movements ORDER BY timestamp DESC').all() as MovementLog[];
+    return JSON.parse(JSON.stringify(results));
 }
 
 // --- Simple Mode Functions ---
 export async function getItemLocations(itemId: string): Promise<ItemLocation[]> {
     const db = await connectDb(WAREHOUSE_DB_FILE);
-    return db.prepare('SELECT * FROM item_locations WHERE itemId = ?').all(itemId) as ItemLocation[];
+    const results = db.prepare('SELECT * FROM item_locations WHERE itemId = ?').all(itemId) as ItemLocation[];
+    return JSON.parse(JSON.stringify(results));
 }
 
 export async function assignItemToLocation(itemId: string, locationId: number, clientId?: string | null): Promise<void> {
@@ -269,5 +275,3 @@ export async function unassignItemFromLocation(itemLocationId: number): Promise<
     const db = await connectDb(WAREHOUSE_DB_FILE);
     db.prepare('DELETE FROM item_locations WHERE id = ?').run(itemLocationId);
 }
-
-    

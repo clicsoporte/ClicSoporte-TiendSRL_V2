@@ -432,7 +432,7 @@ export async function getCustomerSupportInfo(companyId: number): Promise<{ custo
         // Fallback to check client_companies if not found in main customers table
         const ticketsDb = await connectDb(TICKETS_DB_FILE);
         const clientCompany = ticketsDb.prepare('SELECT * FROM client_companies WHERE id = ?').get(companyId) as ClientCompany | null;
-        return { customer: clientCompany ? JSON.parse(JSON.stringify(clientCompany)) : null, supportPackage: null, services: [] };
+        return JSON.parse(JSON.stringify({ customer: clientCompany ? JSON.parse(JSON.stringify(clientCompany)) : null, supportPackage: null, services: [] }));
     }
     
     const customer = JSON.parse(JSON.stringify(customerRow)) as Customer;
@@ -447,5 +447,5 @@ export async function getCustomerSupportInfo(companyId: number): Promise<{ custo
         services: JSON.parse(JSON.stringify(services)),
     };
 
-    return result;
+    return JSON.parse(JSON.stringify(result));
 }
