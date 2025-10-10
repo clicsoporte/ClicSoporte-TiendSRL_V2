@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Custom hook `useQuoter` for managing the state and logic of the QuoterPage component.
  * This hook encapsulates the entire business logic of the quoting tool, including state management for
@@ -16,8 +15,8 @@ import {
   saveQuoteDraft,
   getAllQuoteDrafts,
   deleteQuoteDraft,
-  saveCompanySettings,
 } from "@/modules/core/lib/db";
+import { saveCompanySettings } from "@/modules/core/lib/settings-db";
 import { format, parseISO, isValid } from 'date-fns';
 import { useDebounce } from "use-debounce";
 import { useAuth } from "@/modules/core/hooks/useAuth";
@@ -46,7 +45,7 @@ const initialQuoteState = {
 
 type ExemptionInfo = {
     erpExemption: Exemption;
-    haciendaExemption: HaciendaExemptionApiResponse | null;
+    haciendaExemption: HaciendaExemptionApiResponse | { error: boolean; message: string; status?: number } | null;
     isLoading: boolean;
     isErpValid: boolean;
     isHaciendaValid: boolean;
@@ -59,9 +58,9 @@ interface LineInputRefs {
   price: HTMLInputElement | null;
 }
 
-type ErrorResponse = { error: boolean; message: string };
+type ErrorResponse = { error: boolean; message: string; status?: number };
 
-function isErrorResponse(data: any): data is ErrorResponse {
+export function isErrorResponse(data: any): data is ErrorResponse {
   return (data as ErrorResponse).error !== undefined;
 }
 
@@ -121,6 +120,15 @@ export const useQuoter = () => {
   const [decimalPlaces, setDecimalPlaces] = useState(initialQuoteState.decimalPlaces);
   const [exemptionInfo, setExemptionInfo] = useState<ExemptionInfo | null>(null);
   const [isMounted, setIsMounted] = useState(false);
+
+  // New state for mobile column visibility
+  const [mobileColumnVisibility, setMobileColumnVisibility] = useState({
+    code: false,
+    unit: false,
+    cabys: false,
+    tax: false,
+    total: true,
+  });
   
   const [productSearchTerm, setProductSearchTerm] = useState("");
   const [customerSearchTerm, setCustomerSearchTerm] = useState("");
@@ -149,31 +157,40 @@ export const useQuoter = () => {
         return { ...prev, isLoading: true, apiError: false };
     });
 
-    try {
-        const data = await getExemptionStatus(authNumber);
+    const data = await getExemptionStatus(authNumber);
         
-        if (isErrorResponse(data)) {
-            throw new Error(data.message || "Error desconocido al verificar la exoneración.");
-        }
-        
-        setExemptionInfo(prev => {
-             if (!prev) return null;
-             return {
-                ...prev,
-                haciendaExemption: data as HaciendaExemptionApiResponse,
-                isHaciendaValid: new Date(data.fechaVencimiento) > new Date(),
-                isLoading: false,
-             }
-        });
-    } catch (error: any) {
-        logError("Error verificando exoneración en Hacienda", { error: error.message, authNumber });
+    if (isErrorResponse(data)) {
+        logError("Error verifying exemption status", { message: data.message, authNumber });
         setExemptionInfo(prev => {
             if (!prev) return null;
-            return { ...prev, isLoading: false, apiError: true }
+            return {
+                ...prev,
+                haciendaExemption: data,
+                isHaciendaValid: false,
+                isLoading: false,
+                apiError: true,
+            };
         });
-        toast({ title: "Error de API", description: `No se pudo consultar la exoneración. ${error.message}`, variant: "destructive" });
+        
+        if (data.status === 404) {
+            toast({ title: "Exoneración No Encontrada", description: `Hacienda no encontró la autorización ${authNumber}.`, variant: "destructive" });
+        } else {
+            toast({ title: "Error de API", description: `No se pudo consultar la exoneración. ${data.message}`, variant: "destructive" });
+        }
+        return;
     }
-  }, [toast]);
+    
+    setExemptionInfo(prev => {
+         if (!prev) return null;
+         return {
+            ...prev,
+            haciendaExemption: data,
+            isHaciendaValid: new Date(data.fechaVencimiento) > new Date(),
+            isLoading: false,
+            apiError: false,
+         }
+    });
+}, [toast]);
   
 
   const loadInitialData = useCallback(async (isRefresh = false) => {
@@ -228,22 +245,24 @@ export const useQuoter = () => {
 
   const customerOptions = useMemo(() => {
     if (debouncedCustomerSearch.length < 2) return [];
+    const searchTerms = debouncedCustomerSearch.toLowerCase().split(' ').filter(Boolean);
     return (customers || [])
-      .filter((c) => 
-        (showInactiveCustomers || c.active === "S") &&
-        (c.id.toLowerCase().includes(debouncedCustomerSearch.toLowerCase()) || c.name.toLowerCase().includes(debouncedCustomerSearch.toLowerCase()))
-      )
-      .map((c) => ({ value: c.id, label: `${c.id} - ${c.name}` }));
+      .filter((c) => {
+        if (!showInactiveCustomers && c.active !== "S") return false;
+        const targetText = `${c.id} ${c.name} ${c.taxId}`.toLowerCase();
+        return searchTerms.every(term => targetText.includes(term));
+      })
+      .map((c) => ({ value: c.id, label: `[${c.id}] - ${c.name} (${c.taxId})` }));
   }, [customers, showInactiveCustomers, debouncedCustomerSearch]);
 
   const productOptions = useMemo(() => {
     if (debouncedProductSearch.length < 2) return [];
-    const searchLower = debouncedProductSearch.toLowerCase();
+    const searchTerms = debouncedProductSearch.toLowerCase().split(' ').filter(Boolean);
     return (products || [])
       .filter((p) => {
-        const isActive = showInactiveProducts || p.active === "S";
-        const matchesSearch = p.id.toLowerCase().includes(searchLower) || p.description.toLowerCase().includes(searchLower);
-        return isActive && matchesSearch;
+        if (!showInactiveProducts && p.active !== "S") return false;
+        const targetText = `${p.id} ${p.description}`.toLowerCase();
+        return searchTerms.every(term => targetText.includes(term));
       })
       .map((p) => {
         const stockInfo = stockLevels.find(s => s.itemId === p.id);
@@ -264,10 +283,11 @@ export const useQuoter = () => {
     let taxRate = 0.13;
     if (product.isBasicGood === 'S') {
         taxRate = 0.01;
-    } else if (exemptionInfo && (exemptionInfo.isErpValid || exemptionInfo.isHaciendaValid) && exemptionInfo.erpExemption.percentage > 0) {
-      if (exemptionInfo.erpExemption.percentage >= 13) {
-        taxRate = 0;
-      }
+    } else if (exemptionInfo && exemptionInfo.erpExemption.percentage > 0) {
+        const isExempt = exemptionInfo.isSpecialLaw || exemptionInfo.isHaciendaValid;
+        if (isExempt) {
+          taxRate = 0;
+        }
     }
     
     const newLine: QuoteLine = {
@@ -354,8 +374,8 @@ export const useQuoter = () => {
     const customer = customers.find((c) => c.id === customerId);
     if (customer) {
       setSelectedCustomer(customer);
-      setCustomerDetails(`ID: ${customer.id}\nNombre: ${customer.name}\nTel: ${customer.phone}\nEmail: ${customer.email || customer.electronicDocEmail}`);
-      setCustomerSearchTerm(`${customer.id} - ${customer.name}`);
+      setCustomerDetails(`ID: ${customer.id}\nNombre: ${customer.name}\nCédula: ${customer.taxId}\nTel: ${customer.phone}\nEmail: ${customer.email || customer.electronicDocEmail}`);
+      setCustomerSearchTerm(`[${customer.id}] ${customer.name} (${customer.taxId})`);
       setDeliveryAddress(customer.address);
       const paymentConditionDays = parseInt(customer.paymentCondition, 10);
       if (!isNaN(paymentConditionDays) && paymentConditionDays > 1) {
@@ -370,10 +390,11 @@ export const useQuoter = () => {
       
       if (customerExemption) {
           const isErpValid = new Date(customerExemption.endDate) > new Date();
-          const isSpecial = exemptionLaws.some(law => 
-              (law.docType?.trim() && law.docType.trim() === customerExemption.docType?.trim()) || 
-              (law.authNumber?.trim() && String(law.authNumber).trim() === String(customerExemption.authNumber).trim())
+          
+          const matchingLaw = exemptionLaws.find(law => 
+              (law.authNumber && String(law.authNumber).trim() === String(customerExemption.authNumber).trim())
           );
+          const isSpecial = !!matchingLaw;
           
           const initialExemptionState: ExemptionInfo = {
               erpExemption: customerExemption,
@@ -649,6 +670,10 @@ export const useQuoter = () => {
     }
   };
 
+  const handleColumnVisibilityChange = (column: keyof typeof mobileColumnVisibility, checked: boolean) => {
+    setMobileColumnVisibility(prev => ({ ...prev, [column]: checked }));
+  };
+
   const totals = useMemo(() => {
     const subtotal = lines.reduce((acc, line) => acc + (line.quantity * line.price), 0);
     const totalTaxes = lines.reduce((acc, line) => acc + (line.quantity * line.price * line.tax), 0);
@@ -665,7 +690,8 @@ export const useQuoter = () => {
       quoteNumber, deliveryDate, sellerName, quoteDate, companyData, currentUser, sellerType,
       paymentTerms, creditDays, validUntilDate, notes, products, customers, showInactiveCustomers,
       showInactiveProducts, selectedLineForInfo, savedDrafts, decimalPlaces, productSearchTerm, purchaseOrderNumber,
-      exemptionInfo, isRefreshing, customerSearchTerm, isProductSearchOpen, isCustomerSearchOpen, isProcessing
+      exemptionInfo, isRefreshing, customerSearchTerm, isProductSearchOpen, isCustomerSearchOpen, isProcessing,
+      mobileColumnVisibility
     },
     actions: {
       setCurrency, setLines, setSelectedCustomer, setCustomerDetails, setDeliveryAddress, setExchangeRate,
@@ -677,6 +703,7 @@ export const useQuoter = () => {
       handleSelectCustomer, handleSelectProduct, incrementAndSaveQuoteNumber, handleSaveDecimalPlaces,
       generatePDF, resetQuote, saveDraft, loadDrafts, handleLoadDraft, handleDeleteDraft, handleNumericInputBlur,
       handleCustomerDetailsChange, loadInitialData, handleLineInputKeyDown, checkExemptionStatus, handleProductInputKeyDown, handleCustomerInputKeyDown,
+      handleColumnVisibilityChange
     },
     refs: { productInputRef, customerInputRef, lineInputRefs },
     selectors,

@@ -8,7 +8,7 @@
 import React, { createContext, useState, useContext, ReactNode, FC, useEffect, useCallback } from "react";
 import type { User, Role, Company, Product, StockInfo, Customer, Exemption, ExemptionLaw } from "../types";
 import { getCurrentUser as getCurrentUserClient } from '../lib/auth-client';
-import { getAllUsers } from '../lib/auth';
+import { getAllUsers } from "@/modules/core/lib/auth";
 import { getAllRoles } from '../lib/roles-db';
 import { getCompanySettings, getAndCacheExchangeRate, getExemptionLaws } from '../lib/settings-db';
 import { getAllCustomers, getAllProducts, getAllStock, getAllExemptions } from '../lib/data-access-db';
@@ -83,13 +83,19 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
 
   const loadAuthData = useCallback(async () => {
     try {
+      const currentUser = await getCurrentUserClient();
+      
+      if (!currentUser) {
+        return { isAuthenticated: false };
+      }
+
       const [
-        currentUser, allRoles, companySettings, dbCustomers, dbProducts, 
+        allRoles, companySettings, dbCustomers, dbProducts, 
         dbStock, rateData, dbExemptions, dbLaws, unreadCount, allUsers
       ] = await Promise.all([
-        getCurrentUserClient(), getAllRoles(), getCompanySettings(),
-        getAllCustomers(), getAllProducts(), getAllStock(), getAndCacheExchangeRate(),
-        getAllExemptions(), getExemptionLaws(), getUnreadSuggestionsCount(), getAllUsers()
+        getAllRoles(), getCompanySettings(), getAllCustomers(), getAllProducts(), getAllStock(), 
+        getAndCacheExchangeRate(), getAllExemptions(), getExemptionLaws(), 
+        getUnreadSuggestionsCount(), getAllUsers()
       ]);
 
       setUser(currentUser);
@@ -101,18 +107,13 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
       setAllExemptions(dbExemptions);
       setExemptionLaws(dbLaws);
       setRoles(allRoles);
-      if (currentUser) {
-        setUnreadSuggestionsCount(unreadCount);
-      }
+      setUnreadSuggestionsCount(unreadCount);
       setExchangeRateData(rateData || { rate: null, date: null });
 
-      if (currentUser && allRoles.length > 0) {
-        const role = allRoles.find(r => r.id === currentUser.role);
-        setUserRole(role || null);
-      } else {
-        setUserRole(null);
-      }
-      return { isAuthenticated: !!currentUser };
+      const role = allRoles.find(r => r.id === currentUser.role);
+      setUserRole(role || null);
+      
+      return { isAuthenticated: true };
     } catch (error) {
       console.error("Failed to load authentication context data:", error);
       setUser(null);

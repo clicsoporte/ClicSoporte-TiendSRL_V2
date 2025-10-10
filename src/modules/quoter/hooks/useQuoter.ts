@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Custom hook `useQuoter` for managing the state and logic of the QuoterPage component.
  * This hook encapsulates the entire business logic of the quoting tool, including state management for
@@ -16,8 +15,8 @@ import {
   saveQuoteDraft,
   getAllQuoteDrafts,
   deleteQuoteDraft,
-  saveCompanySettings,
 } from "@/modules/core/lib/db";
+import { saveCompanySettings } from "@/modules/core/lib/settings-db";
 import { format, parseISO, isValid } from 'date-fns';
 import { useDebounce } from "use-debounce";
 import { useAuth } from "@/modules/core/hooks/useAuth";
