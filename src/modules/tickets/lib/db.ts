@@ -421,14 +421,17 @@ export async function deleteTicket(id: number): Promise<void> {
     db.prepare('DELETE FROM tickets WHERE id = ?').run(id);
 }
 
-export async function getCustomerSupportInfo(companyId: number): Promise<{ customer: Customer | null; supportPackage: SupportPackage | null, services: Service[] }> {
+export async function getCustomerSupportInfo(companyId: number): Promise<{ customer: Customer | ClientCompany | null; supportPackage: SupportPackage | null, services: Service[] }> {
     const mainDb = await connectDb();
     
     const customerRow = mainDb.prepare('SELECT * FROM customers WHERE id = ?').get(companyId) as Customer | null;
     const customer = customerRow ? JSON.parse(JSON.stringify(customerRow)) as Customer : null;
     
     if (!customer?.supportPackageId) {
-        return { customer: null, supportPackage: null, services: [] };
+        // Fallback to check client_companies if not found in main customers table
+        const ticketsDb = await connectDb(TICKETS_DB_FILE);
+        const clientCompany = ticketsDb.prepare('SELECT * FROM client_companies WHERE id = ?').get(companyId) as ClientCompany | null;
+        return { customer: clientCompany, supportPackage: null, services: [] };
     }
     
     const companySettings = await getCompanySettings();
