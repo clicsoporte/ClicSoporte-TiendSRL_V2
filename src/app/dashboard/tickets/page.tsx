@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useTickets } from "@/modules/tickets/hooks/useTickets";
@@ -22,14 +21,14 @@ import Link from "next/link";
 import { useAuth } from "@/modules/core/hooks/useAuth";
 import { useDropzone } from 'react-dropzone';
 import { useMemo } from 'react';
-import type { TicketPriority } from '@/modules/core/types';
+import type { TicketPriority, Customer, ClientCompany } from '@/modules/core/types';
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function TicketsPage() {
     const { state, actions, selectors } = useTickets();
-    const { isAuthorized, hasPermission } = useAuthorization(['tickets:read:all']);
+    const { hasPermission } = useAuthorization(['tickets:read:all', 'tickets:admin:settings']);
     const router = useRouter();
-    const { users, companyData } = useAuth();
+    const { companyData } = useAuth();
     
     const { getRootProps, getInputProps, acceptedFiles } = useDropzone({
         // Placeholder for future file handling logic
@@ -51,11 +50,6 @@ export default function TicketsPage() {
         priorityFilter,
         customerSupportInfo
     } = state;
-
-    const supportUsers = useMemo(() => {
-        if (!users) return [];
-        return users.filter(u => u.role === 'admin' || u.role === 'support-agent');
-    }, [users]);
     
     const serviceCoverage = useMemo(() => {
         if (!customerSupportInfo || !newTicket.serviceId) {
@@ -107,7 +101,7 @@ export default function TicketsPage() {
         );
     }
     
-    if (isLoading || !isAuthorized) {
+    if (isLoading) {
         return (
              <main className="flex-1 p-4 md:p-6 lg:p-8">
                 <div className="flex items-center justify-between mb-6">
@@ -244,12 +238,12 @@ export default function TicketsPage() {
                                                     onOpenChange={actions.setCustomerSearchOpen}
                                                 />
                                             </div>
-                                            {customerSupportInfo && (
+                                            {customerSupportInfo && customerSupportInfo.customer && (
                                                 <Card className="bg-muted/50">
                                                     <CardHeader className="p-3"><CardTitle className="text-base">Plan de Soporte</CardTitle></CardHeader>
                                                     <CardContent className="p-3 pt-0 text-sm space-y-1">
                                                         <p><strong>Paquete:</strong> {customerSupportInfo.supportPackage?.name || 'No Asignado'}</p>
-                                                        <p><strong>Horas Restantes:</strong> {customerSupportInfo.customer?.monthlyHoursBalance?.toFixed(2) || 'N/A'}</p>
+                                                        <p><strong>Horas Restantes:</strong> {(customerSupportInfo.customer as Customer)?.monthlyHoursBalance?.toFixed(2) || 'N/A'}</p>
                                                     </CardContent>
                                                 </Card>
                                             )}
@@ -267,7 +261,7 @@ export default function TicketsPage() {
                                                     <SelectTrigger id="new-ticket-assignee"><SelectValue placeholder="Automático (por tema)"/></SelectTrigger>
                                                     <SelectContent>
                                                         <SelectItem value="null">Automático (por tema)</SelectItem>
-                                                        {supportUsers.map(u => (
+                                                        {selectors.supportUsers.map(u => (
                                                             <SelectItem key={u.id} value={String(u.id)}>{u.name}</SelectItem>
                                                         ))}
                                                     </SelectContent>

@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
@@ -69,9 +67,9 @@ export default function AssignInventoryPage() {
             // This is a bit inefficient, but keeps data consistent
             if (selectedProductId) {
                 if (wData.warehouseSettings.enablePhysicalInventoryTracking) {
-                    setInventory(wData.inventory.filter(i => i.itemId === selectedProductId));
+                    setInventory(wData.inventory.filter((i: WarehouseInventoryItem) => i.itemId === selectedProductId));
                 } else {
-                    setItemLocations(wData.itemLocations.filter(il => il.itemId === selectedProductId));
+                    setItemLocations(wData.itemLocations.filter((il: ItemLocation) => il.itemId === selectedProductId));
                 }
             }
 
@@ -86,17 +84,17 @@ export default function AssignInventoryPage() {
     useEffect(() => {
         setTitle("Asignar Inventario a Ubicación");
         loadInitialData();
-    }, [setTitle]);
+    }, [setTitle, loadInitialData]);
 
     const fetchItemData = useCallback(async (itemId: string) => {
         if (!warehouseSettings) return;
         const wData = await getWarehouseData();
 
         if (warehouseSettings.enablePhysicalInventoryTracking) {
-            const items = wData.inventory.filter(i => i.itemId === itemId);
+            const items = wData.inventory.filter((i: WarehouseInventoryItem) => i.itemId === itemId);
             setInventory(items);
         } else {
-            const assigned = wData.itemLocations.filter(il => il.itemId === itemId);
+            const assigned = wData.itemLocations.filter((il: ItemLocation) => il.itemId === itemId);
             setItemLocations(assigned);
         }
     }, [warehouseSettings]);

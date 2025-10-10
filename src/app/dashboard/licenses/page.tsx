@@ -21,16 +21,17 @@ import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SearchInput } from '@/components/ui/search-input';
-import { PlusCircle, MoreVertical, KeyRound, Copy, CalendarIcon, Loader2, FilterX, Trash2, History, X } from 'lucide-react';
+import { PlusCircle, MoreVertical, KeyRound, Copy, CalendarIcon, Loader2, FilterX, Trash2, History, X, Download, Server } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/modules/core/hooks/useAuth';
+import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 
 export default function LicensesPage() {
     const { state, actions, selectors } = useLicenses();
-    const { hasPermission, isAuthorized } = useAuth();
+    const { hasPermission } = useAuthorization(['licenses:manage']);
     
-    if (state.isLoading || !isAuthorized) {
+    if (state.isLoading) {
         return (
              <main className="flex-1 p-4 md:p-6 lg:p-8">
                 <Card>
@@ -57,6 +58,7 @@ export default function LicensesPage() {
                         </div>
                         <div className="flex gap-2">
                              {hasPermission('licenses:manage') && <Button variant="outline" onClick={() => actions.setIsSoftwareDialogOpen(true)}>Gestionar Software</Button>}
+                             {hasPermission('licenses:manage') && <Button variant="outline" onClick={actions.handleGenerateKeys} disabled={state.isSubmitting}><Server className="mr-2 h-4 w-4"/>Generar Claves</Button>}
                             {hasPermission('licenses:manage') && (
                                 <Dialog open={state.isFormOpen} onOpenChange={(open) => { actions.setIsFormOpen(open); if (!open) actions.resetCurrentLicense(); }}>
                                     <DialogTrigger asChild>
@@ -92,12 +94,9 @@ export default function LicensesPage() {
                                                         </Select>
                                                     </div>
                                                 </div>
+                                                
                                                 <div className="space-y-2">
-                                                    <Label htmlFor="license-key">Clave de Licencia</Label>
-                                                    <Textarea id="license-key" value={state.currentLicense.licenseKey} onChange={(e) => actions.handleCurrentLicenseChange('licenseKey', e.target.value)} placeholder="Dejar en blanco para generar una automáticamente."/>
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <Label htmlFor="hardware-id">Hardware ID (Opcional)</Label>
+                                                    <Label htmlFor="hardware-id">Hardware ID (Obligatorio para Offline)</Label>
                                                     <Input id="hardware-id" value={state.currentLicense.hardwareId || ''} onChange={(e) => actions.handleCurrentLicenseChange('hardwareId', e.target.value)} placeholder="ID de hardware del cliente para licencias bloqueadas"/>
                                                 </div>
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
@@ -141,7 +140,6 @@ export default function LicensesPage() {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Software</TableHead>
-                                    <TableHead>Clave</TableHead>
                                     <TableHead>Cliente</TableHead>
                                     <TableHead>Vencimiento</TableHead>
                                     <TableHead>Estado</TableHead>
@@ -156,25 +154,22 @@ export default function LicensesPage() {
                                     return (
                                         <TableRow key={license.id}>
                                             <TableCell className="font-medium">{software?.name || 'Desconocido'}</TableCell>
-                                            <TableCell>
-                                                <div className="flex items-center gap-2">
-                                                    <span className="font-mono text-xs truncate max-w-[150px]">{license.licenseKey}</span>
-                                                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => navigator.clipboard.writeText(license.licenseKey)}><Copy className="h-3 w-3"/></Button>
-                                                </div>
-                                            </TableCell>
                                             <TableCell>{client?.name || 'No asignado'}</TableCell>
                                             <TableCell>{license.isPerpetual ? 'Perpetua' : license.expirationDate ? format(parseISO(license.expirationDate), 'dd/MM/yyyy') : 'N/A'}</TableCell>
                                             <TableCell><Badge variant={variant}>{label}</Badge></TableCell>
                                             <TableCell className="text-right">
-                                                {hasPermission('licenses:manage') && (
+                                                
                                                     <DropdownMenu>
                                                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4"/></Button></DropdownMenuTrigger>
                                                         <DropdownMenuContent align="end">
-                                                            <DropdownMenuItem onSelect={() => actions.handleEditLicense(license)}>Editar</DropdownMenuItem>
-                                                            <DropdownMenuItem className="text-destructive" onSelect={() => actions.setLicenseToDelete(license)}>Eliminar</DropdownMenuItem>
+                                                            <DropdownMenuItem onSelect={() => actions.downloadLicenseFile(license)}>
+                                                                <Download className="mr-2 h-4 w-4" />Descargar Licencia
+                                                            </DropdownMenuItem>
+                                                            {hasPermission('licenses:manage') && <DropdownMenuItem onSelect={() => actions.handleEditLicense(license)}><Edit className="mr-2 h-4 w-4"/>Editar</DropdownMenuItem>}
+                                                            {hasPermission('licenses:manage') && <DropdownMenuItem className="text-destructive" onSelect={() => actions.setLicenseToDelete(license)}><Trash2 className="mr-2 h-4 w-4"/>Eliminar</DropdownMenuItem>}
                                                         </DropdownMenuContent>
                                                     </DropdownMenu>
-                                                )}
+                                                
                                             </TableCell>
                                         </TableRow>
                                     )
