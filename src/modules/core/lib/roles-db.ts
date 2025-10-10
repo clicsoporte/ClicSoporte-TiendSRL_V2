@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Server-side functions for managing roles and permissions.
  * Separated to avoid circular dependencies.
@@ -18,10 +17,11 @@ export async function getAllRoles(): Promise<Role[]> {
     const db = await connectDb();
     try {
         const roles = db.prepare('SELECT * FROM roles').all() as any[];
-        return roles.map(role => ({
+        const parsedRoles = roles.map(role => ({
             ...role,
             permissions: JSON.parse(role.permissions || '[]')
         }));
+        return JSON.parse(JSON.stringify(parsedRoles));
     } catch (error) {
         console.error("Failed to get all roles:", error);
         return [];

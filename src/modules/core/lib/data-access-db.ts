@@ -45,10 +45,11 @@ export async function getAllStock(): Promise<StockInfo[]> {
     const db = await connectDb();
     try {
         const stockData = db.prepare('SELECT * FROM stock').all() as { itemId: string; stockByWarehouse: string; totalStock: number }[];
-        return stockData.map(item => ({
+        const parsedData = stockData.map(item => ({
             ...item,
             stockByWarehouse: JSON.parse(item.stockByWarehouse),
         }));
+        return JSON.parse(JSON.stringify(parsedData));
     } catch (error) {
         console.error("Failed to get all stock:", error);
         return [];

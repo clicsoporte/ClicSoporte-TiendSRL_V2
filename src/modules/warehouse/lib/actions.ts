@@ -2,7 +2,7 @@
  * @fileoverview Client-side functions for interacting with the warehouse module's server-side DB functions.
  * This abstraction layer ensures components only call client-safe functions.
  */
-'use server';
+'use client';
 
 import {
     getLocations as getLocationsServer,
@@ -62,9 +62,9 @@ export async function getItemLocations(itemId: string): Promise<ItemLocation[]> 
     const locations = await getItemLocationsServer(itemId);
     return JSON.parse(JSON.stringify(locations));
 }
-export async function assignItemToLocation(itemId: string, locationId: number): Promise<void> {
+export async function assignItemToLocation(itemId: string, locationId: number, clientId?: string | null): Promise<void> {
     await logInfo(`Item ${itemId} assigned to location ID ${locationId}.`);
-    return assignItemToLocationServer(itemId, locationId);
+    return assignItemToLocationServer(itemId, locationId, clientId);
 }
 export async function unassignItemFromLocation(itemLocationId: number): Promise<void> {
     await logInfo(`Item location mapping with ID ${itemLocationId} was removed.`);

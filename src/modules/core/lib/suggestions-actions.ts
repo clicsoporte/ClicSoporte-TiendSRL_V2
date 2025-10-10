@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Server Actions specifically for handling user suggestions.
  * This file isolates the database logic for suggestions to prevent bundling issues.
@@ -30,7 +29,8 @@ export async function addSuggestion(content: string, userId: number, userName: s
  */
 export async function getSuggestions(): Promise<Suggestion[]> {
   const db = await connectDb();
-  return db.prepare('SELECT * FROM suggestions ORDER BY timestamp DESC').all() as Suggestion[];
+  const results = db.prepare('SELECT * FROM suggestions ORDER BY timestamp DESC').all() as Suggestion[];
+  return JSON.parse(JSON.stringify(results));
 }
 
 /**

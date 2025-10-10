@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview This file contains client-side functions for interacting with server-side authentication logic.
  * This abstraction layer prevents direct DB access from the client and ensures that server-side
@@ -50,7 +49,7 @@ export async function getCurrentUser(): Promise<User | null> {
 
     try {
         const user = await getUserByIdServer(Number(currentUserId));
-        return user;
+        return user ? JSON.parse(JSON.stringify(user)) : null;
     } catch (error) {
         console.error("Failed to get current user by ID:", error);
         return null;
@@ -63,7 +62,8 @@ export async function getCurrentUser(): Promise<User | null> {
  * @returns {Promise<User[]>} A promise that resolves to an array of all users.
  */
 export async function getAllUsers(): Promise<User[]> {
-    return getAllUsersServer();
+    const users = await getAllUsersServer();
+    return JSON.parse(JSON.stringify(users));
 }
 
 /**
@@ -72,7 +72,8 @@ export async function getAllUsers(): Promise<User[]> {
  * @returns The created user object.
  */
 export async function addUser(userData: Omit<User, 'id' | 'avatar' | 'recentActivity' | 'securityQuestion' | 'securityAnswer'> & { password: string }): Promise<User> {
-    return addUserServer(userData);
+    const user = await addUserServer(userData);
+    return JSON.parse(JSON.stringify(user));
 }
 
 /**

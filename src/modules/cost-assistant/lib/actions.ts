@@ -208,7 +208,8 @@ export async function processInvoiceXmls(xmlContents: string[]): Promise<{ lines
 }
 
 export async function getCostAssistantSettings(): Promise<CostAssistantSettings> {
-    return getCostAssistantSettingsServer();
+    const settings = await getCostAssistantSettingsServer();
+    return JSON.parse(JSON.stringify(settings));
 }
 
 export async function saveCostAssistantSettings(settings: CostAssistantSettings): Promise<void> {
@@ -216,7 +217,8 @@ export async function saveCostAssistantSettings(settings: CostAssistantSettings)
 }
 
 export async function getAllDrafts(userId: number): Promise<CostAnalysisDraft[]> {
-    return getAllDraftsServer(userId);
+    const drafts = await getAllDraftsServer(userId);
+    return JSON.parse(JSON.stringify(drafts));
 }
 
 export async function saveDraft(draft: Omit<CostAnalysisDraft, 'id' | 'createdAt'>): Promise<void> {

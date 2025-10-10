@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Client-side functions for the Timesheet module.
  */

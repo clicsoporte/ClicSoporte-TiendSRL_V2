@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Server Actions for fetching data from external APIs.
  * This file contains functions that are executed only on the server, providing a secure
@@ -80,7 +79,7 @@ export async function getExemptionStatus(authNumber: string): Promise<HaciendaEx
         }
 
         const data = await response.json();
-        return data;
+        return JSON.parse(JSON.stringify(data));
 
     } catch (error: any) {
         await logError(`Failed to fetch exemption for auth number: ${authNumber}`, { error: error.message });

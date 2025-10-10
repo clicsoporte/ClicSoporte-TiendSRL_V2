@@ -10,13 +10,16 @@ import {
     addLicense as addLicenseServer,
     updateLicense as updateLicenseServer,
     deleteLicense as deleteLicenseServer,
-    getSoftwareProducts as getSoftwareProductsServer,
-    addSoftwareProduct as addSoftwareProductServer,
+    getSoftwareProducts as getSoftwareProductsServer, 
+    addSoftwareProduct as addSoftwareProductServer, 
     deleteSoftwareProduct as deleteSoftwareProductServer
 } from './db';
 
 // --- Licenses ---
-export const getLicenses = async (): Promise<License[]> => getLicensesServer();
+export const getLicenses = async (): Promise<License[]> => {
+    const licenses = await getLicensesServer();
+    return JSON.parse(JSON.stringify(licenses));
+}
 
 export async function addLicense(license: Omit<License, 'id' | 'createdAt'>): Promise<License> {
     const newLicense = await addLicenseServer(license);
@@ -36,7 +39,10 @@ export async function deleteLicense(id: number): Promise<void> {
 }
 
 // --- Software Products ---
-export const getSoftwareProducts = async (): Promise<SoftwareProduct[]> => getSoftwareProductsServer();
+export const getSoftwareProducts = async (): Promise<SoftwareProduct[]> => {
+    const products = await getSoftwareProductsServer();
+    return JSON.parse(JSON.stringify(products));
+}
 
 export async function addSoftwareProduct(product: Omit<SoftwareProduct, 'id'>): Promise<SoftwareProduct> {
     const newProduct = await addSoftwareProductServer(product);
