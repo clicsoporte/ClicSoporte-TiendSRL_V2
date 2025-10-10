@@ -14,6 +14,7 @@ import {
     addSoftwareProduct as addSoftwareProductServer, 
     deleteSoftwareProduct as deleteSoftwareProductServer
 } from './db';
+import { generateKeys, getPublicKey } from './crypto';
 
 // --- Licenses ---
 export const getLicenses = async (): Promise<License[]> => {
@@ -21,15 +22,15 @@ export const getLicenses = async (): Promise<License[]> => {
     return JSON.parse(JSON.stringify(licenses));
 }
 
-export async function addLicense(license: Omit<License, 'id' | 'createdAt'>): Promise<License> {
+export async function addLicense(license: Omit<License, 'id' | 'createdAt' | 'licenseKey'>): Promise<License> {
     const newLicense = await addLicenseServer(license);
-    await logInfo('New license created', { softwareId: newLicense.softwareId, clientCompanyId: newLicense.clientCompanyId });
+    await logInfo('New offline license created', { softwareId: newLicense.softwareId, clientCompanyId: newLicense.clientCompanyId });
     return JSON.parse(JSON.stringify(newLicense));
 }
 
 export async function updateLicense(license: License): Promise<License> {
     const updatedLicense = await updateLicenseServer(license);
-    await logInfo('License updated', { licenseId: updatedLicense.id });
+    await logInfo('Offline license updated', { licenseId: updatedLicense.id });
     return JSON.parse(JSON.stringify(updatedLicense));
 }
 
@@ -53,4 +54,13 @@ export async function addSoftwareProduct(product: Omit<SoftwareProduct, 'id'>): 
 export async function deleteSoftwareProduct(id: number): Promise<void> {
     await logInfo(`Software product with ID ${id} deleted.`);
     return deleteSoftwareProductServer(id);
+}
+
+// --- Crypto Key Management ---
+export async function generateNewKeys(): Promise<{ success: boolean; message: string }> {
+    return generateKeys();
+}
+
+export async function getPublicKeyData(): Promise<string | null> {
+    return getPublicKey();
 }

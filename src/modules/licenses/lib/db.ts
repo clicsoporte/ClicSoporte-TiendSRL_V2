@@ -5,13 +5,9 @@
 
 import { connectDb } from '../../core/lib/db';
 import type { License, SoftwareProduct } from '@/modules/core/types';
-import { SignJWT } from 'jose';
-import crypto from 'crypto';
+import { signLicenseData } from './crypto';
 
 const LICENSES_DB_FILE = 'licenses.db';
-
-// Ensure you have a secret key in your environment variables
-const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'your-super-secret-key-for-licenses');
 
 export async function initializeLicensesDb(db: import('better-sqlite3').Database): Promise<void> {
     const schema = `
@@ -23,7 +19,7 @@ export async function initializeLicensesDb(db: import('better-sqlite3').Database
 
         CREATE TABLE IF NOT EXISTS licenses (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            licenseKey TEXT NOT NULL UNIQUE,
+            licenseKey TEXT NOT NULL UNIQUE, -- Now stores the downloadable JSON license content
             softwareId INTEGER NOT NULL,
             clientCompanyId INTEGER,
             hardwareId TEXT,
@@ -41,6 +37,7 @@ export async function initializeLicensesDb(db: import('better-sqlite3').Database
         { name: 'Clic-Soporte SaaS', isInternal: true },
         { name: 'Antivirus Kaspersky', isInternal: false },
         { name: 'Microsoft Office 365', isInternal: false },
+        { name: 'Clic-Cola', isInternal: true },
     ];
     const insertTopic = db.prepare('INSERT OR IGNORE INTO software_products (name, isInternal) VALUES (@name, @isInternal)');
     defaultProducts.forEach(p => insertTopic.run({ ...p, isInternal: p.isInternal ? 1 : 0 }));
@@ -59,16 +56,6 @@ export async function runLicensesMigrations(db: import('better-sqlite3').Databas
 }
 
 
-async function generateLicenseKey(payload: { clientCompanyId: number | null, expirationDate: string }): Promise<string> {
-  const jwt = await new SignJWT(payload)
-    .setProtectedHeader({ alg: 'HS256' })
-    .setIssuedAt()
-    .setIssuer('urn:clic-tools:issuer')
-    .setAudience('urn:clic-tools:audience')
-    .sign(JWT_SECRET);
-  return jwt;
-}
-
 // --- License Actions ---
 export async function getLicenses(): Promise<License[]> {
     const db = await connectDb(LICENSES_DB_FILE);
@@ -76,27 +63,36 @@ export async function getLicenses(): Promise<License[]> {
     return JSON.parse(JSON.stringify(results));
 }
 
-export async function addLicense(license: Omit<License, 'id' | 'createdAt'>): Promise<License> {
+export async function addLicense(licenseData: Omit<License, 'id' | 'createdAt' | 'licenseKey'>): Promise<License> {
     const db = await connectDb(LICENSES_DB_FILE);
     
-    let key: string;
-    if (license.hardwareId && license.hardwareId.trim() !== '') {
-        // Generate a simpler key format for hardware-locked licenses
-        key = `CLICS-${crypto.randomUUID().toUpperCase()}`;
-    } else {
-        // Generate a JWT for licenses not tied to hardware
-        key = await generateLicenseKey({ clientCompanyId: license.clientCompanyId, expirationDate: license.expirationDate });
+    if (!licenseData.hardwareId) {
+        throw new Error("El Hardware ID es obligatorio para generar una licencia offline.");
     }
+    
+    const licenseInfo = {
+        softwareId: licenseData.softwareId,
+        clientCompanyId: licenseData.clientCompanyId,
+        hardwareId: licenseData.hardwareId,
+        isPerpetual: licenseData.isPerpetual,
+        expirationDate: licenseData.expirationDate,
+        createdAt: new Date().toISOString(),
+    };
+
+    const signedLicenseJson = await signLicenseData(licenseInfo);
 
     const info = db.prepare(`
         INSERT INTO licenses (licenseKey, softwareId, clientCompanyId, hardwareId, isPerpetual, expirationDate, status, createdAt)
         VALUES (@licenseKey, @softwareId, @clientCompanyId, @hardwareId, @isPerpetual, @expirationDate, @status, @createdAt)
     `).run({
-        ...license,
-        licenseKey: key,
-        hardwareId: license.hardwareId || null,
-        isPerpetual: license.isPerpetual ? 1 : 0,
-        createdAt: new Date().toISOString(),
+        licenseKey: signedLicenseJson,
+        softwareId: licenseData.softwareId,
+        clientCompanyId: licenseData.clientCompanyId,
+        hardwareId: licenseData.hardwareId,
+        isPerpetual: licenseData.isPerpetual ? 1 : 0,
+        expirationDate: licenseData.expirationDate,
+        status: 'active',
+        createdAt: licenseInfo.createdAt
     });
 
     const result = db.prepare('SELECT * FROM licenses WHERE id = ?').get(info.lastInsertRowid) as License;
@@ -105,6 +101,22 @@ export async function addLicense(license: Omit<License, 'id' | 'createdAt'>): Pr
 
 export async function updateLicense(license: License): Promise<License> {
     const db = await connectDb(LICENSES_DB_FILE);
+
+    if (!license.hardwareId) {
+        throw new Error("El Hardware ID es obligatorio para generar una licencia offline.");
+    }
+
+    const licenseInfo = {
+        softwareId: license.softwareId,
+        clientCompanyId: license.clientCompanyId,
+        hardwareId: license.hardwareId,
+        isPerpetual: license.isPerpetual,
+        expirationDate: license.expirationDate,
+        createdAt: license.createdAt, // Preserve original creation date on update
+    };
+
+    const signedLicenseJson = await signLicenseData(licenseInfo);
+    
     db.prepare(`
         UPDATE licenses SET
             licenseKey = @licenseKey,
@@ -117,6 +129,7 @@ export async function updateLicense(license: License): Promise<License> {
         WHERE id = @id
     `).run({
         ...license,
+        licenseKey: signedLicenseJson,
         hardwareId: license.hardwareId || null,
         isPerpetual: license.isPerpetual ? 1 : 0,
     });

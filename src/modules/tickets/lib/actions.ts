@@ -17,6 +17,8 @@ import {
     updateHelpTopic as updateHelpTopicServer,
     deleteHelpTopic as deleteHelpTopicServer,
     addClientCompany as addClientCompanyServer,
+    updateClientCompany as updateClientCompanyServer,
+    deleteClientCompany as deleteClientCompanyServer,
     getClientCompanies as getClientCompaniesServer,
     deleteTicket as deleteTicketServer,
     getCustomerSupportInfo as getCustomerSupportInfoServer,
@@ -53,6 +55,28 @@ export async function addClientCompany(payload: Omit<ClientCompany, 'id' | 'crea
         throw error;
     }
 }
+
+export async function updateClientCompany(payload: ClientCompany): Promise<ClientCompany> {
+    try {
+        const updatedCompany = await updateClientCompanyServer(payload);
+        await logInfo(`Client company updated: ${payload.name}`);
+        return JSON.parse(JSON.stringify(updatedCompany));
+    } catch (error) {
+        logError("Error updating client company from client action", { error: (error as Error).message });
+        throw error;
+    }
+}
+
+export async function deleteClientCompany(id: number): Promise<void> {
+     try {
+        await deleteClientCompanyServer(id);
+        await logInfo(`Client company with ID ${id} deleted.`);
+    } catch (error) {
+        logError("Error deleting client company from client action", { error: (error as Error).message });
+        throw error;
+    }
+}
+
 
 export async function getClientCompanies(): Promise<ClientCompany[]> {
     const companies = await getClientCompaniesServer();
@@ -154,7 +178,7 @@ export async function deleteTicket(id: number): Promise<void> {
     return deleteTicketServer(id);
 }
 
-export async function getCustomerSupportInfo(companyId: number): Promise<{ customer: Customer | ClientCompany | null; supportPackage: SupportPackage | null, services: Service[] }> {
+export async function getCustomerSupportInfo(companyId: number | string): Promise<{ customer: Customer | ClientCompany | null; supportPackage: SupportPackage | null, services: Service[] }> {
     const info = await getCustomerSupportInfoServer(companyId);
     return JSON.parse(JSON.stringify(info));
 }
