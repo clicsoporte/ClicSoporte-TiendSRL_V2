@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Server-side functions for the support tickets database.
  */
@@ -214,7 +215,6 @@ async function getNextTicketNumber(db: import('better-sqlite3').Database): Promi
 export async function addTicket(payload: NewTicketPayload, user: User): Promise<Ticket> {
     const db = await connectDb(TICKETS_DB_FILE);
     
-    // Get the next number before starting the transaction
     const { prefix, number } = await getNextTicketNumber(db);
 
     const transaction = db.transaction(() => {
@@ -425,15 +425,16 @@ export async function getCustomerSupportInfo(companyId: number): Promise<{ custo
     const mainDb = await connectDb();
     
     const customerRow = mainDb.prepare('SELECT * FROM customers WHERE id = ?').get(companyId) as Customer | null;
-    const customer = customerRow ? JSON.parse(JSON.stringify(customerRow)) as Customer : null;
     
-    if (!customer?.supportPackageId) {
+    if (!customerRow?.supportPackageId) {
         // Fallback to check client_companies if not found in main customers table
         const ticketsDb = await connectDb(TICKETS_DB_FILE);
         const clientCompany = ticketsDb.prepare('SELECT * FROM client_companies WHERE id = ?').get(companyId) as ClientCompany | null;
-        return { customer: clientCompany, supportPackage: null, services: [] };
+        return { customer: clientCompany ? JSON.parse(JSON.stringify(clientCompany)) : null, supportPackage: null, services: [] };
     }
     
+    const customer = JSON.parse(JSON.stringify(customerRow)) as Customer;
+
     const companySettings = await getCompanySettings();
     const supportPackage = companySettings?.supportPackages.find(p => p.id === customer.supportPackageId) || null;
     const services = companySettings?.servicesCatalog || [];
