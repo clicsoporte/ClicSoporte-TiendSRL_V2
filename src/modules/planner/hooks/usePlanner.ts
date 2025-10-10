@@ -1,4 +1,5 @@
 
+
 /**
  * @fileoverview Custom hook `usePlanner` for managing the state and logic of the Production Planner page.
  * This hook encapsulates all state and actions for the planner, keeping the UI component clean.
@@ -229,7 +230,7 @@ export const usePlanner = () => {
             updateState({ isSubmitting: true });
             try {
                 const createdOrder = await saveProductionOrder(state.newOrder, currentUser.name);
-                toast({ title: "Orden Creada" });
+                toast({ title: "Proyecto Creado" });
                 setState(prevState => ({
                     ...prevState,
                     isNewOrderDialogOpen: false,
@@ -252,9 +253,17 @@ export const usePlanner = () => {
             updateState({ isSubmitting: true });
             try {
                 const payload: UpdateProductionOrderPayload = {
-                    ...state.orderToEdit,
                     orderId: state.orderToEdit.id,
-                    updatedBy: currentUser.name
+                    updatedBy: currentUser.name,
+                    deliveryDate: state.orderToEdit.deliveryDate,
+                    customerId: state.orderToEdit.customerId,
+                    customerName: state.orderToEdit.customerName,
+                    productId: state.orderToEdit.productId,
+                    productDescription: state.orderToEdit.productDescription,
+                    quantity: state.orderToEdit.quantity,
+                    inventory: state.orderToEdit.inventory,
+                    notes: state.orderToEdit.notes,
+                    purchaseOrder: state.orderToEdit.purchaseOrder,
                 };
                 const updated = await updateProductionOrder(payload);
                 setState(prevState => ({
@@ -263,7 +272,7 @@ export const usePlanner = () => {
                     archivedOrders: prevState.archivedOrders.map(o => o.id === updated.id ? updated : o),
                     isEditOrderDialogOpen: false
                 }));
-                toast({ title: "Orden Actualizada" });
+                toast({ title: "Proyecto Actualizado" });
             } catch (error: any) {
                 logError("Failed to edit order", { error: error.message });
                 toast({ title: "Error", variant: "destructive" });
@@ -407,8 +416,8 @@ export const usePlanner = () => {
             if (!state.orderToUpdate || !currentUser || state.reopenStep !== 2 || state.reopenConfirmationText !== 'REABRIR') return;
             updateState({ isSubmitting: true });
             try {
-                await updateProductionOrderStatus({ orderId: state.orderToUpdate.id, status: 'pending', notes: 'Orden reabierta.', updatedBy: currentUser.name, reopen: true });
-                toast({ title: "Orden Reabierta" });
+                await updateProductionOrderStatus({ orderId: state.orderToUpdate.id, status: 'pending', notes: 'Proyecto reabierto.', updatedBy: currentUser.name, reopen: true });
+                toast({ title: "Proyecto Reabierto" });
                 updateState({ isReopenDialogOpen: false });
                 await loadInitialData();
             } catch (error: any) {
@@ -498,7 +507,7 @@ export const usePlanner = () => {
             }
         
             const allPossibleColumns: { id: string; header: string; width?: number }[] = [
-                { id: 'consecutive', header: 'OP', width: 45 },
+                { id: 'consecutive', header: 'Proyecto', width: 45 },
                 { id: 'customerName', header: 'Cliente' },
                 { id: 'productDescription', header: 'Producto' },
                 { id: 'quantity', header: 'Cant.', width: 35 },
@@ -530,7 +539,7 @@ export const usePlanner = () => {
             });
             
             const doc = generateDocument({
-                docTitle: `Órdenes de Producción (${state.viewingArchived ? 'Archivadas' : 'Activas'})`,
+                docTitle: `Reporte de Proyectos (${state.viewingArchived ? 'Archivados' : 'Activos'})`,
                 docId: '',
                 companyData: authCompanyData,
                 logoDataUrl,
@@ -552,7 +561,7 @@ export const usePlanner = () => {
                 orientation: orientation,
             });
         
-            doc.save(`ordenes_produccion_${new Date().getTime()}.pdf`);
+            doc.save(`reporte_proyectos_${new Date().getTime()}.pdf`);
         },
 
         handleExportSingleOrderPDF: async (order: ProductionOrder) => {
@@ -577,7 +586,7 @@ export const usePlanner = () => {
             
             const details = [
                 { title: 'Cliente:', content: order.customerName },
-                { title: 'Producto:', content: `[${order.productId}] ${order.productDescription}` },
+                { title: 'Proyecto:', content: `[${order.productId}] ${order.productDescription}` },
                 { title: 'Cantidad:', content: order.quantity.toLocaleString('es-CR') },
                 { title: 'Fecha Solicitud:', content: format(parseISO(order.requestDate), 'dd/MM/yyyy') },
                 { title: 'Fecha Entrega:', content: format(parseISO(order.deliveryDate), 'dd/MM/yyyy') },
@@ -591,13 +600,13 @@ export const usePlanner = () => {
             ];
 
             const doc = generateDocument({
-                docTitle: 'Orden de Producción',
+                docTitle: 'Ficha de Proyecto',
                 docId: order.consecutive,
                 companyData: authCompanyData,
                 logoDataUrl,
                 meta: [{ label: 'Generado', value: format(new Date(), 'dd/MM/yyyy HH:mm') }],
                 blocks: [
-                    { title: "Detalles de la Orden", content: details.map(d => `${d.title} ${d.content}`).join('\n') },
+                    { title: "Detalles del Proyecto", content: details.map(d => `${d.title} ${d.content}`).join('\n') },
                 ],
                 table: {
                     columns: ["Fecha", "Estado", "Usuario", "Notas"],
@@ -612,7 +621,7 @@ export const usePlanner = () => {
                 totals: []
             });
     
-            doc.save(`op_${order.consecutive}.pdf`);
+            doc.save(`proyecto_${order.consecutive}.pdf`);
         }
     };
 
@@ -696,5 +705,3 @@ export const usePlanner = () => {
         isAuthorized,
     };
 };
-
-    
