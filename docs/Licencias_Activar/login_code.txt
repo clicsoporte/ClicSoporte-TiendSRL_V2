@@ -1,0 +1,771 @@
+--- File: src/app/page.tsx ---
+
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { UserPlus, BellRing, Tv2, Settings, Wrench, LifeBuoy, BookOpen } from 'lucide-react';
+import { PageTitle } from '@/components/common/PageTitle';
+import { getSettings } from '@/actions/settingsActions';
+import { getUserCount } from '@/actions/userActions';
+import { CreateFirstUserForm } from '@/components/auth/CreateFirstUserForm';
+import { LoginForm } from '@/components/auth/LoginForm';
+import { getCurrentUser, logout } from '@/actions/authActions';
+import { redirect } from 'next/navigation';
+import { getLicenseState } from '@/actions/licenseActions';
+import { ActivationForm } from '@/components/auth/ActivationForm';
+
+
+export default async function HomePage() {
+  const licenseState = await getLicenseState();
+
+  if (!licenseState.isValid) {
+    return <ActivationForm initialLicenseState={licenseState} />;
+  }
+
+  const settings = await getSettings();
+  const userCount = await getUserCount();
+  const currentUser = await getCurrentUser();
+
+  const companyName = settings.companyName || 'Clic Tienda Turnos';
+
+  // State 1: No users configured, force create the first admin
+  if (userCount === 0) {
+    return <CreateFirstUserForm />;
+  }
+
+  // State 2: Users exist, but no one is logged in, show login form
+  if (!currentUser) {
+    return <LoginForm companyName={companyName} licenseStatus={licenseState.status} />;
+  }
+  
+  // State 3: User is logged in, redirect or show the main menu based on role
+  const userRole = currentUser.role;
+
+  // Redirect users to their primary page if they land on home
+  if (userRole === 'console_operator') {
+    redirect('/assistant');
+  }
+  if (userRole === 'viewer') {
+    redirect('/display');
+  }
+
+  // For Admin, Superadmin, and Supervisor, show the main menu
+  const canAccessTools = ['admin', 'supervisor', 'superadmin'].includes(userRole);
+  const canAccessSettings = ['admin', 'superadmin'].includes(userRole);
+  const canAccessAssistant = ['admin', 'supervisor', 'console_operator', 'superadmin'].includes(userRole);
+
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen p-6 bg-gradient-to-br from-background to-secondary/30">
+      <div className='absolute top-4 right-4 flex items-center gap-4'>
+        <span className='text-sm text-muted-foreground'>Hola, {currentUser.username} ({currentUser.role})</span>
+        <form action={logout}>
+          <Button type="submit" variant="outline" size="sm">Cerrar Sesión</Button>
+        </form>
+      </div>
+
+      <PageTitle title={companyName} className="text-center border-none mb-12" />
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 w-full max-w-6xl">
+        
+        {/* Kiosk and Display are public, but useful links for logged-in users */}
+        <Link href="/kiosk" passHref legacyBehavior>
+          <Card className="hover:shadow-xl transition-shadow duration-300 cursor-pointer rounded-lg overflow-hidden group bg-card">
+            <CardHeader className="bg-primary/10 p-6 items-center text-center">
+              <UserPlus className="h-16 w-16 text-primary mb-3 group-hover:scale-110 transition-transform" />
+              <CardTitle className="text-2xl font-semibold text-primary">Kiosko de Tickets</CardTitle>
+            </CardHeader>
+            <CardContent className="p-6 text-center">
+              <CardDescription className="text-muted-foreground mb-4">
+                Clientes obtienen su número de turno aquí. Interfaz táctil optimizada.
+              </CardDescription>
+              <Button variant="default" className="w-full group-hover:bg-primary/90">Acceder al Kiosko</Button>
+            </CardContent>
+          </Card>
+        </Link>
+        
+        <Link href="/display" passHref legacyBehavior>
+          <Card className="hover:shadow-xl transition-shadow duration-300 cursor-pointer rounded-lg overflow-hidden group bg-card">
+            <CardHeader className="bg-secondary/20 p-6 items-center text-center">
+              <Tv2 className="h-16 w-16 text-secondary-foreground mb-3 group-hover:scale-110 transition-transform" />
+              <CardTitle className="text-2xl font-semibold text-secondary-foreground">Pantalla de Turnos</CardTitle>
+            </CardHeader>
+            <CardContent className="p-6 text-center">
+              <CardDescription className="text-muted-foreground mb-4">
+                Muestra el estado actual de la cola en una pantalla grande (HDMI).
+              </CardDescription>
+              <Button variant="secondary" className="w-full group-hover:bg-secondary/80">Ver Pantalla</Button>
+            </CardContent>
+          </Card>
+        </Link>
+        
+        {canAccessAssistant && (
+            <Link href="/assistant" passHref legacyBehavior>
+            <Card className="hover:shadow-xl transition-shadow duration-300 cursor-pointer rounded-lg overflow-hidden group bg-card">
+                <CardHeader className="bg-accent/10 p-6 items-center text-center">
+                <BellRing className="h-16 w-16 text-accent mb-3 group-hover:scale-110 transition-transform" />
+                <CardTitle className="text-2xl font-semibold text-accent-foreground">Consola de Operador</CardTitle>
+                </CardHeader>
+                <CardContent className="p-6 text-center">
+                <CardDescription className="text-muted-foreground mb-4">
+                    Dependientes llaman al siguiente cliente y gestionan la cola.
+                </CardDescription>
+                <Button variant="default" className="w-full bg-accent text-accent-foreground hover:bg-accent/90 group-hover:bg-accent/80">Abrir Consola</Button>
+                </CardContent>
+            </Card>
+            </Link>
+        )}
+
+        <div className="md:col-span-2 lg:col-span-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {canAccessTools && (
+                <Link href="/tools" passHref legacyBehavior>
+                <Card className="hover:shadow-xl transition-shadow duration-300 cursor-pointer rounded-lg overflow-hidden group bg-card">
+                    <CardHeader className="bg-muted/20 p-6 items-center text-center">
+                    <Wrench className="h-12 w-12 text-muted-foreground mb-3 group-hover:scale-110 transition-transform" />
+                    <CardTitle className="text-xl font-semibold text-muted-foreground">Herramientas</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-6 text-center">
+                    <Button variant="outline" className="w-full group-hover:bg-muted/80">Ver Herramientas</Button>
+                    </CardContent>
+                </Card>
+                </Link>
+            )}
+
+             <Link href="/help" passHref legacyBehavior>
+                <Card className="hover:shadow-xl transition-shadow duration-300 cursor-pointer rounded-lg overflow-hidden group bg-card">
+                    <CardHeader className="bg-muted/20 p-6 items-center text-center">
+                    <BookOpen className="h-12 w-12 text-muted-foreground mb-3 group-hover:scale-110 transition-transform" />
+                    <CardTitle className="text-xl font-semibold text-muted-foreground">Ayuda y Manual</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-6 text-center">
+                    <Button variant="outline" className="w-full group-hover:bg-muted/80">Consultar Manual</Button>
+                    </CardContent>
+                </Card>
+            </Link>
+
+            {canAccessSettings && (
+                 <Link href="/settings" passHref legacyBehavior>
+                    <Card className="hover:shadow-xl transition-shadow duration-300 cursor-pointer rounded-lg overflow-hidden group bg-card">
+                        <CardHeader className="bg-muted/30 p-6 items-center text-center">
+                        <Settings className="h-12 w-12 text-muted-foreground mb-3 group-hover:scale-110 transition-transform" />
+                        <CardTitle className="text-xl font-semibold text-muted-foreground">Configuración</CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-6 text-center">
+                        <Button variant="outline" className="w-full group-hover:bg-muted/80">Ir a Ajustes</Button>
+                        </CardContent>
+                    </Card>
+                </Link>
+            )}
+        </div>
+      </div>
+      <footer className="mt-16 text-center text-sm text-muted-foreground">
+        <p>&copy; {new Date().getFullYear()} {companyName}. Sistema de Gestión de Colas Moderno y Eficiente.</p>
+        <div className="mt-4 space-y-1">
+          <p><a href="https://clictienda.com" target="_blank" rel="noopener noreferrer" className="hover:underline">www.clictienda.com</a></p>
+          <p><a href="mailto:ventas@clicsoporte.com" className="hover:underline">ventas@clicsoporte.com</a></p>
+          <p>Telf: +506 4000 0630</p>
+        </div>
+      </footer>
+    </div>
+  );
+}
+
+--- File: src/components/auth/LoginForm.tsx ---
+
+"use client";
+
+import { useActionState, useEffect } from 'react';
+import { useFormStatus } from 'react-dom';
+import { login } from '@/actions/authActions';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { LogIn } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { LoadingSpinner } from '../common/LoadingSpinner';
+import type { LicenseStatus } from '@/types/license';
+import { Badge } from '../ui/badge';
+
+function SubmitButton() {
+    const { pending } = useFormStatus();
+    return (
+        <Button type="submit" className="w-full" disabled={pending}>
+            {pending ? <LoadingSpinner className="mr-2" /> : <LogIn className="mr-2 h-4 w-4" />}
+            Iniciar Sesión
+        </Button>
+    );
+}
+
+export function LoginForm({ companyName, licenseStatus }: { companyName: string, licenseStatus: LicenseStatus }) {
+    const [state, formAction] = useActionState(login, undefined);
+    const { toast } = useToast();
+
+    const licenseText = licenseStatus === 'VALID' ? 'Premium' : 'Gratuita';
+    const licenseVariant = licenseStatus === 'VALID' ? 'default' : 'secondary';
+
+    useEffect(() => {
+        if (state?.success === false && state.message) {
+            toast({
+                title: 'Error de Inicio de Sesión',
+                description: state.message,
+                variant: 'destructive',
+            });
+        }
+    }, [state, toast]);
+
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-gradient-to-br from-background to-secondary/30">
+      <Card className="w-full max-w-sm shadow-2xl">
+        <CardHeader className="text-center">
+            <div className="mx-auto mb-4">
+                <LogIn className="h-16 w-16 text-primary" />
+            </div>
+            <CardTitle className="text-3xl font-bold">{companyName}</CardTitle>
+            <CardDescription>
+                Por favor, inicie sesión para continuar.
+            </CardDescription>
+            <div className="flex justify-center pt-2">
+                <Badge variant={licenseVariant}>Licencia {licenseText}</Badge>
+            </div>
+        </CardHeader>
+        <CardContent>
+            <form action={formAction} className="space-y-4">
+                <div className="space-y-2">
+                    <Label htmlFor="username">Usuario</Label>
+                    <Input id="username" name="username" placeholder="Su usuario" required />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="password">Contraseña</Label>
+                    <Input id="password" name="password" type="password" required />
+                </div>
+                <SubmitButton />
+                 {state?.message && (
+                    <p className="text-sm text-center text-destructive">{state.message}</p>
+                 )}
+            </form>
+        </CardContent>
+      </Card>
+      <footer className="mt-8 text-center text-sm text-muted-foreground">
+            <p>&copy; {new Date().getFullYear()} Clic Soporte & Clic Tienda S.R.L.</p>
+      </footer>
+    </div>
+  );
+}
+
+--- File: src/components/auth/CreateFirstUserForm.tsx ---
+
+"use client";
+
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { createFirstUser } from '@/actions/userActions';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
+import { UserPlus } from 'lucide-react';
+import { LoadingSpinner } from '../common/LoadingSpinner';
+
+const formSchema = z.object({
+  username: z.string().min(3, { message: 'El usuario debe tener al menos 3 caracteres.' }),
+  password: z.string().min(6, { message: 'La contraseña debe tener al menos 6 caracteres.' }),
+  companyName: z.string().min(2, { message: 'El nombre de la empresa es requerido.' }),
+});
+
+type FormValues = z.infer<typeof formSchema>;
+
+export function CreateFirstUserForm() {
+    const { toast } = useToast();
+    const [isLoading, setIsLoading] = useState(false);
+
+    const form = useForm<FormValues>({
+        resolver: zodResolver(formSchema),
+        defaultValues: {
+            username: 'admin',
+            password: '',
+            companyName: 'Clic Tienda Turnos',
+        },
+    });
+
+    const onSubmit = async (values: FormValues) => {
+        setIsLoading(true);
+        try {
+            const result = await createFirstUser(values.username, values.password, values.companyName);
+            if (result.success) {
+                toast({
+                    title: '¡Administrador Creado!',
+                    description: 'El primer usuario administrador ha sido creado. Ahora puede iniciar sesión.',
+                });
+                // The revalidation on the server action will refresh the page
+            } else {
+                toast({
+                    title: 'Error',
+                    description: result.message,
+                    variant: 'destructive',
+                });
+            }
+        } catch (error) {
+             toast({
+                title: 'Error de Sistema',
+                description: 'No se pudo comunicar con el servidor.',
+                variant: 'destructive',
+            });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-gradient-to-br from-background to-secondary/30">
+      <Card className="w-full max-w-md shadow-2xl">
+        <CardHeader className="text-center">
+            <div className="mx-auto mb-4">
+               <UserPlus className="h-16 w-16 text-primary" />
+            </div>
+            <CardTitle className="text-3xl font-bold">Configuración Inicial</CardTitle>
+            <CardDescription>
+                Bienvenido. Por favor, cree el usuario administrador y configure el nombre de su empresa.
+            </CardDescription>
+        </CardHeader>
+        <CardContent>
+            <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                    <FormField
+                        control={form.control}
+                        name="companyName"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Nombre de la Empresa</FormLabel>
+                                <FormControl>
+                                    <Input placeholder="El nombre de su negocio" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                     <FormField
+                        control={form.control}
+                        name="username"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Nombre de Usuario Administrador</FormLabel>
+                                <FormControl>
+                                    <Input placeholder="admin" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                     <FormField
+                        control={form.control}
+                        name="password"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Contraseña</FormLabel>
+                                <FormControl>
+                                    <Input type="password" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <Button type="submit" className="w-full" disabled={isLoading}>
+                        {isLoading && <LoadingSpinner className="mr-2" />}
+                        Finalizar Configuración
+                    </Button>
+                </form>
+            </Form>
+        </CardContent>
+      </Card>
+       <footer className="mt-8 text-center text-sm text-muted-foreground">
+            <p>&copy; {new Date().getFullYear()} Clic Soporte & Clic Tienda S.R.L.</p>
+      </footer>
+    </div>
+  );
+}
+
+--- File: src/components/auth/ActivationForm.tsx ---
+
+"use client";
+
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
+import { KeyRound, Loader2 } from 'lucide-react';
+import { activateLicense, useFreeVersion } from '@/actions/licenseActions';
+import type { LicenseState } from '@/types/license';
+import { cn } from '@/lib/utils';
+import { Separator } from '../ui/separator';
+
+const formSchema = z.object({
+  licenseKey: z.string().min(1, { message: 'La clave de licencia es requerida.' }),
+});
+
+type FormValues = z.infer<typeof formSchema>;
+
+export function ActivationForm({ initialLicenseState }: { initialLicenseState: LicenseState }) {
+    const { toast } = useToast();
+    const [isLoading, setIsLoading] = useState(false);
+    const [licenseState, setLicenseState] = useState<LicenseState>(initialLicenseState);
+
+    const form = useForm<FormValues>({
+        resolver: zodResolver(formSchema),
+        defaultValues: {
+            licenseKey: '',
+        },
+    });
+
+    const onSubmit = async (values: FormValues) => {
+        setIsLoading(true);
+        try {
+            const result = await activateLicense(values.licenseKey);
+            setLicenseState(result);
+            if (result.isValid) {
+                toast({
+                    title: 'Activación Exitosa',
+                    description: 'La licencia ha sido activada correctamente. La aplicación se recargará.',
+                });
+                setTimeout(() => window.location.reload(), 2000);
+            } else {
+                toast({
+                    title: 'Error de Activación',
+                    description: result.message || 'La clave de licencia no es válida o no se pudo activar.',
+                    variant: 'destructive',
+                });
+            }
+        } catch (error) {
+             toast({
+                title: 'Error de Sistema',
+                description: 'No se pudo comunicar con el servidor de licencias.',
+                variant: 'destructive',
+            });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+    
+    const handleUseFreeVersion = async () => {
+        setIsLoading(true);
+        try {
+            const result = await useFreeVersion();
+            if (result.success) {
+                toast({
+                    title: 'Versión Gratuita Activada',
+                    description: 'La aplicación se ejecutará en modo gratuito. Recargando...',
+                });
+                setTimeout(() => window.location.reload(), 2000);
+            } else {
+                toast({
+                    title: 'Error',
+                    description: result.message,
+                    variant: 'destructive',
+                });
+            }
+        } catch (error) {
+            toast({
+                title: 'Error de Sistema',
+                description: 'No se pudo cambiar al modo gratuito.',
+                variant: 'destructive',
+            });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-gradient-to-br from-background to-secondary/30">
+      <Card className="w-full max-w-md shadow-2xl">
+        <CardHeader className="text-center">
+            <div className="mx-auto mb-4">
+               <KeyRound className="h-16 w-16 text-primary" />
+            </div>
+            <CardTitle className="text-3xl font-bold">Activación Requerida</CardTitle>
+            <CardDescription>
+                Por favor, ingrese su clave de licencia para activar el sistema.
+            </CardDescription>
+        </CardHeader>
+        <CardContent>
+            <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                    <FormField
+                        control={form.control}
+                        name="licenseKey"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Clave de Licencia</FormLabel>
+                                <FormControl>
+                                    <Input placeholder="XXXX-XXXX-XXXX-XXXX" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    {licenseState.message && (
+                        <p className={cn("text-sm text-center", licenseState.isValid ? "text-green-600" : "text-destructive")}>
+                           {licenseState.message}
+                        </p>
+                    )}
+                    <Button type="submit" className="w-full" disabled={isLoading}>
+                        {isLoading && <Loader2 className="mr-2 animate-spin" />}
+                        Activar Sistema
+                    </Button>
+                </form>
+            </Form>
+             <Separator className="my-6" />
+             <div className="text-center">
+                <p className="text-sm text-muted-foreground mb-4">O si no tiene una licencia:</p>
+                <Button variant="outline" className="w-full" onClick={handleUseFreeVersion} disabled={isLoading}>
+                    {isLoading && <Loader2 className="mr-2 animate-spin" />}
+                    Continuar con la versión gratis
+                </Button>
+             </div>
+             <div className="text-xs text-muted-foreground mt-6 text-center">
+                <p>Hardware ID: <span className="font-mono">{licenseState.hardwareId}</span></p>
+             </div>
+        </CardContent>
+      </Card>
+       <footer className="mt-8 text-center text-sm text-muted-foreground">
+            <p>&copy; {new Date().getFullYear()} Clic Soporte & Clic Tienda S.R.L.</p>
+      </footer>
+    </div>
+  );
+}
+
+
+--- File: src/actions/authActions.ts ---
+
+'use server';
+
+import { cookies } from 'next/headers';
+import { getDb } from '@/lib/db';
+import type { SessionUser } from '@/types/user';
+import { addLog } from '@/lib/log-store';
+import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
+
+const SESSION_COOKIE_NAME = 'clic_soporte_session';
+
+// In a real app, you would use a secure password hashing library like bcrypt
+// For this prototype, we'll use a simple (and insecure) hashing for demonstration
+async function hashPassword(password: string): Promise<string> {
+    const buffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(password));
+    return Buffer.from(buffer).toString('hex');
+}
+
+export async function login(previousState: any, formData: FormData) {
+    const username = formData.get('username') as string;
+    const password = formData.get('password') as string;
+
+    if (!username || !password) {
+        return { success: false, message: "Usuario y contraseña son requeridos." };
+    }
+
+    // Hardcoded Super Admin check
+    if (username === 'Clicadmin' && password === 'Clic2017*') {
+        const sessionUser: SessionUser = { id: 'superadmin', username: 'Clicadmin', role: 'superadmin' };
+        await createSession(sessionUser);
+        addLog({type: 'warn', context: 'Auth', message: `Super admin 'Clicadmin' logged in.`});
+        redirect('/');
+    }
+
+    try {
+        const db = getDb();
+        const stmt = db.prepare(`
+            SELECT u.id, u.username, u.password_hash, r.name as role 
+            FROM users u 
+            JOIN roles r ON u.roleId = r.id 
+            WHERE u.username = ? AND u.is_active = 1
+        `);
+        const user = stmt.get(username) as { id: string, username: string, password_hash: string, role: string } | undefined;
+
+        if (!user) {
+            addLog({type: 'warn', context: 'Auth', message: `Login failed for user '${username}': user not found or inactive.`});
+            return { success: false, message: 'Credenciales inválidas.' };
+        }
+
+        const passwordHash = await hashPassword(password);
+        if (passwordHash !== user.password_hash) {
+            addLog({type: 'warn', context: 'Auth', message: `Login failed for user '${username}': incorrect password.`});
+            return { success: false, message: 'Credenciales inválidas.' };
+        }
+
+        const sessionUser: SessionUser = { id: user.id, username: user.username, role: user.role };
+        await createSession(sessionUser);
+        addLog({type: 'info', context: 'Auth', message: `User '${username}' logged in successfully.`});
+        
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        addLog({type: 'error', context: 'Auth', message: `Login system error: ${errorMessage}`});
+        return { success: false, message: 'Error del sistema durante el inicio de sesión.' };
+    }
+    redirect('/');
+}
+
+export async function logout() {
+    cookies().delete(SESSION_COOKIE_NAME);
+    revalidatePath('/', 'layout');
+    redirect('/');
+}
+
+async function createSession(user: SessionUser) {
+    // In a real app, use a secure session management library like next-auth or lucia-auth.
+    // For this prototype, we'll store the user object directly in an encrypted cookie.
+    // This is NOT secure for production.
+    const sessionData = JSON.stringify(user);
+    
+    // We'll just base64 encode for this prototype. AGAIN, NOT SECURE.
+    const encryptedSessionData = Buffer.from(sessionData).toString('base64');
+
+    cookies().set(SESSION_COOKIE_NAME, encryptedSessionData, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 60 * 60 * 24, // 1 day
+        path: '/',
+    });
+}
+
+export async function getCurrentUser(): Promise<SessionUser | null> {
+    const sessionCookie = cookies().get(SESSION_COOKIE_NAME);
+    if (!sessionCookie) {
+        return null;
+    }
+
+    try {
+        // "Decrypt" the session data
+        const decryptedSessionData = Buffer.from(sessionCookie.value, 'base64').toString('utf-8');
+        const user = JSON.parse(decryptedSessionData) as SessionUser;
+        return user;
+    } catch (error) {
+        console.error("Failed to parse session cookie:", error);
+        return null;
+    }
+}
+
+--- File: src/actions/userActions.ts ---
+
+"use server";
+
+import { getDb } from '@/lib/db';
+import type { User, RoleName } from '@/types/user';
+import { addLog } from '@/lib/log-store';
+import { revalidatePath } from 'next/cache';
+import { updateSettings } from './settingsActions';
+import { getCurrentUser } from './authActions';
+
+// In a real app, you would use a secure password hashing library like bcrypt
+// For this prototype, we'll use a simple (and insecure) hashing for demonstration
+async function hashPassword(password: string): Promise<string> {
+    // In a real app, NEVER store passwords in plaintext or use such a simple hash.
+    // Use bcrypt or a similar library.
+    const buffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(password));
+    return Buffer.from(buffer).toString('hex');
+}
+
+export async function getUserCount(): Promise<number> {
+    try {
+        const db = getDb();
+        const stmt = db.prepare('SELECT COUNT(*) as count FROM users');
+        const result = stmt.get() as { count: number };
+        return result.count;
+    } catch (error) {
+        console.error("Failed to get user count:", error);
+        return 0; // Return 0 on error
+    }
+}
+
+export async function createFirstUser(username: string, password: string, companyName: string): Promise<{success: boolean, message: string}> {
+    const userCount = await getUserCount();
+    if (userCount > 0) {
+        return { success: false, message: "El primer usuario ya ha sido creado." };
+    }
+
+    try {
+        const db = getDb();
+        
+        // Ensure roles exist before creating the user
+        const roles: RoleName[] = ['Administrador', 'Operador de Consola', 'Supervisor', 'Visualizador'];
+        const roleStmt = db.prepare("INSERT OR IGNORE INTO roles (id, name) VALUES (?, ?)");
+        const roleMap: { [key in RoleName]: string } = {
+            'Administrador': 'admin',
+            'Operador de Consola': 'console_operator',
+            'Supervisor': 'supervisor',
+            'Visualizador': 'viewer',
+        };
+        roles.forEach(role => roleStmt.run(roleMap[role], role));
+
+        const passwordHash = await hashPassword(password);
+        const userId = crypto.randomUUID();
+        
+        const adminRole = db.prepare("SELECT id FROM roles WHERE name = 'Administrador'").get() as {id: string};
+        
+        if (!adminRole) {
+            throw new Error("El rol de Administrador no existe. No se puede crear el primer usuario.");
+        }
+
+        const transaction = db.transaction(() => {
+            const userStmt = db.prepare(
+                "INSERT INTO users (id, username, password_hash, roleId, is_active, name) VALUES (?, ?, ?, ?, ?, ?)"
+            );
+            userStmt.run(userId, username, passwordHash, adminRole.id, 1, 'Administrador del Sistema');
+        });
+
+        transaction();
+        
+        // After creating the user, set the company name
+        await updateSettings({ companyName: companyName });
+
+        addLog({ type: 'info', context: 'Auth', message: `Primer usuario administrador '${username}' creado.` });
+        addLog({ type: 'info', context: 'Settings', message: `Nombre de la empresa establecido como '${companyName}'.` });
+        
+        revalidatePath('/', 'layout');
+        return { success: true, message: `Usuario '${username}' creado.` };
+
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        addLog({ type: 'error', context: 'Auth', message: `Error al crear el primer usuario: ${errorMessage}` });
+        return { success: false, message: "Error al crear el usuario." };
+    }
+}
+
+// ... other user actions are omitted for brevity ...
+
+--- File: src/types/user.ts ---
+
+export type RoleName = 'Administrador' | 'Operador de Consola' | 'Supervisor' | 'Visualizador';
+
+export interface Role {
+    id: string;
+    name: RoleName;
+}
+
+export interface User {
+    id: string;
+    username: string;
+    name?: string; // Optional full name
+    roleId: string;
+    roleName: RoleName;
+    isActive: boolean;
+    forcePasswordChange: boolean;
+    createdAt: string;
+}
+
+export interface UserWithPassword extends User {
+    passwordHash: string;
+}
+
+// For session management
+export interface SessionUser {
+    id: string;
+    username: string;
+    role: string; // The role name, e.g., 'admin'
+}

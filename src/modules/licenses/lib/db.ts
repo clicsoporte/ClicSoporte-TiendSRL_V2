@@ -6,6 +6,7 @@
 import { connectDb } from '../../core/lib/db';
 import type { License, SoftwareProduct } from '@/modules/core/types';
 import { SignJWT } from 'jose';
+import crypto from 'crypto';
 
 const LICENSES_DB_FILE = 'licenses.db';
 
@@ -25,12 +26,12 @@ export async function initializeLicensesDb(db: import('better-sqlite3').Database
             licenseKey TEXT NOT NULL UNIQUE,
             softwareId INTEGER NOT NULL,
             clientCompanyId INTEGER,
+            hardwareId TEXT,
             isPerpetual BOOLEAN NOT NULL DEFAULT FALSE,
             expirationDate TEXT,
             status TEXT NOT NULL DEFAULT 'active', -- active, expired, revoked
             createdAt TEXT NOT NULL,
             FOREIGN KEY (softwareId) REFERENCES software_products(id) ON DELETE CASCADE
-            -- clientCompanyId could be a foreign key to tickets.db's client_companies if we wanted tight coupling
         );
     `;
     db.exec(schema);
@@ -49,8 +50,14 @@ export async function initializeLicensesDb(db: import('better-sqlite3').Database
 }
 
 export async function runLicensesMigrations(db: import('better-sqlite3').Database) {
-    // Future migrations for the licenses module can be added here.
+    const licensesTableInfo = db.prepare(`PRAGMA table_info(licenses)`).all() as { name: string }[];
+    const licensesColumns = new Set(licensesTableInfo.map(c => c.name));
+
+    if (!licensesColumns.has('hardwareId')) {
+        db.exec(`ALTER TABLE licenses ADD COLUMN hardwareId TEXT;`);
+    }
 }
+
 
 async function generateLicenseKey(payload: { clientCompanyId: number | null, expirationDate: string }): Promise<string> {
   const jwt = await new SignJWT(payload)
@@ -72,14 +79,22 @@ export async function getLicenses(): Promise<License[]> {
 export async function addLicense(license: Omit<License, 'id' | 'createdAt'>): Promise<License> {
     const db = await connectDb(LICENSES_DB_FILE);
     
-    const key = license.licenseKey || await generateLicenseKey({ clientCompanyId: license.clientCompanyId, expirationDate: license.expirationDate });
+    let key: string;
+    if (license.hardwareId && license.hardwareId.trim() !== '') {
+        // Generate a simpler key format for hardware-locked licenses
+        key = `CLICS-${crypto.randomUUID().toUpperCase()}`;
+    } else {
+        // Generate a JWT for licenses not tied to hardware
+        key = await generateLicenseKey({ clientCompanyId: license.clientCompanyId, expirationDate: license.expirationDate });
+    }
 
     const info = db.prepare(`
-        INSERT INTO licenses (licenseKey, softwareId, clientCompanyId, isPerpetual, expirationDate, status, createdAt)
-        VALUES (@licenseKey, @softwareId, @clientCompanyId, @isPerpetual, @expirationDate, @status, @createdAt)
+        INSERT INTO licenses (licenseKey, softwareId, clientCompanyId, hardwareId, isPerpetual, expirationDate, status, createdAt)
+        VALUES (@licenseKey, @softwareId, @clientCompanyId, @hardwareId, @isPerpetual, @expirationDate, @status, @createdAt)
     `).run({
         ...license,
         licenseKey: key,
+        hardwareId: license.hardwareId || null,
         isPerpetual: license.isPerpetual ? 1 : 0,
         createdAt: new Date().toISOString(),
     });
@@ -95,12 +110,14 @@ export async function updateLicense(license: License): Promise<License> {
             licenseKey = @licenseKey,
             softwareId = @softwareId,
             clientCompanyId = @clientCompanyId,
+            hardwareId = @hardwareId,
             isPerpetual = @isPerpetual,
             expirationDate = @expirationDate,
             status = @status
         WHERE id = @id
     `).run({
         ...license,
+        hardwareId: license.hardwareId || null,
         isPerpetual: license.isPerpetual ? 1 : 0,
     });
     const result = db.prepare('SELECT * FROM licenses WHERE id = ?').get(license.id) as License;

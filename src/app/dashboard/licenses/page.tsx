@@ -94,7 +94,11 @@ export default function LicensesPage() {
                                                 </div>
                                                 <div className="space-y-2">
                                                     <Label htmlFor="license-key">Clave de Licencia</Label>
-                                                    <Textarea id="license-key" value={state.currentLicense.licenseKey} onChange={(e) => actions.handleCurrentLicenseChange('licenseKey', e.target.value)} placeholder="Pega aquí la clave de licencia, o deja en blanco para generar una."/>
+                                                    <Textarea id="license-key" value={state.currentLicense.licenseKey} onChange={(e) => actions.handleCurrentLicenseChange('licenseKey', e.target.value)} placeholder="Dejar en blanco para generar una automáticamente."/>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="hardware-id">Hardware ID (Opcional)</Label>
+                                                    <Input id="hardware-id" value={state.currentLicense.hardwareId || ''} onChange={(e) => actions.handleCurrentLicenseChange('hardwareId', e.target.value)} placeholder="ID de hardware del cliente para licencias bloqueadas"/>
                                                 </div>
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
                                                      <div className="space-y-2">
