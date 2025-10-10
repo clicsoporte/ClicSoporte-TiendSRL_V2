@@ -14,7 +14,6 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -59,7 +58,6 @@ export default function LicensesPage() {
                         </div>
                         <div className="flex gap-2">
                              {hasPermission('licenses:manage') && <Button variant="outline" onClick={() => actions.setIsSoftwareDialogOpen(true)}>Gestionar Software</Button>}
-                             {hasPermission('licenses:manage') && <Button variant="outline" onClick={actions.handleGenerateKeys} disabled={state.isSubmitting}><Server className="mr-2 h-4 w-4"/>Generar Claves</Button>}
                             {hasPermission('licenses:manage') && (
                                 <Dialog open={state.isFormOpen} onOpenChange={(open) => { actions.setIsFormOpen(open); if (!open) actions.resetCurrentLicense(); }}>
                                     <DialogTrigger asChild>
@@ -98,7 +96,7 @@ export default function LicensesPage() {
                                                 
                                                 <div className="space-y-2">
                                                     <Label htmlFor="hardware-id">Hardware ID (Obligatorio para Offline)</Label>
-                                                    <Input id="hardware-id" value={state.currentLicense.hardwareId || ''} onChange={(e) => actions.handleCurrentLicenseChange('hardwareId', e.target.value)} placeholder="ID de hardware del cliente para licencias bloqueadas"/>
+                                                    <Input id="hardware-id" value={state.currentLicense.hardwareId || ''} onChange={(e) => actions.handleCurrentLicenseChange('hardwareId', e.target.value)} placeholder="ID de hardware del cliente para licencias bloqueadas" required/>
                                                 </div>
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
                                                      <div className="space-y-2">
