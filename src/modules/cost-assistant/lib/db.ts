@@ -103,15 +103,16 @@ export async function saveCostAssistantSettings(settings: CostAssistantSettings)
 export async function getAllDrafts(userId: number): Promise<CostAnalysisDraft[]> {
     const db = await connectDb(DB_FILE);
     const drafts = db.prepare('SELECT * FROM cost_analysis_drafts WHERE userId = ? ORDER BY createdAt DESC').all(userId) as any[];
-    return drafts.map(draft => ({
+    const parsedDrafts = drafts.map(draft => ({
         ...draft,
         lines: JSON.parse(draft.lines || '[]'),
         globalCosts: JSON.parse(draft.globalCosts || '{}'),
         processedInvoices: JSON.parse(draft.processedInvoices || '[]'),
     }));
+    return JSON.parse(JSON.stringify(parsedDrafts));
 }
 
-export async function saveDraft(draft: CostAnalysisDraft): Promise<void> {
+export async function saveDraft(draft: CostAnalysisDraft): Promise<CostAnalysisDraft> {
     const db = await connectDb(DB_FILE);
     db.prepare(`
         INSERT OR REPLACE INTO cost_analysis_drafts 
@@ -123,6 +124,13 @@ export async function saveDraft(draft: CostAnalysisDraft): Promise<void> {
         globalCosts: JSON.stringify(draft.globalCosts),
         processedInvoices: JSON.stringify(draft.processedInvoices),
     });
+    const savedDraft = db.prepare('SELECT * FROM cost_analysis_drafts WHERE id = ?').get(draft.id) as any;
+     return JSON.parse(JSON.stringify({
+        ...savedDraft,
+        lines: JSON.parse(savedDraft.lines || '[]'),
+        globalCosts: JSON.parse(savedDraft.globalCosts || '{}'),
+        processedInvoices: JSON.parse(savedDraft.processedInvoices || '[]'),
+    }));
 }
 
 export async function deleteDraft(id: string): Promise<void> {

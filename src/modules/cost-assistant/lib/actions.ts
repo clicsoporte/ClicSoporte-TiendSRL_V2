@@ -219,7 +219,7 @@ export async function getAllDrafts(userId: number): Promise<CostAnalysisDraft[]>
     return getAllDraftsServer(userId);
 }
 
-export async function saveDraft(draft: CostAnalysisDraft): Promise<void> {
+export async function saveDraft(draft: CostAnalysisDraft): Promise<CostAnalysisDraft> {
     await logInfo('Cost analysis draft saved', { name: draft.name, userId: draft.userId });
     return saveDraftServer(draft);
 }

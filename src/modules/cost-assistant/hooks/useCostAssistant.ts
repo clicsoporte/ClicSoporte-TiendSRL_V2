@@ -221,10 +221,7 @@ export const useCostAssistant = () => {
     const saveDraftAction = async (draftName: string) => {
         if (!user || !draftName) return;
 
-        const newDraft: CostAnalysisDraft = {
-            id: crypto.randomUUID(),
-            createdAt: new Date().toISOString(),
-            userId: user.id,
+        const newDraft: Omit<CostAnalysisDraft, 'id' | 'createdAt' | 'userId'> & { name: string } = {
             name: draftName,
             lines: state.lines,
             globalCosts: {
@@ -235,7 +232,7 @@ export const useCostAssistant = () => {
         };
 
         try {
-            await saveDraft(newDraft);
+            const savedDraft = await saveDraft(newDraft, user.id);
             toast({ title: "Borrador Guardado", description: `El análisis "${draftName}" ha sido guardado.` });
         } catch (error: any) {
             logError("Failed to save draft", { error: error.message });
