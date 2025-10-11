@@ -3,7 +3,7 @@
  * It defines the tools that appear on the administration dashboard.
  */
 import type { Tool } from "@/modules/core/types";
-import { Users, ShieldCheck, Briefcase, MessageSquare, DollarSign, FileUp, ServerCog, Network, Factory, Store, Map, Boxes, Ticket, FileTerminal } from "lucide-react";
+import { Users, ShieldCheck, Briefcase, MessageSquare, DollarSign, FileUp, ServerCog, Network, Factory, Store, Map, Boxes, Ticket, FileTerminal, KeyRound } from "lucide-react";
 
 /**
  * List of tools available in the admin section.
@@ -124,6 +124,15 @@ export const adminTools: Tool[] = [
         href: "/dashboard/admin/tickets",
         icon: Ticket,
         bgColor: "bg-blue-700",
+        textColor: "text-white",
+      },
+      {
+        id: "licenses-settings",
+        name: "Config. Licencias",
+        description: "Gestionar las claves de firma para licencias offline.",
+        href: "/dashboard/admin/licenses",
+        icon: KeyRound,
+        bgColor: "bg-indigo-500",
         textColor: "text-white",
       },
       {
