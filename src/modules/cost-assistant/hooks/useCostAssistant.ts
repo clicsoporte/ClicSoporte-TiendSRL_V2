@@ -7,7 +7,7 @@ import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
-import type { CostAssistantLine, ProcessedInvoiceInfo, CostAnalysisDraft, CostAssistantSettings } from '@/modules/core/types';
+import type { CostAssistantLine, ProcessedInvoiceInfo, CostAnalysisDraft, CostAssistantSettings, DraftableCostAssistantLine } from '@/modules/core/types';
 import { processInvoiceXmls, getCostAssistantSettings, saveCostAssistantSettings, getAllDrafts, saveDraft, deleteDraft, exportForERP, cleanupExportFile } from '../lib/actions';
 import { logError, logInfo } from '@/modules/core/lib/logger';
 import { useAuth } from '@/modules/core/hooks/useAuth';
@@ -288,7 +288,7 @@ export const useCostAssistant = () => {
         const newDraft: Omit<CostAnalysisDraft, 'id' | 'createdAt'> = {
             userId: user.id,
             name: draftName,
-            lines: state.lines.map(({ displayMargin, displayTaxRate, displayUnitCost, ...line }) => line), // Remove display fields
+            lines: state.lines,
             globalCosts: {
                 transportCost: state.transportCost,
                 otherCosts: state.otherCosts,
@@ -324,7 +324,7 @@ export const useCostAssistant = () => {
             transportCost: draftToLoad.globalCosts.transportCost,
             otherCosts: draftToLoad.globalCosts.otherCosts,
             processedInvoices: draftToLoad.processedInvoices,
-            discountHandling: draftToLoad.discountHandling || 'company' // Restore discount handling, default if not present
+            discountHandling: draftToLoad.discountHandling || 'company'
         }));
         toast({ title: "Borrador Cargado", description: `Se ha cargado el análisis "${draftToLoad.name}".` });
     };
