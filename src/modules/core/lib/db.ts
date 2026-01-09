@@ -138,6 +138,13 @@ export async function initializeMainDatabase(db: import('better-sqlite3').Databa
             securityAnswer TEXT
         );
 
+        CREATE TABLE user_preferences (
+            id TEXT PRIMARY KEY, -- Composite key like 'userId-settingName'
+            userId INTEGER NOT NULL,
+            settingName TEXT NOT NULL,
+            value TEXT NOT NULL
+        );
+
         CREATE TABLE company_settings (
             id INTEGER PRIMARY KEY DEFAULT 1,
             name TEXT, taxId TEXT, address TEXT, phone TEXT, email TEXT,
@@ -249,6 +256,23 @@ export async function initializeMainDatabase(db: import('better-sqlite3').Databa
     initialRoles.forEach(role => roleInsert.run({ ...role, permissions: JSON.stringify(role.permissions) }));
     
     console.log(`Database ${DB_FILE} initialized with default users and roles.`);
+}
+
+export async function getUserPreferences(userId: number, settingName: string): Promise<any> {
+    const db = await connectDb();
+    const prefId = `${userId}-${settingName}`;
+    const row = db.prepare('SELECT value FROM user_preferences WHERE id = ?').get(prefId) as { value: string } | undefined;
+    if (row) {
+        return JSON.parse(row.value);
+    }
+    return {};
+}
+
+export async function saveUserPreferences(userId: number, settingName: string, value: any): Promise<void> {
+    const db = await connectDb();
+    const prefId = `${userId}-${settingName}`;
+    db.prepare('INSERT OR REPLACE INTO user_preferences (id, userId, settingName, value) VALUES (?, ?, ?, ?)')
+      .run(prefId, userId, settingName, JSON.stringify(value));
 }
 
 export async function getLogs(filters: {
