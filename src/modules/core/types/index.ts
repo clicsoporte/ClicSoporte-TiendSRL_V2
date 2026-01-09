@@ -823,4 +823,3 @@ export type TimeEntry = {
 export type ExpectedSchema = {
     [tableName: string]: string[]; // e.g., { 'users': ['id', 'name', 'email'], ... }
 };
-```
