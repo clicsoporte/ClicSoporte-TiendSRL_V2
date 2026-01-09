@@ -22,9 +22,8 @@ import type { CostAnalysisDraft } from '@/modules/core/types';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Separator } from '@/components/ui/separator';
 import { DialogColumnSelector } from '@/components/ui/dialog-column-selector';
-import { useAuth } from '@/modules/core/hooks/useAuth';
-import { Skeleton } from '@/components/ui/skeleton';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function CostAssistantPage() {
     const { isAuthorized } = useAuthorization(['cost-assistant:access']);
@@ -33,7 +32,7 @@ export default function CostAssistantPage() {
         actions,
     } = useCostAssistant();
     
-    const { isReady } = useAuth();
+    const { isReady } = state;
     
     const columns = [
         { id: 'cabysCode', label: 'Cabys', defaultVisible: true, className: 'min-w-[150px]' },
