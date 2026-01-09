@@ -20,15 +20,16 @@ import path from 'path';
 import fs from 'fs';
 import { getUserPreferences, saveUserPreferences } from '@/modules/core/lib/db';
 
-// Helper to get a value from a potentially nested object
-const getValue = (obj: unknown, path: string[], defaultValue: unknown = ''): any => {
-    return path.reduce((acc, key) => {
+const getValue = <T>(obj: any, path: string[], defaultValue: T): T => {
+    const result = path.reduce((acc, key) => {
         if (typeof acc === 'object' && acc !== null && key in acc) {
-            return (acc as Record<string, unknown>)[key];
+            return acc[key];
         }
-        return defaultValue;
+        return undefined;
     }, obj);
+    return result === undefined ? defaultValue : result;
 };
+
 
 const parseDecimal = (str: unknown): number => {
     if (str === null || str === undefined || str === '') return 0;
@@ -85,10 +86,10 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
         return { error: `No es un archivo de factura válido. Nodo raíz no encontrado: ${detectedRoot}`, details: {} };
     }
     
-    const clave = getValue(rootNode, ['Clave'], `unknown-key-${fileIndex}`) as string;
-    const numeroConsecutivo = getValue(rootNode, ['NumeroConsecutivo'], clave.substring(21, 41)) as string;
-    const fechaEmision = getValue(rootNode, ['FechaEmision'], new Date().toISOString()) as string;
-    const emisorNombre = getValue(rootNode, ['Emisor', 'Nombre'], 'Desconocido') as string;
+    const clave = getValue<string>(rootNode, ['Clave'], `unknown-key-${fileIndex}`);
+    const numeroConsecutivo = getValue<string>(rootNode, ['NumeroConsecutivo'], clave.substring(21, 41));
+    const fechaEmision = getValue<string>(rootNode, ['FechaEmision'], new Date().toISOString());
+    const emisorNombre = getValue<string>(rootNode, ['Emisor', 'Nombre'], 'Desconocido');
 
     const invoiceInfo = {
         supplierName: emisorNombre,
@@ -96,15 +97,16 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
         invoiceDate: fechaEmision,
     };
 
-    const detalleServicio = getValue(rootNode, ['DetalleServicio']);
-    if (!detalleServicio || typeof detalleServicio !== 'object' || !('LineaDetalle' in detalleServicio)) {
+    const detalleServicio = getValue<any>(rootNode, ['DetalleServicio'], null);
+    if (!detalleServicio || !detalleServicio.LineaDetalle) {
         return { lines: [], invoiceInfo };
     }
+    
+    const lineasDetalle: any[] = Array.isArray(detalleServicio.LineaDetalle) ? detalleServicio.LineaDetalle : [detalleServicio.LineaDetalle];
 
-    const lineasDetalle = Array.isArray((detalleServicio as any).LineaDetalle) ? (detalleServicio as any).LineaDetalle : [(detalleServicio as any).LineaDetalle];
 
-    const moneda = getValue(rootNode, ['ResumenFactura', 'CodigoTipoMoneda', 'CodigoMoneda'], 'CRC') as string;
-    const tipoCambioStr = getValue(rootNode, ['ResumenFactura', 'CodigoTipoMoneda', 'TipoCambio'], '1') as string;
+    const moneda = getValue<string>(rootNode, ['ResumenFactura', 'CodigoTipoMoneda', 'CodigoMoneda'], 'CRC');
+    const tipoCambioStr = getValue<string>(rootNode, ['ResumenFactura', 'CodigoTipoMoneda', 'TipoCambio'], '1');
     const tipoCambio = parseDecimal(tipoCambioStr) || 1.0;
 
 
@@ -115,8 +117,7 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
         
         let supplierCode = 'N/A';
         let supplierCodeType = '04'; // Default to 'Uso Interno'
-        const codigosComercialesRaw = linea.CodigoComercial || [];
-        const codigosComerciales: any[] = Array.isArray(codigosComercialesRaw) ? codigosComercialesRaw : [codigosComercialesRaw];
+        const codigosComerciales = getValue<any[]>(linea, ['CodigoComercial'], []);
         
         if (codigosComerciales.length > 0) {
             const preferredCodeNode = codigosComerciales.find((c) => c.Tipo === '01');
@@ -129,14 +130,14 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
             }
         }
         
-        const cabysV43 = getValue(linea, ['Codigo']);
-        const cabysV44 = getValue(linea, ['CodigoCABYS']);
-        const cabysCode = (cabysV44 || cabysV43 || 'N/A') as string;
+        const cabysV43 = getValue<string>(linea, ['Codigo'], '');
+        const cabysV44 = getValue<string>(linea, ['CodigoCABYS'], '');
+        const cabysCode = cabysV44 || cabysV43 || 'N/A';
         
         const montoTotalLinea = parseDecimal(getValue(linea, ['MontoTotalLinea'], '0'));
         
-        const descuentoNode = getValue(linea, ['Descuento']);
-        const discountAmount = descuentoNode && typeof descuentoNode === 'object' ? parseDecimal(getValue(descuentoNode, ['MontoDescuento'], '0')) : 0;
+        const descuentoNode = getValue<any>(linea, ['Descuento'], null);
+        const discountAmount = descuentoNode ? parseDecimal(getValue(descuentoNode, ['MontoDescuento'], '0')) : 0;
         
         const subTotal = parseDecimal(getValue(linea, ['SubTotal'], '0'));
         
@@ -145,18 +146,18 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
         const unitCostWithTax = cantidad > 0 ? montoTotalLinea / cantidad : 0;
         const unitCostWithoutTax = cantidad > 0 ? subTotalWithDiscount / cantidad : 0;
 
-        const impuestoNode = getValue(linea, ['Impuesto']);
+        const impuestoNode = getValue<any>(linea, ['Impuesto'], null);
         let taxRate = 0.13; // Default
         let taxCode = '08'; // Default
-        if (impuestoNode && typeof impuestoNode === 'object') {
+        if (impuestoNode) {
             taxRate = parseDecimal(getValue(impuestoNode, ['Tarifa'], '13')) / 100;
-            taxCode = getValue(impuestoNode, ['CodigoTarifaIVA'], '08') as string;
+            taxCode = getValue(impuestoNode, ['CodigoTarifaIVA'], '08');
         }
         
         const unitCostWithTaxInColones = moneda === 'USD' ? unitCostWithTax * tipoCambio : unitCostWithTax;
         const unitCostWithoutTaxInColones = moneda === 'USD' ? unitCostWithoutTax * tipoCambio : unitCostWithoutTax;
         
-        const numeroLinea = getValue(linea, ['NumeroLinea'], index + 1) as number;
+        const numeroLinea = getValue<number>(linea, ['NumeroLinea'], index + 1);
 
         lines.push({
             id: `${numeroConsecutivo}-${numeroLinea}-${supplierCode}-${index}`,
@@ -165,12 +166,12 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
             cabysCode: cabysCode,
             supplierCode: supplierCode,
             supplierCodeType: supplierCodeType,
-            description: getValue(linea, ['Detalle']) as string,
+            description: getValue<string>(linea, ['Detalle'], ''),
             quantity: cantidad,
             discountAmount,
             unitCostWithTax: unitCostWithTaxInColones,
             unitCostWithoutTax: unitCostWithoutTaxInColones,
-            xmlUnitCost: unitCostWithoutTaxInColones, // Store original cost
+            xmlUnitCost: unitCostWithoutTaxInColones,
             taxRate: taxRate,
             taxCode: taxCode,
             displayMargin: "20",
@@ -178,8 +179,9 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
             displayTaxRate: (taxRate * 100).toFixed(0),
             displayUnitCost: unitCostWithoutTaxInColones.toFixed(4),
             isCostEdited: false,
-            finalSellPrice: 0, // Calculated in the frontend
-            profitPerLine: 0, // Calculated in the frontend
+            finalSellPrice: 0,
+            profitPerLine: 0,
+            sellPriceWithoutTax: 0,
             supplierName: emisorNombre,
         });
     }
@@ -241,7 +243,7 @@ export async function getCostAssistantSettings(userId: number): Promise<CostAssi
     const userPrefs = await getUserPreferences(userId, 'costAssistantSettings');
     const dbSettings = await getDbSettings();
     const settings = { ...defaultSettings, ...dbSettings, ...userPrefs };
-    return settings as CostAssistantSettings;
+    return settings;
 }
 
 export async function saveCostAssistantSettings(userId: number, settings: Partial<CostAssistantSettings>): Promise<void> {
