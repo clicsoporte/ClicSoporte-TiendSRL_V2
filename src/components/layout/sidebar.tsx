@@ -33,6 +33,7 @@ import {
   FileScan,
   AreaChart,
   Network,
+  Sheet as SheetIcon,
 } from "lucide-react";
 import type { Tool } from "../../modules/core/types";
 import { UserNav } from "./user-nav";
@@ -144,7 +145,7 @@ export function AppSidebar() {
         name: "Cotizador",
         description: "Crear y gestionar cotizaciones para clientes.",
         href: "/dashboard/quoter",
-        icon: Sheet,
+        icon: SheetIcon,
         bgColor: "bg-green-500",
         textColor: "text-white",
     },
