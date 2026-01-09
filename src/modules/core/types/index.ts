@@ -627,15 +627,21 @@ export type CostAssistantLine = {
     supplierCodeType: string;
     description: string;
     quantity: number;
+    discountAmount: number;
+    xmlUnitCost: number; // Original cost from XML, without prorated costs
     unitCostWithTax: number;
     unitCostWithoutTax: number;
     taxRate: number;
     taxCode: string;
-    displayMargin: string;
     margin: number;
     finalSellPrice: number;
     sellPriceWithoutTax: number;
     profitPerLine: number;
+    // UI-only fields for flexible input
+    displayMargin: string;
+    displayTaxRate: string;
+    displayUnitCost: string;
+    isCostEdited: boolean;
 };
 
 export type ProcessedInvoiceInfo = {
@@ -647,7 +653,7 @@ export type ProcessedInvoiceInfo = {
 };
 
 export type CostAnalysisDraft = {
-    id: string; // UUID
+    id: string; // UUID or generated ID
     createdAt: string;
     userId: number;
     name: string;
@@ -657,7 +663,30 @@ export type CostAnalysisDraft = {
         otherCosts: number;
     };
     processedInvoices: ProcessedInvoiceInfo[];
+    discountHandling: 'customer' | 'company';
 };
+
+export type CostAssistantSettings = {
+    draftPrefix?: string;
+    nextDraftNumber?: number;
+    columnVisibility: {
+        cabysCode: boolean;
+        supplierCode: boolean;
+        description: boolean;
+        quantity: boolean;
+        discountAmount: boolean;
+        unitCostWithoutTax: boolean;
+        unitCostWithTax: boolean;
+        taxRate: boolean;
+        margin: boolean;
+        sellPriceWithoutTax: boolean;
+        finalSellPrice: boolean;
+        profitPerLine: boolean;
+    },
+    discountHandling: 'customer' | 'company';
+};
+
+export type DraftableCostAssistantLine = Omit<CostAssistantLine, 'displayMargin' | 'displayTaxRate' | 'displayUnitCost' | 'isCostEdited'>;
 
 // --- Tickets Module Types ---
 export type TicketStatus = 'open' | 'in_progress' | 'on_hold' | 'closed';
@@ -725,7 +754,7 @@ export type Ticket = {
     // Denormalized for quick display & for customers not in the company structure
     customerName: string; 
     companyName?: string; // Denormalized company name
-    
+
     assigneeId?: number | null;
     helpTopicId?: number | null;
     serviceId?: string | null;
@@ -786,4 +815,12 @@ export type TimeEntry = {
     isBillable: boolean;
     createdAt: string;
 };
-    
+
+/**
+ * Defines the expected schema for a database module's tables and columns.
+ * Used for database integrity checks.
+ */
+export type ExpectedSchema = {
+    [tableName: string]: string[]; // e.g., { 'users': ['id', 'name', 'email'], ... }
+};
+```
