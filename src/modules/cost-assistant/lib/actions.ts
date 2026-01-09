@@ -6,7 +6,7 @@
 'use server';
 
 import { XMLParser } from 'fast-xml-parser';
-import type { CostAssistantLine, ProcessedInvoiceInfo, CostAnalysisDraft, CostAssistantSettings, DraftableCostAssistantLine } from '@/modules/core/types';
+import type { CostAssistantLine, ProcessedInvoiceInfo, CostAnalysisDraft, CostAssistantSettings } from '@/modules/core/types';
 import { 
     getAllDrafts as getAllDraftsServer, 
     saveDraft as saveDraftServer, 
@@ -21,11 +21,11 @@ import fs from 'fs';
 import { getUserPreferences, saveUserPreferences } from '@/modules/core/lib/db';
 
 // Helper to get a value from a potentially nested object
-const getValue = (obj: any, path: string[], defaultValue: any = '') => {
-    return path.reduce((acc, key) => (acc && acc[key] !== undefined) ? acc[key] : defaultValue, obj);
+const getValue = (obj: Record<string, unknown>, path: string[], defaultValue: unknown = '') => {
+    return path.reduce((acc, key) => (acc && (acc as Record<string, unknown>)[key] !== undefined) ? (acc as Record<string, unknown>)[key] : defaultValue, obj);
 };
 
-const parseDecimal = (str: any): number => {
+const parseDecimal = (str: unknown): number => {
     if (str === null || str === undefined || str === '') return 0;
     const s = String(str).trim();
     
@@ -64,8 +64,8 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
     let json;
     try {
         json = parser.parse(xmlContent);
-    } catch (e: any) {
-        logError('XML parsing failed', { error: e.message, content: xmlContent.substring(0, 500) });
+    } catch (e: unknown) {
+        logError('XML parsing failed', { error: (e as Error).message, content: xmlContent.substring(0, 500) });
         return { error: 'XML malformado o ilegible.', details: {} };
     }
     
@@ -80,10 +80,10 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
         return { error: `No es un archivo de factura válido. Nodo raíz no encontrado: ${detectedRoot}`, details: {} };
     }
     
-    const clave = getValue(rootNode, ['Clave'], `unknown-key-${fileIndex}`);
-    const numeroConsecutivo = getValue(rootNode, ['NumeroConsecutivo'], clave.substring(21, 41));
-    const fechaEmision = getValue(rootNode, ['FechaEmision'], new Date().toISOString());
-    const emisorNombre = getValue(rootNode, ['Emisor', 'Nombre'], 'Desconocido');
+    const clave = getValue(rootNode, ['Clave'], `unknown-key-${fileIndex}`) as string;
+    const numeroConsecutivo = getValue(rootNode, ['NumeroConsecutivo'], clave.substring(21, 41)) as string;
+    const fechaEmision = getValue(rootNode, ['FechaEmision'], new Date().toISOString()) as string;
+    const emisorNombre = getValue(rootNode, ['Emisor', 'Nombre'], 'Desconocido') as string;
 
     const invoiceInfo = {
         supplierName: emisorNombre,
@@ -92,14 +92,14 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
     };
 
     const detalleServicio = getValue(rootNode, ['DetalleServicio']);
-    if (!detalleServicio || !detalleServicio.LineaDetalle) {
+    if (!detalleServicio || !(detalleServicio as Record<string, unknown>).LineaDetalle) {
         return { lines: [], invoiceInfo };
     }
 
-    const lineasDetalle = Array.isArray(detalleServicio.LineaDetalle) ? detalleServicio.LineaDetalle : [detalleServicio.LineaDetalle];
+    const lineasDetalle = Array.isArray((detalleServicio as Record<string, unknown>).LineaDetalle) ? (detalleServicio as Record<string, unknown>).LineaDetalle as any[] : [(detalleServicio as Record<string, unknown>).LineaDetalle];
 
-    const moneda = getValue(rootNode, ['ResumenFactura', 'CodigoTipoMoneda', 'CodigoMoneda'], 'CRC');
-    const tipoCambioStr = getValue(rootNode, ['ResumenFactura', 'CodigoTipoMoneda', 'TipoCambio'], '1');
+    const moneda = getValue(rootNode, ['ResumenFactura', 'CodigoTipoMoneda', 'CodigoMoneda'], 'CRC') as string;
+    const tipoCambioStr = getValue(rootNode, ['ResumenFactura', 'CodigoTipoMoneda', 'TipoCambio'], '1') as string;
     const tipoCambio = parseDecimal(tipoCambioStr) || 1.0;
 
 
@@ -111,10 +111,10 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
         let supplierCode = 'N/A';
         let supplierCodeType = '04'; // Default to 'Uso Interno'
         const codigosComercialesRaw = linea.CodigoComercial || [];
-        const codigosComerciales = Array.isArray(codigosComercialesRaw) ? codigosComercialesRaw : [codigosComercialesRaw];
+        const codigosComerciales: any[] = Array.isArray(codigosComercialesRaw) ? codigosComercialesRaw : [codigosComercialesRaw];
         
         if (codigosComerciales.length > 0) {
-            const preferredCodeNode = codigosComerciales.find((c: any) => c.Tipo === '01');
+            const preferredCodeNode = codigosComerciales.find((c) => c.Tipo === '01');
             if (preferredCodeNode && preferredCodeNode.Codigo) {
                 supplierCode = preferredCodeNode.Codigo;
                 supplierCodeType = preferredCodeNode.Tipo;
@@ -126,12 +126,12 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
         
         const cabysV43 = getValue(linea, ['Codigo']);
         const cabysV44 = getValue(linea, ['CodigoCABYS']);
-        const cabysCode = cabysV44 || cabysV43 || 'N/A';
+        const cabysCode = (cabysV44 || cabysV43 || 'N/A') as string;
         
         const montoTotalLinea = parseDecimal(getValue(linea, ['MontoTotalLinea'], '0'));
         
         const descuentoNode = getValue(linea, ['Descuento']);
-        const discountAmount = descuentoNode ? parseDecimal(getValue(descuentoNode, ['MontoDescuento'], '0')) : 0;
+        const discountAmount = descuentoNode ? parseDecimal(getValue(descuentoNode as Record<string, unknown>, ['MontoDescuento'], '0')) : 0;
         
         const subTotal = parseDecimal(getValue(linea, ['SubTotal'], '0'));
         
@@ -144,14 +144,14 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
         let taxRate = 0.13; // Default
         let taxCode = '08'; // Default
         if (impuestoNode) {
-            taxRate = parseDecimal(getValue(impuestoNode, ['Tarifa'], '13')) / 100;
-            taxCode = getValue(impuestoNode, ['CodigoTarifaIVA'], '08');
+            taxRate = parseDecimal(getValue(impuestoNode as Record<string, unknown>, ['Tarifa'], '13')) / 100;
+            taxCode = getValue(impuestoNode as Record<string, unknown>, ['CodigoTarifaIVA'], '08') as string;
         }
         
         const unitCostWithTaxInColones = moneda === 'USD' ? unitCostWithTax * tipoCambio : unitCostWithTax;
         const unitCostWithoutTaxInColones = moneda === 'USD' ? unitCostWithoutTax * tipoCambio : unitCostWithoutTax;
         
-        const numeroLinea = getValue(linea, ['NumeroLinea'], index + 1);
+        const numeroLinea = getValue(linea, ['NumeroLinea'], index + 1) as number;
 
         lines.push({
             id: `${numeroConsecutivo}-${numeroLinea}-${supplierCode}-${index}`,
@@ -160,7 +160,7 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
             cabysCode: cabysCode,
             supplierCode: supplierCode,
             supplierCodeType: supplierCodeType,
-            description: getValue(linea, ['Detalle']),
+            description: getValue(linea, ['Detalle']) as string,
             quantity: cantidad,
             discountAmount,
             unitCostWithTax: unitCostWithTaxInColones,
@@ -200,15 +200,15 @@ export async function processInvoiceXmls(xmlContents: string[]): Promise<{ lines
                 }
             } else if (result && 'error' in result) {
                  processedInvoices.push({
-                    supplierName: result.details.supplierName || 'Desconocido',
-                    invoiceNumber: result.details.invoiceNumber || `Archivo ${index + 1}`,
-                    invoiceDate: result.details.invoiceDate || new Date().toISOString(),
+                    supplierName: (result.details.supplierName || 'Desconocido') as string,
+                    invoiceNumber: (result.details.invoiceNumber || `Archivo ${index + 1}`) as string,
+                    invoiceDate: (result.details.invoiceDate || new Date().toISOString()) as string,
                     status: 'error',
                     errorMessage: result.error
                 });
             }
-        } catch (error: any) {
-            console.error("Error parsing one of the XMLs:", error.message);
+        } catch (error: unknown) {
+            console.error("Error parsing one of the XMLs:", (error as Error).message);
             processedInvoices.push({
                 supplierName: 'Desconocido',
                 invoiceNumber: `Archivo ${index + 1}`,
@@ -237,7 +237,7 @@ export async function getCostAssistantSettings(userId: number): Promise<CostAssi
     const userPrefs = await getUserPreferences(userId, 'costAssistantSettings');
     const dbSettings = await getDbSettings();
     const settings = { ...defaultSettings, ...dbSettings, ...userPrefs };
-    return settings;
+    return settings as CostAssistantSettings;
 }
 
 export async function saveCostAssistantSettings(userId: number, settings: Partial<CostAssistantSettings>): Promise<void> {
@@ -330,8 +330,8 @@ export async function exportForERP(lines: CostAssistantLine[]): Promise<string> 
     try {
         const buffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'buffer' });
         fs.writeFileSync(filePath, buffer);
-    } catch (error: any) {
-        logError("Failed to save Excel file to disk", { error: error.message, path: filePath });
+    } catch (error: unknown) {
+        logError("Failed to save Excel file to disk", { error: (error as Error).message, path: filePath });
         throw new Error(`No se pudo guardar el archivo en la ruta del servidor: ${filePath}`);
     }
     
@@ -349,8 +349,8 @@ export async function cleanupExportFile(fileName: string): Promise<void> {
     if (fs.existsSync(filePath)) {
         try {
             fs.unlinkSync(filePath);
-        } catch (error: any) {
-            logError("Failed to delete temporary export file", { error: error.message, file: fileName });
+        } catch (error: unknown) {
+            logError("Failed to delete temporary export file", { error: (error as Error).message, file: fileName });
             throw new Error("Error del servidor al limpiar el archivo temporal.");
         }
     }

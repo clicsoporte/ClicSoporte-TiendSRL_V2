@@ -4,7 +4,7 @@
 'use client';
 
 import { logInfo, logError } from '@/modules/core/lib/logger';
-import type { Ticket, NewTicketPayload, User, TicketThread, HelpTopic, ClientCompany, Customer, Service, SupportPackage } from '@/modules/core/types';
+import type { Ticket, NewTicketPayload, User, TicketThread, HelpTopic, ClientCompany, Customer, SupportPackage, Service } from '@/modules/core/types';
 import { 
     addTicket as addTicketServer, 
     getTickets as getTicketsServer, 

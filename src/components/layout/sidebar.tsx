@@ -33,6 +33,7 @@ import {
   FileScan,
   AreaChart,
   Network,
+  MessageSquare,
   Sheet as SheetIcon,
 } from "lucide-react";
 import type { Tool } from "../../modules/core/types";
@@ -40,7 +41,6 @@ import { UserNav } from "./user-nav";
 import { Button } from "../ui/button";
 import { Skeleton } from "../ui/skeleton";
 import { useAuth } from "@/modules/core/hooks/useAuth";
-import { Sheet } from "../ui/sheet";
 
 /**
  * Renders the main application sidebar.

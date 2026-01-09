@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Custom hook for managing the ticket settings page.
  */
@@ -8,7 +7,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError, logInfo } from '@/modules/core/lib/logger';
-import type { HelpTopic, TicketPriority, Role, User, Service, SupportPackage } from '@/modules/core/types';
+import type { HelpTopic, TicketPriority, Role, User, SupportPackage } from '@/modules/core/types';
 import { getHelpTopics, addHelpTopic, updateHelpTopic, deleteHelpTopic } from '../lib/actions';
 import { getAllUsers } from '@/modules/core/lib/auth-client';
 import { getAllRoles } from '@/modules/core/lib/roles-db';

@@ -2,7 +2,7 @@
 
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -11,16 +11,14 @@ import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { getContributorInfo, getEnrichedExemptionStatus } from '@/modules/hacienda/lib/actions';
 import { getAllExemptions } from '@/modules/core/lib/data-access-db';
-import type { Customer, Exemption, HaciendaContributorInfo, EnrichedExemptionInfo } from '@/modules/core/types';
+import type { Exemption, HaciendaContributorInfo, EnrichedExemptionInfo } from '@/modules/core/types';
 import { Loader2, Search, ShieldCheck, ShieldX } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { format, parseISO, isValid } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { logError } from '@/modules/core/lib/logger';
 import { SearchInput } from '@/components/ui/search-input';
 import { cn } from '@/lib/utils';
 import { useDebounce } from 'use-debounce';
-import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -261,7 +259,7 @@ export default function HaciendaQueryPage() {
         const searchLower = debouncedUnifiedSearch.toLowerCase();
         return customers
             .filter(c => c.id.toLowerCase().includes(searchLower) || c.name.toLowerCase().includes(searchLower))
-            .map(c => ({ value: c.id, label: `${c.id} - ${c.name}` }));
+            .map(c => ({ value: c.id, label: `[${c.id}] - ${c.name}` }));
     }, [customers, debouncedUnifiedSearch]);
 
     const performTaxpayerSearch = async (id: string, setData: (data: HaciendaContributorInfo | null) => void) => {
@@ -272,8 +270,8 @@ export default function HaciendaQueryPage() {
             }
             setData(result as HaciendaContributorInfo);
             return result as HaciendaContributorInfo;
-        } catch (error: any) {
-            toast({ title: "Error en Consulta Tributaria", description: error.message, variant: "destructive" });
+        } catch (error: unknown) {
+            toast({ title: "Error en Consulta Tributaria", description: (error as Error).message, variant: "destructive" });
             setData(null);
             return null;
         }
@@ -288,8 +286,8 @@ export default function HaciendaQueryPage() {
             };
             setData(result as EnrichedExemptionInfo);
             return result as EnrichedExemptionInfo;
-        } catch (error: any) {
-            toast({ title: "Error en Consulta de Exoneración", description: error.message, variant: "destructive" });
+        } catch (error: unknown) {
+            toast({ title: "Error en Consulta de Exoneración", description: (error as Error).message, variant: "destructive" });
             setData(null);
             return null;
         }
@@ -305,7 +303,7 @@ export default function HaciendaQueryPage() {
         
         const customer = customers.find(c => c.id === customerId);
         if (customer) {
-            setUnifiedSearchInput(`${customer.id} - ${customer.name}`);
+            setUnifiedSearchInput(`[${customer.id}] - ${customer.name}`);
         }
 
         const customerExemption = customer ? exemptions.find(ex => ex.customer === customer.id) : null;

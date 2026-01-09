@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Server-side functions for the timesheet database.
  */
@@ -32,7 +31,7 @@ export async function runTimesheetMigrations(db: import('better-sqlite3').Databa
     // Future migrations for the timesheet module can be added here.
     const hasTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='time_entries'`).get();
     if (!hasTable) {
-        initializeTimesheetDb(db);
+        await initializeTimesheetDb(db);
     }
 }
 

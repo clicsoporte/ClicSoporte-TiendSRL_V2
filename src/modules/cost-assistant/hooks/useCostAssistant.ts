@@ -7,12 +7,12 @@ import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
-import type { CostAssistantLine, ProcessedInvoiceInfo, CostAnalysisDraft, CostAssistantSettings, DraftableCostAssistantLine } from '@/modules/core/types';
+import type { CostAssistantLine, ProcessedInvoiceInfo, CostAnalysisDraft, CostAssistantSettings } from '@/modules/core/types';
 import { processInvoiceXmls, getCostAssistantSettings, saveCostAssistantSettings, getAllDrafts, saveDraft, deleteDraft, exportForERP, cleanupExportFile } from '../lib/actions';
 import { logError, logInfo } from '@/modules/core/lib/logger';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 
-const parseDecimal = (str: any): number => {
+const parseDecimal = (str: unknown): number => {
     if (str === null || str === undefined || str === '') return 0;
     const s = String(str).trim();
     
@@ -115,7 +115,7 @@ export const useCostAssistant = () => {
             
             const { lines: processedLines, processedInvoices } = await processInvoiceXmls(fileContents);
 
-            const newLines = processedLines.map((line: any) => ({
+            const newLines = processedLines.map((line: CostAssistantLine) => ({
                 ...line,
                 displayMargin: "20",
                 margin: 0.20,
@@ -132,12 +132,12 @@ export const useCostAssistant = () => {
                 lines: [...prevState.lines, ...newLines],
                 processedInvoices: [...prevState.processedInvoices, ...processedInvoices]
             }));
-            const successCount = processedInvoices.filter((p: any) => p.status === 'success').length;
+            const successCount = processedInvoices.filter((p: ProcessedInvoiceInfo) => p.status === 'success').length;
             toast({ title: "Facturas Procesadas", description: `Se agregaron ${newLines.length} artículos de ${successCount} factura(s).` });
 
-        } catch (error: any) {
-            logError("Error processing invoice XMLs", { error: error.message });
-            toast({ title: "Error al Procesar Archivos", description: error.message, variant: "destructive" });
+        } catch (error: unknown) {
+            logError("Error processing invoice XMLs", { error: (error as Error).message });
+            toast({ title: "Error al Procesar Archivos", description: (error as Error).message, variant: "destructive" });
         } finally {
             setState(prevState => ({ ...prevState, isProcessing: false }));
         }
@@ -207,8 +207,8 @@ export const useCostAssistant = () => {
                 discountHandling: state.discountHandling,
             });
             toast({ title: "Preferencia Guardada", description: "La visibilidad de las columnas y el manejo de descuentos han sido guardados." });
-        } catch (error: any) {
-            logError("Failed to save cost assistant settings", { error: error.message });
+        } catch (error: unknown) {
+            logError("Failed to save cost assistant settings", { error: (error as Error).message });
             toast({ title: "Error", description: "No se pudo guardar la configuración.", variant: "destructive" });
         }
     };
@@ -233,10 +233,10 @@ export const useCostAssistant = () => {
             const fileName = await exportForERP(state.lines);
             setState(prevState => ({ ...prevState, exportStatus: 'ready', exportFileName: fileName }));
             toast({ title: 'Exportación Lista', description: 'Tu archivo está listo para ser descargado.' });
-        } catch (error: any) {
-            logError("Failed to export for ERP", { error: error.message });
+        } catch (error: unknown) {
+            logError("Failed to export for ERP", { error: (error as Error).message });
             setState(prevState => ({ ...prevState, exportStatus: 'idle' }));
-            toast({ title: "Error de Exportación", description: error.message, variant: "destructive" });
+            toast({ title: "Error de Exportación", description: (error as Error).message, variant: "destructive" });
         }
     };
 
@@ -246,11 +246,11 @@ export const useCostAssistant = () => {
             await cleanupExportFile(state.exportFileName);
             setState(prevState => ({ ...prevState, exportStatus: 'idle', exportFileName: null }));
             toast({ title: 'Exportación Finalizada', description: 'El archivo temporal ha sido eliminado del servidor.' });
-        } catch (error: any) {
-            logError("Failed to cleanup export file", { error: error.message });
+        } catch (error: unknown) {
+            logError("Failed to cleanup export file", { error: (error as Error).message });
             // Even if cleanup fails, reset UI state
             setState(prevState => ({ ...prevState, exportStatus: 'idle', exportFileName: null }));
-            toast({ title: "Error de Limpieza", description: `No se pudo eliminar el archivo del servidor. ${error.message}`, variant: "destructive" });
+            toast({ title: "Error de Limpieza", description: `No se pudo eliminar el archivo del servidor. ${(error as Error).message}`, variant: "destructive" });
         }
     };
     
@@ -260,8 +260,8 @@ export const useCostAssistant = () => {
         try {
             const draftsFromDb = await getAllDrafts(user.id);
             setState(prevState => ({ ...prevState, drafts: draftsFromDb }));
-        } catch (error: any) {
-            logError("Failed to load drafts", { error: error.message });
+        } catch (error: unknown) {
+            logError("Failed to load drafts", { error: (error as Error).message });
             toast({ title: "Error", description: "No se pudieron cargar los borradores.", variant: "destructive" });
         }
     };
@@ -301,8 +301,8 @@ export const useCostAssistant = () => {
             await saveDraft(newDraft);
             toast({ title: "Borrador Guardado", description: `El análisis "${draftName}" ha sido guardado.` });
             await loadDrafts(); // Refresh draft list
-        } catch (error: any) {
-            logError("Failed to save draft", { error: error.message });
+        } catch (error: unknown) {
+            logError("Failed to save draft", { error: (error as Error).message });
             toast({ title: "Error", description: "No se pudo guardar el borrador.", variant: "destructive" });
         } finally {
             setState(prevState => ({ ...prevState, isSubmitting: false }));
@@ -337,8 +337,8 @@ export const useCostAssistant = () => {
                 drafts: prevState.drafts.filter(d => d.id !== draftId)
             }));
             toast({ title: "Borrador Eliminado", variant: "destructive" });
-        } catch (error: any) {
-            logError("Failed to delete draft", { error: error.message });
+        } catch (error: unknown) {
+            logError("Failed to delete draft", { error: (error as Error).message });
             toast({ title: "Error", description: "No se pudo eliminar el borrador.", variant: "destructive" });
         }
     };

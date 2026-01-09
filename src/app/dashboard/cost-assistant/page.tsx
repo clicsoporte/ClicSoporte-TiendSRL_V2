@@ -21,7 +21,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Separator } from '@/components/ui/separator';
 import { DialogColumnSelector } from '@/components/ui/dialog-column-selector';
-import { useAuth } from '@/modules/core/hooks/useAuth';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 
