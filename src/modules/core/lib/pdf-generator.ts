@@ -132,9 +132,9 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         finalY = Math.max(companyY, rightY) + 20;
     };
 
-    let pagesDrawnByAutotable = new Set<number>();
+    const pagesDrawnByAutotable = new Set<number>();
     
-    const didDrawPage = (hookData: any) => {
+    const didDrawPage = (hookData: { pageNumber: number }) => {
         pagesDrawnByAutotable.add(hookData.pageNumber);
         if (hookData.pageNumber > 1) {
             addHeader();

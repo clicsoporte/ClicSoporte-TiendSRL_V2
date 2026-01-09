@@ -20,7 +20,7 @@ import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "../ui/dialog";
 import { Label } from "../ui/label";
 import { Textarea } from "../ui/textarea";
-import { Loader2, RefreshCw, Wrench, Clock, DollarSign, Send, MessageSquare } from "lucide-react";
+import { Loader2, RefreshCw, Clock, DollarSign, Send, MessageSquare } from "lucide-react";
 
 interface HeaderProps {
   title: string;
@@ -64,9 +64,9 @@ export function Header({ title }: HeaderProps) {
         if (companyData) {
             setCompanyData({ ...companyData, lastSyncTimestamp: new Date().toISOString() });
         }
-    } catch (error: any) {
-         toast({ title: "Error en Sincronización", description: error.message, variant: "destructive" });
-         await logError(`Error durante la sincronización completa desde el header`, { error: error.message });
+    } catch (error: unknown) {
+         toast({ title: "Error en Sincronización", description: (error as Error).message, variant: "destructive" });
+         await logError(`Error durante la sincronización completa desde el header`, { error: (error as Error).message });
     } finally {
         setIsSyncing(false);
     }
@@ -88,8 +88,8 @@ export function Header({ title }: HeaderProps) {
           setSuggestion("");
           setSuggestionDialogOpen(false);
           await updateUnreadSuggestionsCount();
-      } catch (error: any) {
-          toast({ title: "Error al Enviar", description: `No se pudo enviar tu sugerencia: ${error.message}`, variant: "destructive" });
+      } catch (error: unknown) {
+          toast({ title: "Error al Enviar", description: `No se pudo enviar tu sugerencia: ${(error as Error).message}`, variant: "destructive" });
       } finally {
           setIsSubmittingSuggestion(false);
       }

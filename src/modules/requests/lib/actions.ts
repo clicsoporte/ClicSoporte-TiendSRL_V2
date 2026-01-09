@@ -4,7 +4,7 @@
  */
 'use client';
 
-import type { PurchaseRequest, UpdateRequestStatusPayload, PurchaseRequestHistoryEntry, RequestSettings, UpdatePurchaseRequestPayload, RejectCancellationPayload, DateRange, AdministrativeActionPayload } from '../../core/types';
+import type { PurchaseRequest, UpdateRequestStatusPayload, PurchaseRequestHistoryEntry, RequestSettings, UpdatePurchaseRequestPayload, DateRange, AdministrativeActionPayload } from '../../core/types';
 import { logInfo } from '@/modules/core/lib/logger';
 import { 
     getRequests, 
@@ -42,7 +42,7 @@ export async function getPurchaseRequests(options: {
  * @param requestedBy - The name of the user creating the request.
  * @returns The newly created purchase request.
  */
-export async function savePurchaseRequest(request: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'receivedDate' | 'previousStatus'>, requestedBy: string): Promise<PurchaseRequest> {
+export async function savePurchaseRequest(request: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'receivedDate' | 'previousStatus' | 'lastModifiedAt' | 'lastModifiedBy' | 'hasBeenModified' | 'approvedBy' | 'lastStatusUpdateBy' | 'lastStatusUpdateNotes'>, requestedBy: string): Promise<PurchaseRequest> {
     const createdRequest = await addRequest(request, requestedBy);
     await logInfo(`Purchase request ${createdRequest.consecutive} created by ${requestedBy}`, { item: createdRequest.itemDescription, quantity: createdRequest.quantity });
     return JSON.parse(JSON.stringify(createdRequest));
@@ -96,21 +96,6 @@ export async function getRequestSettings(): Promise<RequestSettings> {
 export async function saveRequestSettings(settings: RequestSettings): Promise<void> {
     await logInfo('Purchase requests settings updated.');
     return saveSettings(settings);
-}
-
-/**
- * Rejects a cancellation request for a purchase request.
- * @param payload - The rejection details.
- */
-export async function rejectCancellationRequest(payload: RejectCancellationPayload): Promise<PurchaseRequest> {
-    const updatedRequest = await updatePendingActionServer({
-        entityId: payload.entityId,
-        action: 'none',
-        notes: payload.notes,
-        updatedBy: payload.updatedBy
-    });
-    await logInfo(`Admin action request for request ${updatedRequest.consecutive} was rejected by ${payload.updatedBy}`, { notes: payload.notes });
-    return JSON.parse(JSON.stringify(updatedRequest));
 }
 
 /**

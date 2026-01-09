@@ -24,7 +24,6 @@ import {
   Wrench,
   LayoutDashboard,
   LifeBuoy,
-  Sheet,
   CalendarCheck,
   ShoppingCart,
   Warehouse,
@@ -32,12 +31,15 @@ import {
   PackagePlus,
   Ticket,
   KeyRound,
+  FileScan,
+  AreaChart,
 } from "lucide-react";
 import type { Tool } from "../../modules/core/types";
 import { UserNav } from "./user-nav";
 import { Button } from "../ui/button";
 import { Skeleton } from "../ui/skeleton";
 import { useAuth } from "@/modules/core/hooks/useAuth";
+import { Sheet as SheetPrimitive } from "../ui/sheet";
 
 /**
  * Renders the main application sidebar.
@@ -138,6 +140,24 @@ export function AppSidebar() {
       textColor: "text-white",
     },
     {
+        id: "quoter",
+        name: "Cotizador",
+        description: "Crear y gestionar cotizaciones para clientes.",
+        href: "/dashboard/quoter",
+        icon: SheetPrimitive,
+        bgColor: "bg-green-500",
+        textColor: "text-white",
+    },
+    {
+        id: "cost-assistant",
+        name: "Asistente de Costos",
+        description: "Procesar facturas de compra XML para calcular precios.",
+        href: "/dashboard/cost-assistant",
+        icon: FileScan,
+        bgColor: "bg-orange-600",
+        textColor: "text-white",
+    },
+    {
       id: "warehouse",
       name: "Consulta Almacén",
       description: "Localizar artículos y ver existencias en bodega.",
@@ -162,6 +182,15 @@ export function AppSidebar() {
       href: "/dashboard/hacienda",
       icon: Search,
       bgColor: "bg-blue-600",
+      textColor: "text-white",
+    },
+    {
+      id: "analytics",
+      name: "Analíticas",
+      description: "Ver KPIs y reportes de todos los módulos.",
+      href: "/dashboard/analytics",
+      icon: AreaChart,
+      bgColor: "bg-rose-600",
       textColor: "text-white",
     },
     {

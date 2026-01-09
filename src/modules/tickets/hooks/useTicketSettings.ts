@@ -8,7 +8,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError, logInfo } from '@/modules/core/lib/logger';
-import type { HelpTopic, TicketPriority, Role, User, Service, SupportPackage, Company } from '@/modules/core/types';
+import type { HelpTopic, TicketPriority, Role, User, Service, SupportPackage } from '@/modules/core/types';
 import { getHelpTopics, addHelpTopic, updateHelpTopic, deleteHelpTopic } from '../lib/actions';
 import { getAllUsers } from '@/modules/core/lib/auth-client';
 import { getAllRoles } from '@/modules/core/lib/roles-db';
@@ -31,7 +31,7 @@ const priorityConfig: { [key in TicketPriority]: { label: string } } = {
 };
 
 export const useTicketSettings = () => {
-    const { isAuthorized } = useAuthorization(['tickets:admin']);
+    const { isAuthorized } = useAuthorization(['tickets:admin:settings']);
     const { toast } = useToast();
     const { companyData, setCompanyData } = useAuth();
 
@@ -93,9 +93,9 @@ export const useTicketSettings = () => {
             }
             resetForm();
             setFormOpen(false);
-        } catch (error: any) {
-            logError('Failed to save help topic', { error: error.message });
-            toast({ title: "Error al Guardar", description: error.message, variant: "destructive" });
+        } catch (error: unknown) {
+            logError('Failed to save help topic', { error: (error as Error).message });
+            toast({ title: "Error al Guardar", description: (error as Error).message, variant: "destructive" });
         }
     };
     
@@ -113,9 +113,9 @@ export const useTicketSettings = () => {
             toast({ title: "Tema Eliminado" });
             logInfo('Help topic deleted', { topic: topicToDelete.name });
             setTopicToDelete(null);
-        } catch (error: any) {
-            logError('Failed to delete help topic', { error: error.message });
-            toast({ title: "Error al Eliminar", description: error.message, variant: "destructive" });
+        } catch (error: unknown) {
+            logError('Failed to delete help topic', { error: (error as Error).message });
+            toast({ title: "Error al Eliminar", description: (error as Error).message, variant: "destructive" });
         }
     };
 

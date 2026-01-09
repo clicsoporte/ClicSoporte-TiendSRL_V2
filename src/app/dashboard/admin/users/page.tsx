@@ -135,7 +135,6 @@ export default function UsersPage() {
         if (isAuthorized) {
             fetchAllData();
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [setTitle, isAuthorized]);
 
     /**
@@ -190,7 +189,7 @@ export default function UsersPage() {
     const handleEditUser = async () => {
         if (!currentUserToEdit) return;
 
-        const userToUpdate = { ...currentUserToEdit };
+        const userToUpdate: User = { ...currentUserToEdit };
 
         // Handle password change if a new one is provided
         if (newPassword) {

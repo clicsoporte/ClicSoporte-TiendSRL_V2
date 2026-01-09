@@ -28,7 +28,6 @@ import {
     AlertDialogFooter,
     AlertDialogHeader,
     AlertDialogTitle,
-    AlertDialogTrigger,
 } from "../../../../components/ui/alert-dialog";
 import { Input } from "../../../../components/ui/input";
 import { Label } from "../../../../components/ui/label";
@@ -237,11 +236,11 @@ export default function ApiSettingsPage() {
                                                 Editar
                                             </Button>
                                             <AlertDialog>
-                                                <AlertDialogTrigger asChild>
+                                                <AlertDialog.Trigger asChild>
                                                     <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => setLawToDelete(law)}>
                                                         <Trash2 className="h-4 w-4 text-destructive" />
                                                     </Button>
-                                                </AlertDialogTrigger>
+                                                </AlertDialog.Trigger>
                                                 <AlertDialogContent>
                                                     <AlertDialogHeader>
                                                         <AlertDialogTitle>¿Eliminar esta ley?</AlertDialogTitle>

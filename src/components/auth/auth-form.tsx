@@ -18,7 +18,6 @@ import {
 } from "../ui/dialog";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
-import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import React, { useState } from "react";
 import type { User } from "@/modules/core/types";
@@ -39,7 +38,6 @@ interface AuthFormProps {
  * Receives clientInfo from a server component to use in logging.
  */
 export function AuthForm({ clientInfo }: AuthFormProps) {
-  const router = useRouter();
   const { toast } = useToast();
   const { refreshAuthAndRedirect } = useAuth();
   const [email, setEmail] = useState("");

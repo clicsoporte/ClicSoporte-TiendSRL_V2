@@ -18,8 +18,8 @@ const PUBLIC_KEY_PATH = path.join(KEYS_DIR, 'public_key.pem');
 async function ensureKeysDirectory(): Promise<void> {
     try {
         await fs.mkdir(KEYS_DIR, { recursive: true });
-    } catch (error) {
-        console.error("Failed to create keys directory:", error);
+    } catch (err: unknown) {
+        console.error("Failed to create keys directory:", err);
         throw new Error("Could not create directory for cryptographic keys.");
     }
 }
@@ -79,7 +79,7 @@ async function getPrivateKey(): Promise<string> {
 export async function getPublicKey(): Promise<string | null> {
     try {
         return await fs.readFile(PUBLIC_KEY_PATH, 'utf-8');
-    } catch (error) {
+    } catch (err: unknown) {
         return null; // It's okay if it doesn't exist, the UI will prompt to create it.
     }
 }

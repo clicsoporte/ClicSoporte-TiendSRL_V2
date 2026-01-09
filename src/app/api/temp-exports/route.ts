@@ -46,9 +46,9 @@ export async function GET(request: NextRequest) {
         
         const readableStream = new ReadableStream({
             start(controller) {
-                dataStream.on('data', (chunk) => controller.enqueue(chunk));
+                dataStream.on('data', (chunk: Buffer) => controller.enqueue(chunk));
                 dataStream.on('end', () => controller.close());
-                dataStream.on('error', (err) => controller.error(err));
+                dataStream.on('error', (err: Error) => controller.error(err));
             },
         });
 

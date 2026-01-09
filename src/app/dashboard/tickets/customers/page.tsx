@@ -78,8 +78,8 @@ export default function TicketCustomersPage() {
             setFormOpen(false);
             setCurrentCompany(emptyCompany);
             setIsEditing(false);
-        } catch (error: any) {
-            toast({ title: "Error", description: `No se pudo guardar la empresa: ${error.message}`, variant: "destructive" });
+        } catch (error: unknown) {
+            toast({ title: "Error", description: `No se pudo guardar la empresa: ${(error as Error).message}`, variant: "destructive" });
         } finally {
             setIsSubmitting(false);
         }
@@ -99,8 +99,8 @@ export default function TicketCustomersPage() {
             setCompanies(prev => prev.filter(c => c.id !== companyToDelete.id));
             toast({ title: "Empresa Eliminada", variant: "destructive" });
             setCompanyToDelete(null);
-        } catch (error: any) {
-             toast({ title: "Error al Eliminar", description: error.message, variant: "destructive" });
+        } catch (error: unknown) {
+             toast({ title: "Error al Eliminar", description: (error as Error).message, variant: "destructive" });
         } finally {
             setIsSubmitting(false);
         }
@@ -207,7 +207,7 @@ export default function TicketCustomersPage() {
                                             </div>
                                         </TableCell>
                                         <TableCell className="text-right">
-                                            {hasPermission('tickets:admin') && (
+                                            {hasPermission('tickets:admin:settings') && (
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
                                                         <Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4"/></Button>
@@ -235,7 +235,7 @@ export default function TicketCustomersPage() {
             <AlertDialog open={!!companyToDelete} onOpenChange={(open) => !open && setCompanyToDelete(null)}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>¿Eliminar empresa "{companyToDelete?.name}"?</AlertDialogTitle>
+                        <AlertDialogTitle>¿Eliminar empresa &quot;{companyToDelete?.name}&quot;?</AlertDialogTitle>
                         <AlertDialogDescription>Esta acción no se puede deshacer. Se eliminarán los datos de la empresa, pero los tickets asociados no se verán afectados.</AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

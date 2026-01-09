@@ -9,7 +9,7 @@
 import { logError } from '@/modules/core/lib/logger';
 import { getApiSettings } from '@/modules/core/lib/settings-db';
 import { getCabysCatalog } from '@/modules/core/lib/data-access-db';
-import type { HaciendaContributorInfo, HaciendaExemptionApiResponse, EnrichedExemptionInfo } from '../../core/types';
+import type { HaciendaContributorInfo, HaciendaExemptionApiResponse, EnrichedExemptionInfo, EnrichedCabysItem } from '../../core/types';
 
 let cabysCache: Map<string, { description: string, taxRate: number }> | null = null;
 
@@ -131,7 +131,7 @@ export async function getEnrichedExemptionStatus(authNumber: string): Promise<En
 
     const cabysMap = await loadCabysData();
 
-    const enrichedCabys = exemptionResult.cabys.map((code) => {
+    const enrichedCabys: EnrichedCabysItem[] = exemptionResult.cabys.map((code) => {
         const cabysEntry = cabysMap.get(code);
         return {
             code,

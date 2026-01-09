@@ -5,8 +5,7 @@
 
 import { connectDb } from '../../core/lib/db';
 import { getCompanySettings } from '../../core/lib/settings-db';
-import type { Ticket, NewTicketPayload, User, TicketCustomer, TicketThread, HelpTopic, ClientCompany, SupportPackage, Service, Customer } from '@/modules/core/types';
-import crypto from 'crypto';
+import type { Ticket, NewTicketPayload, User, TicketThread, HelpTopic, ClientCompany, SupportPackage, Service, Customer } from '@/modules/core/types';
 
 const TICKETS_DB_FILE = 'tickets.db';
 

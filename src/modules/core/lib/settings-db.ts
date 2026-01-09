@@ -6,7 +6,7 @@
 "use server";
 
 import { connectDb } from './db';
-import type { Company, ApiSettings, ExemptionLaw, ExchangeRateApiResponse } from '../types';
+import type { Company, ApiSettings, ExemptionLaw } from '../types';
 import { initialCompany } from './data';
 import { getExchangeRate as fetchExchangeRateFromApi } from './api-actions';
 

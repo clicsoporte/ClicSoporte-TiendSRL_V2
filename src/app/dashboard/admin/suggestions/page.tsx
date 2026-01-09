@@ -41,7 +41,7 @@ export default function SuggestionsPage() {
             const data = await getSuggestions();
             setSuggestions(data);
             await updateUnreadSuggestionsCount();
-        } catch (error) {
+        } catch (err: unknown) {
             toast({ title: "Error", description: "No se pudieron cargar las sugerencias.", variant: "destructive" });
         } finally {
             if (isRefreshAction) {

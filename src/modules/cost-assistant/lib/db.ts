@@ -62,7 +62,7 @@ export async function runCostAssistantMigrations(db: import('better-sqlite3').Da
 export async function getAllDrafts(userId: number): Promise<CostAnalysisDraft[]> {
     const db = await connectDb(COST_ASSISTANT_DB_FILE);
     try {
-        const rows = db.prepare(`SELECT * FROM drafts WHERE userId = ? ORDER BY createdAt DESC`).all(userId) as any[];
+        const rows = db.prepare(`SELECT * FROM drafts WHERE userId = ? ORDER BY createdAt DESC`).all(userId) as { id: string; userId: number; name: string; createdAt: string; data: string; }[];
         return rows.map(row => {
             const data = JSON.parse(row.data);
             return {
