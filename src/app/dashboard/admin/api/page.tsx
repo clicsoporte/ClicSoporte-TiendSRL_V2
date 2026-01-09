@@ -28,6 +28,7 @@ import {
     AlertDialogFooter,
     AlertDialogHeader,
     AlertDialogTitle,
+    AlertDialogTrigger,
 } from "../../../../components/ui/alert-dialog";
 import { Input } from "../../../../components/ui/input";
 import { Label } from "../../../../components/ui/label";
@@ -236,11 +237,11 @@ export default function ApiSettingsPage() {
                                                 Editar
                                             </Button>
                                             <AlertDialog>
-                                                <AlertDialog.Trigger asChild>
+                                                <AlertDialogTrigger asChild>
                                                     <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => setLawToDelete(law)}>
                                                         <Trash2 className="h-4 w-4 text-destructive" />
                                                     </Button>
-                                                </AlertDialog.Trigger>
+                                                </AlertDialogTrigger>
                                                 <AlertDialogContent>
                                                     <AlertDialogHeader>
                                                         <AlertDialogTitle>¿Eliminar esta ley?</AlertDialogTitle>
@@ -305,7 +306,7 @@ export default function ApiSettingsPage() {
                         <Input 
                             id="authNumber" 
                             value={currentLaw?.authNumber || ''}
-                            onChange={(e) => setCurrentLaw(prev => prev ? {...prev, authNumber: e.target.value} : null)}
+                            onChange={(e) => setCurrentLaw(prev => prev ? {...prev, authNumber: e.target.value || null} : null)}
                             placeholder="Ej: 9635 (usado para casos especiales)"
                         />
                     </div>

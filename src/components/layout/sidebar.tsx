@@ -20,7 +20,6 @@ import {
 } from "../ui/sidebar";
 import {
   Settings,
-  Network,
   Wrench,
   LayoutDashboard,
   LifeBuoy,
@@ -33,13 +32,14 @@ import {
   KeyRound,
   FileScan,
   AreaChart,
+  Network,
 } from "lucide-react";
 import type { Tool } from "../../modules/core/types";
 import { UserNav } from "./user-nav";
 import { Button } from "../ui/button";
 import { Skeleton } from "../ui/skeleton";
 import { useAuth } from "@/modules/core/hooks/useAuth";
-import { Sheet as SheetPrimitive } from "../ui/sheet";
+import { Sheet } from "../ui/sheet";
 
 /**
  * Renders the main application sidebar.
@@ -144,7 +144,7 @@ export function AppSidebar() {
         name: "Cotizador",
         description: "Crear y gestionar cotizaciones para clientes.",
         href: "/dashboard/quoter",
-        icon: SheetPrimitive,
+        icon: Sheet,
         bgColor: "bg-green-500",
         textColor: "text-white",
     },
