@@ -5,6 +5,7 @@
 
 import type { LucideIcon } from "lucide-react";
 import type { DateRange } from "react-day-picker";
+import type { Database } from "better-sqlite3";
 
 /**
  * Represents a user account in the system.
@@ -204,11 +205,11 @@ export type ApiSettings = {
  * Represents a database module for modular maintenance operations.
  */
 export type DatabaseModule = {
-    id: string; // e.g., 'clic-tools-main'
-    name: string; // e.g., 'Clic-Tools (Sistema Principal)'
-    dbFile: string; // e.g., 'intratool.db'
-    initFn?: (db: unknown) => void;
-    migrationFn?: (db: unknown) => void;
+    id: string;
+    name: string;
+    dbFile: string;
+    initFn?: (db: Database) => Promise<void> | void;
+    migrationFn?: (db: Database) => Promise<void> | void;
 };
 
 /**
@@ -628,7 +629,7 @@ export type CostAssistantLine = {
     description: string;
     quantity: number;
     discountAmount: number;
-    xmlUnitCost: number; // Original cost from XML, without prorated costs
+    xmlUnitCost: number;
     unitCostWithTax: number;
     unitCostWithoutTax: number;
     taxRate: number;
@@ -637,19 +638,10 @@ export type CostAssistantLine = {
     finalSellPrice: number;
     sellPriceWithoutTax: number;
     profitPerLine: number;
-    // UI-only fields for flexible input
     displayMargin: string;
     displayTaxRate: string;
     displayUnitCost: string;
     isCostEdited: boolean;
-};
-
-export type ProcessedInvoiceInfo = {
-    supplierName: string;
-    invoiceNumber: string;
-    invoiceDate: string;
-    status: 'success' | 'error';
-    errorMessage?: string;
 };
 
 export type CostAnalysisDraft = {
@@ -666,7 +658,16 @@ export type CostAnalysisDraft = {
     discountHandling: 'customer' | 'company';
 };
 
+export type ProcessedInvoiceInfo = {
+    supplierName: string;
+    invoiceNumber: string;
+    invoiceDate: string;
+    status: 'success' | 'error';
+    errorMessage?: string;
+};
+
 export type DraftableCostAssistantLine = Omit<CostAssistantLine, 'displayMargin' | 'displayTaxRate' | 'displayUnitCost' | 'isCostEdited'>;
+
 export type CostAssistantSettings = {
     draftPrefix?: string;
     nextDraftNumber?: number;
