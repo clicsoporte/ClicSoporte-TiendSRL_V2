@@ -29,10 +29,13 @@ const parseDecimal = (str: any): number => {
     if (str === null || str === undefined || str === '') return 0;
     const s = String(str).trim();
     
+    // Handle European style decimals (e.g., "1.234,56")
     if (s.includes(',')) {
+        // Assume comma is decimal separator and dots are thousand separators
         return parseFloat(s.replace(/\./g, '').replace(',', '.'));
     }
     
+    // Handle standard US style decimals
     return parseFloat(s);
 };
 
@@ -316,7 +319,7 @@ export async function exportForERP(lines: CostAssistantLine[]): Promise<string> 
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'AnalisisDeCostos');
     
-    const exportDir = path.join(process.cwd(), 'temp_files', 'exports');
+    const exportDir = path.join(process.cwd(), 'dbs', 'temp_exports');
     if (!fs.existsSync(exportDir)) {
         fs.mkdirSync(exportDir, { recursive: true });
     }
@@ -340,7 +343,7 @@ export async function cleanupExportFile(fileName: string): Promise<void> {
     if (!fileName) {
         throw new Error("Filename is required");
     }
-    const exportDir = path.join(process.cwd(), 'temp_files', 'exports');
+    const exportDir = path.join(process.cwd(), 'dbs', 'temp_exports');
     const filePath = path.join(exportDir, fileName);
 
     if (fs.existsSync(filePath)) {
