@@ -13,13 +13,12 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MoreHorizontal, PlusCircle, Trash2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
-import type { SupportPackage } from '@/modules/core/types';
 
 export default function TicketSettingsPage() {
     const { setTitle } = usePageTitle();
@@ -277,7 +276,7 @@ export default function TicketSettingsPage() {
                     <AlertDialogHeader>
                         <AlertDialogTitle>¿Eliminar Tema de Ayuda?</AlertDialogTitle>
                         <AlertDialogDescription>
-                           Esta acción no se puede deshacer. Se eliminará el tema "{state.topicToDelete?.name}".
+                           Esta acción no se puede deshacer. Se eliminará el tema &quot;{state.topicToDelete?.name}&quot;.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

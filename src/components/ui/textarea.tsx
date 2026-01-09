@@ -4,9 +4,6 @@ import {cn} from '../../lib/utils';
 
 const Textarea = React.forwardRef<HTMLTextAreaElement, React.ComponentProps<'textarea'>>(
   ({className, ...props}, ref) => {
-    // Remove non-standard props before passing to the DOM element
-    const { asChild, ...domProps } = props as any;
-    
     return (
       <textarea
         className={cn(
@@ -14,7 +11,7 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, React.ComponentProps<'tex
           className
         )}
         ref={ref}
-        {...domProps}
+        {...props}
       />
     );
   }

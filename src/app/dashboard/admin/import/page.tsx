@@ -5,7 +5,7 @@
  */
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from "../../../../components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../../../../components/ui/card";
 import { useToast } from "../../../../modules/core/hooks/use-toast";
@@ -98,13 +98,13 @@ export default function ImportDataPage() {
                 description: `Se han cargado ${result.count} ${itemType} desde ${result.source}.`,
             });
             await logInfo(`Importación de datos: ${result.count} ${type} cargados desde ${result.source}.`);
-        } catch (error: any) {
+        } catch (error: unknown) {
             toast({
                 title: "Error de Importación",
-                description: error.message,
+                description: (error as Error).message,
                 variant: "destructive"
             });
-            await logError(`Error al importar ${type}`, { error: error.message });
+            await logError(`Error al importar ${type}`, { error: (error as Error).message });
         } finally {
             setIsProcessing(false);
             setProcessingType(null);
@@ -125,20 +125,20 @@ export default function ImportDataPage() {
                 description: `Se han procesado ${results.length} tipos de datos desde el ERP.`,
             });
             await logInfo("Full ERP data synchronization completed.", { results });
-        } catch (error: any) {
+        } catch (error: unknown) {
              toast({
                 title: "Error en Sincronización",
-                description: error.message,
+                description: (error as Error).message,
                 variant: "destructive"
             });
-            await logError(`Error durante la sincronización completa desde el ERP`, { error: error.message });
+            await logError(`Error durante la sincronización completa desde el ERP`, { error: (error as Error).message });
         } finally {
             setIsProcessing(false);
             setProcessingType(null);
         }
     }
     
-    const handleCompanyDataChange = (field: keyof Company, value: any) => {
+    const handleCompanyDataChange = (field: keyof Company, value: string | boolean) => {
         if (!companyData) return;
         setCompanyData(prev => prev ? ({ ...prev, [field]: value }) : null);
     };
@@ -169,9 +169,9 @@ export default function ImportDataPage() {
             }
             toast({ title: "Configuración Guardada", description: "Todos los ajustes de importación han sido guardados." });
             logInfo("Import settings saved.");
-        } catch (error: any) {
-            logError("Failed to save import settings", { error: error.message });
-            toast({ title: "Error al Guardar", description: `No se pudieron guardar los ajustes. ${error.message}`, variant: "destructive" });
+        } catch (error: unknown) {
+            logError("Failed to save import settings", { error: (error as Error).message });
+            toast({ title: "Error al Guardar", description: `No se pudieron guardar los ajustes. ${(error as Error).message}`, variant: "destructive" });
         } finally {
             setIsSaving(false);
         }
@@ -185,8 +185,8 @@ export default function ImportDataPage() {
         try {
             await testSqlConnection();
             toast({ title: "Conexión Exitosa", description: "Se pudo conectar a la base de datos SQL Server correctamente." });
-        } catch (error: any) {
-            toast({ title: "Error de Conexión", description: error.message, variant: "destructive" });
+        } catch (error: unknown) {
+            toast({ title: "Error de Conexión", description: (error as Error).message, variant: "destructive" });
         } finally {
             setIsSaving(false);
         }

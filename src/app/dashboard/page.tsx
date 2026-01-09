@@ -27,7 +27,7 @@ export default function DashboardPage() {
     setTitle("Panel Principal");
     
     if (userRole) {
-      let tools = [...mainTools];
+      const tools = [...mainTools];
       const hasAdminAccess = userRole.id === 'admin' || userRole.permissions?.some(p => p.startsWith('admin:'));
 
       if (hasAdminAccess) {

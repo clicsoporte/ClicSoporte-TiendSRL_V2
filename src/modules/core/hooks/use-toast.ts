@@ -1,3 +1,4 @@
+
 "use client"
 
 // Inspired by react-hot-toast library
@@ -32,7 +33,7 @@ function genId() {
   return count.toString()
 }
 
-type ActionType = typeof actionTypes
+type ActionType = typeof actionTypes;
 
 type Action =
   | {

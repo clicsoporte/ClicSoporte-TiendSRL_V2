@@ -9,7 +9,6 @@ import fs from 'fs';
 import path from 'path';
 import { DB_MODULES } from './data';
 import type { UpdateBackupInfo, DatabaseModule } from '../types';
-import { addLog } from './logger-db';
 
 const dbDirectory = path.join(process.cwd(), 'dbs');
 const UPDATE_BACKUP_DIR = 'update_backups';
@@ -25,10 +24,10 @@ export async function backupAllForUpdate(): Promise<void> {
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
 
-    for (const module of DB_MODULES) {
-        const sourcePath = path.join(dbDirectory, module.dbFile);
+    for (const moduleInfo of DB_MODULES) {
+        const sourcePath = path.join(dbDirectory, moduleInfo.dbFile);
         if (fs.existsSync(sourcePath)) {
-            const backupFileName = `${module.id}_${timestamp}.db`;
+            const backupFileName = `${moduleInfo.id}_${timestamp}.db`;
             const backupPath = path.join(backupDir, backupFileName);
             fs.copyFileSync(sourcePath, backupPath);
         }
@@ -49,10 +48,10 @@ export async function restoreAllFromUpdateBackup(timestamp: string): Promise<voi
     
     // Use a special filename to signal a restore on next startup
     for (const backup of backupsForTimestamp) {
-        const module = DB_MODULES.find(m => m.id === backup.moduleId);
-        if (module) {
+        const moduleInfo = DB_MODULES.find(m => m.id === backup.moduleId);
+        if (moduleInfo) {
             const sourceBackupPath = path.join(backupDir, backup.fileName);
-            const targetRestorePath = path.join(dbDirectory, `${module.dbFile}_restore.db`);
+            const targetRestorePath = path.join(dbDirectory, `${moduleInfo.dbFile}_restore.db`);
             if (fs.existsSync(sourceBackupPath)) {
                 fs.copyFileSync(sourceBackupPath, targetRestorePath);
             }
@@ -74,10 +73,10 @@ export async function listAllUpdateBackups(): Promise<UpdateBackupInfo[]> {
             const match = file.match(/^(.+?)_(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z)\.db$/);
             if (match) {
                 const [, moduleId, timestamp] = match;
-                const module = DB_MODULES.find(m => m.id === moduleId);
+                const moduleInfo = DB_MODULES.find(m => m.id === moduleId);
                 return {
                     moduleId: moduleId,
-                    moduleName: module?.name || moduleId,
+                    moduleName: moduleInfo?.name || moduleId,
                     fileName: file,
                     date: new Date(timestamp.replace(/-/g, ':').replace('T', ' ')).toISOString(),
                 };
@@ -138,14 +137,14 @@ export async function uploadBackupFile(formData: FormData): Promise<number> {
  */
 export async function factoryReset(moduleId: string): Promise<void> {
     if (moduleId === '__all__') {
-        for (const module of DB_MODULES) {
-            const dbPath = path.join(dbDirectory, module.dbFile);
+        for (const moduleInfo of DB_MODULES) {
+            const dbPath = path.join(dbDirectory, moduleInfo.dbFile);
             if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
         }
     } else {
-        const module = DB_MODULES.find(m => m.id === moduleId);
-        if (module) {
-            const dbPath = path.join(dbDirectory, module.dbFile);
+        const moduleInfo = DB_MODULES.find(m => m.id === moduleId);
+        if (moduleInfo) {
+            const dbPath = path.join(dbDirectory, moduleInfo.dbFile);
             if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
         } else {
             throw new Error("Módulo no encontrado para el reseteo.");

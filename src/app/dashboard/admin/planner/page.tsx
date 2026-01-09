@@ -1,14 +1,14 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/modules/core/hooks/use-toast";
 import { logError, logInfo } from "@/modules/core/lib/logger";
-import type { PlannerAssignment, PlannerSettings, CustomStatus } from "@/modules/core/types";
+import type { PlannerSettings, CustomStatus } from "@/modules/core/types";
 import { usePageTitle } from "@/modules/core/hooks/usePageTitle";
 import { useAuthorization } from "@/modules/core/hooks/useAuthorization";
 import { getPlannerSettings, savePlannerSettings } from "@/modules/planner/lib/actions";
@@ -106,13 +106,13 @@ export default function PlannerSettingsPage() {
         setNewAssignment({ id: "", name: "" });
     };
 
-    const handleDeleteAssignment = useCallback((id: string) => {
+    const handleDeleteAssignment = (id: string) => {
         if (!settings) return;
         setSettings(prev => prev ? { ...prev, assignments: prev.assignments.filter(m => m.id !== id) } : null);
         toast({ title: "Asignación Eliminada", description: "La asignación ha sido eliminada. Guarda los cambios para confirmar.", variant: "destructive"});
-    }, [settings, toast]);
+    };
 
-    const handleCustomStatusChange = (id: CustomStatus['id'], field: keyof CustomStatus, value: any) => {
+    const handleCustomStatusChange = (id: CustomStatus['id'], field: keyof CustomStatus, value: string | boolean) => {
         if (!settings) return;
         setSettings(prev => {
             if (!prev) return null;
@@ -153,8 +153,8 @@ export default function PlannerSettingsPage() {
             await savePlannerSettings(settings);
             toast({ title: "Configuración Guardada", description: "Los ajustes del gestor de proyectos han sido guardados." });
             await logInfo("Planner settings updated", { settings });
-        } catch (error: any) {
-            logError("Failed to save planner settings", { error: error.message });
+        } catch (error: unknown) {
+            logError("Failed to save planner settings", { error: (error as Error).message });
             toast({ title: "Error", description: "No se pudieron guardar los ajustes.", variant: "destructive" });
         }
     };
@@ -210,7 +210,7 @@ export default function PlannerSettingsPage() {
                                     onChange={(e) => setSettings(prev => prev ? { ...prev, assignmentLabel: e.target.value } : null)}
                                 />
                                 <p className="text-sm text-muted-foreground">
-                                    Cambia el texto que se muestra para la asignación (ej: "Técnico", "Recurso", "Encargado").
+                                    Cambia el texto que se muestra para la asignación (ej: &quot;Técnico&quot;, &quot;Recurso&quot;, &quot;Encargado&quot;).
                                 </p>
                             </div>
                         </div>
@@ -230,7 +230,7 @@ export default function PlannerSettingsPage() {
                                     checked={settings.useWarehouseReception}
                                     onCheckedChange={(checked) => setSettings(prev => prev ? { ...prev, useWarehouseReception: checked } : null)}
                                 />
-                                <Label htmlFor="use-warehouse">Habilitar paso de "Recibido en Bodega"</Label>
+                                <Label htmlFor="use-warehouse">Habilitar paso de &quot;Recibido en Bodega&quot;</Label>
                             </div>
                             <p className="text-sm text-muted-foreground mt-2">
                                 Si se activa, los proyectos completados necesitarán un paso adicional para ser archivados.
@@ -244,7 +244,7 @@ export default function PlannerSettingsPage() {
                                 <Label htmlFor="require-assignment">Requerir asignación para iniciar el proyecto</Label>
                             </div>
                             <p className="text-sm text-muted-foreground mt-2">
-                               Si se activa, será obligatorio realizar una asignación al proyecto antes de poder cambiar su estado a "En Progreso".
+                               Si se activa, será obligatorio realizar una asignación al proyecto antes de poder cambiar su estado a &quot;En Progreso&quot;.
                             </p>
                         </div>
                     </CardContent>
@@ -366,7 +366,7 @@ export default function PlannerSettingsPage() {
                                 <CardTitle>Detección de Cambios</CardTitle>
                             </AccordionTrigger>
                             <AccordionContent className="p-6 pt-0">
-                                <CardDescription className="mb-4">Selecciona qué campos, al ser modificados después de que un proyecto sea aprobado, activarán la alerta "Modificado".</CardDescription>
+                                <CardDescription className="mb-4">Selecciona qué campos, al ser modificados después de que un proyecto sea aprobado, activarán la alerta &quot;Modificado&quot;.</CardDescription>
                                 <div className="space-y-4 p-4 border rounded-md">
                                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                                         {availableFieldsToTrack.map(field => (

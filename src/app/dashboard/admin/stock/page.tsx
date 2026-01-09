@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -59,7 +59,7 @@ export default function StockSettingsPage() {
         setNewWarehouse({ id: "", name: "", isDefault: false, isVisible: true });
     };
     
-    const handleWarehouseChange = (id: string, field: keyof Warehouse, value: any) => {
+    const handleWarehouseChange = (id: string, field: keyof Warehouse, value: boolean) => {
         if (!settings) return;
         let warehouses = settings.warehouses.map(w => {
             if (w.id === id) {
@@ -87,8 +87,8 @@ export default function StockSettingsPage() {
             await saveStockSettings(settings);
             toast({ title: "Configuración Guardada", description: "Los ajustes de inventario han sido guardados." });
             await logInfo("Stock settings updated", { settings });
-        } catch (error: any) {
-            logError("Failed to save stock settings", { error: error.message });
+        } catch (error: unknown) {
+            logError("Failed to save stock settings", { error: (error as Error).message });
             toast({ title: "Error", description: "No se pudieron guardar los ajustes.", variant: "destructive" });
         }
     };
@@ -111,7 +111,7 @@ export default function StockSettingsPage() {
                         <CardTitle>Gestión de Bodegas</CardTitle>
                         <CardDescription>
                             Configura las bodegas para el desglose de inventario. El sistema mostrará por defecto
-                            la bodega marcada como "Predeterminada".
+                            la bodega marcada como &quot;Predeterminada&quot;.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
@@ -122,11 +122,11 @@ export default function StockSettingsPage() {
                                         <p className="font-medium">{wh.name} (<span className="font-mono">{wh.id}</span>)</p>
                                         <div className="flex items-center gap-4 mt-2">
                                             <div className="flex items-center space-x-2">
-                                                <Checkbox id={`default-${wh.id}`} checked={wh.isDefault} onCheckedChange={(checked) => handleWarehouseChange(wh.id, 'isDefault', checked)} />
+                                                <Checkbox id={`default-${wh.id}`} checked={wh.isDefault} onCheckedChange={(checked) => handleWarehouseChange(wh.id, 'isDefault', checked as boolean)} />
                                                 <Label htmlFor={`default-${wh.id}`} className="text-xs">Predeterm.</Label>
                                             </div>
                                             <div className="flex items-center space-x-2">
-                                                <Checkbox id={`visible-${wh.id}`} checked={wh.isVisible} onCheckedChange={(checked) => handleWarehouseChange(wh.id, 'isVisible', checked)} />
+                                                <Checkbox id={`visible-${wh.id}`} checked={wh.isVisible} onCheckedChange={(checked) => handleWarehouseChange(wh.id, 'isVisible', checked as boolean)} />
                                                 <Label htmlFor={`visible-${wh.id}`} className="text-xs">Visible</Label>
                                             </div>
                                         </div>

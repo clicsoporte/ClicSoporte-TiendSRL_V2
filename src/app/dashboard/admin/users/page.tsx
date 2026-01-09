@@ -90,7 +90,7 @@ const getInitials = (name: string) => {
  * Handles fetching users and roles, and provides UI for all CRUD operations.
  */
 export default function UsersPage() {
-    const { isAuthorized, hasPermission } = useAuthorization(['users:create', 'users:read', 'users:update', 'users:delete']);
+    const { isAuthorized } = useAuthorization(['users:create', 'users:read', 'users:update', 'users:delete']);
     const { toast } = useToast();
     const { companyData } = useAuth();
     const [users, setUsers] = useState<User[]>([]);
@@ -135,6 +135,7 @@ export default function UsersPage() {
         if (isAuthorized) {
             fetchAllData();
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [setTitle, isAuthorized]);
 
     /**
@@ -177,9 +178,9 @@ export default function UsersPage() {
             setNewUser(emptyUser);
             setAddUserDialogOpen(false);
             
-        } catch(error: any) {
-             logError("Failed to add user", { error: error.message });
-             toast({ title: "Error", description: `No se pudo añadir el usuario a la base de datos: ${error.message}`, variant: "destructive" });
+        } catch(error: unknown) {
+             logError("Failed to add user", { error: (error as Error).message });
+             toast({ title: "Error", description: `No se pudo añadir el usuario a la base de datos: ${(error as Error).message}`, variant: "destructive" });
         }
     }
 
@@ -189,7 +190,7 @@ export default function UsersPage() {
     const handleEditUser = async () => {
         if (!currentUserToEdit) return;
 
-        let userToUpdate = { ...currentUserToEdit };
+        const userToUpdate = { ...currentUserToEdit };
 
         // Handle password change if a new one is provided
         if (newPassword) {

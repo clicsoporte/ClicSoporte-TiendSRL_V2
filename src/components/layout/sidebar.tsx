@@ -24,13 +24,12 @@ import {
   Wrench,
   LayoutDashboard,
   LifeBuoy,
-  Sheet as SheetIcon,
+  Sheet,
   CalendarCheck,
   ShoppingCart,
   Warehouse,
   Search,
   PackagePlus,
-  MessageSquare,
   Ticket,
   KeyRound,
 } from "lucide-react";
@@ -255,5 +254,3 @@ export function AppSidebar() {
       </Sidebar>
   );
 }
-
-    

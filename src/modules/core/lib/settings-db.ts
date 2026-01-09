@@ -6,7 +6,7 @@
 "use server";
 
 import { connectDb } from './db';
-import type { Company, ApiSettings, ExemptionLaw } from '../types';
+import type { Company, ApiSettings, ExemptionLaw, ExchangeRateApiResponse } from '../types';
 import { initialCompany } from './data';
 import { getExchangeRate as fetchExchangeRateFromApi } from './api-actions';
 
@@ -21,8 +21,8 @@ export async function getCompanySettings(): Promise<Company | null> {
         if (row) {
             const settings = {
                 ...row,
-                supportPackages: JSON.parse(row.supportPackages as any || '[]'),
-                servicesCatalog: JSON.parse(row.servicesCatalog as any || '[]')
+                supportPackages: JSON.parse(row.supportPackages as unknown as string || '[]'),
+                servicesCatalog: JSON.parse(row.servicesCatalog as unknown as string || '[]')
             };
             // Ensure the returned object is a plain JavaScript object
             return JSON.parse(JSON.stringify(settings));
@@ -146,7 +146,7 @@ export async function getAndCacheExchangeRate(forceRefresh: boolean = false): Pr
 
     try {
         const data = await fetchExchangeRateFromApi();
-        if (data && data.venta && data.venta.valor) {
+        if (data && 'venta' in data && data.venta && data.venta.valor) {
             const rate = data.venta.valor;
             db.prepare('INSERT OR REPLACE INTO exchange_rates (date, rate) VALUES (?, ?)').run(todayStr, rate);
             return { rate, date: todayStr };

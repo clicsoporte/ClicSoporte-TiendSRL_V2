@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -20,16 +20,14 @@ import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SearchInput } from '@/components/ui/search-input';
-import { PlusCircle, MoreVertical, KeyRound, Copy, CalendarIcon, Loader2, FilterX, Trash2, History, X, Download, Server, Edit } from 'lucide-react';
+import { PlusCircle, MoreVertical, CalendarIcon, Loader2, Trash2, Download, Edit } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 
 export default function LicensesPage() {
     const { state, actions, selectors } = useLicenses();
     const { hasPermission } = useAuthorization(['licenses:manage']);
-    const { user } = useAuth();
     
     if (state.isLoading) {
         return (

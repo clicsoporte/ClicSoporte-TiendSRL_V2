@@ -7,7 +7,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import path from 'path';
 import fs from 'fs';
-import { Readable } from 'stream';
 
 const EXPORT_DIR = 'temp_exports';
 const exportDirectory = path.join(process.cwd(), 'dbs', EXPORT_DIR);
@@ -58,10 +57,10 @@ export async function GET(request: NextRequest) {
         headers.set('Content-Disposition', `attachment; filename="${sanitizedFileName}"`);
         headers.set('Content-Length', String(stats.size));
 
-        return new NextResponse(readableStream as any, { status: 200, headers });
+        return new NextResponse(readableStream as ReadableStream<Uint8Array>, { status: 200, headers });
 
-    } catch (error: any) {
-        console.error(`Failed to read export file: ${error.message}`);
+    } catch (error: unknown) {
+        console.error(`Failed to read export file: ${(error as Error).message}`);
         return new NextResponse('Internal Server Error', { status: 500 });
     }
 }
@@ -94,8 +93,8 @@ export async function DELETE(request: NextRequest) {
     try {
         fs.unlinkSync(filePath);
         return new NextResponse('File deleted successfully', { status: 200 });
-    } catch (error: any) {
-        console.error(`Failed to delete export file: ${error.message}`);
+    } catch (error: unknown) {
+        console.error(`Failed to delete export file: ${(error as Error).message}`);
         return new NextResponse('Internal Server Error', { status: 500 });
     }
 }

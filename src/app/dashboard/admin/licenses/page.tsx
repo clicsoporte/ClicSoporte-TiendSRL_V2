@@ -43,8 +43,8 @@ export default function LicenseSettingsPage() {
                 toast({ title: "Error", description: result.message, variant: 'destructive' });
             }
             setGenerateConfirmOpen(false);
-        } catch (error: any) {
-            toast({ title: "Error Crítico", description: error.message, variant: 'destructive' });
+        } catch (error: unknown) {
+            toast({ title: "Error Crítico", description: (error as Error).message, variant: 'destructive' });
         } finally {
             setIsSubmitting(false);
         }
@@ -109,7 +109,7 @@ export default function LicenseSettingsPage() {
                                         </div>
                                         {generateStep > 0 && (
                                             <div className="space-y-2">
-                                                <Label htmlFor="generate-keys-confirmation-text">Para confirmar, escribe "GENERAR NUEVAS CLAVES" en el campo:</Label>
+                                                <Label htmlFor="generate-keys-confirmation-text">Para confirmar, escribe &quot;GENERAR NUEVAS CLAVES&quot; en el campo:</Label>
                                                 <Input id="generate-keys-confirmation-text" value={generateConfirmationText} onChange={(e) => { setGenerateConfirmationText(e.target.value.toUpperCase()); if (e.target.value.toUpperCase() === 'GENERAR NUEVAS CLAVES') {setGenerateStep(2);} else {setGenerateStep(1);}}} className="border-destructive focus-visible:ring-destructive" />
                                             </div>
                                         )}

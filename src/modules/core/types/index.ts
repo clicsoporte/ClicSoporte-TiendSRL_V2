@@ -188,7 +188,7 @@ export type LogEntry = {
     timestamp: string;
     type: "INFO" | "WARN" | "ERROR";
     message: string;
-    details?: any; // Stored as a JSON string in the DB
+    details?: Record<string, unknown>; // Stored as a JSON string in the DB
 };
 
 /**
@@ -207,8 +207,8 @@ export type DatabaseModule = {
     id: string; // e.g., 'clic-tools-main'
     name: string; // e.g., 'Clic-Tools (Sistema Principal)'
     dbFile: string; // e.g., 'intratool.db'
-    initFn?: (db: any) => void;
-    migrationFn?: (db: any) => void;
+    initFn?: (db: unknown) => void;
+    migrationFn?: (db: unknown) => void;
 };
 
 /**
@@ -666,6 +666,7 @@ export type CostAnalysisDraft = {
     discountHandling: 'customer' | 'company';
 };
 
+export type DraftableCostAssistantLine = Omit<CostAssistantLine, 'displayMargin' | 'displayTaxRate' | 'displayUnitCost' | 'isCostEdited'>;
 export type CostAssistantSettings = {
     draftPrefix?: string;
     nextDraftNumber?: number;
@@ -685,8 +686,6 @@ export type CostAssistantSettings = {
     },
     discountHandling: 'customer' | 'company';
 };
-
-export type DraftableCostAssistantLine = Omit<CostAssistantLine, 'displayMargin' | 'displayTaxRate' | 'displayUnitCost' | 'isCostEdited'>;
 
 // --- Tickets Module Types ---
 export type TicketStatus = 'open' | 'in_progress' | 'on_hold' | 'closed';

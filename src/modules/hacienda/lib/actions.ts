@@ -10,19 +10,8 @@ import { logError } from '@/modules/core/lib/logger';
 import { getApiSettings } from '@/modules/core/lib/settings-db';
 import { getCabysCatalog } from '@/modules/core/lib/data-access-db';
 import type { HaciendaContributorInfo, HaciendaExemptionApiResponse, EnrichedExemptionInfo } from '../../core/types';
-import fs from 'fs';
-import path from 'path';
-import Papa from 'papaparse';
-
-const CABYS_FILE_PATH = path.join(process.cwd(), 'docs', 'Datos', 'cabys.csv');
 
 let cabysCache: Map<string, { description: string, taxRate: number }> | null = null;
-
-interface CabysRow {
-    Codigo: string;
-    Descripcion: string;
-    Impuesto: string;
-}
 
 /**
  * Loads the CABYS data from the database into an in-memory cache.
@@ -88,9 +77,9 @@ export async function getContributorInfo(taxpayerId: string): Promise<HaciendaCo
         
         const data = await response.json();
         return data as HaciendaContributorInfo;
-    } catch (error: any) {
-        logError("Error al obtener información del contribuyente", { error: error.message, taxpayerId });
-        return { error: true, message: error.message };
+    } catch (error: unknown) {
+        logError("Error al obtener información del contribuyente", { error: (error as Error).message, taxpayerId });
+        return { error: true, message: (error as Error).message };
     }
 }
 
@@ -121,9 +110,9 @@ export async function getExemptionStatus(authNumber: string): Promise<HaciendaEx
         
         const data = await response.json();
         return data as HaciendaExemptionApiResponse;
-    } catch (error: any) {
-        logError("Error al obtener estado de exoneración", { error: error.message, authNumber });
-        return { error: true, message: error.message };
+    } catch (error: unknown) {
+        logError("Error al obtener estado de exoneración", { error: (error as Error).message, authNumber });
+        return { error: true, message: (error as Error).message };
     }
 }
 

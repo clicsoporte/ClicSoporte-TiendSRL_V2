@@ -10,7 +10,7 @@
 import { connectDb } from './db';
 import type { User } from '../types';
 import bcrypt from 'bcryptjs';
-import { logInfo, logWarn, logError } from './logger';
+import { logInfo, logWarn } from './logger';
 import { headers } from 'next/headers';
 
 const SALT_ROUNDS = 10;
@@ -43,9 +43,9 @@ export async function login(email: string, passwordProvided: string): Promise<Us
     }
     await logWarn(`Failed login attempt for email: ${email}`, logMeta);
     return null;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Login error:", error);
-    await logWarn(`Login process failed for email: ${email} with error: ${error.message}`, logMeta);
+    await logWarn(`Login process failed for email: ${email} with error: ${(error as Error).message}`, logMeta);
     return null;
   }
 }

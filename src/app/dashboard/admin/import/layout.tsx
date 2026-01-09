@@ -7,7 +7,6 @@
  */
 'use client';
 
-import { usePageTitle } from "../../../../modules/core/hooks/usePageTitle";
 
 export default function ImportLayout({
   children,
@@ -16,8 +15,5 @@ export default function ImportLayout({
 }) {
     // This layout simply passes the context of the page title to its children.
     // This is necessary so that the import page can set its own title.
-    const { setTitle } = usePageTitle();
     return <>{children}</>;
 }
-
-    

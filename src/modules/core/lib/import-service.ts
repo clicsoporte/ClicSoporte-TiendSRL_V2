@@ -6,12 +6,10 @@
 "use server";
 
 import fs from 'fs';
-import path from 'path';
 import Papa from 'papaparse';
 import { connectDb } from './db';
-import type { ImportQuery, Product, Customer, Exemption, StockInfo, Company } from '../types';
+import type { Product, Customer, Exemption, Company } from '../types';
 import { getCompanySettings } from './settings-db';
-import { getSqlConfig } from './config-db';
 import { executeQuery } from './sql-service';
 
 type ImportType = 'customers' | 'products' | 'exemptions' | 'stock' | 'cabys' | 'locations';
@@ -25,7 +23,7 @@ const importTypeFieldMapping: { [key in ImportType]: keyof Company } = {
     cabys: 'cabysFilePath',
 };
 
-async function parseCsv(filePath: string): Promise<any[]> {
+async function parseCsv(filePath: string): Promise<Record<string, string>[]> {
     if (!fs.existsSync(filePath)) {
         throw new Error(`El archivo no existe en la ruta: ${filePath}`);
     }
@@ -34,13 +32,13 @@ async function parseCsv(filePath: string): Promise<any[]> {
         Papa.parse(fileContent, {
             header: true,
             skipEmptyLines: true,
-            complete: (results) => resolve(results.data),
-            error: (error: any) => reject(error),
+            complete: (results) => resolve(results.data as Record<string, string>[]),
+            error: (error: Error) => reject(error),
         });
     });
 }
 
-async function processCustomers(data: any[]): Promise<number> {
+async function processCustomers(data: Record<string, string>[]): Promise<number> {
     const db = await connectDb();
     const upsert = db.prepare(`
         INSERT INTO customers (id, name, address, phone, taxId, currency, creditLimit, paymentCondition, salesperson, active, email, electronicDocEmail)
@@ -79,7 +77,7 @@ async function processCustomers(data: any[]): Promise<number> {
         creditLimit: parseFloat(d.LIMITE_CREDITO),
         paymentCondition: d.CONDICION_PAGO,
         salesperson: d.VENDEDOR,
-        active: d.ACTIVO,
+        active: d.ACTIVO as 'S' | 'N',
         email: d.E_MAIL,
         electronicDocEmail: d.EMAIL_DOC_ELECTRONICO,
     }));
@@ -88,7 +86,7 @@ async function processCustomers(data: any[]): Promise<number> {
     return data.length;
 }
 
-async function processProducts(data: any[]): Promise<number> {
+async function processProducts(data: Record<string, string>[]): Promise<number> {
     const db = await connectDb();
     const upsert = db.prepare(`
         INSERT INTO products (id, description, classification, lastEntry, active, notes, unit, isBasicGood, cabys)
@@ -106,10 +104,10 @@ async function processProducts(data: any[]): Promise<number> {
         description: d.DESCRIPCION,
         classification: d.CLASIFICACION_2,
         lastEntry: d.ULTIMO_INGRESO,
-        active: d.ACTIVO,
+        active: d.ACTIVO as 'S' | 'N',
         notes: d.NOTAS,
         unit: d.UNIDAD_VENTA,
-        isBasicGood: d.CANASTA_BASICA,
+        isBasicGood: d.CANASTA_BASICA as 'S' | 'N',
         cabys: d.CODIGO_HACIENDA,
     }));
     
@@ -117,7 +115,7 @@ async function processProducts(data: any[]): Promise<number> {
     return data.length;
 }
 
-async function processExemptions(data: any[]): Promise<number> {
+async function processExemptions(data: Record<string, string>[]): Promise<number> {
     const db = await connectDb();
     const upsert = db.prepare(`
         INSERT INTO exemptions (code, description, customer, authNumber, startDate, endDate, percentage, docType, institutionName, institutionCode)
@@ -148,7 +146,7 @@ async function processExemptions(data: any[]): Promise<number> {
     return data.length;
 }
 
-async function processStock(data: any[]): Promise<number> {
+async function processStock(data: Record<string, string>[]): Promise<number> {
     const db = await connectDb();
     db.exec('DELETE FROM stock'); // Clear previous stock data
     const insert = db.prepare('INSERT INTO stock (itemId, stockByWarehouse, totalStock) VALUES (?, ?, ?)');
@@ -176,12 +174,12 @@ async function processStock(data: any[]): Promise<number> {
     return stockMap.size;
 }
 
-async function processCabys(data: any[]): Promise<number> {
+async function processCabys(data: Record<string, string>[]): Promise<number> {
     const db = await connectDb();
     db.exec('DELETE FROM cabys_catalog'); // Always replace with the newest catalog
     const insert = db.prepare('INSERT INTO cabys_catalog (code, description, taxRate) VALUES (?, ?, ?)');
 
-    const transaction = db.transaction((records: any[]) => {
+    const transaction = db.transaction((records: Record<string, string>[]) => {
         for (const record of records) {
             insert.run(record.Codigo, record.Descripcion, record.Impuesto);
         }

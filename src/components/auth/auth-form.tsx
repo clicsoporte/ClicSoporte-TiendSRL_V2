@@ -5,10 +5,7 @@
 "use client";
 
 import { Button } from "../ui/button";
-import {
-  CardContent,
-  CardFooter,
-} from "../ui/card";
+import { CardFooter } from "../ui/card";
 import {
   Dialog,
   DialogContent,

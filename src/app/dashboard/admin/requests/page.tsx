@@ -149,8 +149,8 @@ export default function RequestSettingsPage() {
             await saveRequestSettings(settings);
             toast({ title: "Configuración Guardada", description: "Los ajustes de compras han sido guardados." });
             await logInfo("Request settings updated", { settings });
-        } catch (error: any) {
-            logError("Failed to save request settings", { error: error.message });
+        } catch (error: unknown) {
+            logError("Failed to save request settings", { error: (error as Error).message });
             toast({ title: "Error", description: "No se pudieron guardar los ajustes.", variant: "destructive" });
         }
     };
@@ -214,7 +214,7 @@ export default function RequestSettingsPage() {
                                     checked={settings.useWarehouseReception}
                                     onCheckedChange={(checked) => setSettings(prev => prev ? { ...prev, useWarehouseReception: checked } : null)}
                                 />
-                                <Label htmlFor="use-warehouse">Habilitar paso de "Recibido en Bodega"</Label>
+                                <Label htmlFor="use-warehouse">Habilitar paso de &quot;Recibido en Bodega&quot;</Label>
                             </div>
                             <p className="text-sm text-muted-foreground mt-2">
                                 Si se activa, las solicitudes recibidas necesitarán un paso adicional para ser archivadas.

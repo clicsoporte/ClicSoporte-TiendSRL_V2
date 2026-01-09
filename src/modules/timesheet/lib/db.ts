@@ -30,6 +30,10 @@ export async function initializeTimesheetDb(db: import('better-sqlite3').Databas
 
 export async function runTimesheetMigrations(db: import('better-sqlite3').Database) {
     // Future migrations for the timesheet module can be added here.
+    const hasTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='time_entries'`).get();
+    if (!hasTable) {
+        initializeTimesheetDb(db);
+    }
 }
 
 export async function addTimeEntry(payload: Partial<Omit<TimeEntry, 'id'|'createdAt'>>): Promise<TimeEntry> {

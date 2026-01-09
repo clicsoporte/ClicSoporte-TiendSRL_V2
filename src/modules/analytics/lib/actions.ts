@@ -5,7 +5,7 @@
 'use server';
 
 import { connectDb } from "@/modules/core/lib/db";
-import type { Ticket, ProductionOrder, PurchaseRequest, TimeEntry } from "@/modules/core/types";
+import type { Ticket, ProductionOrder, PurchaseRequest, TimeEntry, User } from "@/modules/core/types";
 import { DateRange } from 'react-day-picker';
 
 type Kpi = {
@@ -27,8 +27,8 @@ export type AnalyticsData = {
     timeTracking: TimeTrackingKpi;
 };
 
-function applyDateFilter(query: string, range?: DateRange, dateColumn: string = 'createdAt'): { filteredQuery: string, params: any[] } {
-    let whereClauses = [];
+function applyDateFilter(query: string, range?: DateRange, dateColumn: string = 'createdAt'): { filteredQuery: string, params: string[] } {
+    const whereClauses = [];
     const params = [];
 
     if (range?.from) {
@@ -95,7 +95,7 @@ async function getTimeTrackingKpis(range?: DateRange): Promise<TimeTrackingKpi> 
     const { filteredQuery, params } = applyDateFilter('SELECT * FROM time_entries {{WHERE}}', range, 'startTime');
     const timeEntries = timesheetDb.prepare(filteredQuery).all(...params) as TimeEntry[];
     
-    const users = mainDb.prepare('SELECT id, name FROM users').all() as { id: number, name: string }[];
+    const users = mainDb.prepare('SELECT id, name FROM users').all() as Pick<User, 'id' | 'name'>[];
     const userMap = new Map(users.map(u => [u.id, u.name]));
 
     const result: TimeTrackingKpi = {

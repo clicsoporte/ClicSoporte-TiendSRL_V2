@@ -18,13 +18,12 @@ import { addLog as dbAddLog } from './logger-db';
 
 const DB_FILE = 'intratool.db';
 const SALT_ROUNDS = 10;
-const UPDATE_BACKUP_DIR = 'update_backups';
 
 // This path is configured to work correctly within the Next.js build output directory,
 // which is crucial for serverless environments.
 const dbDirectory = path.join(process.cwd(), 'dbs');
 
-let dbConnections = new Map<string, Database.Database>();
+const dbConnections = new Map<string, Database.Database>();
 
 /**
  * Establishes a connection to a specific SQLite database file.
@@ -57,9 +56,9 @@ export async function connectDb(dbFile: string = DB_FILE): Promise<Database.Data
             }
             fs.renameSync(restoreFilePath, dbPath);
             await dbAddLog({ type: "WARN", message: `Database for module ${dbFile} was restored from a backup on startup.` });
-        } catch(e: any) {
-            console.error(`Failed to apply restore for ${dbFile}: ${e.message}`);
-            await dbAddLog({ type: "ERROR", message: `Failed to apply restore for ${dbFile}`, details: { error: e.message } });
+        } catch(e: unknown) {
+            console.error(`Failed to apply restore for ${dbFile}: ${(e as Error).message}`);
+            await dbAddLog({ type: "ERROR", message: `Failed to apply restore for ${dbFile}`, details: { error: (e as Error).message } });
             if (fs.existsSync(restoreFilePath)) fs.unlinkSync(restoreFilePath);
         }
     }
@@ -258,7 +257,7 @@ export async function initializeMainDatabase(db: import('better-sqlite3').Databa
     console.log(`Database ${DB_FILE} initialized with default users and roles.`);
 }
 
-export async function getUserPreferences(userId: number, settingName: string): Promise<any> {
+export async function getUserPreferences(userId: number, settingName: string): Promise<Record<string, unknown>> {
     const db = await connectDb();
     const prefId = `${userId}-${settingName}`;
     const row = db.prepare('SELECT value FROM user_preferences WHERE id = ?').get(prefId) as { value: string } | undefined;
@@ -268,7 +267,7 @@ export async function getUserPreferences(userId: number, settingName: string): P
     return {};
 }
 
-export async function saveUserPreferences(userId: number, settingName: string, value: any): Promise<void> {
+export async function saveUserPreferences(userId: number, settingName: string, value: unknown): Promise<void> {
     const db = await connectDb();
     const prefId = `${userId}-${settingName}`;
     db.prepare('INSERT OR REPLACE INTO user_preferences (id, userId, settingName, value) VALUES (?, ?, ?, ?)')
@@ -282,7 +281,7 @@ export async function getLogs(filters: {
 } = {}): Promise<LogEntry[]> {
     const db = await connectDb();
     let query = 'SELECT * FROM logs';
-    const params: any[] = [];
+    const params: (string | number)[] = [];
     const whereClauses: string[] = [];
 
     if (filters.type && filters.type !== 'all') {
@@ -326,7 +325,7 @@ export async function clearLogs(clearedBy: string, type: 'operational' | 'system
     const db = await connectDb();
     
     let whereClause = '';
-    const params: any[] = [];
+    const params: string[] = [];
     
     if (!deleteAllTime) {
         const thirtyDaysAgo = new Date();

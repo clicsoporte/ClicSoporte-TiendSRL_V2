@@ -66,7 +66,7 @@ export async function generateKeys(): Promise<{ success: boolean; message: strin
 async function getPrivateKey(): Promise<string> {
     try {
         return await fs.readFile(PRIVATE_KEY_PATH, 'utf-8');
-    } catch (error) {
+    } catch (error: unknown) {
         console.error("Private key not found. Please generate a new key pair.", error);
         throw new Error("La clave privada no se encuentra. Genere un nuevo par de claves en la configuración.");
     }

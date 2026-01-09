@@ -4,8 +4,7 @@
 "use server";
 
 import { connectDb } from '../../core/lib/db';
-import type { PurchaseRequest, RequestSettings, UpdateRequestStatusPayload, PurchaseRequestHistoryEntry, UpdatePurchaseRequestPayload, RejectCancellationPayload, PurchaseRequestStatus, DateRange, AdministrativeAction, AdministrativeActionPayload, ProductionOrder } from '../../core/types';
-import { format, parseISO } from 'date-fns';
+import type { PurchaseRequest, RequestSettings, UpdateRequestStatusPayload, PurchaseRequestHistoryEntry, UpdatePurchaseRequestPayload, AdministrativeActionPayload } from '../../core/types';
 import { addOrder as addPlannerOrder } from '../../planner/lib/db';
 
 const REQUESTS_DB_FILE = 'requests.db';
@@ -176,7 +175,7 @@ export async function getSettings(): Promise<RequestSettings> {
 export async function saveSettings(settings: RequestSettings): Promise<void> {
     const db = await connectDb(REQUESTS_DB_FILE);
     
-    const transaction = db.transaction((settingsToUpdate) => {
+    const transaction = db.transaction((settingsToUpdate: RequestSettings) => {
         const keys: (keyof RequestSettings)[] = ['requestPrefix', 'nextRequestNumber', 'routes', 'shippingMethods', 'useWarehouseReception', 'showCustomerTaxId', 'pdfTopLegend', 'pdfExportColumns', 'pdfPaperSize', 'pdfOrientation'];
         for (const key of keys) {
              if (settingsToUpdate[key] !== undefined) {
@@ -192,70 +191,27 @@ export async function saveSettings(settings: RequestSettings): Promise<void> {
 export async function getRequests(options: { 
     page?: number; 
     pageSize?: number;
-    filters?: {
-        searchTerm?: string;
-        status?: string;
-        classification?: string;
-        dateRange?: DateRange;
-    };
 }): Promise<{ requests: PurchaseRequest[], totalArchivedCount: number }> {
     const db = await connectDb(REQUESTS_DB_FILE);
     
-    let allRequests: PurchaseRequest[] = [];
-    let totalArchivedCount = 0;
-    
-    const { page, pageSize, filters } = options;
+    const { page, pageSize } = options;
 
-    if (filters && page !== undefined && pageSize !== undefined) {
-        const { searchTerm, status, dateRange } = filters;
-
-        const whereClauses: string[] = [];
-        const params: any[] = [];
-        
+    if (page !== undefined && pageSize !== undefined) {
         const settings = await getSettings();
-        const archivedStatuses = settings.useWarehouseReception
-            ? ['received-in-warehouse', 'canceled']
-            : ['received', 'canceled'];
-        whereClauses.push(`status IN (${archivedStatuses.map(s => `'${s}'`).join(',')})`);
-
-
-        if (searchTerm) {
-            whereClauses.push(`(consecutive LIKE ? OR clientName LIKE ? OR itemDescription LIKE ?)`);
-            const likeTerm = `%${searchTerm}%`;
-            params.push(likeTerm, likeTerm, likeTerm);
-        }
-        if (status && status !== 'all') {
-            whereClauses.push(`status = ?`);
-            params.push(status);
-        }
-        if (dateRange?.from) {
-            whereClauses.push(`requiredDate >= ?`);
-            params.push(dateRange.from.toISOString().split('T')[0]);
-        }
-        if (dateRange?.to) {
-            whereClauses.push(`requiredDate <= ?`);
-            params.push(dateRange.to.toISOString().split('T')[0]);
-        }
-
-        const finalWhere = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+        const archivedStatuses = settings.useWarehouseReception ? `('received-in-warehouse', 'canceled')` : `('received', 'canceled')`;
         
-        const countQuery = `SELECT COUNT(*) as count FROM purchase_requests ${finalWhere}`;
-        totalArchivedCount = (db.prepare(countQuery).get(...params) as { count: number }).count;
+        const archivedRequests = db.prepare(`SELECT * FROM purchase_requests WHERE status IN ${archivedStatuses} ORDER BY requestDate DESC LIMIT ? OFFSET ?`).all(pageSize, page * pageSize) as PurchaseRequest[];
+        const totalArchivedCount = (db.prepare(`SELECT COUNT(*) as count FROM purchase_requests WHERE status IN ${archivedStatuses}`).get() as { count: number }).count;
+        const activeRequests = db.prepare(`SELECT * FROM purchase_requests WHERE status NOT IN ${archivedStatuses} ORDER BY requestDate DESC`).all() as PurchaseRequest[];
         
-        const query = `SELECT * FROM purchase_requests ${finalWhere} ORDER BY requestDate DESC LIMIT ? OFFSET ?`;
-        allRequests = db.prepare(query).all(...params, pageSize, page * pageSize) as PurchaseRequest[];
-
+        return { requests: JSON.parse(JSON.stringify([...activeRequests, ...archivedRequests])), totalArchivedCount };
     } else {
-        allRequests = db.prepare(`SELECT * FROM purchase_requests ORDER BY requestDate DESC`).all() as PurchaseRequest[];
+        const allRequests = db.prepare(`SELECT * FROM purchase_requests ORDER BY requestDate DESC`).all() as PurchaseRequest[];
         const settings = await getSettings();
-        const archivedStatuses = settings.useWarehouseReception
-            ? ['received-in-warehouse', 'canceled']
-            : ['received', 'canceled'];
-        const archivedWhereClause = `status IN (${archivedStatuses.map(s => `'${s}'`).join(',')})`;
-        totalArchivedCount = (db.prepare(`SELECT COUNT(*) as count FROM purchase_requests WHERE ${archivedWhereClause}`).get() as { count: number }).count;
+        const archivedStatuses = settings.useWarehouseReception ? `('received-in-warehouse', 'canceled')` : `('received', 'canceled')`;
+        const totalArchivedCount = (db.prepare(`SELECT COUNT(*) as count FROM purchase_requests WHERE status IN ${archivedStatuses}`).get() as { count: number }).count;
+        return { requests: JSON.parse(JSON.stringify(allRequests)), totalArchivedCount };
     }
-    
-    return { requests: JSON.parse(JSON.stringify(allRequests)), totalArchivedCount };
 }
 
 export async function addRequest(request: Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'receivedDate' | 'previousStatus'>, requestedBy: string): Promise<PurchaseRequest> {
@@ -476,38 +432,6 @@ export async function getRequestHistory(requestId: number): Promise<PurchaseRequ
     const db = await connectDb(REQUESTS_DB_FILE);
     const results = db.prepare('SELECT * FROM purchase_request_history WHERE requestId = ? ORDER BY timestamp DESC').all(requestId) as PurchaseRequestHistoryEntry[];
     return JSON.parse(JSON.stringify(results));
-}
-
-export async function rejectCancellation(payload: RejectCancellationPayload): Promise<PurchaseRequest> {
-    const db = await connectDb(REQUESTS_DB_FILE);
-    const { entityId: requestId, notes, updatedBy } = payload;
-
-    const currentRequest = db.prepare('SELECT * FROM purchase_requests WHERE id = ?').get(requestId) as PurchaseRequest | undefined;
-    if (!currentRequest) {
-        throw new Error("La solicitud no fue encontrada.");
-    }
-    
-    const transaction = db.transaction(() => {
-        db.prepare(`
-            UPDATE purchase_requests SET
-                pendingAction = 'none',
-                lastStatusUpdateNotes = @notes,
-                lastStatusUpdateBy = @updatedBy,
-                previousStatus = NULL
-            WHERE id = @requestId
-        `).run({
-            notes,
-            updatedBy,
-            requestId,
-        });
-
-        const historyStmt = db.prepare('INSERT INTO purchase_request_history (requestId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)');
-        historyStmt.run(requestId, new Date().toISOString(), currentRequest.status, updatedBy, `Rechazada solicitud de cancelación: ${notes}`);
-    });
-
-    transaction();
-    const result = db.prepare('SELECT * FROM purchase_requests WHERE id = ?').get(requestId) as PurchaseRequest;
-    return JSON.parse(JSON.stringify(result));
 }
 
 export async function updatePendingAction(payload: AdministrativeActionPayload): Promise<PurchaseRequest> {

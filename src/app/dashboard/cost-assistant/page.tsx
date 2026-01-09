@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { UploadCloud, Loader2, Percent, Calculator, Trash2, Settings2, FilePlus, Save, Briefcase, CheckCircle, XCircle, FolderClock, FileDown, Download, FileSpreadsheet } from 'lucide-react';
+import { UploadCloud, Loader2, Percent, Calculator, Trash2, FilePlus, Save, Briefcase, CheckCircle, XCircle, FolderClock, Download, FileSpreadsheet } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -18,12 +18,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetClose, SheetTrigger } from '@/components/ui/sheet';
 import { format, parseISO, isValid } from 'date-fns';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import type { CostAnalysisDraft } from '@/modules/core/types';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Separator } from '@/components/ui/separator';
 import { DialogColumnSelector } from '@/components/ui/dialog-column-selector';
-import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
+import { useAuth } from '@/modules/core/hooks/useAuth';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 
 export default function CostAssistantPage() {
     const { isAuthorized } = useAuthorization(['cost-assistant:access']);

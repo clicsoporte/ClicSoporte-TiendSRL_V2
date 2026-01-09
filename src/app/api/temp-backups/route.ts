@@ -9,7 +9,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import path from 'path';
 import fs from 'fs';
-import { Readable } from 'stream';
 
 const UPDATE_BACKUP_DIR = 'update_backups';
 const dbDirectory = path.join(process.cwd(), 'dbs');
@@ -60,10 +59,10 @@ export async function GET(request: NextRequest) {
         headers.set('Content-Disposition', `attachment; filename="${sanitizedFileName}"`);
         headers.set('Content-Length', String(stats.size));
 
-        return new NextResponse(readableStream as any, { status: 200, headers });
+        return new NextResponse(readableStream as ReadableStream<Uint8Array>, { status: 200, headers });
 
-    } catch (error: any) {
-        console.error(`Failed to read backup file: ${error.message}`);
+    } catch (error: unknown) {
+        console.error(`Failed to read backup file: ${(error as Error).message}`);
         return new NextResponse('Internal Server Error', { status: 500 });
     }
 }

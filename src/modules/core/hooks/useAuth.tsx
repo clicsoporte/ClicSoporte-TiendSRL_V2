@@ -14,7 +14,6 @@ import { getCompanySettings, getAndCacheExchangeRate, getExemptionLaws } from '.
 import { getAllCustomers, getAllProducts, getAllStock, getAllExemptions } from '../lib/data-access-db';
 import { getUnreadSuggestionsCount } from '../lib/suggestions-actions';
 import { usePathname, useRouter } from "next/navigation";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Loader2 } from "lucide-react";
 
 /**

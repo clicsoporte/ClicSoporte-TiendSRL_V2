@@ -107,7 +107,7 @@ export default function SettingsPage() {
   const handleSubmit = async () => {
     if (!user) return;
 
-    let userToUpdate: User = {
+    const userToUpdate: User = {
         ...user,
         ...formData
     };
@@ -163,11 +163,11 @@ export default function SettingsPage() {
         });
         await logInfo(`User '${user.name}' updated their profile.`, { name: formData.name, email: formData.email });
         await refreshAuth();
-    } catch (error: any) {
-        logError("Failed to save user profile", { error: error.message });
+    } catch (error: unknown) {
+        logError("Failed to save user profile", { error: (error as Error).message });
         toast({
             title: "Error al Guardar",
-            description: `No se pudo actualizar tu perfil: ${error.message}`,
+            description: `No se pudo actualizar tu perfil: ${(error as Error).message}`,
             variant: "destructive"
         });
     }

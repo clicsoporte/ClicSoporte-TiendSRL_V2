@@ -15,7 +15,7 @@ import type { LogEntry, DateRange } from "@/modules/core/types";
  * @param message The main message to log.
  * @param details Optional structured data to include.
  */
-export async function logInfo(message: string, details?: Record<string, any>) {
+export async function logInfo(message: string, details?: Record<string, unknown>) {
   await dbAddLog({ type: "INFO", message, details });
 }
 
@@ -24,7 +24,7 @@ export async function logInfo(message: string, details?: Record<string, any>) {
  * @param message The warning message to log.
  * @param details Optional structured data to include.
  */
-export async function logWarn(message: string, details?: Record<string, any>) {
+export async function logWarn(message: string, details?: Record<string, unknown>) {
   await dbAddLog({ type: "WARN", message, details });
 }
 
@@ -33,7 +33,7 @@ export async function logWarn(message: string, details?: Record<string, any>) {
  * @param message The error message to log.
  * @param details Optional structured data, often including the error object.
  */
-export async function logError(message: string, details?: Record<string, any>) {
+export async function logError(message: string, details?: Record<string, unknown>) {
   await dbAddLog({ type: "ERROR", message, details });
 }
 
@@ -59,5 +59,3 @@ export async function getLogs(filters: {
 export async function clearLogs(clearedBy: string, type: 'operational' | 'system' | 'all', deleteAllTime: boolean) {
   return await dbClearLogs(clearedBy, type, deleteAllTime);
 }
-
-    

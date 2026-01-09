@@ -7,13 +7,13 @@
 
 import { getApiSettings } from './settings-db';
 import { logError, logWarn } from './logger';
-import type { HaciendaExemptionApiResponse } from '../types';
+import type { HaciendaExemptionApiResponse, ExchangeRateApiResponse } from '../types';
 
 /**
  * Fetches the current USD to CRC exchange rate from the configured API endpoint.
  * @returns {Promise<any>} The JSON response from the external API or an error object.
  */
-export async function getExchangeRate(): Promise<any> {
+export async function getExchangeRate(): Promise<ExchangeRateApiResponse | { error: boolean; message: string; status?: number }> {
     try {
         const apiSettings = await getApiSettings();
         if (!apiSettings?.exchangeRateApi) {
@@ -33,8 +33,8 @@ export async function getExchangeRate(): Promise<any> {
 
         const data = await response.json();
         return data;
-    } catch (error: any) {
-        await logError("Failed to fetch exchange rate", { error: error.message });
+    } catch (error: unknown) {
+        await logError("Failed to fetch exchange rate", { error: (error as Error).message });
         return { error: true, message: "Error interno al consultar la API de tipo de cambio." };
     }
 }
@@ -81,8 +81,8 @@ export async function getExemptionStatus(authNumber: string): Promise<HaciendaEx
         const data = await response.json();
         return JSON.parse(JSON.stringify(data));
 
-    } catch (error: any) {
-        await logError(`Failed to fetch exemption for auth number: ${authNumber}`, { error: error.message });
+    } catch (error: unknown) {
+        await logError(`Failed to fetch exemption for auth number: ${authNumber}`, { error: (error as Error).message });
         return { error: true, message: "Error interno al consultar la API de exoneraciones." };
     }
 }

@@ -16,7 +16,7 @@ import { initialRoles } from './data';
 export async function getAllRoles(): Promise<Role[]> {
     const db = await connectDb();
     try {
-        const roles = db.prepare('SELECT * FROM roles').all() as any[];
+        const roles = db.prepare('SELECT * FROM roles').all() as {id: string, name: string, permissions: string}[];
         const parsedRoles = roles.map(role => ({
             ...role,
             permissions: JSON.parse(role.permissions || '[]')

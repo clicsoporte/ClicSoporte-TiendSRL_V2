@@ -5,9 +5,6 @@ import { cn } from "../../lib/utils"
 
 const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
   ({ className, type, ...props }, ref) => {
-    // Remove non-standard props before passing to the DOM element
-    const { asChild, ...domProps } = props as any;
-
     return (
       <input
         type={type}
@@ -16,7 +13,7 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
           className
         )}
         ref={ref}
-        {...domProps}
+        {...props}
       />
     )
   }

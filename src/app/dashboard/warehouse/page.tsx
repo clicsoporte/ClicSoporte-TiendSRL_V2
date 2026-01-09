@@ -62,7 +62,7 @@ export default function WarehousePage() {
             setStock(wData.stock);
             setStockSettings(wData.stockSettings);
             setWarehouseSettings(wData.warehouseSettings);
-        } catch (error) {
+        } catch (error: unknown) {
             console.error("Failed to load warehouse data", error);
             logError("Failed to load warehouse data", { error });
             toast({ title: "Error de Carga", description: "No se pudieron cargar los datos del almacén.", variant: "destructive"});
@@ -86,11 +86,11 @@ export default function WarehousePage() {
             });
             // A full reload is simpler here to ensure all contexts and states are updated
             window.location.reload();
-        } catch (error: any) {
-            logError("Error during manual data refresh", { error: error.message });
+        } catch (error: unknown) {
+            logError("Error during manual data refresh", { error: (error as Error).message });
             toast({
                 title: "Error al Refrescar",
-                description: error.message,
+                description: (error as Error).message,
                 variant: "destructive"
             });
         } finally {
@@ -322,7 +322,7 @@ export default function WarehousePage() {
                                 ))
                             ) : debouncedSearchTerm ? (
                                 <div className="text-center py-10 text-muted-foreground">
-                                    <p>No se encontraron resultados para "{debouncedSearchTerm}".</p>
+                                    <p>No se encontraron resultados para &quot;{debouncedSearchTerm}&quot;.</p>
                                 </div>
                             ) : (
                                  <div className="text-center py-10 text-muted-foreground">

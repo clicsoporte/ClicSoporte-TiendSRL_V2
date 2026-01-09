@@ -17,7 +17,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogClose
 } from "../../../../components/ui/dialog";
 import {
@@ -103,8 +102,8 @@ export default function ApiSettingsPage() {
         description: "Los cambios en las APIs y leyes han sido guardados.",
         });
         await logInfo("Configuración de API y Leyes guardada", { settings: apiSettings, laws: exemptionLaws });
-    } catch(error: any) {
-        logError("Failed to save API settings", { error: error.message });
+    } catch(error: unknown) {
+        logError("Failed to save API settings", { error: (error as Error).message });
         toast({ title: "Error", description: "No se pudieron guardar los ajustes.", variant: "destructive"});
     }
   };
@@ -247,7 +246,7 @@ export default function ApiSettingsPage() {
                                                     <AlertDialogHeader>
                                                         <AlertDialogTitle>¿Eliminar esta ley?</AlertDialogTitle>
                                                         <AlertDialogDescription>
-                                                            Esta acción no se puede deshacer. Se eliminará la ley '{law.institutionName}'.
+                                                            Esta acción no se puede deshacer. Se eliminará la ley &apos;{law.institutionName}&apos;.
                                                         </AlertDialogDescription>
                                                     </AlertDialogHeader>
                                                     <AlertDialogFooter>
@@ -321,7 +320,3 @@ export default function ApiSettingsPage() {
       </main>
   );
 }
-
-    
-
-    
