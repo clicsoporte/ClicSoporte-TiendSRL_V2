@@ -21,8 +21,13 @@ import fs from 'fs';
 import { getUserPreferences, saveUserPreferences } from '@/modules/core/lib/db';
 
 // Helper to get a value from a potentially nested object
-const getValue = (obj: Record<string, unknown>, path: string[], defaultValue: unknown = '') => {
-    return path.reduce((acc, key) => (acc && (acc as Record<string, unknown>)[key] !== undefined) ? (acc as Record<string, unknown>)[key] : defaultValue, obj);
+const getValue = (obj: unknown, path: string[], defaultValue: unknown = ''): any => {
+    return path.reduce((acc, key) => {
+        if (typeof acc === 'object' && acc !== null && key in acc) {
+            return (acc as Record<string, unknown>)[key];
+        }
+        return defaultValue;
+    }, obj);
 };
 
 const parseDecimal = (str: unknown): number => {
@@ -92,11 +97,11 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
     };
 
     const detalleServicio = getValue(rootNode, ['DetalleServicio']);
-    if (!detalleServicio || !(detalleServicio as Record<string, unknown>).LineaDetalle) {
+    if (!detalleServicio || typeof detalleServicio !== 'object' || !('LineaDetalle' in detalleServicio)) {
         return { lines: [], invoiceInfo };
     }
 
-    const lineasDetalle = Array.isArray((detalleServicio as Record<string, unknown>).LineaDetalle) ? (detalleServicio as Record<string, unknown>).LineaDetalle as any[] : [(detalleServicio as Record<string, unknown>).LineaDetalle];
+    const lineasDetalle = Array.isArray((detalleServicio as any).LineaDetalle) ? (detalleServicio as any).LineaDetalle : [(detalleServicio as any).LineaDetalle];
 
     const moneda = getValue(rootNode, ['ResumenFactura', 'CodigoTipoMoneda', 'CodigoMoneda'], 'CRC') as string;
     const tipoCambioStr = getValue(rootNode, ['ResumenFactura', 'CodigoTipoMoneda', 'TipoCambio'], '1') as string;
@@ -131,7 +136,7 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
         const montoTotalLinea = parseDecimal(getValue(linea, ['MontoTotalLinea'], '0'));
         
         const descuentoNode = getValue(linea, ['Descuento']);
-        const discountAmount = descuentoNode ? parseDecimal(getValue(descuentoNode as Record<string, unknown>, ['MontoDescuento'], '0')) : 0;
+        const discountAmount = descuentoNode && typeof descuentoNode === 'object' ? parseDecimal(getValue(descuentoNode, ['MontoDescuento'], '0')) : 0;
         
         const subTotal = parseDecimal(getValue(linea, ['SubTotal'], '0'));
         
@@ -143,9 +148,9 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
         const impuestoNode = getValue(linea, ['Impuesto']);
         let taxRate = 0.13; // Default
         let taxCode = '08'; // Default
-        if (impuestoNode) {
-            taxRate = parseDecimal(getValue(impuestoNode as Record<string, unknown>, ['Tarifa'], '13')) / 100;
-            taxCode = getValue(impuestoNode as Record<string, unknown>, ['CodigoTarifaIVA'], '08') as string;
+        if (impuestoNode && typeof impuestoNode === 'object') {
+            taxRate = parseDecimal(getValue(impuestoNode, ['Tarifa'], '13')) / 100;
+            taxCode = getValue(impuestoNode, ['CodigoTarifaIVA'], '08') as string;
         }
         
         const unitCostWithTaxInColones = moneda === 'USD' ? unitCostWithTax * tipoCambio : unitCostWithTax;
@@ -175,7 +180,6 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
             isCostEdited: false,
             finalSellPrice: 0, // Calculated in the frontend
             profitPerLine: 0, // Calculated in the frontend
-            sellPriceWithoutTax: 0, // Calculated in the frontend
             supplierName: emisorNombre,
         });
     }
