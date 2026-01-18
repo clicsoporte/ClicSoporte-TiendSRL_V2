@@ -5,7 +5,6 @@
  */
 import jsPDF from "jspdf";
 import autoTable, { type RowInput } from "jspdf-autotable";
-import { format, parseISO } from 'date-fns';
 import type { Company } from '../types';
 
 export interface DocumentData {
@@ -25,9 +24,9 @@ export interface DocumentData {
         content: string;
     }[];
     table: {
-        columns: any[];
+        columns: unknown[];
         rows: RowInput[];
-        columnStyles?: { [key: string]: any };
+        columnStyles?: { [key: string]: unknown };
     };
     notes?: string;
     paymentInfo?: string;
@@ -160,7 +159,7 @@ export const generateDocument = (data: DocumentData): jsPDF => {
     }
 
     autoTable(doc, {
-        head: [data.table.columns],
+        head: [data.table.columns as RowInput],
         body: data.table.rows,
         startY: finalY,
         margin: { right: margin, left: margin, bottom: 80 },

@@ -115,7 +115,7 @@ export const useCostAssistant = () => {
             
             const { lines: processedLines, processedInvoices } = await processInvoiceXmls(fileContents);
 
-            const newLines = processedLines.map((line: CostAssistantLine) => ({
+            const newLines: CostAssistantLine[] = processedLines.map((line: CostAssistantLine) => ({
                 ...line,
                 displayMargin: "20",
                 margin: 0.20,
@@ -288,7 +288,7 @@ export const useCostAssistant = () => {
         const newDraft: Omit<CostAnalysisDraft, 'id' | 'createdAt'> = {
             userId: user.id,
             name: draftName,
-            lines: state.lines,
+            lines: state.lines, // Keep display fields for accurate reloading
             globalCosts: {
                 transportCost: state.transportCost,
                 otherCosts: state.otherCosts,
@@ -310,17 +310,10 @@ export const useCostAssistant = () => {
     };
     
     const loadDraft = (draftToLoad: CostAnalysisDraft) => {
-        // Re-create display fields from the loaded data
-        const linesWithDisplay = draftToLoad.lines.map(line => ({
-            ...line,
-            displayMargin: (line.margin * 100).toFixed(2),
-            displayTaxRate: (line.taxRate * 100).toFixed(0),
-            displayUnitCost: line.unitCostWithoutTax.toFixed(4)
-        }));
-
+        // The draft already contains the display fields, so we can load it directly.
         setState(prevState => ({
             ...prevState,
-            lines: linesWithDisplay,
+            lines: draftToLoad.lines,
             transportCost: draftToLoad.globalCosts.transportCost,
             otherCosts: draftToLoad.globalCosts.otherCosts,
             processedInvoices: draftToLoad.processedInvoices,

@@ -4,7 +4,7 @@
  */
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button, buttonVariants } from "../../../../components/ui/button";
 import {
   Card,
@@ -109,7 +109,7 @@ export default function UsersPage() {
     
     const [newPassword, setNewPassword] = useState("");
 
-    const fetchAllData = async () => {
+    const fetchAllData = useCallback(async () => {
         try {
             setIsLoading(true);
             const [usersData, rolesData] = await Promise.all([
@@ -128,14 +128,14 @@ export default function UsersPage() {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [toast]);
 
     useEffect(() => {
         setTitle("Gestión de Usuarios");
         if (isAuthorized) {
             fetchAllData();
         }
-    }, [setTitle, isAuthorized]);
+    }, [setTitle, isAuthorized, fetchAllData]);
 
     /**
      * Persists the current state of users to the database.
@@ -145,8 +145,8 @@ export default function UsersPage() {
         try {
             await saveAllUsers(updatedUsers);
             setUsers(updatedUsers); // Update local state to match DB
-        } catch (error) {
-            logError("Failed to save users to DB", { error });
+        } catch (error: unknown) {
+            logError("Failed to save users to DB", { error: (error as Error).message });
             toast({ title: "Error", description: "No se pudieron guardar los cambios en la base de datos.", variant: "destructive" });
         }
     }

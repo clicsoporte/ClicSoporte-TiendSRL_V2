@@ -4,7 +4,7 @@
 "use server";
 
 import { connectDb } from '../../core/lib/db';
-import type { ProductionOrder, PlannerSettings, UpdateStatusPayload, UpdateOrderDetailsPayload, ProductionOrderHistoryEntry, RejectCancellationPayload, ProductionOrderStatus, UpdateProductionOrderPayload, CustomStatus, DateRange, NotePayload, AdministrativeActionPayload } from '../../core/types';
+import type { ProductionOrder, PlannerSettings, UpdateStatusPayload, UpdateOrderDetailsPayload, ProductionOrderHistoryEntry, CustomStatus, AdministrativeActionPayload } from '../../core/types';
 import { format, parseISO } from 'date-fns';
 
 const PLANNER_DB_FILE = 'planner.db';
@@ -462,7 +462,7 @@ export async function updateDetails(payload: UpdateOrderDetailsPayload): Promise
     if (!currentOrder) throw new Error("Order not found.");
 
     let query = 'UPDATE production_orders SET';
-    const params: any = { orderId };
+    const params: { [key: string]: string | number | null } = { orderId };
     const updates: string[] = [];
     const historyItems: string[] = [];
 
@@ -525,7 +525,7 @@ export async function getOrderHistory(orderId: number): Promise<ProductionOrderH
 
 
 
-export async function addNote(payload: NotePayload): Promise<ProductionOrder> {
+export async function addNote(payload: { orderId: number; notes: string; updatedBy: string; }): Promise<ProductionOrder> {
     const db = await connectDb(PLANNER_DB_FILE);
     const { orderId, notes, updatedBy } = payload;
 
@@ -562,7 +562,7 @@ export async function updatePendingAction(payload: AdministrativeActionPayload):
             WHERE id = @entityId
         `).run({ action, entityId });
         
-        const historyStmt = db.prepare('INSERT INTO production_order_history (orderId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)');
+        const historyStmt = db.prepare('INSERT INTO purchase_request_history (requestId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)');
         const historyNote = action === 'none' 
             ? 'Acción administrativa rechazada/cancelada' 
             : `Solicitud de ${action === 'unapproval-request' ? 'desaprobación' : 'cancelación'} iniciada`;

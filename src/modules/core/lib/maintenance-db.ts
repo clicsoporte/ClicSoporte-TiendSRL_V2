@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Server-side functions for maintenance operations (backup, restore, reset).
  * Separated to avoid circular dependencies.
@@ -9,7 +8,6 @@ import fs from 'fs';
 import path from 'path';
 import { DB_MODULES } from './data';
 import type { UpdateBackupInfo, DatabaseModule } from '../types';
-import { logInfo } from './logger';
 
 const dbDirectory = path.join(process.cwd(), 'dbs');
 const UPDATE_BACKUP_DIR = 'update_backups';
