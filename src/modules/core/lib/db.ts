@@ -45,7 +45,7 @@ export async function connectDb(dbFile: string = DB_FILE): Promise<Database.Data
             }
             fs.renameSync(restoreFilePath, dbPath);
             await dbAddLog({ type: "WARN", message: `Database for module ${dbFile} was restored from a backup on startup.` });
-        } catch(e: unknown) {
+        } catch(e: Error | unknown) {
             console.error(`Failed to apply restore for ${dbFile}: ${(e as Error).message}`);
             if (fs.existsSync(restoreFilePath)) fs.unlinkSync(restoreFilePath);
         }

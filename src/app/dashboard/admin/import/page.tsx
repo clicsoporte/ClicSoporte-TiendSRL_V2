@@ -24,15 +24,14 @@ import { Switch } from '../../../../components/ui/switch';
 import { Textarea } from '../../../../components/ui/textarea';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
-type ImportType = 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys';
-const importTypes: ImportType[] = ['customers', 'products', 'exemptions', 'stock', 'locations', 'cabys'];
+type ImportType = 'customers' | 'products' | 'exemptions' | 'stock' | 'cabys';
+const importTypes: ImportType[] = ['customers', 'products', 'exemptions', 'stock', 'cabys'];
 
 const importTypeTranslations: { [key in ImportType]: string } = {
     customers: 'Clientes',
     products: 'Artículos',
     exemptions: 'Exoneraciones',
     stock: 'Existencias',
-    locations: 'Ubicaciones',
     cabys: 'Catálogo CABYS'
 };
 
@@ -41,7 +40,6 @@ const importTypeFieldMapping: { [key in ImportType]: keyof Company } = {
     products: 'productFilePath',
     exemptions: 'exemptionFilePath',
     stock: 'stockFilePath',
-    locations: 'locationFilePath',
     cabys: 'cabysFilePath',
 };
 
@@ -90,7 +88,6 @@ export default function ImportDataPage() {
             if (type === 'products') itemType = 'artículos';
             if (type === 'exemptions') itemType = 'exoneraciones';
             if (type === 'stock') itemType = 'existencias';
-            if (type === 'locations') itemType = 'ubicaciones de almacén';
             if (type === 'cabys') itemType = 'códigos CABYS';
 
             toast({
@@ -98,7 +95,7 @@ export default function ImportDataPage() {
                 description: `Se han cargado ${result.count} ${itemType} desde ${result.source}.`,
             });
             await logInfo(`Importación de datos: ${result.count} ${type} cargados desde ${result.source}.`);
-        } catch (error: unknown) {
+        } catch (error: Error | unknown) {
             toast({
                 title: "Error de Importación",
                 description: (error as Error).message,
@@ -119,13 +116,13 @@ export default function ImportDataPage() {
         setIsProcessing(true);
         toast({ title: "Iniciando Sincronización Completa", description: "Importando todos los datos desde el ERP..." });
         try {
-            const results = await importAllDataFromFiles(); // This function now handles both file and SQL modes based on config.
+            const results = await importAllDataFromFiles(); 
             toast({
                 title: "Sincronización Completa Exitosa",
                 description: `Se han procesado ${results.length} tipos de datos desde el ERP.`,
             });
             await logInfo("Full ERP data synchronization completed.", { results });
-        } catch (error: unknown) {
+        } catch (error: Error | unknown) {
              toast({
                 title: "Error en Sincronización",
                 description: (error as Error).message,
@@ -169,7 +166,7 @@ export default function ImportDataPage() {
             }
             toast({ title: "Configuración Guardada", description: "Todos los ajustes de importación han sido guardados." });
             logInfo("Import settings saved.");
-        } catch (error: unknown) {
+        } catch (error: Error | unknown) {
             logError("Failed to save import settings", { error: (error as Error).message });
             toast({ title: "Error al Guardar", description: `No se pudieron guardar los ajustes. ${(error as Error).message}`, variant: "destructive" });
         } finally {
@@ -185,7 +182,7 @@ export default function ImportDataPage() {
         try {
             await testSqlConnection();
             toast({ title: "Conexión Exitosa", description: "Se pudo conectar a la base de datos SQL Server correctamente." });
-        } catch (error: unknown) {
+        } catch (error: Error | unknown) {
             toast({ title: "Error de Conexión", description: (error as Error).message, variant: "destructive" });
         } finally {
             setIsSaving(false);

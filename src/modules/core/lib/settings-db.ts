@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Server-side functions for managing system-wide settings.
  * Separated to avoid circular dependencies.
@@ -55,7 +54,7 @@ export async function saveCompanySettings(data: Company): Promise<void> {
             syncWarningHours = @syncWarningHours, importMode = @importMode, lastSyncTimestamp = @lastSyncTimestamp,
             customerFilePath = @customerFilePath, productFilePath = @productFilePath,
             exemptionFilePath = @exemptionFilePath, stockFilePath = @stockFilePath,
-            locationFilePath = @locationFilePath, cabysFilePath = @cabysFilePath,
+            cabysFilePath = @cabysFilePath,
             supportPackages = @supportPackages, servicesCatalog = @servicesCatalog
         WHERE id = 1
     `);
