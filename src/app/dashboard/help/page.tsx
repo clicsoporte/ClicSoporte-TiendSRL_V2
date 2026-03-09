@@ -15,7 +15,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "../../../components/ui/accordion";
-import { DollarSign, ShieldQuestion, LifeBuoy, Rocket, CalendarCheck, CheckCircle, Search, Wrench, Save, Copy, Folder, AlertTriangle, Play, Pause, History, Undo2, BadgeInfo, CreditCard, MessageSquare, Trash2, Download, Briefcase, ListChecks, Hourglass, Ticket, KeyRound, AreaChart, FileScan, UploadCloud, Network } from "lucide-react";
+import { DollarSign, ShieldQuestion, LifeBuoy, Rocket, CalendarCheck, CheckCircle, Search, Wrench, Save, Copy, AlertTriangle, Play, Pause, History, Undo2, BadgeInfo, CreditCard, MessageSquare, Trash2, Download, Briefcase, ListChecks, Hourglass, Ticket, KeyRound, AreaChart, FileScan, UploadCloud, Network } from "lucide-react";
 import { Skeleton } from "../../../components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAuth } from "@/modules/core/hooks/useAuth";
@@ -349,7 +349,7 @@ export default function HelpPage() {
                                 <div><h4 className="font-semibold">Config. Cotizador</h4><p>Ajusta el prefijo y el número inicial del cotizador.</p></div>
                             </div>
                              <div className="flex items-start gap-4">
-                                <Factory className="mt-1 h-6 w-6 text-purple-700 shrink-0" />
+                                <Briefcase className="mt-1 h-6 w-6 text-purple-700 shrink-0" />
                                 <div><h4 className="font-semibold">Config. Gestor de Proyectos</h4><p>Crea las opciones de asignación que se usarán en los proyectos.</p></div>
                             </div>
                             <div className="flex items-start gap-4">

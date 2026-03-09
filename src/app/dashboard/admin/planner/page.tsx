@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from "react";
@@ -43,8 +42,7 @@ const availableFieldsToTrack = [
     { id: 'purchaseOrder', label: 'Nº OC Cliente' },
     { id: 'customerId', label: 'Cliente' },
     { id: 'productId', label: 'Producto' },
-]
-
+];
 
 export default function PlannerSettingsPage() {
     const { isAuthorized } = useAuthorization(['admin:settings:planner']);
@@ -224,17 +222,6 @@ export default function PlannerSettingsPage() {
                                 />
                                 <Label htmlFor="show-customer-tax-id">Mostrar cédula junto al nombre del cliente</Label>
                             </div>
-                            <div className="flex items-center space-x-2">
-                                <Switch
-                                    id="use-warehouse"
-                                    checked={settings.useWarehouseReception}
-                                    onCheckedChange={(checked) => setSettings(prev => prev ? { ...prev, useWarehouseReception: checked } : null)}
-                                />
-                                <Label htmlFor="use-warehouse">Habilitar paso de &quot;Recibido en Bodega&quot;</Label>
-                            </div>
-                            <p className="text-sm text-muted-foreground mt-2">
-                                Si se activa, los proyectos completados necesitarán un paso adicional para ser archivados.
-                            </p>
                              <div className="flex items-center space-x-2">
                                 <Switch
                                     id="require-assignment"

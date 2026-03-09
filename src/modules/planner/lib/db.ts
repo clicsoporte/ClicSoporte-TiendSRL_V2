@@ -4,7 +4,7 @@
 "use server";
 
 import { connectDb } from '../../core/lib/db';
-import type { ProductionOrder, PlannerSettings, UpdateStatusPayload, UpdateOrderDetailsPayload, ProductionOrderHistoryEntry, CustomStatus, AdministrativeActionPayload } from '../../core/types';
+import type { ProductionOrder, PlannerSettings, UpdateStatusPayload, UpdateOrderDetailsPayload, ProductionOrderHistoryEntry, CustomStatus, AdministrativeActionPayload, UpdateProductionOrderPayload } from '../../core/types';
 import { format, parseISO } from 'date-fns';
 
 const PLANNER_DB_FILE = 'planner.db';
@@ -72,7 +72,6 @@ export async function initializePlannerDb(db: import('better-sqlite3').Database)
 
     db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('orderPrefix', 'OP-')`).run();
     db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('nextOrderNumber', '1')`).run();
-    db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('useWarehouseReception', 'false')`).run();
     db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('showCustomerTaxId', 'true')`).run();
     db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('assignments', '[]')`).run();
     db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('requireAssignmentForStart', 'false')`).run();
@@ -197,7 +196,6 @@ export async function getSettings(): Promise<PlannerSettings> {
     const settings: PlannerSettings = {
         orderPrefix: 'OP-',
         nextOrderNumber: 1,
-        useWarehouseReception: false,
         showCustomerTaxId: true,
         assignments: [],
         requireAssignmentForStart: false,
@@ -213,7 +211,6 @@ export async function getSettings(): Promise<PlannerSettings> {
     for (const row of settingsRows) {
         if (row.key === 'nextOrderNumber') settings.nextOrderNumber = Number(row.value);
         else if (row.key === 'orderPrefix') settings.orderPrefix = row.value;
-        else if (row.key === 'useWarehouseReception') settings.useWarehouseReception = row.value === 'true';
         else if (row.key === 'showCustomerTaxId') settings.showCustomerTaxId = row.value === 'true';
         else if (row.key === 'assignments') settings.assignments = JSON.parse(row.value);
         else if (row.key === 'requireAssignmentForStart') settings.requireAssignmentForStart = row.value === 'true';
@@ -231,8 +228,8 @@ export async function getSettings(): Promise<PlannerSettings> {
 export async function saveSettings(settings: PlannerSettings): Promise<void> {
     const db = await connectDb(PLANNER_DB_FILE);
     
-    const transaction = db.transaction((settingsToUpdate) => {
-        const keys: (keyof PlannerSettings)[] = ['orderPrefix', 'nextOrderNumber', 'useWarehouseReception', 'showCustomerTaxId', 'assignments', 'requireAssignmentForStart', 'assignmentLabel', 'customStatuses', 'pdfPaperSize', 'pdfOrientation', 'pdfExportColumns', 'pdfTopLegend', 'fieldsToTrackChanges'];
+    const transaction = db.transaction((settingsToUpdate: PlannerSettings) => {
+        const keys: (keyof PlannerSettings)[] = ['orderPrefix', 'nextOrderNumber', 'showCustomerTaxId', 'assignments', 'requireAssignmentForStart', 'assignmentLabel', 'customStatuses', 'pdfPaperSize', 'pdfOrientation', 'pdfExportColumns', 'pdfTopLegend', 'fieldsToTrackChanges'];
         for (const key of keys) {
             if (settingsToUpdate[key] !== undefined) {
                 const value = typeof settingsToUpdate[key] === 'object' ? JSON.stringify(settingsToUpdate[key]) : String(settingsToUpdate[key]);
@@ -251,9 +248,7 @@ export async function getOrders(options: {
     const db = await connectDb(PLANNER_DB_FILE);
     
     const { page = 0, pageSize = 50 } = options;
-    const settings = await getSettings();
-    const finalStatus = settings.useWarehouseReception ? 'received-in-warehouse' : 'completed';
-    const archivedStatuses = `'${finalStatus}', 'canceled'`;
+    const archivedStatuses = `'completed', 'canceled'`;
 
     // Fetch all active orders
     const activeOrders: ProductionOrder[] = db.prepare(`
@@ -351,9 +346,11 @@ export async function updateOrder(payload: UpdateProductionOrderPayload): Promis
     const changes: string[] = [];
     
     if (currentOrder.status !== 'pending') {
-        const checkChange = (field: keyof typeof dataToUpdate, label: string) => {
-            if (fieldsToTrack.includes(field) && dataToUpdate[field] !== undefined && String(currentOrder[field as keyof ProductionOrder] || '') !== String(dataToUpdate[field] || '')) {
-                changes.push(`${label}: de '${currentOrder[field as keyof ProductionOrder] || 'N/A'}' a '${dataToUpdate[field] || 'N/A'}'`);
+        const checkChange = (field: string, label: string) => {
+            const newValue = (dataToUpdate as any)[field];
+            const oldValue = (currentOrder as any)[field];
+            if (fieldsToTrack.includes(field) && newValue !== undefined && String(oldValue || '') !== String(newValue || '')) {
+                changes.push(`${label}: de '${oldValue || 'N/A'}' a '${newValue || 'N/A'}'`);
                 hasBeenModified = true;
             }
         };
@@ -562,7 +559,7 @@ export async function updatePendingAction(payload: AdministrativeActionPayload):
             WHERE id = @entityId
         `).run({ action, entityId });
         
-        const historyStmt = db.prepare('INSERT INTO purchase_request_history (requestId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)');
+        const historyStmt = db.prepare('INSERT INTO production_order_history (orderId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)');
         const historyNote = action === 'none' 
             ? 'Acción administrativa rechazada/cancelada' 
             : `Solicitud de ${action === 'unapproval-request' ? 'desaprobación' : 'cancelación'} iniciada`;

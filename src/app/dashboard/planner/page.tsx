@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import React from 'react';
@@ -7,31 +5,28 @@ import { usePlanner } from '@/modules/planner/hooks/usePlanner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { FilePlus, Loader2, FilterX, CalendarIcon, ChevronLeft, ChevronRight, RefreshCcw, MoreVertical, History, Undo2, Check, PackageCheck, XCircle, Pencil, AlertTriangle, User as UserIcon, MessageSquarePlus, FileDown, Play, Pause, Wrench, Hourglass } from 'lucide-react';
+import { FilePlus, Loader2, FilterX, CalendarIcon, ChevronLeft, ChevronRight, RefreshCcw, MoreVertical, History, Undo2, Check, PackageCheck, XCircle, Pencil, AlertTriangle, MessageSquarePlus, FileDown, Play, Pause, Wrench, Hourglass } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SearchInput } from '@/components/ui/search-input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ProductionOrder, ProductionOrderPriority, NotePayload, AdministrativeActionPayload } from '@/modules/core/types';
+import { ProductionOrder, ProductionOrderPriority, NotePayload } from '@/modules/core/types';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
-
 /**
  * @fileoverview This is the main UI component for the Production Planner page.
  * It is responsible for rendering the layout, filters, and order cards.
- * All business logic, state management, and data fetching are handled by the `usePlanner` hook.
  */
 export default function PlannerPage() {
     const {
@@ -71,7 +66,6 @@ export default function PlannerPage() {
         const canEdit = (selectors.hasPermission('planner:edit:pending') && ['pending', 'on-hold'].includes(order.status)) || (selectors.hasPermission('planner:edit:approved') && ['approved', 'in-progress', 'in-queue'].includes(order.status));
         
         const canApprove = selectors.hasPermission('planner:status:approve') && order.status === 'pending';
-        
         const canQueue = selectors.hasPermission('planner:status:in-queue') && order.status === 'approved';
         const canStart = selectors.hasPermission('planner:status:in-progress') && order.status === 'in-queue';
         const canHold = selectors.hasPermission('planner:status:on-hold') && order.status === 'in-progress';
@@ -83,9 +77,7 @@ export default function PlannerPage() {
         const canCancelPending = selectors.hasPermission('planner:status:cancel') && order.status === 'pending';
         const canRequestCancel = selectors.hasPermission('planner:status:cancel-approved') && ['approved', 'in-progress', 'on-hold', 'in-queue', 'in-maintenance'].includes(order.status) && order.pendingAction === 'none';
 
-        const canReceive = selectors.hasPermission('planner:receive') && order.status === 'completed';
-        const finalState = state.plannerSettings?.useWarehouseReception ? 'received-in-warehouse' : 'completed';
-        const canReopen = selectors.hasPermission('planner:reopen') && (order.status === finalState || order.status === 'canceled');
+        const canReopen = selectors.hasPermission('planner:reopen') && (order.status === 'completed' || order.status === 'canceled');
         
         const daysRemaining = selectors.getDaysRemaining(order.deliveryDate);
         const scheduledDaysRemaining = selectors.getScheduledDaysRemaining(order);
@@ -116,16 +108,12 @@ export default function PlannerPage() {
                                     <DropdownMenuLabel>Cambio de Estado</DropdownMenuLabel>
                                     <DropdownMenuSeparator/>
                                     {canApprove && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'approved')} className="text-green-600"><Check className="mr-2"/> Aprobar</DropdownMenuItem>}
-                                    
                                     {canQueue && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'in-queue')} className="text-cyan-600"><Hourglass className="mr-2"/> Poner en Cola</DropdownMenuItem>}
                                     {canStart && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'in-progress')} className="text-blue-600"><Play className="mr-2"/> Iniciar Progreso</DropdownMenuItem>}
                                     {canResumeFromHold && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'in-progress')} className="text-blue-600"><Play className="mr-2"/> Reanudar Progreso</DropdownMenuItem>}
-                                    
                                     {canHold && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'on-hold')} className="text-gray-600"><Pause className="mr-2"/> Poner en Espera</DropdownMenuItem>}
                                     {canMaintain && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'in-maintenance')} className="text-gray-600"><Wrench className="mr-2"/> Poner en Mantenimiento</DropdownMenuItem>}
-                                    
                                     {canComplete && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'completed')} className="text-indigo-600"><PackageCheck className="mr-2"/> Marcar como Completado</DropdownMenuItem>}
-                                    {canReceive && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'received-in-warehouse')} className="text-gray-700"><PackageCheck className="mr-2"/> Recibir en Bodega</DropdownMenuItem>}
                                     <DropdownMenuSeparator/>
                                     {canRequestUnapproval && <DropdownMenuItem onSelect={() => actions.openAdminActionDialog(order, 'unapproval-request')} className="text-orange-600"><AlertTriangle className="mr-2"/> Solicitar Desaprobación</DropdownMenuItem>}
                                     <DropdownMenuSeparator/>
@@ -231,7 +219,7 @@ export default function PlannerPage() {
                                     <AlertDialogHeader>
                                         <AlertDialogTitle>Gestionar Solicitud Pendiente</AlertDialogTitle>
                                         <AlertDialogDescription>
-                                            El proyecto tiene una solicitud de "{order.pendingAction === 'unapproval-request' ? 'Desaprobación' : 'Cancelación'}" pendiente. Puedes aprobar o rechazar esta solicitud.
+                                            El proyecto tiene una solicitud de &quot;{order.pendingAction === 'unapproval-request' ? 'Desaprobación' : 'Cancelación'}&quot; pendiente. Puedes aprobar o rechazar esta solicitud.
                                         </AlertDialogDescription>
                                     </AlertDialogHeader>
                                     <div className="py-4 space-y-2">
@@ -247,8 +235,8 @@ export default function PlannerPage() {
                             </AlertDialog>
                         </div>
                     )}
-                     {order.notes && (<div className="mt-4 text-xs bg-muted p-2 rounded-md"><p className="font-semibold">Notas del Proyecto:</p><p className="text-muted-foreground">"{order.notes}"</p></div>)}
-                     {order.lastStatusUpdateNotes && (<div className="mt-2 text-xs bg-muted p-2 rounded-md"><p className="font-semibold">Última nota de estado:</p><p className="text-muted-foreground">"{order.lastStatusUpdateNotes}" - <span className="italic">{order.lastStatusUpdateBy}</span></p></div>)}
+                     {order.notes && (<div className="mt-4 text-xs bg-muted p-2 rounded-md"><p className="font-semibold">Notas del Proyecto:</p><p className="text-muted-foreground">&quot;{order.notes}&quot;</p></div>)}
+                     {order.lastStatusUpdateNotes && (<div className="mt-2 text-xs bg-muted p-2 rounded-md"><p className="font-semibold">Última nota de estado:</p><p className="text-muted-foreground">&quot;{order.lastStatusUpdateNotes}&quot; - <span className="italic">{order.lastStatusUpdateBy}</span></p></div>)}
                      {order.hasBeenModified && order.lastModifiedBy && (<div className="mt-2 text-xs text-red-700 bg-red-100 p-2 rounded-md"><p className="font-semibold">Última Modificación por:</p><p className="">{order.lastModifiedBy} el {format(parseISO(order.lastModifiedAt as string), "dd/MM/yy 'a las' HH:mm")}</p></div>)}
                 </CardContent>
                 <CardFooter className="p-4 pt-0 text-xs text-muted-foreground flex flex-wrap justify-between gap-2">
@@ -333,7 +321,7 @@ export default function PlannerPage() {
                                             </div>
                                             <div className="space-y-2">
                                                 <Label htmlFor="new-order-priority">Prioridad</Label>
-                                                <Select value={state.newOrder.priority} onValueChange={(value: typeof state.newOrder.priority) => actions.setNewOrder({priority: value})}>
+                                                <Select value={state.newOrder.priority} onValueChange={(value: ProductionOrderPriority) => actions.setNewOrder({priority: value})}>
                                                     <SelectTrigger id="new-order-priority"><SelectValue placeholder="Seleccione una prioridad" /></SelectTrigger>
                                                     <SelectContent>
                                                         {Object.entries(selectors.priorityConfig).map(([key, config]) => (<SelectItem key={key} value={key}>{config.label}</SelectItem>))}
@@ -447,19 +435,19 @@ export default function PlannerPage() {
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="edit-order-quantity">Cantidad</Label>
-                                    <Input id="edit-order-quantity" type="number" value={state.orderToEdit?.quantity || ''} onChange={e => actions.setOrderToEdit({ ...state.orderToEdit, quantity: Number(e.target.value) })} required />
+                                    <Input id="edit-order-quantity" type="number" value={state.orderToEdit?.quantity || ''} onChange={e => actions.setOrderToEdit({ ...state.orderToEdit, quantity: Number(e.target.value) } as ProductionOrder)} required />
                                 </div>
                                  <div className="space-y-2">
                                     <Label htmlFor="edit-order-delivery-date">Fecha de Entrega</Label>
-                                    <Input id="edit-order-delivery-date" type="date" value={state.orderToEdit?.deliveryDate ? format(parseISO(state.orderToEdit.deliveryDate), 'yyyy-MM-dd') : ''} onChange={e => actions.setOrderToEdit({ ...state.orderToEdit, deliveryDate: e.target.value })} required />
+                                    <Input id="edit-order-delivery-date" type="date" value={state.orderToEdit?.deliveryDate ? format(parseISO(state.orderToEdit.deliveryDate), 'yyyy-MM-dd') : ''} onChange={e => actions.setOrderToEdit({ ...state.orderToEdit, deliveryDate: e.target.value } as ProductionOrder)} required />
                                 </div>
                                  <div className="space-y-2">
                                     <Label htmlFor="edit-order-purchase-order">Nº OC Cliente</Label>
-                                    <Input id="edit-order-purchase-order" value={state.orderToEdit?.purchaseOrder || ''} onChange={e => actions.setOrderToEdit({ ...state.orderToEdit, purchaseOrder: e.target.value })} />
+                                    <Input id="edit-order-purchase-order" value={state.orderToEdit?.purchaseOrder || ''} onChange={e => actions.setOrderToEdit({ ...state.orderToEdit, purchaseOrder: e.target.value } as ProductionOrder)} />
                                 </div>
                                 <div className="space-y-2 col-span-1 md:col-span-2">
                                     <Label htmlFor="edit-order-notes">Notas</Label>
-                                    <Textarea id="edit-order-notes" value={state.orderToEdit?.notes || ''} onChange={e => actions.setOrderToEdit({ ...state.orderToEdit, notes: e.target.value })} />
+                                    <Textarea id="edit-order-notes" value={state.orderToEdit?.notes || ''} onChange={e => actions.setOrderToEdit({ ...state.orderToEdit, notes: e.target.value } as ProductionOrder)} />
                                 </div>
                             </div>
                         </ScrollArea>
@@ -475,25 +463,13 @@ export default function PlannerPage() {
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Actualizar Estado del Proyecto</DialogTitle>
-                        <DialogDescription>Estás a punto de cambiar el estado a "{state.newStatus ? selectors.statusConfig[state.newStatus]?.label : ''}".</DialogDescription>
+                        <DialogDescription>Estás a punto de cambiar el estado a &quot;{state.newStatus ? selectors.statusConfig[state.newStatus]?.label : ''}&quot;.</DialogDescription>
                     </DialogHeader>
                     <div className="py-4 space-y-4">
                         {state.newStatus === 'completed' && (
                             <div className="space-y-2">
                                 <Label htmlFor="status-delivered-quantity">Cantidad Entregada</Label>
                                 <Input id="status-delivered-quantity" type="number" value={state.deliveredQuantity} onChange={(e) => actions.setDeliveredQuantity(e.target.value)} placeholder={`Cantidad solicitada: ${state.orderToUpdate?.quantity.toLocaleString()}`} />
-                            </div>
-                        )}
-                        {state.newStatus === 'received-in-warehouse' && (
-                            <div className="grid grid-cols-2 gap-4">
-                                 <div className="space-y-2">
-                                    <Label htmlFor="status-erp-package">Nº Paquete ERP</Label>
-                                    <Input id="status-erp-package" value={state.erpPackageNumber} onChange={(e) => actions.setErpPackageNumber(e.target.value)} />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="status-erp-ticket">Nº Boleta ERP</Label>
-                                    <Input id="status-erp-ticket" value={state.erpTicketNumber} onChange={(e) => actions.setErpTicketNumber(e.target.value)} />
-                                </div>
                             </div>
                         )}
                         <div className="space-y-2">
@@ -512,7 +488,7 @@ export default function PlannerPage() {
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2"><AlertTriangle className="text-destructive" /> Reabrir Proyecto Finalizado</DialogTitle>
-                        <DialogDescription>Estás a punto de reabrir el proyecto {state.orderToUpdate?.consecutive}. Esta acción es irreversible y moverá el proyecto de nuevo a "Pendiente".</DialogDescription>
+                        <DialogDescription>Estás a punto de reabrir el proyecto {state.orderToUpdate?.consecutive}. Esta acción es irreversible y moverá el proyecto de nuevo a &quot;Pendiente&quot;.</DialogDescription>
                     </DialogHeader>
                     <div className="py-4 space-y-4">
                         <div className="flex items-center space-x-2">
@@ -521,7 +497,7 @@ export default function PlannerPage() {
                         </div>
                         {state.reopenStep > 0 && (
                             <div className="space-y-2">
-                                <Label htmlFor="reopen-confirmation-text">Para confirmar, escribe "REABRIR" en el campo de abajo:</Label>
+                                <Label htmlFor="reopen-confirmation-text">Para confirmar, escribe &quot;REABRIR&quot; en el campo de abajo:</Label>
                                 <Input id="reopen-confirmation-text" value={state.reopenConfirmationText} onChange={(e) => { actions.setReopenConfirmationText(e.target.value.toUpperCase()); if (e.target.value.toUpperCase() === 'REABRIR') {actions.setReopenStep(2);} else {actions.setReopenStep(1);}}} className="border-destructive focus-visible:ring-destructive" />
                             </div>
                         )}
@@ -590,4 +566,3 @@ export default function PlannerPage() {
         </main>
     );
 }
-

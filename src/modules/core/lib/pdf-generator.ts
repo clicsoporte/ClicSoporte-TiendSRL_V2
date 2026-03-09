@@ -1,10 +1,8 @@
 /**
  * @fileoverview Centralized PDF generation service for the entire application.
- * This module provides a single, configurable function to create consistent and
- * professional-looking PDF documents for quotes, production orders, and purchase requests.
  */
 import jsPDF from "jspdf";
-import autoTable, { type RowInput } from "jspdf-autotable";
+import autoTable, { type RowInput, type Styles } from "jspdf-autotable";
 import type { Company } from '../types';
 
 export interface DocumentData {
@@ -26,7 +24,7 @@ export interface DocumentData {
     table: {
         columns: unknown[];
         rows: RowInput[];
-        columnStyles?: { [key: string]: unknown };
+        columnStyles?: { [key: string]: Partial<Styles> };
     };
     notes?: string;
     paymentInfo?: string;
@@ -51,19 +49,16 @@ export const generateDocument = (data: DocumentData): jsPDF => {
     let finalY = 0;
 
     const addHeader = () => {
-        let currentY = 40; // Initial Y position for the main title
+        let currentY = 40;
         const rightColX = pageWidth - margin;
 
-        // --- 1. Draw Main Title on the first line ---
         doc.setFontSize(16);
         doc.setFont('Helvetica', 'bold');
         doc.text(data.docTitle, pageWidth / 2, currentY, { align: 'center' });
-        currentY += 25; // Move down for the next section
+        currentY += 25;
 
-        // --- 2. Draw Company Info & Meta Info ---
         let companyY = currentY;
         let rightY = currentY;
-        
         let companyX = margin;
         
         if (data.logoDataUrl) {
