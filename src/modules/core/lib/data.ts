@@ -248,6 +248,7 @@ export const initialRoles: Role[] = [
         "licenses:manage",
         "licenses:admin:keys",
         "timesheet:create",
+        "tickets:read:all", // Support agent also uses this logic but admin has it explicitly
         "timesheet:read:all",
         "timesheet:edit:all",
         "timesheet:delete:all"

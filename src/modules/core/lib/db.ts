@@ -51,7 +51,7 @@ export async function connectDb(dbFile: string = DB_FILE): Promise<Database.Data
         }
     }
 
-    let db: Database.Database;
+    let db: Database.Database | null = null;
     let dbExistsAndIsValid = false;
 
     if (fs.existsSync(dbPath)) {
@@ -60,7 +60,14 @@ export async function connectDb(dbFile: string = DB_FILE): Promise<Database.Data
             db.pragma('journal_mode = WAL');
 
             const moduleConfig = DB_MODULES.find(m => m.dbFile === dbFile);
-            const mainTable = moduleConfig?.id === 'clic-tools-main' ? 'users' : moduleConfig?.id === 'purchase-requests' ? 'purchase_requests' : moduleConfig?.id === 'production-planner' ? 'production_orders' : moduleConfig?.id === 'cost-assistant' ? 'cost_analysis_drafts' : moduleConfig?.id === 'tickets' ? 'tickets' : moduleConfig?.id === 'licenses' ? 'licenses' : moduleConfig?.id === 'timesheet' ? 'time_entries' : null;
+            let mainTable: string | null = null;
+            if (moduleConfig?.id === 'clic-tools-main') mainTable = 'users';
+            else if (moduleConfig?.id === 'purchase-requests') mainTable = 'purchase_requests';
+            else if (moduleConfig?.id === 'production-planner') mainTable = 'production_orders';
+            else if (moduleConfig?.id === 'cost-assistant') mainTable = 'drafts';
+            else if (moduleConfig?.id === 'tickets') mainTable = 'tickets';
+            else if (moduleConfig?.id === 'licenses') mainTable = 'licenses';
+            else if (moduleConfig?.id === 'timesheet') mainTable = 'time_entries';
             
             if (mainTable) {
                 const tableCheck = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name=?`).get(mainTable);

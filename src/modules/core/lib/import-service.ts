@@ -71,7 +71,7 @@ async function processCustomers(data: Record<string, string>[]): Promise<number>
         phone: d.TELEFONO1,
         taxId: d.CONTRIBUYENTE,
         currency: d.MONEDA,
-        creditLimit: parseFloat(d.LIMITE_CREDITO),
+        creditLimit: parseFloat(d.LIMITE_CREDITO || '0'),
         paymentCondition: d.CONDICION_PAGO,
         salesperson: d.VENDEDOR,
         active: d.ACTIVO as 'S' | 'N',
@@ -133,7 +133,7 @@ async function processExemptions(data: Record<string, string>[]): Promise<number
         authNumber: d.NUM_AUTOR,
         startDate: d.FECHA_RIGE,
         endDate: d.FECHA_VENCE,
-        percentage: parseFloat(d.PORCENTAJE),
+        percentage: parseFloat(d.PORCENTAJE || '0'),
         docType: d.TIPO_DOC,
         institutionName: d.NOMBRE_INSTITUCION,
         institutionCode: d.CODIGO_INSTITUCION,
@@ -152,7 +152,7 @@ async function processStock(data: Record<string, string>[]): Promise<number> {
     data.forEach(d => {
         const itemId = d.ARTICULO;
         const warehouse = d.BODEGA;
-        const quantity = parseFloat(d.CANT_DISPONIBLE);
+        const quantity = parseFloat(d.CANT_DISPONIBLE || '0');
         
         if (!stockMap.has(itemId)) {
             stockMap.set(itemId, {});
@@ -178,7 +178,7 @@ async function processCabys(data: Record<string, string>[]): Promise<number> {
 
     const transaction = db.transaction((records: Record<string, string>[]) => {
         for (const record of records) {
-            insert.run(record.Codigo, record.Descripcion, record.Impuesto);
+            insert.run(record.Codigo, record.Descripcion, parseFloat(record.Impuesto || '0'));
         }
     });
 
@@ -198,7 +198,8 @@ async function fetchDataForType(type: ImportType): Promise<any[]> {
         }
         return executeQuery(queryRow.query);
     } else {
-        const filePath = companySettings[importTypeFieldMapping[type]];
+        const fieldKey = importTypeFieldMapping[type];
+        const filePath = companySettings[fieldKey];
         if (typeof filePath !== 'string' || !filePath) {
             throw new Error(`File path not configured for import type: ${type}`);
         }
@@ -228,10 +229,7 @@ export async function importData(type: ImportType): Promise<{ count: number; sou
                 count = await processStock(data);
                 break;
             case 'cabys':
-                const filePath = companySettings?.cabysFilePath;
-                if (!filePath) throw new Error("File path for CABYS not configured.");
-                const cabysData = await parseCsv(filePath);
-                count = await processCabys(cabysData);
+                count = await processCabys(data);
                 break;
         }
 

@@ -95,7 +95,7 @@ export default function ImportDataPage() {
                 description: `Se han cargado ${result.count} ${itemType} desde ${result.source}.`,
             });
             await logInfo(`Importación de datos: ${result.count} ${type} cargados desde ${result.source}.`);
-        } catch (error: Error | unknown) {
+        } catch (error: unknown) {
             toast({
                 title: "Error de Importación",
                 description: (error as Error).message,
@@ -122,7 +122,7 @@ export default function ImportDataPage() {
                 description: `Se han procesado ${results.length} tipos de datos desde el ERP.`,
             });
             await logInfo("Full ERP data synchronization completed.", { results });
-        } catch (error: Error | unknown) {
+        } catch (error: unknown) {
              toast({
                 title: "Error en Sincronización",
                 description: (error as Error).message,
@@ -137,7 +137,7 @@ export default function ImportDataPage() {
     
     const handleCompanyDataChange = (field: keyof Company, value: string | boolean) => {
         if (!companyData) return;
-        setCompanyData(prev => prev ? ({ ...prev, [field]: value }) : null);
+        setCompanyData(prev => prev ? ({ ...prev, [field]: value } as Company) : null);
     };
 
     const handleSqlConfigChange = (field: keyof SqlConfig, value: string) => {
@@ -166,7 +166,7 @@ export default function ImportDataPage() {
             }
             toast({ title: "Configuración Guardada", description: "Todos los ajustes de importación han sido guardados." });
             logInfo("Import settings saved.");
-        } catch (error: Error | unknown) {
+        } catch (error: unknown) {
             logError("Failed to save import settings", { error: (error as Error).message });
             toast({ title: "Error al Guardar", description: `No se pudieron guardar los ajustes. ${(error as Error).message}`, variant: "destructive" });
         } finally {
@@ -182,7 +182,7 @@ export default function ImportDataPage() {
         try {
             await testSqlConnection();
             toast({ title: "Conexión Exitosa", description: "Se pudo conectar a la base de datos SQL Server correctamente." });
-        } catch (error: Error | unknown) {
+        } catch (error: unknown) {
             toast({ title: "Error de Conexión", description: (error as Error).message, variant: "destructive" });
         } finally {
             setIsSaving(false);

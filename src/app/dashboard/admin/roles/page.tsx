@@ -69,13 +69,12 @@ const permissionGroups = {
         "planner:status:completed", "planner:status:cancel", "planner:status:cancel-approved", "planner:status:unapprove-request",
         "planner:priority:update", "planner:machine:assign", "planner:schedule"
     ],
-    "Gestión de Almacenes": ["warehouse:access", "warehouse:inventory:assign", "warehouse:locations:manage"],
     "Consultas Hacienda": ["hacienda:query"],
     "Analíticas": ["analytics:read"],
     "Gestión de Usuarios": ["users:create", "users:read", "users:update", "users:delete"],
     "Gestión de Roles": ["roles:create", "roles:read", "roles:update", "roles:delete"],
     "Administración del Sistema": [
-        "admin:settings:general", "admin:settings:api", "admin:settings:planner", "admin:settings:requests", "admin:settings:warehouse", "admin:settings:stock", 
+        "admin:settings:general", "admin:settings:api", "admin:settings:planner", "admin:settings:requests", "admin:settings:stock", 
         "admin:suggestions:read",
         "admin:import:run", "admin:import:files", "admin:import:sql", "admin:import:sql-config",
         "admin:logs:read", "admin:logs:clear", "admin:maintenance:backup", "admin:maintenance:restore", "admin:maintenance:reset"
@@ -127,9 +126,6 @@ const permissionTranslations: { [key: string]: string } = {
     "planner:machine:assign": "Plan.: Asignar Máquina",
     "planner:status:unapprove-request": "Plan.: Solicitar Desaprobación",
     "planner:schedule": "Plan.: Programar Fechas",
-    "warehouse:access": "Almacén: Acceso General",
-    "warehouse:inventory:assign": "Almacén: Asignar Inventario",
-    "warehouse:locations:manage": "Almacén: Gestionar Ubicaciones",
     "hacienda:query": "Hacienda: Realizar Consultas",
     "analytics:read": "Analíticas: Leer",
     "users:create": "Usuarios: Crear",
@@ -144,7 +140,6 @@ const permissionTranslations: { [key: string]: string } = {
     "admin:settings:api": "Admin: Config. de API",
     "admin:settings:planner": "Admin: Config. Planificador",
     "admin:settings:requests": "Admin: Config. Compras",
-    "admin:settings:warehouse": "Admin: Config. Almacenes",
     "admin:settings:stock": "Admin: Config. Inventario",
     "admin:suggestions:read": "Admin: Leer Sugerencias",
     "admin:import:run": "Admin: Ejecutar Sincronización ERP",
@@ -302,7 +297,7 @@ export default function RolesPage() {
                             <AlertDialogHeader>
                                 <AlertDialogTitle>¿Restablecer Roles por Defecto?</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                    Esta acción restaurará los roles por defecto (&apos;admin&apos;, &apos;viewer&apos;, &apos;planner-user&apos;, &apos;requester-user&apos;) a sus permisos originales.
+                                    Esta acción restaurará los roles por defecto (&apos;admin&apos;, &apos;viewer&apos;, &apos;planner-user&apos;, &apos;requester-user&apos;, &apos;support-agent&apos;) a sus permisos originales.
                                     Los roles personalizados que hayas creado no se verán afectados.
                                     Esto es útil si los permisos por defecto se han corrompido.
                                 </AlertDialogDescription>

@@ -16,7 +16,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "../../../components/ui/accordion";
-import { Code, FileUp, FileTerminal, Network, ShieldCheck, Users, Building, FileDown, PlusCircle, UserCog, DatabaseZap, Keyboard, DollarSign, ShieldQuestion, LifeBuoy, Rocket, Boxes, CalendarCheck, ShoppingCart, Truck, PackageCheck, Factory, CheckCircle, XCircle, ShieldAlert, Search, Wrench, Map, PackagePlus, BookMarked, Save, Copy, Folder, AlertTriangle, ToggleRight, FilePlusIcon, Warehouse, Send, Loader2, Play, Pause, History, Undo2, Info, BadgeInfo, CreditCard, MessageSquare, Trash2, Download, Briefcase, Store, ListChecks, Hourglass, Ticket, KeyRound, AreaChart, FileScan, UploadCloud } from "lucide-react";
+import { Code, FileTerminal, Network, ShieldCheck, Users, FileDown, UserCog, DatabaseZap, Keyboard, DollarSign, ShieldQuestion, LifeBuoy, Rocket, CalendarCheck, ShoppingCart, Truck, PackageCheck, Factory, CheckCircle, XCircle, Search, Wrench, Save, Copy, Folder, AlertTriangle, ToggleRight, FilePlusIcon, Loader2, Play, Pause, History, Undo2, BadgeInfo, CreditCard, MessageSquare, Trash2, Download, Briefcase, Store, ListChecks, Hourglass, Ticket, KeyRound, AreaChart, FileScan, UploadCloud } from "lucide-react";
 import { Skeleton } from "../../../components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAuth } from "@/modules/core/hooks/useAuth";
@@ -192,7 +192,6 @@ export default function HelpPage() {
                             <li><strong>Aprobada (<CheckCircle className="inline h-4 w-4 text-green-600"/>):</strong> Un usuario con permisos ha aprobado la compra.</li>
                             <li><strong>Ordenada (<Truck className="inline h-4 w-4 text-blue-600"/>):</strong> Ya se realizó el pedido al proveedor.</li>
                             <li><strong>Recibida (<PackageCheck className="inline h-4 w-4 text-teal-600"/>):</strong> El producto ha llegado. Aquí puedes registrar la cantidad real que se recibió.</li>
-                             <li><strong>En Bodega (<Warehouse className="inline h-4 w-4 text-gray-700"/>):</strong> (Opcional, si está activado) Un paso final para confirmar que el producto ya está en el almacén físico.</li>
                             <li><strong>Cancelada (<XCircle className="inline h-4 w-4 text-red-600"/>):</strong> La solicitud ha sido cancelada.</li>
                         </ul>
                     </li>
@@ -231,7 +230,6 @@ export default function HelpPage() {
                                 <li><strong>En Progreso (<Play className="inline h-4 w-4 text-blue-600"/>):</strong> El proyecto se está produciendo activamente.</li>
                                 <li><strong>En Espera / Mantenimiento (<Pause className="inline h-4 w-4 text-gray-600"/>):</strong> La producción se detuvo temporalmente.</li>
                                 <li><strong>Completado (<PackageCheck className="inline h-4 w-4 text-teal-600"/>):</strong> La producción ha finalizado.</li>
-                                <li><strong>En Bodega (<Warehouse className="inline h-4 w-4 text-gray-700"/>):</strong> (Opcional) El producto terminado ya está en el almacén.</li>
                             </ul>
                         </li>
                         <li>
@@ -341,72 +339,6 @@ export default function HelpPage() {
                     </AccordionContent>
                 </AccordionItem>
 
-
-                <AccordionItem value="item-warehouse">
-                    <AccordionTrigger className="text-lg font-semibold">
-                        <Warehouse className="mr-4 h-6 w-6 text-cyan-600" />
-                        Tutorial: Módulo de Almacenes
-                    </AccordionTrigger>
-                    <AccordionContent className="prose max-w-none text-base space-y-4">
-                        <p>Este módulo te da control sobre la ubicación de tu inventario. Su configuración, aunque potente, puede ser confusa al principio. Se basa en un concepto de dos pasos: el <strong>Molde</strong> y el <strong>Árbol</strong>.</p>
-                        
-                        <ul className="list-none space-y-3 pl-0">
-                            <li>
-                                <strong className="text-base">1. El Molde (Definir Jerarquía):</strong> Aquí le dices al sistema cómo organizas tu almacén, pero sin crear nada real todavía. Es solo la plantilla. Por ejemplo: le dices que usas "Bodegas", que dentro de ellas hay "Pasillos", y que en los pasillos hay "Racks".
-                            </li>
-                            <li>
-                                <strong className="text-base">2. El Árbol (Crear Ubicaciones Reales):</strong> Una vez que tienes el "molde", aquí es donde creas el árbol real de tu almacén. Aquí es donde dices: "Ok, voy a crear una ubicación de tipo `Bodega` y se va a llamar `Bodega 04`". Luego, "dentro de Bodega 04, voy a crear una ubicación de tipo `Pasillo` y se va a llamar `Pasillo Bolsas 01`", y así sucesivamente.
-                            </li>
-                        </ul>
-
-                        <h4 className="font-semibold text-lg pt-4 border-t">Tutorial Práctico: Configurando tu Almacén desde Cero</h4>
-                        <p>Usemos un ejemplo real: tienes una bodega (`04`), con un pasillo (`01`) entre dos racks (`01` y `02`).</p>
-
-                        <h5 className="font-semibold">Paso 1: Crear el "Molde" (La Jerarquía)</h5>
-                        <ol className="list-decimal space-y-2 pl-6">
-                            <li>Ve a <strong>Administración &gt; Config. Almacenes</strong>.</li>
-                            <li>En la sección <strong>"Paso 1: Definir Jerarquía del Almacén"</strong>, borra los niveles que existan.</li>
-                            <li>Añade, en orden, los siguientes niveles:
-                                <ul className="list-[circle] space-y-1 pl-5 mt-2">
-                                    <li>Bodega</li>
-                                    <li>Pasillo</li>
-                                    <li>Rack</li>
-                                </ul>
-                            </li>
-                            <li>Haz clic en <strong>Guardar Niveles</strong>.</li>
-                        </ol>
-
-                        <h5 className="font-semibold">Paso 2: Construir el "Árbol" (Las Ubicaciones Reales)</h5>
-                        <p>Ahora, en la sección <strong>"Paso 2: Crear Ubicaciones Reales"</strong>, vamos a construir el almacén pieza por pieza:</p>
-                        <ol className="list-decimal space-y-3 pl-6">
-                            <li>
-                                <strong>Crear la Bodega:</strong>
-                                <ul className="list-[circle] space-y-1 pl-5 mt-2 text-sm">
-                                    <li>Haz clic en <strong>"Añadir Ubicación"</strong>.</li>
-                                    <li><strong>Nombre:</strong> `Bodega 04`, <strong>Código:</strong> `B04`.</li>
-                                    <li><strong>Tipo de Ubicación:</strong> `Nivel 1: Bodega`.</li>
-                                    <li><strong>Ubicación Padre:</strong> Déjalo en `Sin padre`.</li>
-                                    <li>Guarda. Ya tienes la raíz de tu árbol.</li>
-                                </ul>
-                            </li>
-                            <li>
-                                <strong>Crear el Pasillo:</strong>
-                                <ul className="list-[circle] space-y-1 pl-5 mt-2 text-sm">
-                                    <li>Haz clic de nuevo en <strong>"Añadir Ubicación"</strong>.</li>
-                                    <li><strong>Nombre:</strong> `Pasillo 01`, <strong>Código:</strong> `P01`.</li>
-                                    <li><strong>Tipo de Ubicación:</strong> `Nivel 2: Pasillo`.</li>
-                                    <li><strong>Ubicación Padre:</strong> Selecciona `Bodega 04`.</li>
-                                    <li>Guarda. Verás que `Pasillo 01` aparece anidado debajo de `Bodega 04`.</li>
-                                </ul>
-                            </li>
-                            <li>
-                                <strong>Crear los Racks:</strong> Repite el proceso para crear `Rack 01` (Código `R01`) y `Rack 02` (Código `R02`), ambos de tipo `Nivel 3: Rack` y ambos con `Pasillo 01` como padre.
-                            </li>
-                        </ol>
-                        <p className="pt-2">Una vez configurado, puedes ir al módulo <strong>Asignar Inventario</strong> para empezar a colocar tus artículos en estas nuevas ubicaciones.</p>
-                    </AccordionContent>
-                </AccordionItem>
-
                  <AccordionItem value="item-hacienda">
                     <AccordionTrigger className="text-lg font-semibold">
                         <Search className="mr-4 h-6 w-6 text-indigo-500" />
@@ -427,7 +359,7 @@ export default function HelpPage() {
                                 </ul>
                             </li>
                              <li>
-                                <strong>Búsquedas Individuales:</strong> También puedes usar las pestañas "Situación Tributaria" y "Exoneraciones" para hacer consultas directas a Hacienda ingresando una cédula o un número de autorización, respectively.
+                                <strong>Búsquedas Individuales:</strong> También puedes usar las pistas "Situación Tributaria" y "Exoneraciones" para hacer consultas directas a Hacienda ingresando una cédula o un número de autorización, respectivamente.
                             </li>
                         </ul>
                     </AccordionContent>
@@ -494,12 +426,8 @@ export default function HelpPage() {
                                 <Store className="mt-1 h-6 w-6 text-amber-700 shrink-0" />
                                 <div><h4 className="font-semibold">Config. Compras</h4><p>Define las opciones que aparecerán en el módulo de Solicitudes de Compra, como las diferentes rutas de entrega o los métodos de envío disponibles.</p></div>
                             </div>
-                            <div className="flex items-start gap-4">
-                                <Map className="mt-1 h-6 w-6 text-teal-700 shrink-0" />
-                                <div><h4 className="font-semibold">Config. Almacenes</h4><p>Define la estructura jerárquica de tu bodega (Paso 1) y luego crea las ubicaciones físicas reales que la componen (Paso 2).</p></div>
-                            </div>
                              <div className="flex items-start gap-4">
-                                <Boxes className="mt-1 h-6 w-6 text-green-700 shrink-0" />
+                                <Hourglass className="mt-1 h-6 w-6 text-green-700 shrink-0" />
                                 <div><h4 className="font-semibold">Config. Inventario</h4><p>Gestiona las bodegas del sistema. Puedes añadir nuevas bodegas, marcar una como predeterminada o decidir si una bodega debe ser visible en los desgloses de inventario.</p></div>
                             </div>
                              <div className="flex items-start gap-4">
@@ -507,9 +435,8 @@ export default function HelpPage() {
                                 <div><h4 className="font-semibold">Config. Soporte Técnico</h4><p>Define los "Temas de Ayuda" para clasificar los tickets y permite pre-asignarles una prioridad, un técnico o un servicio por defecto para automatizar el flujo de trabajo.</p></div>
                             </div>
                             <div className="flex items-start gap-4">
-                                <FileUp className="mt-1 h-6 w-6 text-cyan-500 shrink-0" />
-                                <div>
-                                    <h4 className="font-semibold">Importar Datos</h4>
+                                <DatabaseZap className="mt-1 h-6 w-6 text-red-500 shrink-0" />
+                                <div><h4 className="font-semibold">Importar Datos</h4>
                                     <p>Sincroniza los datos maestros (clientes, productos, etc.) desde tu ERP. Tienes dos modos: por <strong>Archivos</strong> (cargando .txt o .csv) o por <strong>SQL Server</strong> (conectando directamente a la base de datos de tu ERP).</p>
                                 </div>
                             </div>
