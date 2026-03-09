@@ -15,7 +15,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "../../../components/ui/accordion";
-import { DollarSign, ShieldQuestion, LifeBuoy, Rocket, CalendarCheck, PackageCheck, Factory, CheckCircle, Search, Wrench, Save, Copy, Folder, AlertTriangle, ToggleRight, Play, Pause, History, Undo2, BadgeInfo, CreditCard, MessageSquare, Trash2, Download, Briefcase, ListChecks, Hourglass, Ticket, KeyRound, AreaChart, FileScan, UploadCloud, Network } from "lucide-react";
+import { DollarSign, ShieldQuestion, LifeBuoy, Rocket, CalendarCheck, CheckCircle, Search, Wrench, Save, Copy, Folder, AlertTriangle, Play, Pause, History, Undo2, BadgeInfo, CreditCard, MessageSquare, Trash2, Download, Briefcase, ListChecks, Hourglass, Ticket, KeyRound, AreaChart, FileScan, UploadCloud, Network } from "lucide-react";
 import { Skeleton } from "../../../components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAuth } from "@/modules/core/hooks/useAuth";
@@ -189,7 +189,7 @@ export default function HelpPage() {
                                 <li><strong>En Cola (<Hourglass className="inline h-4 w-4 text-cyan-600"/>):</strong> El proyecto está listo, esperando que se libere un recurso para poder iniciar.</li>
                                 <li><strong>En Progreso (<Play className="inline h-4 w-4 text-blue-600"/>):</strong> El proyecto se está produciendo activamente.</li>
                                 <li><strong>En Espera / Mantenimiento (<Pause className="inline h-4 w-4 text-gray-600"/>):</strong> La producción se detuvo temporalmente.</li>
-                                <li><strong>Completado (<PackageCheck className="inline h-4 w-4 text-teal-600"/>):</strong> La producción ha finalizado.</li>
+                                <li><strong>Completado:</strong> El proyecto ha finalizado satisfactoriamente.</li>
                             </ul>
                         </li>
                         <li>
@@ -204,8 +204,8 @@ export default function HelpPage() {
                             <strong>Paso 4: Programación y Prioridades.</strong>
                             <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
                                 <li><strong>Programación por Rango:</strong> Haz clic en el área de &quot;Fecha Programada&quot; para abrir un calendario y seleccionar un rango de fechas.</li>
-                                <li><strong>Asignación:</strong> Asigna cada proyecto a una máquina, proceso u operario específico.</li>
-                                <li><strong>Prioridades y Cuenta Regresiva:</strong> Usa el selector de prioridad y fíjate en el indicador de días restantes para organizar el trabajo.</li>
+                                <li><strong>Asignación:</strong> Asigna cada proyecto a un recurso u operario específico.</li>
+                                <li><strong>Prioridades y Cuenta Regresiva:</strong> Usa el selector de prioridad para organizar el trabajo.</li>
                             </ul>
                         </li>
                         <li>
@@ -296,26 +296,6 @@ export default function HelpPage() {
                     </AccordionContent>
                 </AccordionItem>
 
-                 <AccordionItem value="item-hacienda">
-                    <AccordionTrigger className="text-lg font-semibold">
-                        <Search className="mr-4 h-6 w-6 text-indigo-500" />
-                        Tutorial: Consultas a Hacienda
-                    </AccordionTrigger>
-                    <AccordionContent className="prose max-w-none text-base space-y-4">
-                        <p>
-                        Esta herramienta permite consultar información directamente de las APIs del Ministerio de Hacienda de forma centralizada.
-                        </p>
-                        <ul className="list-disc space-y-3 pl-6">
-                            <li>
-                                <strong>Búsqueda Unificada:</strong> Busca un cliente y el sistema consultará su Situación Tributaria y el estado de su exoneración en tiempo real.
-                            </li>
-                             <li>
-                                <strong>Búsquedas Individuales:</strong> Realiza consultas directas ingresando una cédula o un número de autorización.
-                            </li>
-                        </ul>
-                    </AccordionContent>
-                </AccordionItem>
-                
                 <AccordionItem value="item-user-profile">
                 <AccordionTrigger className="text-lg font-semibold">
                     <Briefcase className="mr-4 h-6 w-6 text-blue-500" />

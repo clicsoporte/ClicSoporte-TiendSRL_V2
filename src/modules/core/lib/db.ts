@@ -241,7 +241,7 @@ export async function initializeMainDatabase(db: import('better-sqlite3').Databa
     const roleInsert = db.prepare('INSERT INTO roles (id, name, permissions) VALUES (@id, @name, @permissions)');
     initialRoles.forEach(role => roleInsert.run({ ...role, permissions: JSON.stringify(role.permissions) }));
     
-    console.log(`Database ${DB_FILE} initialized.`);
+    console.log(`Database intratool.db initialized.`);
 }
 
 export async function getUserPreferences(userId: number, settingName: string): Promise<Record<string, unknown>> {

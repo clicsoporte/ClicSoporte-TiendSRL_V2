@@ -5,7 +5,7 @@
  */
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from "../../../../components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../../../../components/ui/card";
 import { useToast } from "../../../../modules/core/hooks/use-toast";
@@ -194,7 +194,7 @@ export default function ImportDataPage() {
      * @param {ImportType} type The type of data this card is for.
      * @returns {JSX.Element} A card component for file import.
      */
-    const renderFileImportCard = (type: ImportType) => {
+    const renderFileImportCard = useCallback((type: ImportType) => {
         const fieldName = importTypeFieldMapping[type];
         return (
             <Card key={type} className="flex flex-col">
@@ -215,7 +215,7 @@ export default function ImportDataPage() {
                 </CardFooter>
             </Card>
         );
-    }
+    }, [companyData, isProcessing, processingType]);
     
     return (
         <main className="flex-1 p-4 md:p-6 lg:p-8 space-y-8">

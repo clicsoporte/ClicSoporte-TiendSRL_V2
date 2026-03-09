@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "../../../../components/ui/button";
 import {
   Card,
@@ -56,12 +56,11 @@ const permissionGroups = {
     "Asistente de Costos": ["cost-assistant:access"],
     "Soporte Técnico": ["tickets:create", "tickets:read:all", "tickets:update", "tickets:delete", "tickets:admin:settings"],
     "Gestión de Licencias": ["licenses:read", "licenses:manage", "licenses:admin:keys"],
-    "Hoja de Tiempos": ["timesheet:create", "timesheet:read:all", "timesheet:edit:all", "timesheet:delete:all"],
     "Planificador de Producción (Lectura y Creación)": ["planner:read", "planner:create"],
     "Planificador de Producción (Edición)": ["planner:edit:pending", "planner:edit:approved"],
     "Planificador de Producción (Acciones)": [
-        "planner:reopen", "planner:receive", "planner:status:approve", "planner:status:in-progress", "planner:status:on-hold", 
-        "planner:status:completed", "planner:status:cancel", "planner:status:cancel-approved", "planner:status:unapprove-request",
+        "planner:reopen", "planner:status:approve", "planner:status:in-queue", "planner:status:in-progress", "planner:status:on-hold", 
+        "planner:status:completed", "planner:status:cancel", "planner:status:cancel-approved",
         "planner:priority:update", "planner:machine:assign", "planner:schedule"
     ],
     "Consultas Hacienda": ["hacienda:query"],
@@ -74,7 +73,7 @@ const permissionGroups = {
         "admin:import:run", "admin:import:files", "admin:import:sql", "admin:import:sql-config",
         "admin:logs:read", "admin:logs:clear", "admin:maintenance:backup", "admin:maintenance:restore", "admin:maintenance:reset"
     ],
-}
+};
 
 const permissionTranslations: { [key: string]: string } = {
     "dashboard:access": "Acceso al Panel",
@@ -92,17 +91,13 @@ const permissionTranslations: { [key: string]: string } = {
     "licenses:read": "Licencias: Leer",
     "licenses:manage": "Licencias: Gestionar (Crear/Editar/Eliminar)",
     "licenses:admin:keys": "Licencias: Gestionar Claves Criptográficas",
-    "timesheet:create": "Tiempos: Registrar",
-    "timesheet:read:all": "Tiempos: Ver Todos",
-    "timesheet:edit:all": "Tiempos: Editar Todos",
-    "timesheet:delete:all": "Tiempos: Eliminar Todos",
     "planner:read": "Plan.: Leer Proyectos",
     "planner:create": "Plan.: Crear Proyectos",
     "planner:edit:pending": "Plan.: Editar (Pendientes)",
     "planner:edit:approved": "Plan.: Editar (Aprobadas)",
     "planner:reopen": "Plan.: Reabrir Proyectos",
-    "planner:receive": "Plan.: Recibir en Bodega",
     "planner:status:approve": "Plan.: Cambiar a Aprobada",
+    "planner:status:in-queue": "Plan.: Cambiar a En Cola",
     "planner:status:in-progress": "Plan.: Cambiar a En Progreso",
     "planner:status:on-hold": "Plan.: Cambiar a En Espera",
     "planner:status:completed": "Plan.: Cambiar a Completada",
@@ -110,7 +105,6 @@ const permissionTranslations: { [key: string]: string } = {
     "planner:status:cancel-approved": "Plan.: Cancelar (Aprobadas)",
     "planner:priority:update": "Plan.: Cambiar Prioridad",
     "planner:machine:assign": "Plan.: Asignar Máquina",
-    "planner:status:unapprove-request": "Plan.: Solicitar Desaprobación",
     "planner:schedule": "Plan.: Programar Fechas",
     "hacienda:query": "Hacienda: Realizar Consultas",
     "analytics:read": "Analíticas: Leer",
@@ -154,19 +148,19 @@ export default function RolesPage() {
     const { setTitle } = usePageTitle();
     const [roleToDelete, setRoleToDelete] = useState<Role | null>(null);
 
-    const fetchRoles = async () => {
+    const fetchRoles = useCallback(async () => {
         setIsLoading(true);
         const savedRoles = await getAllRoles();
         setRoles(savedRoles);
         setIsLoading(false);
-    };
+    }, []);
 
     useEffect(() => {
         setTitle("Gestión de Roles");
         if (isAuthorized) {
             fetchRoles();
         }
-    }, [setTitle, isAuthorized]);
+    }, [setTitle, isAuthorized, fetchRoles]);
     
     const handlePermissionChange = (roleId: string, permission: string, checked: boolean) => {
         setRoles(currentRoles => 
@@ -226,7 +220,7 @@ export default function RolesPage() {
         setRoles(updatedRoles);
         await saveAllRoles(updatedRoles);
 
-        toast({ title: "Rol Elimiado", description: `El rol "${roleToDelete.name}" ha sido eliminado.`, variant: 'destructive'});
+        toast({ title: "Rol Eliminado", description: `El rol "${roleToDelete.name}" ha sido eliminado.`, variant: 'destructive'});
         await logWarn("Rol eliminado", { role: roleToDelete.name });
         setRoleToDelete(null);
     }

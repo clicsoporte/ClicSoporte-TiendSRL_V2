@@ -1,15 +1,14 @@
-
 /**
  * @fileoverview The main dashboard page for the admin section.
  */
 'use client';
 import { adminTools } from "@/modules/admin/lib/data";
 import { ToolCard } from "../../../components/dashboard/tool-card";
-import { useEffect } from "react";
+import { useEffect, useCallback } from "react";
 import { usePageTitle } from "../../../modules/core/hooks/usePageTitle";
 import { useAuthorization } from "@/modules/core/hooks/useAuthorization";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useAuth } from "@/modules/auth/hooks/useAuth";
+import { useAuth } from "@/modules/core/hooks/useAuth";
 import type { Tool } from "@/modules/core/types";
 
 export default function AdminDashboardPage() {
@@ -23,28 +22,7 @@ export default function AdminDashboardPage() {
 
     const isAuthorized = hasPermission('admin:settings:general');
 
-    if (isAuthorized === false) {
-        return null;
-    }
-
-    if (isAuthorized === null) {
-        return (
-             <main className="flex-1 p-4 md:p-6 lg:p-8">
-                <div className="grid gap-8">
-                <div>
-                    <Skeleton className="h-8 w-80 mb-4" />
-                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                    <Skeleton className="h-24 w-full" />
-                    <Skeleton className="h-24 w-full" />
-                    <Skeleton className="h-24 w-full" />
-                    </div>
-                </div>
-                </div>
-            </main>
-        );
-    }
-    
-    const visibleAdminTools = adminTools.filter((tool: Tool) => {
+    const isToolVisible = useCallback((tool: Tool) => {
         switch (tool.id) {
             case 'user-management':
             case 'role-management':
@@ -74,7 +52,30 @@ export default function AdminDashboardPage() {
             default:
                 return true;
         }
-    });
+    }, [hasPermission]);
+
+    if (isAuthorized === false) {
+        return null;
+    }
+
+    if (isAuthorized === null) {
+        return (
+             <main className="flex-1 p-4 md:p-6 lg:p-8">
+                <div className="grid gap-8">
+                <div>
+                    <Skeleton className="h-8 w-80 mb-4" />
+                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                    <Skeleton className="h-24 w-full" />
+                    <Skeleton className="h-24 w-full" />
+                    <Skeleton className="h-24 w-full" />
+                    </div>
+                </div>
+                </div>
+            </main>
+        );
+    }
+    
+    const visibleAdminTools = adminTools.filter(isToolVisible);
 
   return (
       <main className="flex-1 p-4 md:p-6 lg:p-8">

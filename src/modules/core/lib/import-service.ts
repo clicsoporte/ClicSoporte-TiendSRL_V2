@@ -186,7 +186,7 @@ async function processCabys(data: Record<string, string>[]): Promise<number> {
     return data.length;
 }
 
-async function fetchDataForType(type: ImportType): Promise<any[]> {
+async function fetchDataForType(type: ImportType): Promise<Record<string, string>[]> {
     const companySettings = await getCompanySettings();
     if (!companySettings) throw new Error("Company settings not found.");
 
