@@ -1,7 +1,5 @@
 /**
  * @fileoverview This file contains the initial or default data for the application.
- * This data is used to populate the database on its first run.
- * Spanish is used for UI-facing strings like names and descriptions.
  */
 
 import type { Tool, User, Role, Company, DatabaseModule } from "@/modules/core/types";
@@ -224,7 +222,6 @@ export const initialRoles: Role[] = [
         "licenses:manage",
         "licenses:admin:keys",
         "timesheet:create",
-        "tickets:read:all", // Support agent also uses this logic but admin has it explicitly
         "timesheet:read:all",
         "timesheet:edit:all",
         "timesheet:delete:all"

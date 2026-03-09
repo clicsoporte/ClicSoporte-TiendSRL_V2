@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -12,15 +11,15 @@ import {
   CardTitle,
 } from "../../../../components/ui/card";
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-    DialogClose
-  } from "../../../../components/ui/dialog";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogClose
+} from "../../../../components/ui/dialog";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -97,11 +96,11 @@ const permissionTranslations: { [key: string]: string } = {
     "timesheet:read:all": "Tiempos: Ver Todos",
     "timesheet:edit:all": "Tiempos: Editar Todos",
     "timesheet:delete:all": "Tiempos: Eliminar Todos",
-    "planner:read": "Plan.: Leer Órdenes",
-    "planner:create": "Plan.: Crear Órdenes",
+    "planner:read": "Plan.: Leer Proyectos",
+    "planner:create": "Plan.: Crear Proyectos",
     "planner:edit:pending": "Plan.: Editar (Pendientes)",
     "planner:edit:approved": "Plan.: Editar (Aprobadas)",
-    "planner:reopen": "Plan.: Reabrir Órdenes",
+    "planner:reopen": "Plan.: Reabrir Proyectos",
     "planner:receive": "Plan.: Recibir en Bodega",
     "planner:status:approve": "Plan.: Cambiar a Aprobada",
     "planner:status:in-progress": "Plan.: Cambiar a En Progreso",
@@ -227,14 +226,14 @@ export default function RolesPage() {
         setRoles(updatedRoles);
         await saveAllRoles(updatedRoles);
 
-        toast({ title: "Rol Eliminado", description: `El rol "${roleToDelete.name}" ha sido eliminado.`, variant: 'destructive'});
+        toast({ title: "Rol Elimiado", description: `El rol "${roleToDelete.name}" ha sido eliminado.`, variant: 'destructive'});
         await logWarn("Rol eliminado", { role: roleToDelete.name });
         setRoleToDelete(null);
     }
 
     const handleResetRoles = async () => {
         await resetDefaultRoles();
-        await fetchRoles(); // Refresca la lista de roles desde la DB
+        await fetchRoles();
         toast({ title: "Roles Reiniciados", description: "Los roles por defecto han sido restaurados." });
         await logWarn("Los roles por defecto han sido reiniciados por un administrador.");
     }
@@ -283,9 +282,8 @@ export default function RolesPage() {
                             <AlertDialogHeader>
                                 <AlertDialogTitle>¿Restablecer Roles por Defecto?</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                    Esta acción restaurará los roles por defecto (&apos;admin&apos;, &apos;viewer&apos;, &apos;planner-user&apos;, &apos;requester-user&apos;, &apos;support-agent&apos;) a sus permisos originales.
+                                    Esta acción restaurará los roles por defecto a sus permisos originales.
                                     Los roles personalizados que hayas creado no se verán afectados.
-                                    Esto es útil si los permisos por defecto se han corrompido.
                                 </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
@@ -373,7 +371,7 @@ export default function RolesPage() {
                     <CardTitle className="text-xl">{role.name}</CardTitle>
                     <Badge variant="secondary" className="w-fit">{role.id}</Badge>
                   </div>
-                  {role.id !== 'admin' && role.id !== 'viewer' && role.id !== 'planner-user' && role.id !== 'requester-user' && role.id !== 'support-agent' && (
+                  {role.id !== 'admin' && role.id !== 'viewer' && role.id !== 'planner-user' && role.id !== 'support-agent' && (
                     <AlertDialog>
                         <AlertDialogTrigger asChild>
                              <Button variant="ghost" size="icon" onClick={() => setRoleToDelete(role)}>

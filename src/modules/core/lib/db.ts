@@ -1,6 +1,5 @@
 /**
  * @fileoverview This file handles the SQLite database connection.
- * ALL FUNCTIONS IN THIS FILE ARE SERVER-ONLY.
  */
 "use server";
 
@@ -45,7 +44,7 @@ export async function connectDb(dbFile: string = DB_FILE): Promise<Database.Data
             }
             fs.renameSync(restoreFilePath, dbPath);
             await dbAddLog({ type: "WARN", message: `Database for module ${dbFile} was restored from a backup on startup.` });
-        } catch(e: Error | unknown) {
+        } catch(e: unknown) {
             console.error(`Failed to apply restore for ${dbFile}: ${(e as Error).message}`);
             if (fs.existsSync(restoreFilePath)) fs.unlinkSync(restoreFilePath);
         }
@@ -62,7 +61,6 @@ export async function connectDb(dbFile: string = DB_FILE): Promise<Database.Data
             const moduleConfig = DB_MODULES.find(m => m.dbFile === dbFile);
             let mainTable: string | null = null;
             if (moduleConfig?.id === 'clic-tools-main') mainTable = 'users';
-            else if (moduleConfig?.id === 'purchase-requests') mainTable = 'purchase_requests';
             else if (moduleConfig?.id === 'production-planner') mainTable = 'production_orders';
             else if (moduleConfig?.id === 'cost-assistant') mainTable = 'drafts';
             else if (moduleConfig?.id === 'tickets') mainTable = 'tickets';
