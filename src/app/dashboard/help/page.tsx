@@ -132,7 +132,7 @@ export default function HelpPage() {
                                 <strong>Paso 4: Finalizar y Generar.</strong>
                                 <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
                                     <li>Ajusta las condiciones de pago, la validez de la oferta y añade cualquier nota adicional.</li>
-                                    <li><strong>Borradores (<Folder className="inline h-4 w-4" />):</strong> Si no terminaste, guarda la cotización como borrador. Puedes cargarla más tarde desde el botón &quot;Ver Borradores&quot;.</li>
+                                    <li><strong>Borradores (<Save className="inline h-4 w-4" />):</strong> Si no terminaste, guarda la cotización como borrador. Puedes cargarla más tarde desde el botón &quot;Ver Borradores&quot;.</li>
                                     <li><strong>Generar PDF (<Download className="inline h-4 w-4" />):</strong> Cuando todo esté listo, genera el PDF. El número de cotización se actualizará automáticamente para la próxima vez.</li>
                                 </ul>
                             </li>
@@ -150,6 +150,9 @@ export default function HelpPage() {
                         <ol className="list-decimal space-y-4 pl-6">
                             <li>
                                 <strong>Paso 1: Cargar Facturas.</strong> Arrastra y suelta uno o varios archivos XML de facturas electrónicas de tus proveedores en el área designada (<UploadCloud className="inline h-4 w-4"/>). El sistema leerá automáticamente cada factura y extraerá todos los productos con sus costos y cantidades.
+                            </li>
+                            <li>
+                                <strong>Paso 2: Añadir Costos Adicionales.</strong> En la tarjeta &quot;Costos Adicionales&quot;, ingresa el costo total del transporte, aduanas u otros gastos asociados a la importación o compra. El sistema prorrateará estos costos de manera inteligente entre todos los artículos cargados, dándote un costo unitario real.
                             </li>
                             <li>
                                 <strong>Paso 2: Añadir Costos Adicionales.</strong> En la tarjeta &quot;Costos Adicionales&quot;, ingresa el costo total del transporte, aduanas u otros gastos asociados a la importación o compra. El sistema prorrateará estos costos de manera inteligente entre todos los artículos cargados, dándote un costo unitario real.

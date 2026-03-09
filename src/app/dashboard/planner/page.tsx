@@ -5,7 +5,7 @@ import { usePlanner } from '@/modules/planner/hooks/usePlanner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,7 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { FilePlus, Loader2, FilterX, CalendarIcon, ChevronLeft, ChevronRight, RefreshCcw, MoreVertical, History, Undo2, Check, PackageCheck, XCircle, Pencil, AlertTriangle, MessageSquarePlus, FileDown, Play, Pause, Wrench, Hourglass } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, differenceInCalendarDays } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SearchInput } from '@/components/ui/search-input';
@@ -209,12 +209,6 @@ export default function PlannerPage() {
                      {order.pendingAction !== 'none' && (
                         <div className="mt-4">
                             <AlertDialog open={state.isActionDialogOpen && state.orderToUpdate?.id === order.id} onOpenChange={(open) => { if (!open) actions.setActionDialogOpen(false); }}>
-                                <AlertDialogTrigger asChild>
-                                    <Button variant="outline" className="border-yellow-500 text-yellow-600 hover:bg-yellow-50 hover:text-yellow-700 w-full" onClick={() => { actions.setOrderToUpdate(order); actions.setActionDialogOpen(true); }}>
-                                        <AlertTriangle className="mr-2 h-4 w-4 animate-pulse" />
-                                        Solicitud Pendiente: {order.pendingAction === 'unapproval-request' ? 'Desaprobación' : 'Cancelación'}
-                                    </Button>
-                                </AlertDialogTrigger>
                                 <AlertDialogContent>
                                     <AlertDialogHeader>
                                         <AlertDialogTitle>Gestionar Solicitud Pendiente</AlertDialogTitle>
@@ -253,7 +247,7 @@ export default function PlannerPage() {
                 <h1 className="text-lg font-semibold md:text-2xl">Gestor de Proyectos</h1>
                  <div className="flex items-center gap-2 md:gap-4 flex-wrap">
                     <Button variant="outline" onClick={() => actions.loadInitialData()} disabled={state.isLoading}>
-                        {state.isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCcw className="mr-2 h-4 w-4" />}
+                        {state.isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
                         Refrescar
                     </Button>
                      <div className="flex items-center gap-1">

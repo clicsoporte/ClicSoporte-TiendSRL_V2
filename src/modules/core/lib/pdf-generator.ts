@@ -161,7 +161,7 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         theme: 'striped',
         headStyles: { fillColor: [41, 128, 185], textColor: 255, font: 'Helvetica', fontStyle: 'bold' },
         styles: { font: 'Helvetica', fontSize: 9, cellPadding: 4 },
-        columnStyles: data.table.columnStyles,
+        columnStyles: data.table.columnStyles as any,
         didDrawPage: didDrawPage,
     });
     

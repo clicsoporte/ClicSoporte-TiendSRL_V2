@@ -346,21 +346,15 @@ export async function updateOrder(payload: UpdateProductionOrderPayload): Promis
     const changes: string[] = [];
     
     if (currentOrder.status !== 'pending') {
-        const checkChange = (field: string, label: string) => {
-            const newValue = (dataToUpdate as any)[field];
-            const oldValue = (currentOrder as any)[field];
+        Object.keys(dataToUpdate).forEach(field => {
+            const key = field as keyof Omit<UpdateProductionOrderPayload, 'orderId' | 'updatedBy'>;
+            const newValue = dataToUpdate[key];
+            const oldValue = currentOrder[key as keyof ProductionOrder];
             if (fieldsToTrack.includes(field) && newValue !== undefined && String(oldValue || '') !== String(newValue || '')) {
-                changes.push(`${label}: de '${oldValue || 'N/A'}' a '${newValue || 'N/A'}'`);
+                changes.push(`${field}: de '${oldValue || 'N/A'}' a '${newValue || 'N/A'}'`);
                 hasBeenModified = true;
             }
-        };
-
-        checkChange('quantity', 'Cantidad');
-        checkChange('deliveryDate', 'Fecha Entrega');
-        checkChange('purchaseOrder', 'Nº OC');
-        checkChange('notes', 'Notas');
-        checkChange('customerId', 'Cliente');
-        checkChange('productId', 'Producto');
+        });
     }
 
     const transaction = db.transaction(() => {
@@ -402,7 +396,7 @@ export async function updateOrder(payload: UpdateProductionOrderPayload): Promis
 
 export async function updateStatus(payload: UpdateStatusPayload): Promise<ProductionOrder> {
     const db = await connectDb(PLANNER_DB_FILE);
-    const { orderId, status, notes, updatedBy, deliveredQuantity, erpPackageNumber, erpTicketNumber, reopen } = payload;
+    const { orderId, status, notes, updatedBy, deliveredQuantity, reopen } = payload;
 
     const currentOrder = db.prepare('SELECT * FROM production_orders WHERE id = ?').get(orderId) as ProductionOrder | undefined;
     if (!currentOrder) {
@@ -422,8 +416,6 @@ export async function updateStatus(payload: UpdateStatusPayload): Promise<Produc
                 lastStatusUpdateBy = @updatedBy,
                 approvedBy = @approvedBy,
                 deliveredQuantity = @deliveredQuantity,
-                erpPackageNumber = @erpPackageNumber,
-                erpTicketNumber = @erpTicketNumber,
                 reopened = @reopened,
                 pendingAction = 'none',
                 previousStatus = NULL
@@ -437,8 +429,6 @@ export async function updateStatus(payload: UpdateStatusPayload): Promise<Produc
             approvedBy,
             orderId,
             deliveredQuantity: deliveredQuantity !== undefined ? deliveredQuantity : currentOrder.deliveredQuantity,
-            erpPackageNumber: erpPackageNumber !== undefined ? erpPackageNumber : currentOrder.erpPackageNumber,
-            erpTicketNumber: erpTicketNumber !== undefined ? erpTicketNumber : currentOrder.erpTicketNumber,
             reopened: reopen ? 1 : (currentOrder.reopened ? 1 : 0),
         });
         

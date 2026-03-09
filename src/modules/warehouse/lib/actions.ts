@@ -14,6 +14,7 @@ export async function logMovement() {}
 export async function updateInventory() {}
 export async function getItemLocations() { return []; }
 export async function assignItemToLocation() {}
+export async function getItemLocationsForExport() { return []; }
 export async function unassignItemFromLocation() {}
 export async function getWarehouseData() { return { locations: [], inventory: [], stock: [], itemLocations: [], warehouseSettings: {}, stockSettings: {} }; }
 export async function getMovements() { return []; }

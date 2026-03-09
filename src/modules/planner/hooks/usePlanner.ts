@@ -19,7 +19,7 @@ import type {
     ProductionOrderHistoryEntry, PlannerSettings, DateRange, 
     NotePayload, UpdateProductionOrderPayload, AdministrativeActionPayload 
 } from '../../core/types';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, differenceInCalendarDays } from 'date-fns';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useDebounce } from 'use-debounce';
 import { getDaysRemaining as getSimpleDaysRemaining } from '@/modules/core/lib/time-utils';
@@ -49,7 +49,7 @@ const priorityConfig = {
     urgent: { label: "Urgente", className: "text-red-600" }
 };
 
-const baseStatusConfig: { [key: string]: { label: string, color: string } } = {
+const baseStatusConfig: { [key in ProductionOrderStatus]?: { label: string, color: string } } = {
     pending: { label: "Pendiente", color: "bg-yellow-500" },
     approved: { label: "Aprobada", color: "bg-green-500" },
     'in-queue': { label: "En Cola", color: "bg-cyan-500"},
@@ -102,7 +102,7 @@ export const usePlanner = () => {
         isReopenDialogOpen: false,
         reopenStep: 0,
         reopenConfirmationText: '',
-        dynamicStatusConfig: baseStatusConfig,
+        dynamicStatusConfig: baseStatusConfig as { [key in ProductionOrderStatus]: { label: string, color: string } },
         isAddNoteDialogOpen: false,
         notePayload: null as { orderId: number; notes: string } | null,
         isActionDialogOpen: false,
@@ -127,7 +127,7 @@ export const usePlanner = () => {
                 })
             ]);
             
-            const newDynamicConfig = { ...baseStatusConfig };
+            const newDynamicConfig = { ...baseStatusConfig } as { [key in ProductionOrderStatus]: { label: string, color: string } };
             if (settingsData?.customStatuses) {
                 settingsData.customStatuses.forEach(cs => {
                     if (cs.isActive && cs.label) {
@@ -341,8 +341,6 @@ export const usePlanner = () => {
                     notes: state.statusUpdateNotes, 
                     updatedBy: currentUser.name, 
                     deliveredQuantity: finalStatus === 'completed' ? Number(state.deliveredQuantity) : undefined, 
-                    erpPackageNumber: undefined, 
-                    erpTicketNumber: undefined, 
                     reopen: false 
                 });
                 toast({ title: "Estado Actualizado" });
