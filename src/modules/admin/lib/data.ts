@@ -1,9 +1,8 @@
 /**
  * @fileoverview This file contains the configuration data for the admin section tools.
- * It defines the tools that appear on the administration dashboard.
  */
 import type { Tool } from "@/modules/core/types";
-import { Users, ShieldCheck, Briefcase, MessageSquare, DollarSign, FileUp, ServerCog, Network, Factory, Store, Map, Boxes, Ticket, FileTerminal, KeyRound } from "lucide-react";
+import { Users, ShieldCheck, Briefcase, MessageSquare, DollarSign, FileUp, ServerCog, Network, Factory, Store, Boxes, Ticket, FileTerminal, KeyRound } from "lucide-react";
 
 /**
  * List of tools available in the admin section.
@@ -97,15 +96,6 @@ export const adminTools: Tool[] = [
         href: "/dashboard/admin/requests",
         icon: Store,
         bgColor: "bg-amber-700",
-        textColor: "text-white",
-      },
-      {
-        id: "warehouse-settings",
-        name: "Config. Almacenes",
-        description: "Definir niveles y estructura de ubicaciones físicas.",
-        href: "/dashboard/admin/warehouse",
-        icon: Map,
-        bgColor: "bg-teal-700",
         textColor: "text-white",
       },
       {

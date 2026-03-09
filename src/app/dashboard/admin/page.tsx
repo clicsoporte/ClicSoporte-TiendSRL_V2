@@ -1,7 +1,5 @@
-
 /**
  * @fileoverview The main dashboard page for the admin section.
- * It dynamically displays a grid of available administration tools.
  */
 'use client';
 import { adminTools } from "@/modules/admin/lib/data";
@@ -15,17 +13,17 @@ import type { Tool } from "@/modules/core/types";
 
 export default function AdminDashboardPage() {
     const { setTitle } = usePageTitle();
-    const { hasPermission } = useAuthorization(['admin:settings:general']); // Broad permission for admin access
+    const { hasPermission } = useAuthorization(['admin:settings:general']);
     const { unreadSuggestionsCount } = useAuth();
 
     useEffect(() => {
         setTitle("Administración");
     }, [setTitle]);
 
-    const isAuthorized = hasPermission('admin:settings:general'); // Example check
+    const isAuthorized = hasPermission('admin:settings:general');
 
     if (isAuthorized === false) {
-        return null; // Or a more specific "Access Denied" component
+        return null;
     }
 
     if (isAuthorized === null) {
@@ -45,9 +43,7 @@ export default function AdminDashboardPage() {
         );
     }
     
-    // Filter tools based on user permissions
     const visibleAdminTools = adminTools.filter((tool: Tool) => {
-        // A tool might require one of several permissions to be visible
         switch (tool.id) {
             case 'user-management':
             case 'role-management':
@@ -57,7 +53,7 @@ export default function AdminDashboardPage() {
             case 'suggestions-viewer':
                 return hasPermission('admin:suggestions:read');
             case 'quoter-settings':
-                return hasPermission('admin:settings:general'); // Typically linked
+                return hasPermission('admin:settings:general');
             case 'import-data':
                 return hasPermission('admin:import:run') || hasPermission('admin:import:files') || hasPermission('admin:import:sql');
             case 'maintenance':
@@ -68,8 +64,6 @@ export default function AdminDashboardPage() {
                 return hasPermission('admin:settings:planner');
             case 'requests-settings':
                 return hasPermission('admin:settings:requests');
-            case 'warehouse-settings':
-                return hasPermission('admin:settings:warehouse');
             case 'stock-settings':
                 return hasPermission('admin:settings:stock');
             case 'tickets-settings':
@@ -79,7 +73,7 @@ export default function AdminDashboardPage() {
             case 'log-viewer':
                 return hasPermission('admin:logs:read');
             default:
-                return true; // Show by default if no specific permission is needed
+                return true;
         }
     });
 

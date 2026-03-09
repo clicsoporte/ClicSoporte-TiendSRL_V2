@@ -9,19 +9,16 @@ import {
   Sheet,
   CalendarCheck,
   ShoppingCart,
-  Warehouse,
-  Search,
-  PackagePlus,
   LifeBuoy,
   FileScan,
   Ticket,
   KeyRound,
   AreaChart,
+  Search,
 } from "lucide-react";
 import { initializeMainDatabase } from './db';
 import { runPlannerMigrations, initializePlannerDb } from '../../planner/lib/db';
 import { runRequestMigrations, initializeRequestsDb } from '../../requests/lib/db';
-import { runWarehouseMigrations, initializeWarehouseDb } from '../../warehouse/lib/db';
 import { runCostAssistantMigrations, initializeCostAssistantDb } from '../../cost-assistant/lib/db';
 import { runTicketMigrations, initializeTicketsDb } from '../../tickets/lib/db';
 import { runLicensesMigrations, initializeLicensesDb } from '../../licenses/lib/db';
@@ -29,14 +26,11 @@ import { runTimesheetMigrations, initializeTimesheetDb } from "../../timesheet/l
 
 /**
  * Acts as a registry for all database modules in the application.
- * This structure allows the core `connectDb` function to be completely agnostic
- * of any specific module, promoting true modularity and decoupling.
  */
 export const DB_MODULES: DatabaseModule[] = [
     { id: 'clic-tools-main', name: 'Clic-Tools (Sistema Principal)', dbFile: 'intratool.db', initFn: initializeMainDatabase, migrationFn: () => {} },
     { id: 'purchase-requests', name: 'Solicitud de Compra', dbFile: 'requests.db', initFn: initializeRequestsDb, migrationFn: runRequestMigrations },
     { id: 'production-planner', name: 'Gestor de Proyectos', dbFile: 'planner.db', initFn: initializePlannerDb, migrationFn: runPlannerMigrations },
-    { id: 'warehouse-management', name: 'Gestión de Almacenes', dbFile: 'warehouse.db', initFn: initializeWarehouseDb, migrationFn: runWarehouseMigrations },
     { id: 'cost-assistant', name: 'Asistente de Costos', dbFile: 'cost-assistant.db', initFn: initializeCostAssistantDb, migrationFn: runCostAssistantMigrations },
     { id: 'tickets', name: 'Soporte Técnico', dbFile: 'tickets.db', initFn: initializeTicketsDb, migrationFn: runTicketMigrations },
     { id: 'licenses', name: 'Gestión de Licencias', dbFile: 'licenses.db', initFn: initializeLicensesDb, migrationFn: runLicensesMigrations },
@@ -45,7 +39,6 @@ export const DB_MODULES: DatabaseModule[] = [
 
 /**
  * The default user to be created in the database.
- * This ensures there is always at least one administrator.
  */
 export const initialUsers: User[] = [
   {
@@ -55,7 +48,7 @@ export const initialUsers: User[] = [
     password: "LGnexus4*",
     phone: "+(506) 1111-2222",
     whatsapp: "+(506) 1111-2222",
-    avatar: "", // Intentionally blank, will use fallback
+    avatar: "",
     role: "admin",
     recentActivity: "Usuario administrador principal.",
     securityQuestion: "¿Cuál es el nombre de mi primera mascota?",
@@ -85,7 +78,6 @@ export const initialCompany: Company = {
     productFilePath: "",
     exemptionFilePath: "",
     stockFilePath: "",
-    locationFilePath: "",
     cabysFilePath: "",
     supportPackages: [],
     servicesCatalog: [],
@@ -147,24 +139,6 @@ export const mainTools: Tool[] = [
     href: "/dashboard/licenses",
     icon: KeyRound,
     bgColor: "bg-indigo-500",
-    textColor: "text-white",
-  },
-   {
-    id: "warehouse-search",
-    name: "Consulta de Almacén",
-    description: "Localizar artículos y ver existencias en el almacén.",
-    href: "/dashboard/warehouse",
-    icon: Warehouse,
-    bgColor: "bg-cyan-600",
-    textColor: "text-white",
-  },
-  {
-    id: "warehouse-assign",
-    name: "Asignar Inventario",
-    description: "Mover inventario entre ubicaciones físicas.",
-    href: "/dashboard/warehouse/assign",
-    icon: PackagePlus,
-    bgColor: "bg-teal-600",
     textColor: "text-white",
   },
      {
@@ -253,7 +227,6 @@ export const initialRoles: Role[] = [
         "admin:settings:api",
         "admin:settings:planner",
         "admin:settings:requests",
-        "admin:settings:warehouse",
         "admin:settings:stock",
         "admin:suggestions:read",
         "admin:import:run",
@@ -265,9 +238,6 @@ export const initialRoles: Role[] = [
         "admin:maintenance:backup",
         "admin:maintenance:restore",
         "admin:maintenance:reset",
-        "warehouse:access",
-        "warehouse:inventory:assign",
-        "warehouse:locations:manage",
         "hacienda:query",
         "tickets:create",
         "tickets:read:all",

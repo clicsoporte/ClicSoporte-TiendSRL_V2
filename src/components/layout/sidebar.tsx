@@ -1,7 +1,5 @@
 /**
  * @fileoverview Sidebar component for the main application layout.
- * It handles navigation, displays user and company information, and adapts
- * to mobile and desktop views.
  */
 
 "use client";
@@ -25,15 +23,12 @@ import {
   LifeBuoy,
   CalendarCheck,
   ShoppingCart,
-  Warehouse,
   Search,
-  PackagePlus,
   Ticket,
   KeyRound,
   FileScan,
   AreaChart,
   Network,
-  MessageSquare,
   Sheet as SheetIcon,
 } from "lucide-react";
 import type { Tool } from "../../modules/core/types";
@@ -42,11 +37,6 @@ import { Button } from "../ui/button";
 import { Skeleton } from "../ui/skeleton";
 import { useAuth } from "@/modules/core/hooks/useAuth";
 
-/**
- * Renders the main application sidebar.
- * It fetches current user and company data to display personalized information.
- * It highlights the active navigation link based on the current URL path.
- */
 export function AppSidebar() {
   const pathname = usePathname();
   const { user: currentUser, companyData, userRole, isLoading, unreadSuggestionsCount } = useAuth();
@@ -58,12 +48,6 @@ export function AppSidebar() {
     }
   };
 
-
-  /**
-   * Determines if a navigation link should be considered active.
-   * @param href - The href of the navigation link.
-   * @returns True if the link is active, false otherwise.
-   */
   const isActive = (href: string) => {
     if (href === '/dashboard') {
         return pathname === href;
@@ -72,7 +56,6 @@ export function AppSidebar() {
   };
   
   const hasAdminAccess = userRole?.permissions.some(p => p.startsWith('admin:'));
-
 
   if (isLoading) {
     return (
@@ -157,24 +140,6 @@ export function AppSidebar() {
         icon: FileScan,
         bgColor: "bg-orange-600",
         textColor: "text-white",
-    },
-    {
-      id: "warehouse",
-      name: "Consulta Almacén",
-      description: "Localizar artículos y ver existencias en bodega.",
-      href: "/dashboard/warehouse",
-      icon: Warehouse,
-      bgColor: "bg-cyan-600",
-      textColor: "text-white",
-    },
-    {
-      id: "warehouse-assign",
-      name: "Asignar Inventario",
-      description: "Mover inventario entre ubicaciones físicas.",
-      href: "/dashboard/warehouse/assign",
-      icon: PackagePlus,
-      bgColor: "bg-teal-600",
-      textColor: "text-white",
     },
      {
       id: "hacienda-query",

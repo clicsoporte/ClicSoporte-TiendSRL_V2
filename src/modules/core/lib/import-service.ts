@@ -1,7 +1,5 @@
 /**
  * @fileoverview Service for handling data imports from files and SQL Server.
- * This file contains the logic for reading data sources and upserting the data
- * into the local SQLite database.
  */
 "use server";
 
@@ -12,14 +10,13 @@ import type { Product, Customer, Exemption, Company } from '../types';
 import { getCompanySettings } from './settings-db';
 import { executeQuery } from './sql-service';
 
-type ImportType = 'customers' | 'products' | 'exemptions' | 'stock' | 'cabys' | 'locations';
+type ImportType = 'customers' | 'products' | 'exemptions' | 'stock' | 'cabys';
 
 const importTypeFieldMapping: { [key in ImportType]: keyof Company } = {
     customers: 'customerFilePath',
     products: 'productFilePath',
     exemptions: 'exemptionFilePath',
     stock: 'stockFilePath',
-    locations: 'locationFilePath',
     cabys: 'cabysFilePath',
 };
 
@@ -148,7 +145,7 @@ async function processExemptions(data: Record<string, string>[]): Promise<number
 
 async function processStock(data: Record<string, string>[]): Promise<number> {
     const db = await connectDb();
-    db.exec('DELETE FROM stock'); // Clear previous stock data
+    db.exec('DELETE FROM stock');
     const insert = db.prepare('INSERT INTO stock (itemId, stockByWarehouse, totalStock) VALUES (?, ?, ?)');
     
     const stockMap = new Map<string, { [key: string]: number }>();
@@ -176,7 +173,7 @@ async function processStock(data: Record<string, string>[]): Promise<number> {
 
 async function processCabys(data: Record<string, string>[]): Promise<number> {
     const db = await connectDb();
-    db.exec('DELETE FROM cabys_catalog'); // Always replace with the newest catalog
+    db.exec('DELETE FROM cabys_catalog');
     const insert = db.prepare('INSERT INTO cabys_catalog (code, description, taxRate) VALUES (?, ?, ?)');
 
     const transaction = db.transaction((records: Record<string, string>[]) => {
@@ -231,14 +228,10 @@ export async function importData(type: ImportType): Promise<{ count: number; sou
                 count = await processStock(data);
                 break;
             case 'cabys':
-                // CABYS can only be from file
                 const filePath = companySettings?.cabysFilePath;
                 if (!filePath) throw new Error("File path for CABYS not configured.");
                 const cabysData = await parseCsv(filePath);
                 count = await processCabys(cabysData);
-                break;
-            case 'locations':
-                // Implement location processing if needed
                 break;
         }
 

@@ -1,8 +1,5 @@
-
 /**
- * @fileoverview This file handles the SQLite database connection and provides
- * server-side functions for all database operations. It includes initialization,
- * schema creation, data access, and migration logic for all application modules.
+ * @fileoverview This file handles the SQLite database connection.
  * ALL FUNCTIONS IN THIS FILE ARE SERVER-ONLY.
  */
 "use server";
@@ -15,22 +12,14 @@ import type { LogEntry, DateRange } from '@/modules/core/types';
 import bcrypt from 'bcryptjs';
 import { addLog as dbAddLog } from './logger-db';
 
-
 const DB_FILE = 'intratool.db';
 const SALT_ROUNDS = 10;
 
-// This path is configured to work correctly within the Next.js build output directory,
-// which is crucial for serverless environments.
 const dbDirectory = path.join(process.cwd(), 'dbs');
-
 const dbConnections = new Map<string, Database.Database>();
 
 /**
  * Establishes a connection to a specific SQLite database file.
- * If the database file does not exist or is malformed, it creates it and initializes the schema and default data.
- * It manages multiple connections in a map to support a multi-database architecture.
- * @param {string} dbFile - The filename of the database to connect to.
- * @returns {Database.Database} The database connection instance.
  */
 export async function connectDb(dbFile: string = DB_FILE): Promise<Database.Database> {
     if (dbConnections.has(dbFile) && dbConnections.get(dbFile)!.open) {
@@ -51,18 +40,16 @@ export async function connectDb(dbFile: string = DB_FILE): Promise<Database.Data
                 dbConnections.delete(dbFile);
             }
             if (fs.existsSync(dbPath)) {
-                fs.copyFileSync(dbPath, `${dbPath}.bak`); // Create a .bak before overwriting
+                fs.copyFileSync(dbPath, `${dbPath}.bak`);
                 fs.unlinkSync(dbPath);
             }
             fs.renameSync(restoreFilePath, dbPath);
             await dbAddLog({ type: "WARN", message: `Database for module ${dbFile} was restored from a backup on startup.` });
         } catch(e: unknown) {
             console.error(`Failed to apply restore for ${dbFile}: ${(e as Error).message}`);
-            await dbAddLog({ type: "ERROR", message: `Failed to apply restore for ${dbFile}`, details: { error: (e as Error).message } });
             if (fs.existsSync(restoreFilePath)) fs.unlinkSync(restoreFilePath);
         }
     }
-
 
     let db: Database.Database;
     let dbExistsAndIsValid = false;
@@ -73,35 +60,30 @@ export async function connectDb(dbFile: string = DB_FILE): Promise<Database.Data
             db.pragma('journal_mode = WAL');
 
             const moduleConfig = DB_MODULES.find(m => m.dbFile === dbFile);
-            const mainTable = moduleConfig?.id === 'clic-tools-main' ? 'users' : moduleConfig?.id === 'purchase-requests' ? 'purchase_requests' : moduleConfig?.id === 'production-planner' ? 'production_orders' : moduleConfig?.id === 'warehouse-management' ? 'locations' : moduleConfig?.id === 'cost-assistant' ? 'cost_analysis_drafts' : moduleConfig?.id === 'tickets' ? 'tickets' : moduleConfig?.id === 'licenses' ? 'licenses' : moduleConfig?.id === 'timesheet' ? 'time_entries' : null;
+            const mainTable = moduleConfig?.id === 'clic-tools-main' ? 'users' : moduleConfig?.id === 'purchase-requests' ? 'purchase_requests' : moduleConfig?.id === 'production-planner' ? 'production_orders' : moduleConfig?.id === 'cost-assistant' ? 'cost_analysis_drafts' : moduleConfig?.id === 'tickets' ? 'tickets' : moduleConfig?.id === 'licenses' ? 'licenses' : moduleConfig?.id === 'timesheet' ? 'time_entries' : null;
             
             if (mainTable) {
                 const tableCheck = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name=?`).get(mainTable);
                 if (tableCheck) {
                     dbExistsAndIsValid = true;
-                } else {
-                     console.log(`Main table '${mainTable}' not found in ${dbFile}. DB will be re-initialized.`);
                 }
             } else {
-                // If we don't have a main table to check, assume it's valid if it opens.
-                // This is a fallback and less safe.
                 dbExistsAndIsValid = true; 
             }
         } catch (error) {
-            console.error(`Database ${dbFile} is corrupted or unreadable. It will be re-initialized.`, error);
+            console.error(`Database ${dbFile} is corrupted. It will be re-initialized.`, error);
             if (dbConnections.has(dbFile) && dbConnections.get(dbFile)?.open) {
                 dbConnections.get(dbFile)!.close();
             }
-            fs.unlinkSync(dbPath);
+            if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
             dbExistsAndIsValid = false;
         }
     }
 
-
     if (!dbExistsAndIsValid) {
         db = new Database(dbPath);
         db.pragma('journal_mode = WAL');
-        console.log(`Database ${dbFile} not found or seems empty/corrupt, creating and initializing...`);
+        console.log(`Database ${dbFile} not found or corrupt, creating and initializing...`);
         const moduleConfig = DB_MODULES.find(m => m.dbFile === dbFile);
         if (moduleConfig?.initFn) {
             await moduleConfig.initFn(db);
@@ -113,7 +95,7 @@ export async function connectDb(dbFile: string = DB_FILE): Promise<Database.Data
         try {
             await moduleConfig.migrationFn(db!);
         } catch (error) {
-            console.error(`Migration failed for ${dbFile}, but continuing. Error:`, error);
+            console.error(`Migration failed for ${dbFile}:`, error);
         }
     }
 
@@ -138,7 +120,7 @@ export async function initializeMainDatabase(db: import('better-sqlite3').Databa
         );
 
         CREATE TABLE user_preferences (
-            id TEXT PRIMARY KEY, -- Composite key like 'userId-settingName'
+            id TEXT PRIMARY KEY,
             userId INTEGER NOT NULL,
             settingName TEXT NOT NULL,
             value TEXT NOT NULL
@@ -151,7 +133,7 @@ export async function initializeMainDatabase(db: import('better-sqlite3').Databa
             quotePrefix TEXT, nextQuoteNumber INTEGER, decimalPlaces INTEGER, quoterShowTaxId BOOLEAN,
             searchDebounceTime INTEGER, syncWarningHours INTEGER, importMode TEXT, lastSyncTimestamp TEXT,
             customerFilePath TEXT, productFilePath TEXT, exemptionFilePath TEXT,
-            stockFilePath TEXT, locationFilePath TEXT, cabysFilePath TEXT,
+            stockFilePath TEXT, cabysFilePath TEXT,
             supportPackages TEXT, servicesCatalog TEXT
         );
         
@@ -254,7 +236,7 @@ export async function initializeMainDatabase(db: import('better-sqlite3').Databa
     const roleInsert = db.prepare('INSERT INTO roles (id, name, permissions) VALUES (@id, @name, @permissions)');
     initialRoles.forEach(role => roleInsert.run({ ...role, permissions: JSON.stringify(role.permissions) }));
     
-    console.log(`Database ${DB_FILE} initialized with default users and roles.`);
+    console.log(`Database ${DB_FILE} initialized.`);
 }
 
 export async function getUserPreferences(userId: number, settingName: string): Promise<Record<string, unknown>> {
@@ -306,7 +288,7 @@ export async function getLogs(filters: {
     }
      if(filters.dateRange?.to) {
         const toDate = new Date(filters.dateRange.to);
-        toDate.setDate(toDate.getDate() + 1); // Include the whole day
+        toDate.setDate(toDate.getDate() + 1);
         whereClauses.push('timestamp < ?');
         params.push(toDate.toISOString());
     }
@@ -346,7 +328,6 @@ export async function clearLogs(clearedBy: string, type: 'operational' | 'system
     }
 
     const query = `DELETE FROM logs ${whereClause ? 'WHERE ' + whereClause : ''}`;
-    
     const info = db.prepare(query).run(...params);
     
     await dbAddLog({ type: "WARN", message: `Logs cleared by ${clearedBy}`, details: { type, deleteAllTime, affectedRows: info.changes } });

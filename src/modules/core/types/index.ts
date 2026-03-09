@@ -1,6 +1,5 @@
 /**
  * @fileoverview This file defines the core TypeScript types used throughout the application.
- * Using centralized types helps ensure data consistency and provides autocompletion benefits.
  */
 
 import type { LucideIcon } from "lucide-react";
@@ -14,11 +13,11 @@ export type User = {
   id: number;
   name: string;
   email: string;
-  password?: string; // Hashed password from DB, or plaintext only when updating.
+  password?: string;
   phone: string;
   whatsapp: string;
   avatar: string;
-  role: string; // Corresponds to a Role ID
+  role: string;
   recentActivity: string;
   securityQuestion?: string;
   securityAnswer?: string;
@@ -49,18 +48,17 @@ export type Company = {
     productFilePath?: string;
     exemptionFilePath?: string;
     stockFilePath?: string;
-    locationFilePath?: string;
     cabysFilePath?: string;
     supportPackages: SupportPackage[];
     servicesCatalog: Service[];
 };
 
 export type SupportPackage = {
-  id: string; // e.g., 'alfa', 'beta'
+  id: string;
   name: string;
-  includedServices: string[]; // Array of service IDs
-  excludedServices: string[]; // Array of service IDs
-  defaultHours?: number; // Bolsa de horas
+  includedServices: string[];
+  excludedServices: string[];
+  defaultHours?: number;
 };
 
 export type Service = {
@@ -95,19 +93,19 @@ export type Role = {
  * Represents a customer, typically imported from an ERP system.
  */
 export type Customer = {
-    id: string; // CLIENTE
-    name: string; // NOMBRE
-    address: string; // DIRECCION
-    phone: string; // TELEFONO1
-    taxId: string; // CONTRIBUYENTE
-    currency: string; // MONEDA
-    creditLimit: number; // LIMITE_CREDITO
-    paymentCondition: string; // CONDICION_PAGO
-    salesperson: string; // VENDEDOR
-    active: 'S' | 'N'; // ACTIVO
-    email: string; // E_MAIL
-    electronicDocEmail: string; // EMAIL_DOC_ELECTRONICO
-    supportPackageId?: string; // ID of the assigned support package
+    id: string;
+    name: string;
+    address: string;
+    phone: string;
+    taxId: string;
+    currency: string;
+    creditLimit: number;
+    paymentCondition: string;
+    salesperson: string;
+    active: 'S' | 'N';
+    email: string;
+    electronicDocEmail: string;
+    supportPackageId?: string;
     monthlyHoursBalance?: number;
 };
 
@@ -115,36 +113,30 @@ export type Customer = {
  * Represents a product or article, typically imported from an ERP system.
  */
 export type Product = {
-    id: string;             // ARTICULO
-    description: string;    // DESCRIPCION
-    classification: string; // CLASIFICACION_2
-    lastEntry: string;      // ULTIMO_INGRESO
-    active: 'S' | 'N';      // ACTIVO
-    notes: string;          // NOTAS
-    unit: string;           // UNIDAD_VENTA
-    isBasicGood: 'S' | 'N'; // CANASTA_BASICA
-    cabys: string;          // CODIGO_HACIENDA
+    id: string;
+    description: string;
+    classification: string;
+    lastEntry: string;
+    active: 'S' | 'N';
+    notes: string;
+    unit: string;
+    isBasicGood: 'S' | 'N';
+    cabys: string;
 };
 
 /**
  * Represents a single line item within a quote.
  */
 export type QuoteLine = {
-    id: string; // Unique identifier for the line item in the UI
-    product: Product; // The product details
+    id: string;
+    product: Product;
     quantity: number;
     price: number;
     tax: number;
-    // display fields are used to hold the string value from the input
-    // before it's parsed, allowing for more flexible user input.
     displayQuantity: string;
     displayPrice: string;
 };
 
-
-/**
- * Represents the structure of the exchange rate API response.
- */
 export type ExchangeRateApiResponse = {
     compra?: { fecha: string; valor: number; };
     venta: { fecha: string; valor: number; };
@@ -169,7 +161,6 @@ export type QuoteDraft = {
     currency: string;
     exchangeRate: number | null;
     purchaseOrderNumber?: string;
-    // Fields for complete form state restoration
     customerDetails?: string;
     deliveryAddress?: string;
     deliveryDate?: string;
@@ -182,28 +173,22 @@ export type QuoteDraft = {
 }
 
 /**
-* Represents a system log entry for auditing and debugging.
+* Represents a system log entry.
 */
 export type LogEntry = {
     id: number;
     timestamp: string;
     type: "INFO" | "WARN" | "ERROR";
     message: string;
-    details?: Record<string, unknown>; // Stored as a JSON string in the DB
+    details?: Record<string, unknown>;
 };
 
-/**
- * Represents the settings for external APIs.
- */
 export type ApiSettings = {
     exchangeRateApi: string;
     haciendaExemptionApi: string;
     haciendaTributariaApi: string;
 };
 
-/**
- * Represents a database module for modular maintenance operations.
- */
 export type DatabaseModule = {
     id: string;
     name: string;
@@ -212,9 +197,6 @@ export type DatabaseModule = {
     migrationFn?: (db: Database) => Promise<void> | void;
 };
 
-/**
- * Represents a customer's tax exemption record from the ERP.
- */
 export type Exemption = {
     code: string;
     description: string;
@@ -228,16 +210,11 @@ export type Exemption = {
     institutionCode: string;
 };
 
-
-/**
- * Represents a configurable exemption law in the system.
- */
 export type ExemptionLaw = {
-  docType: string; // e.g., '99' or '03'
-  institutionName: string; // e.g., 'Régimen de Zona Franca'
-  authNumber: string | null; // e.g., '9635', only for specific cases
+  docType: string;
+  institutionName: string;
+  authNumber: string | null;
 };
-
 
 // --- Production Planner Types ---
 
@@ -341,7 +318,6 @@ export type UpdateOrderDetailsPayload = {
   updatedBy: string;
 };
 
-
 // --- Purchase Request Types ---
 
 export type PurchaseRequestStatus = 'pending' | 'approved' | 'ordered' | 'received' | 'received-in-warehouse' | 'canceled';
@@ -351,7 +327,7 @@ export type PurchaseType = 'single' | 'multiple';
 export type PurchaseRequest = {
   id: number;
   consecutive: string;
-  purchaseOrder?: string; // Nº Orden de Compra Cliente
+  purchaseOrder?: string;
   requestDate: string;
   requiredDate: string;
   arrivalDate?: string;
@@ -366,11 +342,11 @@ export type PurchaseRequest = {
   inventory?: number;
   priority: PurchaseRequestPriority;
   purchaseType: PurchaseType;
-  unitSalePrice?: number; // Precio de venta unitario sin IVA
-  erpOrderNumber?: string; // Número de pedido ERP
-  manualSupplier?: string; // Proveedor (manual)
-  route?: string; // Ruta
-  shippingMethod?: string; // Método de Envío
+  unitSalePrice?: number;
+  erpOrderNumber?: string;
+  manualSupplier?: string;
+  route?: string;
+  shippingMethod?: string;
   status: PurchaseRequestStatus;
   pendingAction: AdministrativeAction;
   notes?: string;
@@ -384,7 +360,7 @@ export type PurchaseRequest = {
   lastModifiedBy?: string;
   lastModifiedAt?: string;
   hasBeenModified?: boolean;
-  createPlannerOrderOnReceive?: boolean; // New field
+  createPlannerOrderOnReceive?: boolean;
 };
 
 export type UpdatePurchaseRequestPayload = Partial<Omit<PurchaseRequest, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'requestedBy' | 'deliveredQuantity' | 'receivedInWarehouseBy' | 'receivedDate' | 'previousStatus'>> & {
@@ -426,68 +402,11 @@ export type UpdateRequestStatusPayload = {
     arrivalDate?: string;
 };
 
-export type RejectCancellationPayload = {
-    entityId: number;
-    notes: string;
-    updatedBy: string;
-}
-
 export type AdministrativeActionPayload = {
     entityId: number;
     action: AdministrativeAction;
     notes: string;
     updatedBy: string;
-};
-
-
-// --- Warehouse Management Types ---
-
-export type LocationType = 'building' | 'zone' | 'rack' | 'shelf' | 'bin';
-
-export type WarehouseLocationLevel = {
-    type: string; // e.g. "level1", "level2"
-    name: string; // e.g. "Edificio", "Pasillo"
-}
-
-export type WarehouseSettings = {
-    locationLevels: WarehouseLocationLevel[];
-    enablePhysicalInventoryTracking: boolean;
-};
-
-export type WarehouseLocation = {
-    id: number;
-    name: string;
-    code: string; // A unique, human-readable code, e.g., R01-S03-B05
-    type: string; // Corresponds to WarehouseLocationLevel['type']
-    parentId?: number | null; // For hierarchical structure
-};
-
-/** For Advanced Mode: Tracks quantity in a specific location */
-export type WarehouseInventoryItem = {
-    id: number;
-    itemId: string; // Foreign key to main products table (Product['id'])
-    locationId: number; // Foreign key to locations table
-    quantity: number;
-    lastUpdated: string;
-};
-
-/** For Simple Mode: Maps an item to a location without quantity */
-export type ItemLocation = {
-    id: number;
-    itemId: string;
-    locationId: number;
-    clientId?: string | null;
-};
-
-export type MovementLog = {
-    id: number;
-    itemId: string;
-    quantity: number;
-    fromLocationId?: number | null; // null for initial entry
-    toLocationId?: number | null;   // null for removal
-    timestamp: string;
-    userId: number;
-    notes?: string;
 };
 
 // --- Stock Management Types ---
@@ -558,25 +477,6 @@ export type EnrichedExemptionInfo = HaciendaExemptionApiResponse & {
     enrichedCabys: EnrichedCabysItem[];
 };
 
-// Legacy type for migration, can be removed later.
-export type Location = {
-    id: number;
-    name: string;
-    code: string;
-    type: string;
-    parentId?: number | null;
-}
-
-export type InventoryItem = {
-    id: number;
-    itemId: string;
-    locationId: number;
-    quantity: number;
-    lastUpdated: string;
-    erpStock?: StockInfo | null;
-};
-
-
 // --- SQL Import Types ---
 export type SqlConfig = {
     user?: string;
@@ -587,7 +487,7 @@ export type SqlConfig = {
 }
 
 export type ImportQuery = {
-    type: 'customers' | 'products' | 'exemptions' | 'stock' | 'locations' | 'cabys';
+    type: 'customers' | 'products' | 'exemptions' | 'stock' | 'cabys';
     query: string;
 }
 
@@ -619,7 +519,7 @@ export type Suggestion = {
 
 // --- Cost Assistant Types ---
 export type CostAssistantLine = {
-    id: string; // Composite key: invoiceKey-lineNumber
+    id: string;
     invoiceKey: string;
     lineNumber: number;
     supplierName: string;
@@ -645,7 +545,7 @@ export type CostAssistantLine = {
 };
 
 export type CostAnalysisDraft = {
-    id: string; // UUID or generated ID
+    id: string;
     createdAt: string;
     userId: number;
     name: string;
@@ -665,8 +565,6 @@ export type ProcessedInvoiceInfo = {
     status: 'success' | 'error';
     errorMessage?: string;
 };
-
-export type DraftableCostAssistantLine = Omit<CostAssistantLine, 'displayMargin' | 'displayTaxRate' | 'displayUnitCost' | 'isCostEdited'>;
 
 export type CostAssistantSettings = {
     draftPrefix?: string;
@@ -710,35 +608,6 @@ export type ClientCompany = {
     createdAt: string;
 };
 
-export type CompanyBranch = {
-    id: number;
-    companyId: number;
-    name: string;
-    address: string;
-    createdAt: string;
-};
-
-export type CompanyContact = {
-    id: number;
-    companyId: number;
-    branchId?: number | null;
-    name: string;
-    email: string;
-    phone?: string;
-    isPrimary: boolean;
-    createdAt: string;
-};
-
-export type TicketCustomer = {
-    id: number;
-    name: string;
-    email: string;
-    phone?: string;
-    notes?: string;
-    createdAt: string;
-};
-
-
 export type Ticket = {
     id: number;
     consecutive: string;
@@ -748,13 +617,9 @@ export type Ticket = {
     createdAt: string;
     updatedAt: string;
     dueDate?: string;
-    
     companyId: number | null;
-    
-    // Denormalized for quick display & for customers not in the company structure
     customerName: string; 
-    companyName?: string; // Denormalized company name
-
+    companyName?: string;
     assigneeId?: number | null;
     helpTopicId?: number | null;
     serviceId?: string | null;
@@ -810,16 +675,12 @@ export type TimeEntry = {
     userId: number;
     startTime: string;
     endTime: string | null;
-    duration: number; // in milliseconds
+    duration: number;
     notes: string | null;
     isBillable: boolean;
     createdAt: string;
 };
 
-/**
- * Defines the expected schema for a database module's tables and columns.
- * Used for database integrity checks.
- */
 export type ExpectedSchema = {
-    [tableName: string]: string[]; // e.g., { 'users': ['id', 'name', 'email'], ... }
+    [tableName: string]: string[];
 };
