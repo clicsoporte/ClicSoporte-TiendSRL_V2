@@ -30,7 +30,6 @@ import {
     AlertDialogFooter,
     AlertDialogHeader,
     AlertDialogTitle,
-    AlertDialogTrigger,
 } from "../../../../components/ui/alert-dialog";
 import { Checkbox } from "../../../../components/ui/checkbox";
 import { Label } from "../../../../components/ui/label";
@@ -59,9 +58,6 @@ const permissionGroups = {
     "Soporte Técnico": ["tickets:create", "tickets:read:all", "tickets:update", "tickets:delete", "tickets:admin:settings"],
     "Gestión de Licencias": ["licenses:read", "licenses:manage", "licenses:admin:keys"],
     "Hoja de Tiempos": ["timesheet:create", "timesheet:read:all", "timesheet:edit:all", "timesheet:delete:all"],
-    "Solicitud de Compra (Lectura y Creación)": ["requests:read", "requests:create"],
-    "Solicitud de Compra (Edición)": ["requests:edit:pending", "requests:edit:approved"],
-    "Solicitud de Compra (Acciones)": ["requests:reopen", "requests:status:approve", "requests:status:ordered", "requests:status:received", "requests:status:cancel"],
     "Planificador de Producción (Lectura y Creación)": ["planner:read", "planner:create"],
     "Planificador de Producción (Edición)": ["planner:edit:pending", "planner:edit:approved"],
     "Planificador de Producción (Acciones)": [
@@ -74,7 +70,7 @@ const permissionGroups = {
     "Gestión de Usuarios": ["users:create", "users:read", "users:update", "users:delete"],
     "Gestión de Roles": ["roles:create", "roles:read", "roles:update", "roles:delete"],
     "Administración del Sistema": [
-        "admin:settings:general", "admin:settings:api", "admin:settings:planner", "admin:settings:requests", "admin:settings:stock", 
+        "admin:settings:general", "admin:settings:api", "admin:settings:planner", "admin:settings:stock", 
         "admin:suggestions:read",
         "admin:import:run", "admin:import:files", "admin:import:sql", "admin:import:sql-config",
         "admin:logs:read", "admin:logs:clear", "admin:maintenance:backup", "admin:maintenance:restore", "admin:maintenance:reset"
@@ -101,15 +97,6 @@ const permissionTranslations: { [key: string]: string } = {
     "timesheet:read:all": "Tiempos: Ver Todos",
     "timesheet:edit:all": "Tiempos: Editar Todos",
     "timesheet:delete:all": "Tiempos: Eliminar Todos",
-    "requests:read": "Compras: Leer",
-    "requests:create": "Compras: Crear",
-    "requests:edit:pending": "Compras: Editar (Pendientes)",
-    "requests:edit:approved": "Compras: Editar (Aprobadas)",
-    "requests:reopen": "Compras: Reabrir",
-    "requests:status:approve": "Compras: Aprobar",
-    "requests:status:ordered": "Compras: Marcar como Ordenada",
-    "requests:status:received": "Compras: Marcar como Recibida",
-    "requests:status:cancel": "Compras: Cancelar",
     "planner:read": "Plan.: Leer Órdenes",
     "planner:create": "Plan.: Crear Órdenes",
     "planner:edit:pending": "Plan.: Editar (Pendientes)",
@@ -139,7 +126,6 @@ const permissionTranslations: { [key: string]: string } = {
     "admin:settings:general": "Admin: Config. General",
     "admin:settings:api": "Admin: Config. de API",
     "admin:settings:planner": "Admin: Config. Planificador",
-    "admin:settings:requests": "Admin: Config. Compras",
     "admin:settings:stock": "Admin: Config. Inventario",
     "admin:suggestions:read": "Admin: Leer Sugerencias",
     "admin:import:run": "Admin: Ejecutar Sincronización ERP",

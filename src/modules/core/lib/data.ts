@@ -8,7 +8,6 @@ import type { Tool, User, Role, Company, DatabaseModule } from "@/modules/core/t
 import {
   Sheet,
   CalendarCheck,
-  ShoppingCart,
   LifeBuoy,
   FileScan,
   Ticket,
@@ -18,7 +17,6 @@ import {
 } from "lucide-react";
 import { initializeMainDatabase } from './db';
 import { runPlannerMigrations, initializePlannerDb } from '../../planner/lib/db';
-import { runRequestMigrations, initializeRequestsDb } from '../../requests/lib/db';
 import { runCostAssistantMigrations, initializeCostAssistantDb } from '../../cost-assistant/lib/db';
 import { runTicketMigrations, initializeTicketsDb } from '../../tickets/lib/db';
 import { runLicensesMigrations, initializeLicensesDb } from '../../licenses/lib/db';
@@ -29,7 +27,6 @@ import { runTimesheetMigrations, initializeTimesheetDb } from "../../timesheet/l
  */
 export const DB_MODULES: DatabaseModule[] = [
     { id: 'clic-tools-main', name: 'Clic-Tools (Sistema Principal)', dbFile: 'intratool.db', initFn: initializeMainDatabase, migrationFn: () => {} },
-    { id: 'purchase-requests', name: 'Solicitud de Compra', dbFile: 'requests.db', initFn: initializeRequestsDb, migrationFn: runRequestMigrations },
     { id: 'production-planner', name: 'Gestor de Proyectos', dbFile: 'planner.db', initFn: initializePlannerDb, migrationFn: runPlannerMigrations },
     { id: 'cost-assistant', name: 'Asistente de Costos', dbFile: 'cost-assistant.db', initFn: initializeCostAssistantDb, migrationFn: runCostAssistantMigrations },
     { id: 'tickets', name: 'Soporte Técnico', dbFile: 'tickets.db', initFn: initializeTicketsDb, migrationFn: runTicketMigrations },
@@ -105,15 +102,6 @@ export const mainTools: Tool[] = [
     bgColor: "bg-orange-600",
     textColor: "text-white",
   },
-  {
-    id: "purchase-request",
-    name: "Solicitud de Compra",
-    description: "Crear y gestionar solicitudes de compra internas.",
-    href: "/dashboard/requests",
-    icon: ShoppingCart,
-    bgColor: "bg-yellow-500",
-    textColor: "text-white",
-  },
    {
     id: "planner",
     name: "Gestor de Proyectos",
@@ -185,17 +173,6 @@ export const initialRoles: Role[] = [
         "quotes:drafts:read",
         "quotes:drafts:delete",
         "cost-assistant:access",
-        "requests:read",
-        "requests:create",
-        "requests:edit:pending",
-        "requests:edit:approved",
-        "requests:reopen",
-        "requests:status:approve",
-        "requests:status:unapprove",
-        "requests:status:ordered",
-        "requests:status:received",
-        "requests:status:cancel",
-        "requests:status:cancel-approved",
         "planner:read",
         "planner:create",
         "planner:edit:pending",
@@ -226,7 +203,6 @@ export const initialRoles: Role[] = [
         "admin:settings:general",
         "admin:settings:api",
         "admin:settings:planner",
-        "admin:settings:requests",
         "admin:settings:stock",
         "admin:suggestions:read",
         "admin:import:run",
@@ -273,15 +249,6 @@ export const initialRoles: Role[] = [
         "planner:status:cancel",
         "planner:priority:update",
         "planner:machine:assign",
-    ]
-  },
-   {
-    id: 'requester-user',
-    name: 'Solicitante',
-    permissions: [
-        "dashboard:access",
-        "requests:read",
-        "requests:create",
     ]
   },
   {

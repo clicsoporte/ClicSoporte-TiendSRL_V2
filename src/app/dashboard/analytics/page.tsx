@@ -8,7 +8,7 @@
 import { useAnalytics } from '@/modules/analytics/hooks/useAnalytics';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AreaChart, Bell, Box, CalendarCheck, Hourglass, Ticket, Users } from 'lucide-react';
+import { AreaChart, Box, CalendarCheck, Hourglass, Ticket, Users } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
 import { Button } from '@/components/ui/button';
@@ -43,8 +43,7 @@ export default function AnalyticsPage() {
                     <Skeleton className="h-9 w-64" />
                     <Skeleton className="h-10 w-80" />
                 </div>
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                    <Skeleton className="h-28 w-full" />
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     <Skeleton className="h-28 w-full" />
                     <Skeleton className="h-28 w-full" />
                     <Skeleton className="h-28 w-full" />
@@ -105,11 +104,10 @@ export default function AnalyticsPage() {
                 </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 <StatCard title="Tickets Abiertos" value={state.kpis?.tickets.open || 0} icon={Ticket} isLoading={state.isLoading} />
                 <StatCard title="Tickets en Progreso" value={state.kpis?.tickets.in_progress || 0} icon={Hourglass} isLoading={state.isLoading} />
                 <StatCard title="Proyectos Activos" value={state.kpis?.projects.in_progress || 0} icon={CalendarCheck} isLoading={state.isLoading} />
-                <StatCard title="Compras Pendientes" value={state.kpis?.requests.pending || 0} icon={Bell} isLoading={state.isLoading} />
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">

@@ -16,7 +16,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "../../../components/ui/accordion";
-import { Code, FileTerminal, Network, ShieldCheck, Users, FileDown, UserCog, DatabaseZap, Keyboard, DollarSign, ShieldQuestion, LifeBuoy, Rocket, CalendarCheck, ShoppingCart, Truck, PackageCheck, Factory, CheckCircle, XCircle, Search, Wrench, Save, Copy, Folder, AlertTriangle, ToggleRight, FilePlusIcon, Loader2, Play, Pause, History, Undo2, BadgeInfo, CreditCard, MessageSquare, Trash2, Download, Briefcase, Store, ListChecks, Hourglass, Ticket, KeyRound, AreaChart, FileScan, UploadCloud } from "lucide-react";
+import { DollarSign, ShieldQuestion, LifeBuoy, Rocket, CalendarCheck, PackageCheck, Factory, CheckCircle, Search, Wrench, Save, Copy, Folder, AlertTriangle, ToggleRight, Play, Pause, History, Undo2, BadgeInfo, CreditCard, MessageSquare, Trash2, Download, Briefcase, Store, ListChecks, Hourglass, Ticket, KeyRound, AreaChart, FileScan, UploadCloud } from "lucide-react";
 import { Skeleton } from "../../../components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAuth } from "@/modules/core/hooks/useAuth";
@@ -64,7 +64,7 @@ export default function HelpPage() {
                     ¡Bienvenido a <strong>{companyData?.systemName || "la Aplicación"}</strong>! Piensa en este sistema como tu navaja suiza digital para las tareas diarias de la empresa. Ha sido diseñado para ser súper rápido y fácil de usar desde cualquier computadora en la oficina.
                     </p>
                     <p>
-                    El objetivo es simple: tener todas las herramientas importantes (como hacer cotizaciones, solicitudes de compra o gestionar proyectos) en un solo lugar, con la flexibilidad de obtener datos tanto de archivos de texto como directamente desde el ERP.
+                    El objetivo es simple: tener todas las herramientas importantes (como hacer cotizaciones o gestionar proyectos) en un solo lugar, con la flexibilidad de obtener datos tanto de archivos de texto como directamente desde el ERP.
                     </p>
                 </AccordionContent>
                 </AccordionItem>
@@ -167,45 +167,6 @@ export default function HelpPage() {
                             </li>
                         </ol>
                     </AccordionContent>
-                </AccordionItem>
-                
-                <AccordionItem value="item-requests">
-                <AccordionTrigger className="text-lg font-semibold">
-                    <ShoppingCart className="mr-4 h-6 w-6 text-yellow-500" />
-                    Tutorial: Módulo Solicitud de Compra
-                </AccordionTrigger>
-                <AccordionContent className="prose max-w-none text-base space-y-4">
-                    <p>
-                    Esta herramienta te permite crear, gestionar y dar seguimiento a las solicitudes de compra internas de manera centralizada.
-                    </p>
-                    <ul className="list-disc space-y-3 pl-6">
-                    <li>
-                        <strong>Paso 1: Crear Solicitud (<FilePlusIcon className="inline h-4 w-4" />):</strong> Haz clic en "Nueva Solicitud" para abrir el formulario. Busca al cliente y el artículo de la misma forma que en el cotizador. Completa los campos como la cantidad requerida y la fecha en que lo necesitas.
-                    </li>
-                     <li>
-                        <strong>Paso 2: Integración con Gestor de Proyectos.</strong> Antes de guardar, fíjate en la casilla **"Generar Proyecto al Recibir"**. Si marcas esta opción, en cuanto la solicitud sea marcada como "Recibida", el sistema creará automáticamente un **Proyecto** en el Gestor de Proyectos con los datos de esta compra.
-                    </li>
-                    <li>
-                        <strong>Paso 3: Entender el Flujo de Estados.</strong> Las solicitudes pasan por varios estados para un seguimiento claro:
-                        <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
-                            <li><strong>Pendiente:</strong> La solicitud ha sido creada y está esperando aprobación.</li>
-                            <li><strong>Aprobada (<CheckCircle className="inline h-4 w-4 text-green-600"/>):</strong> Un usuario con permisos ha aprobado la compra.</li>
-                            <li><strong>Ordenada (<Truck className="inline h-4 w-4 text-blue-600"/>):</strong> Ya se realizó el pedido al proveedor.</li>
-                            <li><strong>Recibida (<PackageCheck className="inline h-4 w-4 text-teal-600"/>):</strong> El producto ha llegado. Aquí puedes registrar la cantidad real que se recibió.</li>
-                            <li><strong>Cancelada (<XCircle className="inline h-4 w-4 text-red-600"/>):</strong> La solicitud ha sido cancelada.</li>
-                        </ul>
-                    </li>
-                    <li>
-                        <strong>Aviso de "Modificado" (<AlertTriangle className="inline h-4 w-4 text-red-600" />):</strong> Si una solicitud es editada (cambiando cantidad, fecha, etc.) *después* de haber sido Aprobada u Ordenada, aparecerá una alerta visual "Modificado". Esto sirve como una advertencia para que todos los involucrados estén al tanto del cambio.
-                    </li>
-                    <li>
-                        <strong>Solicitar Cancelación:</strong> Si una solicitud ya está Aprobada u Ordenada, no se puede cancelar directamente. En su lugar, un usuario con permisos puede "Solicitar Cancelación". Esto pone la solicitud en un estado de espera y notifica a un administrador, quien debe aprobar o rechazar la cancelación, dejando un registro del motivo.
-                    </li>
-                    <li>
-                        <strong>Paso 5: Navegar en el Historial.</strong> Para mantener la velocidad, la vista de "Archivadas" carga los datos por páginas. Puedes elegir ver 50, 100 o 200 registros por página y navegar entre ellas. Los filtros de búsqueda se aplicarán a todo el historial, no solo a la página actual.
-                    </li>
-                    </ul>
-                </AccordionContent>
                 </AccordionItem>
 
                 <AccordionItem value="item-planner">
@@ -330,7 +291,7 @@ export default function HelpPage() {
                                 <strong>Filtro por Fechas:</strong> Utiliza el selector de rango de fechas en la parte superior para analizar el rendimiento en periodos específicos (ej: este mes, el último trimestre).
                             </li>
                             <li>
-                                <strong>KPIs Generales:</strong> Las tarjetas superiores te dan un resumen instantáneo de la carga de trabajo actual: cuántos tickets están abiertos o en progreso, cuántos proyectos están activos y cuántas solicitudes de compra están pendientes.
+                                <strong>KPIs Generales:</strong> Las tarjetas superiores te dan un resumen instantáneo de la carga de trabajo actual: cuántos tickets están abiertos o en progreso, y cuántos proyectos están activos.
                             </li>
                             <li>
                                 <strong>Análisis de Tiempo:</strong> El gráfico de barras te muestra cuántas horas ha registrado cada técnico, separadas por "Facturables" y "No Facturables". Esto te ayuda a entender la productividad del equipo y la rentabilidad de los servicios.
@@ -367,12 +328,12 @@ export default function HelpPage() {
                 
                 <AccordionItem value="item-user-profile">
                 <AccordionTrigger className="text-lg font-semibold">
-                    <UserCog className="mr-4 h-6 w-6 text-blue-500" />
+                    <Briefcase className="mr-4 h-6 w-6 text-blue-500" />
                     Tutorial: Mi Perfil
                 </AccordionTrigger>
                 <AccordionContent className="prose max-w-none text-base">
                     <div className="flex items-start gap-4">
-                        <UserCog className="mt-1 h-6 w-6 text-blue-500 shrink-0" />
+                        <Briefcase className="mt-1 h-6 w-6 text-blue-500 shrink-0" />
                         <div>
                             <p>
                             Aquí puedes personalizar tu propia cuenta de usuario.
@@ -399,11 +360,11 @@ export default function HelpPage() {
                         </p>
                         <div className="space-y-4">
                             <div className="flex items-start gap-4">
-                                <Users className="mt-1 h-6 w-6 text-blue-500 shrink-0" />
+                                <Rocket className="mt-1 h-6 w-6 text-blue-500 shrink-0" />
                                 <div><h4 className="font-semibold">Gestión de Usuarios</h4><p>Permite crear, editar, eliminar y asignar roles a las cuentas de usuario que pueden acceder al sistema.</p></div>
                             </div>
                             <div className="flex items-start gap-4">
-                                <ShieldCheck className="mt-1 h-6 w-6 text-green-500 shrink-0" />
+                                <CheckCircle className="mt-1 h-6 w-6 text-green-500 shrink-0" />
                                 <div><h4 className="font-semibold">Gestión de Roles</h4><p>Define qué puede hacer cada usuario. Puedes crear roles personalizados (ej: "Supervisor") y asignar permisos específicos para cada módulo.</p></div>
                             </div>
                             <div className="flex items-start gap-4">
@@ -424,10 +385,6 @@ export default function HelpPage() {
                             </div>
                              <div className="flex items-start gap-4">
                                 <Store className="mt-1 h-6 w-6 text-amber-700 shrink-0" />
-                                <div><h4 className="font-semibold">Config. Compras</h4><p>Define las opciones que aparecerán en el módulo de Solicitudes de Compra, como las diferentes rutas de entrega o los métodos de envío disponibles.</p></div>
-                            </div>
-                             <div className="flex items-start gap-4">
-                                <Hourglass className="mt-1 h-6 w-6 text-green-700 shrink-0" />
                                 <div><h4 className="font-semibold">Config. Inventario</h4><p>Gestiona las bodegas del sistema. Puedes añadir nuevas bodegas, marcar una como predeterminada o decidir si una bodega debe ser visible en los desgloses de inventario.</p></div>
                             </div>
                              <div className="flex items-start gap-4">
@@ -435,13 +392,13 @@ export default function HelpPage() {
                                 <div><h4 className="font-semibold">Config. Soporte Técnico</h4><p>Define los "Temas de Ayuda" para clasificar los tickets y permite pre-asignarles una prioridad, un técnico o un servicio por defecto para automatizar el flujo de trabajo.</p></div>
                             </div>
                             <div className="flex items-start gap-4">
-                                <DatabaseZap className="mt-1 h-6 w-6 text-red-500 shrink-0" />
+                                <Save className="mt-1 h-6 w-6 text-red-500 shrink-0" />
                                 <div><h4 className="font-semibold">Importar Datos</h4>
                                     <p>Sincroniza los datos maestros (clientes, productos, etc.) desde tu ERP. Tienes dos modos: por <strong>Archivos</strong> (cargando .txt o .csv) o por <strong>SQL Server</strong> (conectando directamente a la base de datos de tu ERP).</p>
                                 </div>
                             </div>
                             <div className="flex items-start gap-4">
-                                <DatabaseZap className="mt-1 h-6 w-6 text-red-500 shrink-0" />
+                                <Save className="mt-1 h-6 w-6 text-red-500 shrink-0" />
                                 <div><h4 className="font-semibold">Mantenimiento</h4>
                                     <p>Herramientas críticas. Aquí puedes:</p>
                                     <ul className="list-disc pl-5 text-sm space-y-1 mt-2">
@@ -457,7 +414,7 @@ export default function HelpPage() {
                                 <div><h4 className="font-semibold">Configuración de API</h4><p>Define las URLs de los servicios externos que utiliza la aplicación, como las APIs de Hacienda para consultar el tipo de cambio, la situación tributaria y el estado de las exoneraciones.</p></div>
                             </div>
                              <div className="flex items-start gap-4">
-                                <FileTerminal className="mt-1 h-6 w-6 text-slate-500 shrink-0" />
+                                <History className="mt-1 h-6 w-6 text-slate-500 shrink-0" />
                                 <div><h4 className="font-semibold">Visor de Eventos</h4>
                                     <p>Un registro (log) de todo lo que sucede en el sistema. Es una herramienta invaluable para diagnosticar problemas. Permite filtrar y limpiar los registros de forma granular (Operativos vs. Sistema) y conserva por defecto los últimos 30 días, a menos que se indique lo contrario.</p>
                                 </div>
@@ -468,7 +425,7 @@ export default function HelpPage() {
 
                 <AccordionItem value="item-import">
                     <AccordionTrigger className="text-lg font-semibold">
-                    <DatabaseZap className="mr-4 h-6 w-6 text-red-500" />
+                    <Save className="mr-4 h-6 w-6 text-red-500" />
                     Guía Técnica: Importación de Datos (Archivos y SQL)
                     </AccordionTrigger>
                     <AccordionContent className="prose max-w-none text-base space-y-4">
@@ -563,9 +520,6 @@ export default function HelpPage() {
                             </li>
                              <li>
                                 <strong>NUEVA FUNCIONALIDAD: Paquetes de Soporte.</strong> Se permite configurar paquetes de servicios y asignarlos a clientes para validar la cobertura en los tickets.
-                            </li>
-                             <li>
-                                <strong>Integración Compras-Proyectos:</strong> Se añade la opción en Solicitudes de Compra para generar automáticamente un Proyecto al recibir el material.
                             </li>
                         </ul>
                         <h4 className="font-semibold text-lg">Versión 1.5.2</h4>

@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview The main dashboard page for the admin section.
  */
@@ -8,7 +9,7 @@ import { useEffect } from "react";
 import { usePageTitle } from "../../../modules/core/hooks/usePageTitle";
 import { useAuthorization } from "@/modules/core/hooks/useAuthorization";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useAuth } from "@/modules/core/hooks/useAuth";
+import { useAuth } from "@/modules/auth/hooks/useAuth";
 import type { Tool } from "@/modules/core/types";
 
 export default function AdminDashboardPage() {
@@ -62,8 +63,6 @@ export default function AdminDashboardPage() {
                 return hasPermission('admin:settings:api');
             case 'planner-settings':
                 return hasPermission('admin:settings:planner');
-            case 'requests-settings':
-                return hasPermission('admin:settings:requests');
             case 'stock-settings':
                 return hasPermission('admin:settings:stock');
             case 'tickets-settings':

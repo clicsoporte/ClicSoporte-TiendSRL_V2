@@ -2,7 +2,7 @@
  * @fileoverview This file contains the configuration data for the admin section tools.
  */
 import type { Tool } from "@/modules/core/types";
-import { Users, ShieldCheck, Briefcase, MessageSquare, DollarSign, FileUp, ServerCog, Network, Factory, Store, Boxes, Ticket, FileTerminal, KeyRound } from "lucide-react";
+import { Users, ShieldCheck, Briefcase, MessageSquare, DollarSign, FileUp, ServerCog, Network, Factory, Boxes, Ticket, FileTerminal, KeyRound } from "lucide-react";
 
 /**
  * List of tools available in the admin section.
@@ -87,15 +87,6 @@ export const adminTools: Tool[] = [
         href: "/dashboard/admin/planner",
         icon: Factory,
         bgColor: "bg-purple-700",
-        textColor: "text-white",
-      },
-       {
-        id: "requests-settings",
-        name: "Config. Compras",
-        description: "Gestionar rutas y otros ajustes de compras.",
-        href: "/dashboard/admin/requests",
-        icon: Store,
-        bgColor: "bg-amber-700",
         textColor: "text-white",
       },
       {

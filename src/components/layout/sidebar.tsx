@@ -22,7 +22,6 @@ import {
   LayoutDashboard,
   LifeBuoy,
   CalendarCheck,
-  ShoppingCart,
   Search,
   Ticket,
   KeyRound,
@@ -103,15 +102,6 @@ export function AppSidebar() {
       href: "/dashboard/licenses",
       icon: KeyRound,
       bgColor: "bg-indigo-500",
-      textColor: "text-white",
-    },
-    {
-      id: "purchase-request",
-      name: "Solicitud de Compra",
-      description: "Crear y gestionar solicitudes de compra internas.",
-      href: "/dashboard/requests",
-      icon: ShoppingCart,
-      bgColor: "bg-yellow-500",
       textColor: "text-white",
     },
      {
