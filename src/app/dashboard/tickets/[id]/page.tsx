@@ -36,7 +36,7 @@ export default function TicketDetailPage() {
     const ticketId = Number(params.id);
     const { isAuthorized, hasPermission } = useAuthorization(['tickets:read:all']);
     const { actions, selectors } = useTickets();
-    const { users: _allUsers, user: currentUser } = useAuth();
+    const { user: currentUser } = useAuth();
     const { toast } = useToast();
     
     const [ticket, setTicket] = useState<Ticket | null>(null);
@@ -46,9 +46,9 @@ export default function TicketDetailPage() {
     const [isDeleting, setIsDeleting] = useState(false);
     
     const supportUsers = useMemo(() => {
-        if (!_allUsers) return [];
-        return _allUsers.filter(u => u.role === 'admin' || u.role === 'support-agent');
-    }, [_allUsers]);
+        if (!selectors.supportUsers) return [];
+        return selectors.supportUsers;
+    }, [selectors.supportUsers]);
 
     const loadData = useCallback(async () => {
         if (ticketId && isAuthorized) {
@@ -77,7 +77,8 @@ export default function TicketDetailPage() {
             ticketId, 
             content: replyContent,
             userId: currentUser.id,
-            userName: currentUser.name
+            userName: currentUser.name,
+            type: 'message'
         });
         if (newEntry) {
             setThread(prev => [...prev, newEntry]);

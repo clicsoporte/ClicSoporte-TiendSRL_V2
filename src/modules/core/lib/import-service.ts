@@ -123,7 +123,12 @@ async function processExemptions(data: Record<string, string>[]): Promise<number
             institutionCode=excluded.institutionCode;
     `);
     const transaction = db.transaction((records: Exemption[]) => {
-        for (const record of records) upsert.run(record);
+        for (const record of records) {
+            upsert.run({
+                ...record,
+                percentage: record.percentage ?? 0
+            });
+        }
     });
     
     const mappedData = data.map(d => ({
@@ -196,7 +201,8 @@ async function fetchDataForType(type: ImportType): Promise<Record<string, string
         if (!queryRow || !queryRow.query) {
             throw new Error(`No SQL query configured for import type: ${type}`);
         }
-        return executeQuery(queryRow.query);
+        const results = await executeQuery(queryRow.query);
+        return results as unknown as Record<string, string>[];
     } else {
         const fieldKey = importTypeFieldMapping[type];
         const filePath = companySettings[fieldKey];

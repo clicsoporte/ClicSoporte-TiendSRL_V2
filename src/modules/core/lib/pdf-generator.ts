@@ -168,7 +168,7 @@ export const generateDocument = (data: DocumentData): jsPDF => {
     finalY = (doc as any).lastAutoTable.finalY;
     
     const pageHeight = doc.internal.pageSize.getHeight();
-    let totalPages = doc.internal.getNumberOfPages();
+    let totalPages = doc.getNumberOfPages();
     let currentPage = totalPages;
 
     let bottomContentY = finalY + 20;

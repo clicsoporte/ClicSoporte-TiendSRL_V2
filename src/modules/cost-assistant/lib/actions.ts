@@ -27,7 +27,7 @@ const getValue = <T>(obj: Record<string, any>, path: string[], defaultValue: T):
         }
         return undefined;
     }, obj);
-    return result === undefined ? defaultValue : result;
+    return result === undefined ? defaultValue : (result as T);
 };
 
 
