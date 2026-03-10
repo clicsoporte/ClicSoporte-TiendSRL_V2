@@ -24,7 +24,8 @@ export async function login(email: string, passwordProvided: string): Promise<Us
     if (user && user.password) {
       const isMatch = await bcrypt.compare(passwordProvided, user.password);
       if (isMatch) {
-        const { password: _, ...userWithoutPassword } = user;
+        const userWithoutPassword = { ...user };
+        delete userWithoutPassword.password;
         await logInfo(`User '${user.name}' logged in successfully.`, logMeta);
         return JSON.parse(JSON.stringify(userWithoutPassword));
       }
@@ -48,7 +49,11 @@ export async function getAllUsers(): Promise<User[]> {
     const db = await connectDb();
     try {
         const users = db.prepare('SELECT * FROM users ORDER BY name').all() as User[];
-        const safeUsers = users.map(({ password: _, ...u }) => u);
+        const safeUsers = users.map((u) => {
+            const safe = { ...u };
+            delete safe.password;
+            return safe;
+        });
         return JSON.parse(JSON.stringify(safeUsers));
     } catch (error) {
         console.error("Failed to get all users:", error);
@@ -61,7 +66,8 @@ export async function getUserById(id: number): Promise<User | null> {
     try {
         const user = db.prepare('SELECT * FROM users WHERE id = ?').get(id) as User | undefined;
         if (!user) return null;
-        const { password: _, ...userWithoutPassword } = user;
+        const userWithoutPassword = { ...user };
+        delete userWithoutPassword.password;
         return JSON.parse(JSON.stringify(userWithoutPassword));
     } catch (error) {
         console.error(`Failed to get user by ID ${id}:`, error);
@@ -90,7 +96,8 @@ export async function addUser(userData: Omit<User, 'id' | 'avatar' | 'recentActi
   db.prepare(`INSERT INTO users (id, name, email, password, phone, whatsapp, avatar, role, recentActivity, securityQuestion, securityAnswer) VALUES (@id, @name, @email, @password, @phone, @whatsapp, @avatar, @role, @recentActivity, @securityQuestion, @securityAnswer)`)
     .run({ ...userToCreate, phone: userToCreate.phone || null, whatsapp: userToCreate.whatsapp || null, securityQuestion: userToCreate.securityQuestion || null, securityAnswer: userToCreate.securityAnswer || null });
 
-  const { password: _, ...userWithoutPassword } = userToCreate;
+  const userWithoutPassword = { ...userToCreate };
+  delete userWithoutPassword.password;
   await logInfo(`Admin added user: ${userToCreate.name}`, { role: userToCreate.role });
   return JSON.parse(JSON.stringify(userWithoutPassword));
 }
