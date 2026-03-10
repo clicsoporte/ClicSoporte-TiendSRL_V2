@@ -25,7 +25,9 @@ import { format, parseISO } from 'date-fns';
 import { SearchInput } from '@/components/ui/search-input';
 import { useDebounce } from 'use-debounce';
 
-const emptyContract: Omit<Contract, 'id' | 'consecutive' | 'createdAt'> = {
+type NewContract = Omit<Contract, 'id' | 'consecutive' | 'createdAt'>;
+
+const emptyContract: NewContract = {
     name: '',
     customerId: '',
     startDate: new Date().toISOString().split('T')[0],
@@ -48,7 +50,7 @@ export default function ContractsClient() {
     const [isLoading, setIsLoading] = useState(true);
     const [isFormOpen, setFormOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [currentContract, setCurrentContract] = useState<Omit<Contract, 'id' | 'consecutive' | 'createdAt'> | Contract>(emptyContract);
+    const [currentContract, setCurrentContract] = useState<NewContract | Contract>(emptyContract);
     const [isEditing, setIsEditing] = useState(false);
     
     const [customerSearchTerm, setCustomerSearchTerm] = useState('');
@@ -69,26 +71,26 @@ export default function ContractsClient() {
 
     const customerOptions = useMemo(() => {
         if (debouncedCustomerSearch.length < 2) return [];
-        return (customers || []).filter(c => 
+        return (customers || []).filter((c: Customer) => 
             c.name.toLowerCase().includes(debouncedCustomerSearch.toLowerCase()) || 
             c.id.toLowerCase().includes(debouncedCustomerSearch.toLowerCase())
-        ).map(c => ({ value: c.id, label: `${c.name} (${c.id})` }));
+        ).map((c: Customer) => ({ value: c.id, label: `${c.name} (${c.id})` }));
     }, [customers, debouncedCustomerSearch]);
 
     const handleSelectCustomer = (id: string) => {
-        const customer = customers.find(c => c.id === id);
+        const customer = customers.find((c: Customer) => c.id === id);
         setCurrentContract(prev => ({ ...prev, customerId: id }));
         setCustomerSearchTerm(customer ? customer.name : '');
         setIsCustomerSearchOpen(false);
     };
 
     const toggleService = (serviceId: string, type: 'included' | 'excluded') => {
-        const targetKey = type === 'included' ? 'includedServices' : 'excludedServices';
-        const otherKey = type === 'included' ? 'excludedServices' : 'includedServices';
+        const targetKey = (type === 'included' ? 'includedServices' : 'excludedServices') as keyof NewContract;
+        const otherKey = (type === 'included' ? 'excludedServices' : 'includedServices') as keyof NewContract;
         
         setCurrentContract(prev => {
-            const currentTarget = (prev as any)[targetKey] || [];
-            const currentOther = (prev as any)[otherKey] || [];
+            const currentTarget = (prev[targetKey] as string[]) || [];
+            const currentOther = (prev[otherKey] as string[]) || [];
             
             let newTarget = [...currentTarget];
             let newOther = [...currentOther];
@@ -119,7 +121,7 @@ export default function ContractsClient() {
                 await updateContract(currentContract as Contract);
                 toast({ title: "Contrato actualizado" });
             } else {
-                await saveContract(currentContract);
+                await saveContract(currentContract as NewContract);
                 toast({ title: "Contrato creado" });
             }
             await fetchContracts();
@@ -135,7 +137,7 @@ export default function ContractsClient() {
     };
 
     const handleEdit = (contract: Contract) => {
-        const customer = customers.find(c => c.id === contract.customerId);
+        const customer = customers.find((c: Customer) => c.id === contract.customerId);
         setCurrentContract(contract);
         setCustomerSearchTerm(customer ? customer.name : contract.customerId);
         setIsEditing(true);
