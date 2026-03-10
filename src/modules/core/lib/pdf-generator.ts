@@ -22,7 +22,7 @@ export interface DocumentData {
         content: string;
     }[];
     table: {
-        columns: unknown[];
+        columns: any[];
         rows: RowInput[];
         columnStyles?: { [key: string]: Partial<Styles> };
     };
@@ -161,14 +161,14 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         theme: 'striped',
         headStyles: { fillColor: [41, 128, 185], textColor: 255, font: 'Helvetica', fontStyle: 'bold' },
         styles: { font: 'Helvetica', fontSize: 9, cellPadding: 4 },
-        columnStyles: data.table.columnStyles as { [key: string]: Partial<Styles> },
+        columnStyles: data.table.columnStyles as any,
         didDrawPage: didDrawPage,
     });
     
     finalY = (doc as any).lastAutoTable.finalY;
     
     const pageHeight = doc.internal.pageSize.getHeight();
-    let totalPages = (doc.internal as any).getNumberOfPages();
+    let totalPages = (doc as any).internal.getNumberOfPages();
     let currentPage = totalPages;
 
     let bottomContentY = finalY + 20;

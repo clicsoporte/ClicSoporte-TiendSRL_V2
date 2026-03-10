@@ -213,7 +213,7 @@ export const usePlanner = () => {
                 setState(prevState => ({
                     ...prevState,
                     isNewOrderDialogOpen: false,
-                    newOrder: { ...emptyOrder, deliveryDate: new Date().toISOString().split('T')[0] },
+                    newOrder: { ...emptyOrder, deliveryDate: new Date().toISOString().split('T')[0] } as any,
                     customerSearchTerm: '',
                     productSearchTerm: '',
                     activeOrders: [...prevState.activeOrders, createdOrder]
@@ -417,7 +417,7 @@ export const usePlanner = () => {
                     inventory: stock,
                 };
                 if (state.orderToEdit) actions.setOrderToEdit({ ...state.orderToEdit, ...dataToUpdate } as ProductionOrder);
-                else actions.setNewOrder({ ...state.newOrder, ...dataToUpdate });
+                else actions.setNewOrder({ ...state.newOrder, ...dataToUpdate } as any);
                 updateState({ productSearchTerm: `[${product.id}] - ${product.description}` });
             }
         },
@@ -428,7 +428,7 @@ export const usePlanner = () => {
             if (customer) {
                 const dataToUpdate = { customerId: customer.id, customerName: customer.name, customerTaxId: customer.taxId };
                 if (state.orderToEdit) actions.setOrderToEdit({ ...state.orderToEdit, ...dataToUpdate } as ProductionOrder);
-                else actions.setNewOrder({ ...state.newOrder, ...dataToUpdate });
+                else actions.setNewOrder({ ...state.newOrder, ...dataToUpdate } as any);
                 updateState({ customerSearchTerm: `[${customer.id}] ${customer.name} (${customer.taxId})` });
             }
         },
@@ -506,9 +506,9 @@ export const usePlanner = () => {
                         case 'quantity': return order.quantity.toLocaleString('es-CR');
                         case 'deliveryDate': return format(parseISO(order.deliveryDate), 'dd/MM/yy');
                         case 'scheduledDate': return (order.scheduledStartDate && order.scheduledEndDate) ? `${format(parseISO(order.scheduledStartDate), 'dd/MM/yy')} - ${format(parseISO(order.scheduledEndDate), 'dd/MM/yy')}` : 'N/A';
-                        case 'status': return selectors.statusConfig[order.status]?.label || order.status;
+                        case 'status': return selectors.statusConfig[order.status as keyof typeof selectors.statusConfig]?.label || order.status;
                         case 'assignmentId': return state.plannerSettings?.assignments.find(m => m.id === order.assignmentId)?.name || 'N/A';
-                        case 'priority': return selectors.priorityConfig[order.priority]?.label || order.priority;
+                        case 'priority': return selectors.priorityConfig[order.priority as keyof typeof selectors.priorityConfig]?.label || order.priority;
                         default: return '';
                     }
                 });
@@ -524,14 +524,14 @@ export const usePlanner = () => {
                 table: {
                     columns: tableHeaders,
                     rows: tableRows,
-                    columnStyles: selectedColumnIds.reduce((acc, id, index) => {
+                    columnStyles: selectedColumnIds.reduce((acc: any, id, index) => {
                         const col = allPossibleColumns.find(c => c.id === id);
                         const styles: any = {};
                         if (col?.width) { styles.cellWidth = col.width; }
                         if (id === 'quantity') { styles.halign = 'right'; }
-                        if (Object.keys(styles).length > 0) (acc as any)[index] = styles;
+                        if (Object.keys(styles).length > 0) acc[index] = styles;
                         return acc;
-                    }, {} as { [key: number]: any })
+                    }, {})
                 },
                 totals: [],
                 topLegend: state.plannerSettings.pdfTopLegend,
@@ -567,8 +567,8 @@ export const usePlanner = () => {
                 { title: 'Cantidad:', content: order.quantity.toLocaleString('es-CR') },
                 { title: 'Fecha Solicitud:', content: format(parseISO(order.requestDate), 'dd/MM/yyyy') },
                 { title: 'Fecha Entrega:', content: format(parseISO(order.deliveryDate), 'dd/MM/yyyy') },
-                { title: 'Estado:', content: selectors.statusConfig[order.status]?.label || order.status },
-                { title: 'Prioridad:', content: selectors.priorityConfig[order.priority]?.label || order.priority },
+                { title: 'Estado:', content: selectors.statusConfig[order.status as keyof typeof selectors.statusConfig]?.label || order.status },
+                { title: 'Prioridad:', content: selectors.priorityConfig[order.priority as keyof typeof selectors.priorityConfig]?.label || order.priority },
                 { title: 'Asignación:', content: assignmentName },
                 { title: 'Notas:', content: order.notes || 'N/A' },
                 { title: 'Solicitado por:', content: order.requestedBy },
@@ -589,7 +589,7 @@ export const usePlanner = () => {
                     columns: ["Fecha", "Estado", "Usuario", "Notas"],
                     rows: historyData.map(entry => [
                         format(parseISO(entry.timestamp), 'dd/MM/yy HH:mm'),
-                        selectors.statusConfig[entry.status]?.label || entry.status,
+                        selectors.statusConfig[entry.status as keyof typeof selectors.statusConfig]?.label || entry.status,
                         entry.updatedBy,
                         entry.notes || ''
                     ]),

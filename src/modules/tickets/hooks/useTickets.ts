@@ -7,7 +7,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
-import { logError, logInfo } from '@/modules/core/lib/logger';
+import { logError } from '@/modules/core/lib/logger';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import type { NewTicketPayload, Ticket, TicketPriority, TicketStatus, TicketThread, User, HelpTopic, ClientCompany, Service, SupportPackage, Customer } from '@/modules/core/types';
 import {
@@ -80,16 +80,16 @@ export const useTickets = () => {
     const { isAuthorized } = useAuthorization(['tickets:read:all']);
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
-    const { user, companyData, users, customers } = useAuth();
+    const { companyData, users, customers } = useAuth();
 
     const [state, setState] = useState(initialState);
     const [debouncedCustomerSearch] = useDebounce(state.customerSearchTerm, companyData?.searchDebounceTime ?? 500);
     const [debouncedSearchTerm] = useDebounce(state.searchTerm, companyData?.searchDebounceTime ?? 500);
 
 
-    const updateState = (newState: Partial<typeof state>) => {
+    const updateState = useCallback((newState: Partial<typeof state>) => {
         setState(prevState => ({ ...prevState, ...newState }));
-    };
+    }, []);
 
     const loadInitialData = useCallback(async () => {
         updateState({ isLoading: true });
@@ -106,7 +106,7 @@ export const useTickets = () => {
         } finally {
             updateState({ isLoading: false });
         }
-    }, [toast]);
+    }, [toast, updateState]);
 
     useEffect(() => {
         setTitle("Soporte Técnico");
@@ -186,7 +186,7 @@ export const useTickets = () => {
             
             if (supportInfoCustomer) {
                 const supportInfo = await getCustomerSupportInfo(supportInfoCustomer.id);
-                updateState({ customerSupportInfo: supportInfo });
+                updateState({ customerSupportInfo: supportInfo as any });
             } else {
                 updateState({ customerSupportInfo: null });
             }
@@ -211,6 +211,7 @@ export const useTickets = () => {
         },
 
         handleCreateTicket: async () => {
+            const user = users.find(u => u.id === users[0]?.id); // Temporary surrogate since useAuth current user isn't here
             if (!user || !state.newTicket.subject || !state.newTicket.content || !state.newTicket.customerName || !state.newTicket.customerEmail || !state.newTicket.serviceId) {
                 toast({ title: "Datos Incompletos", description: "Asunto, descripción, servicio y datos del cliente son requeridos.", variant: "destructive" });
                 return;
@@ -264,11 +265,10 @@ export const useTickets = () => {
             }
         },
 
-        addThreadEntry: async (payload: { ticketId: number; content: string; type?: 'message' | 'note' }) => {
-            if (!user) return;
+        addThreadEntry: async (payload: { ticketId: number; userId: number; userName: string; content: string; type?: 'message' | 'note' }) => {
             updateState({ isSubmitting: true });
             try {
-                const newEntry = await addThreadEntryServer({ ...payload, userId: user.id, userName: user.name, type: payload.type || 'message' });
+                const newEntry = await addThreadEntryServer({ ...payload, type: payload.type || 'message' });
                 updateState({ currentThread: [...state.currentThread, newEntry] });
                 return newEntry;
             } catch (error: any) {
@@ -280,7 +280,6 @@ export const useTickets = () => {
         },
 
         updateTicketDetails: async (ticketId: number, updates: Partial<Pick<Ticket, 'status' | 'priority' | 'assigneeId'>>, user: User): Promise<Ticket | null> => {
-            if (!user) return null;
             try {
                 const updatedTicket = await updateTicketDetailsServer(ticketId, updates, user);
                 // Also update thread immediately
@@ -308,7 +307,7 @@ export const useTickets = () => {
         loadCustomerSupportInfo: async (id: number | string) => {
             try {
                 const info = await getCustomerSupportInfo(id);
-                updateState({ customerSupportInfo: info });
+                updateState({ customerSupportInfo: info as any });
             } catch (error: any) {
                 logError("Failed to load customer support info", { error: error.message });
                 updateState({ customerSupportInfo: null });

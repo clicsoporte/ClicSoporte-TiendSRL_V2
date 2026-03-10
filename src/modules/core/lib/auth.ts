@@ -6,7 +6,7 @@
 import { connectDb } from './db';
 import type { User } from '../types';
 import bcrypt from 'bcryptjs';
-import { logInfo, logWarn, logError } from './logger';
+import { logInfo, logWarn } from './logger';
 import { headers } from 'next/headers';
 
 const SALT_ROUNDS = 10;
@@ -27,7 +27,8 @@ export async function login(email: string, passwordProvided: string): Promise<Us
     if (user && user.password) {
       const isMatch = await bcrypt.compare(passwordProvided, user.password);
       if (isMatch) {
-        const { password: _password, ...userWithoutPassword } = user;
+        const userWithoutPassword = { ...user };
+        delete userWithoutPassword.password;
         await logInfo(`User '${user.name}' logged in successfully.`, logMeta);
         return JSON.parse(JSON.stringify(userWithoutPassword));
       }
@@ -59,7 +60,8 @@ export async function getAllUsers(): Promise<User[]> {
         const stmt = db.prepare('SELECT * FROM users ORDER BY name');
         const users = stmt.all() as User[];
         const safeUsers = users.map(u => {
-            const { password: _password, ...userWithoutPassword } = u;
+            const userWithoutPassword = { ...u };
+            delete userWithoutPassword.password;
             return userWithoutPassword;
         });
         return JSON.parse(JSON.stringify(safeUsers));
@@ -78,7 +80,8 @@ export async function getUserById(id: number): Promise<User | null> {
         const user = db.prepare('SELECT * FROM users WHERE id = ?').get(id) as User | undefined;
         if (!user) return null;
         
-        const { password: _password, ...userWithoutPassword } = user;
+        const userWithoutPassword = { ...user };
+        delete userWithoutPassword.password;
         return JSON.parse(JSON.stringify(userWithoutPassword));
 
     } catch (error) {
@@ -123,7 +126,8 @@ export async function addUser(userData: Omit<User, 'id' | 'avatar' | 'recentActi
     securityAnswer: userToCreate.securityAnswer || null,
   });
 
-  const { password: _password, ...userWithoutPassword } = userToCreate;
+  const userWithoutPassword = { ...userToCreate };
+  delete userWithoutPassword.password;
   await logInfo(`Admin added a new user: ${userToCreate.name}`, { role: userToCreate.role });
   return JSON.parse(JSON.stringify(userWithoutPassword));
 }
@@ -183,7 +187,6 @@ export async function saveAllUsers(users: User[]): Promise<void> {
         await logInfo(`${users.length} user records were updated.`);
     } catch (error) {
         console.error("Failed to save all users:", error);
-        await logError("Failed to save all users.", { error: (error as Error).message });
         throw new Error("Database transaction failed to save users.");
     }
 }

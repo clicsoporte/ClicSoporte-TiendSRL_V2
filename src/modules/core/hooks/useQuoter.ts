@@ -222,7 +222,7 @@ export const useQuoter = () => {
         const lastLineRefs = lineInputRefs.current.get(lastLine.id);
         lastLineRefs?.qty?.focus();
     }
-  }, [lines]);
+  }, [lines.length, lines]);
 
   const customerOptions = useMemo(() => {
     if (debouncedCustomerSearch.length < 2) return [];
@@ -553,7 +553,10 @@ export const useQuoter = () => {
           userId: currentUser.id,
           customerId: selectedCustomer ? selectedCustomer.id : null,
           customerDetails: customerDetails,
-          lines: lines.map(({ displayQuantity: _dq, displayPrice: _dp, ...rest }) => rest),
+          lines: lines.map((l) => {
+              const { displayQuantity: _1, displayPrice: _2, ...rest } = l;
+              return rest;
+          }),
           totals: totals,
           notes: notes,
           currency: currency,
