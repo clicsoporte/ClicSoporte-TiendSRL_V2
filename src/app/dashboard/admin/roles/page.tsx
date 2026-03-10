@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -30,6 +29,7 @@ import {
     AlertDialogFooter,
     AlertDialogHeader,
     AlertDialogTitle,
+    AlertDialogTrigger,
 } from "../../../../components/ui/alert-dialog";
 import { Checkbox } from "../../../../components/ui/checkbox";
 import { Label } from "../../../../components/ui/label";
@@ -61,8 +61,8 @@ const permissionGroups = {
     "Gestión de Proveedores": ["providers:read", "providers:manage"],
     "Gestión de Licencias": ["licenses:read", "licenses:manage", "licenses:admin:keys"],
     "Proyectos TI": [
-        "planner:read", "planner:create", "planner:reopen", "planner:status:approve", "planner:status:in-progress", 
-        "planner:status:completed", "planner:priority:update"
+        "planner:read", "planner:create", "planner:reopen", "planner:status:approve", 
+        "planner:status:in-progress", "planner:status:completed", "planner:priority:update"
     ],
     "Consultas Hacienda": ["hacienda:query"],
     "Analíticas": ["analytics:read"],
