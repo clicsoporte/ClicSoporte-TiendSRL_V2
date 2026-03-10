@@ -263,113 +263,66 @@ export type ExemptionLaw = {
   authNumber: string | null;
 };
 
-// --- Production Planner Types ---
+// --- TI Project Management Types ---
 
-export type ProductionOrderStatus = 'pending' | 'approved' | 'in-queue' | 'in-progress' | 'on-hold' | 'in-maintenance' | 'completed' | 'canceled' | 'custom-1' | 'custom-2' | 'custom-3' | 'custom-4';
-export type AdministrativeAction = 'unapproval-request' | 'cancellation-request' | 'none';
-export type ProductionOrderPriority = 'low' | 'medium' | 'high' | 'urgent';
+export type ProjectStatus = 'planning' | 'execution' | 'testing' | 'completed' | 'canceled';
+export type ProjectPriority = 'low' | 'medium' | 'high' | 'urgent';
 
-export type ProductionOrder = {
+export type TIProject = {
   id: number;
   consecutive: string;
-  purchaseOrder?: string;
-  requestDate: string;
-  deliveryDate: string;
-  scheduledStartDate?: string | null;
-  scheduledEndDate?: string | null;
+  name: string;
   customerId: string;
   customerName: string;
-  customerTaxId: string;
-  productId: string;
-  productDescription: string;
-  quantity: number;
-  inventory?: number;
-  inventoryErp?: number;
-  priority: ProductionOrderPriority;
-  status: ProductionOrderStatus;
-  pendingAction: AdministrativeAction;
+  status: ProjectStatus;
+  priority: ProjectPriority;
+  startDate: string;
+  endDate: string;
+  coordinatorId: number; // Internal support agent
+  subcontractorId?: number | null; // Third party provider
+  description: string;
   notes?: string;
-  requestedBy: string;
-  approvedBy?: string;
-  lastStatusUpdateBy?: string;
-  lastStatusUpdateNotes?: string;
-  lastModifiedBy?: string;
-  lastModifiedAt?: string;
-  hasBeenModified?: boolean;
-  deliveredQuantity?: number;
-  erpPackageNumber?: string;
-  erpTicketNumber?: string;
-  reopened?: boolean;
-  assignmentId?: string | null;
-  previousStatus?: ProductionOrderStatus | null;
+  billingStatus: 'pending' | 'invoiced';
+  createdAt: string;
+  updatedAt: string;
 };
 
-export type UpdateProductionOrderPayload = Partial<Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'assignmentId' | 'previousStatus' | 'lastStatusUpdateBy' | 'lastStatusUpdateNotes' | 'approvedBy' | 'lastModifiedBy' | 'lastModifiedAt' | 'hasBeenModified' | 'pendingAction'>> & {
-    orderId: number;
-    updatedBy: string;
-};
-
-export type ProductionOrderHistoryEntry = {
+export type ProjectAdvance = {
     id: number;
-    orderId: number;
+    projectId: number;
     timestamp: string;
-    status: ProductionOrderStatus;
-    notes?: string;
-    updatedBy: string;
+    content: string;
+    userId: number;
+    userName: string;
 };
 
-export type PlannerAssignment = {
-  id: string;
-  name: string;
+export type ProjectAttachment = {
+    id: number;
+    projectId: number;
+    name: string;
+    fileName: string;
+    fileType: string;
+    data: string; // Base64
+    uploadedBy: string;
+    createdAt: string;
 };
 
-export type CustomStatus = {
-    id: 'custom-1' | 'custom-2' | 'custom-3' | 'custom-4';
-    label: string;
-    color: string;
-    isActive: boolean;
+export type ProjectItem = {
+    id: number;
+    projectId: number;
+    description: string;
+    quantity: number;
+    unitPrice: number;
+    type: 'material' | 'service';
 };
 
 export type PlannerSettings = {
-    orderPrefix?: string;
-    nextOrderNumber?: number;
-    showCustomerTaxId: boolean;
-    assignments: PlannerAssignment[];
-    requireAssignmentForStart: boolean;
-    assignmentLabel: string;
-    customStatuses: CustomStatus[];
-    pdfPaperSize: 'letter' | 'legal';
-    pdfOrientation: 'portrait' | 'landscape';
-    pdfExportColumns: string[];
+    projectPrefix?: string;
+    nextProjectNumber?: number;
     pdfTopLegend?: string;
-    fieldsToTrackChanges: string[];
 };
 
-export type UpdateStatusPayload = {
-    orderId: number;
-    status: ProductionOrderStatus;
-    notes: string;
-    updatedBy: string;
-    deliveredQuantity?: number;
-    erpPackageNumber?: string;
-    erpTicketNumber?: string;
-    reopen: boolean;
-};
-
-export type UpdateOrderDetailsPayload = {
-  orderId: number;
-  priority?: ProductionOrderPriority;
-  assignmentId?: string | null;
-  scheduledDateRange?: DateRange;
-  updatedBy: string;
-};
-
-export type AdministrativeActionPayload = {
-    entityId: number;
-    action: AdministrativeAction;
-    notes: string;
-    updatedBy: string;
-};
+export type { DateRange };
 
 // --- Stock Management Types ---
 export type StockInfo = {
@@ -452,14 +405,6 @@ export type ImportQuery = {
     type: 'customers' | 'products' | 'exemptions' | 'stock' | 'cabys';
     query: string;
 }
-
-export type { DateRange };
-
-export type NotePayload = {
-    orderId: number;
-    notes: string;
-    updatedBy: string;
-};
 
 // --- Maintenance Types ---
 export type UpdateBackupInfo = {

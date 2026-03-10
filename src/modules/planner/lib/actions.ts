@@ -1,135 +1,90 @@
 /**
- * @fileoverview Client-side functions for interacting with the planner's server-side DB functions.
- * This abstraction layer ensures components only call client-safe functions.
+ * @fileoverview Client-side functions for interacting with the TI project manager server-side DB functions.
  */
 'use client';
 
-import type { ProductionOrder, UpdateStatusPayload, UpdateOrderDetailsPayload, ProductionOrderHistoryEntry, PlannerSettings, UpdateProductionOrderPayload, DateRange, NotePayload, AdministrativeActionPayload } from '../../core/types';
-import { logInfo } from '@/modules/core/lib/logger';
+import type { TIProject, ProjectAdvance, ProjectAttachment, ProjectItem, PlannerSettings } from '../../core/types';
+import { logInfo, logError } from '@/modules/core/lib/logger';
 import { 
-    getOrders, 
-    addOrder, 
-    updateOrder,
-    updateStatus, 
-    updateDetails,
-    getOrderHistory as getOrderHistoryServer,
-    getSettings,
-    saveSettings,
-    addNote as addNoteServer,
-    updatePendingAction as updatePendingActionServer,
+    getProjects as getProjectsDb, 
+    getProjectById as getProjectByIdDb,
+    addProject as addProjectDb, 
+    updateProject as updateProjectDb,
+    getProjectAdvances as getProjectAdvancesDb,
+    addProjectAdvance as addProjectAdvanceDb,
+    getProjectAttachments as getProjectAttachmentsDb,
+    addProjectAttachment as addProjectAttachmentDb,
+    getProjectItems as getProjectItemsDb,
+    saveProjectItem as saveProjectItemDb,
+    deleteProjectItem as deleteProjectItemDb,
+    getSettings as getSettingsDb,
+    saveSettings as saveSettingsDb
 } from './db';
 
-/**
- * Fetches production orders from the server.
- * @param options - Pagination and filtering options.
- * @returns A promise that resolves to the orders and total archived count.
- */
-export async function getProductionOrders(options: { 
-    page?: number; 
-    pageSize?: number;
-    filters?: {
-        searchTerm?: string;
-        status?: string;
-        classification?: string;
-        dateRange?: DateRange;
-    };
-}): Promise<{ activeOrders: ProductionOrder[], archivedOrders: ProductionOrder[], totalArchivedCount: number }> {
-    const result = await getOrders(options);
+export async function getProjects(): Promise<TIProject[]> {
+    const results = await getProjectsDb();
+    return JSON.parse(JSON.stringify(results));
+}
+
+export async function getProjectById(id: number): Promise<TIProject | null> {
+    const result = await getProjectByIdDb(id);
+    return result ? JSON.parse(JSON.stringify(result)) : null;
+}
+
+export async function createProject(project: Omit<TIProject, 'id' | 'consecutive' | 'createdAt' | 'updatedAt' | 'billingStatus'>): Promise<TIProject> {
+    try {
+        const result = await addProjectDb(project);
+        await logInfo(`Proyecto TI ${result.consecutive} creado: ${result.name}`);
+        return JSON.parse(JSON.stringify(result));
+    } catch (e: any) {
+        logError('Error creando proyecto', { error: e.message });
+        throw e;
+    }
+}
+
+export async function updateProject(project: TIProject): Promise<TIProject> {
+    const result = await updateProjectDb(project);
+    await logInfo(`Proyecto TI ${result.consecutive} actualizado`);
     return JSON.parse(JSON.stringify(result));
 }
 
-/**
- * Saves a new production order.
- * @param order - The order data to save.
- * @param requestedBy - The name of the user creating the order.
- * @returns The newly created production order.
- */
-export async function saveProductionOrder(order: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'assignmentId' | 'previousStatus' | 'scheduledStartDate' | 'scheduledEndDate' | 'requestedBy' | 'hasBeenModified' | 'lastModifiedBy' | 'lastModifiedAt'| 'lastStatusUpdateBy' | 'lastStatusUpdateNotes' | 'approvedBy' >, requestedBy: string): Promise<ProductionOrder> {
-    const createdOrder = await addOrder(order, requestedBy);
-    await logInfo(`Project ${createdOrder.consecutive} created by ${requestedBy}`, { customer: createdOrder.customerName, project: createdOrder.productDescription });
-    return JSON.parse(JSON.stringify(createdOrder));
+export async function getProjectAdvances(projectId: number): Promise<ProjectAdvance[]> {
+    const results = await getProjectAdvancesDb(projectId);
+    return JSON.parse(JSON.stringify(results));
 }
 
-/**
- * Updates the main details of an existing production order.
- * @param payload - The data to update.
- * @returns The updated production order.
- */
-export async function updateProductionOrder(payload: UpdateProductionOrderPayload): Promise<ProductionOrder> {
-    const updatedOrder = await updateOrder(payload);
-    await logInfo(`Project ${updatedOrder.consecutive} edited by ${payload.updatedBy}`, { orderId: payload.orderId });
-    return JSON.parse(JSON.stringify(updatedOrder));
+export async function addProjectAdvance(advance: Omit<ProjectAdvance, 'id' | 'timestamp'>): Promise<ProjectAdvance> {
+    const result = await addProjectAdvanceDb(advance);
+    return JSON.parse(JSON.stringify(result));
 }
 
-/**
- * Updates the status of a production order.
- * @param payload - The status update information.
- * @returns The updated production order.
- */
-export async function updateProductionOrderStatus(payload: UpdateStatusPayload): Promise<ProductionOrder> {
-    const updatedOrder = await updateStatus(payload);
-    await logInfo(`Status of project ${updatedOrder.consecutive} updated to '${payload.status}' by ${payload.updatedBy}`, { notes: payload.notes, orderId: payload.orderId });
-    return JSON.parse(JSON.stringify(updatedOrder));
+export async function getProjectAttachments(projectId: number): Promise<ProjectAttachment[]> {
+    const results = await getProjectAttachmentsDb(projectId);
+    return JSON.parse(JSON.stringify(results));
 }
 
-/**
- * Updates specific details of a production order like priority or machine assignment.
- * @param payload - The details to update.
- * @returns The updated production order.
- */
-export async function updateProductionOrderDetails(payload: UpdateOrderDetailsPayload): Promise<ProductionOrder> {
-    const updatedOrder = await updateDetails(payload);
-    await logInfo(`Details for project ${updatedOrder.consecutive} updated by ${payload.updatedBy}`, { details: payload });
-    return JSON.parse(JSON.stringify(updatedOrder));
+export async function addProjectAttachment(attachment: Omit<ProjectAttachment, 'id' | 'createdAt'>): Promise<ProjectAttachment> {
+    const result = await addProjectAttachmentDb(attachment);
+    return JSON.parse(JSON.stringify(result));
 }
 
-/**
- * Fetches planner settings from the server.
- * @returns The current planner settings.
- */
+export async function getProjectItems(projectId: number): Promise<ProjectItem[]> {
+    const results = await getProjectItemsDb(projectId);
+    return JSON.parse(JSON.stringify(results));
+}
+
+export async function saveProjectItem(item: Omit<ProjectItem, 'id'>): Promise<ProjectItem> {
+    return JSON.parse(JSON.stringify(await saveProjectItemDb(item)));
+}
+
+export async function deleteProjectItem(id: number): Promise<void> {
+    return deleteProjectItemDb(id);
+}
+
 export async function getPlannerSettings(): Promise<PlannerSettings> {
-    const settings = await getSettings();
-    return JSON.parse(JSON.stringify(settings));
+    return JSON.parse(JSON.stringify(await getSettingsDb()));
 }
 
-/**
- * Saves planner settings.
- * @param settings - The settings object to save.
- */
-export async function savePlannerSettings(settings: PlannerSettings): Promise<void> {
-    await logInfo('Project Manager settings updated.');
-    return saveSettings(settings);
-}
-
-/**
- * Fetches the history for a specific order.
- * @param orderId - The ID of the order.
- * @returns A promise that resolves to an array of history entries.
- */
-export async function getOrderHistory(orderId: number): Promise<ProductionOrderHistoryEntry[]> {
-    const history = await getOrderHistoryServer(orderId);
-    return JSON.parse(JSON.stringify(history));
-}
-
-
-/**
- * Adds a note to a production order without changing its status.
- * @param payload - The note details.
- * @returns The updated production order.
- */
-export async function addNoteToOrder(payload: NotePayload): Promise<ProductionOrder> {
-    const updatedOrder = await addNoteServer(payload);
-    await logInfo(`Note added to project ${updatedOrder.consecutive} by ${payload.updatedBy}.`);
-    return JSON.parse(JSON.stringify(updatedOrder));
-}
-
-/**
- * Updates the pending administrative action for an order.
- * @param payload - The action details.
- * @returns The updated production order.
- */
-export async function updatePendingAction(payload: AdministrativeActionPayload): Promise<ProductionOrder> {
-    const updatedOrder = await updatePendingActionServer(payload);
-    await logInfo(`Administrative action '${payload.action}' initiated for project ${updatedOrder.consecutive} by ${payload.updatedBy}.`);
-    return JSON.parse(JSON.stringify(updatedOrder));
+export async function savePlannerSettings(settings: Partial<PlannerSettings>): Promise<void> {
+    return saveSettingsDb(settings);
 }

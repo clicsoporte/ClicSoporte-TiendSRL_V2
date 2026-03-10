@@ -1,11 +1,11 @@
 /**
- * @fileoverview Server-side functions for the planner database.
+ * @fileoverview Server-side functions for the TI project manager database.
  */
 "use server";
 
 import type { Database } from 'better-sqlite3';
 import { connectDb as baseConnectDb } from '@/modules/core/lib/db-connection';
-import type { ProductionOrder, PlannerSettings, UpdateStatusPayload, UpdateOrderDetailsPayload, ProductionOrderHistoryEntry, CustomStatus, AdministrativeActionPayload, UpdateProductionOrderPayload } from '../../core/types';
+import type { TIProject, ProjectAdvance, ProjectAttachment, ProjectItem, PlannerSettings } from '../../core/types';
 
 const PLANNER_DB_FILE = 'planner.db';
 
@@ -19,405 +19,163 @@ export async function initializePlannerDb(db: Database) {
             key TEXT PRIMARY KEY,
             value TEXT NOT NULL
         );
-        CREATE TABLE IF NOT EXISTS production_orders (
+        CREATE TABLE IF NOT EXISTS projects (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             consecutive TEXT UNIQUE NOT NULL,
-            purchaseOrder TEXT,
-            requestDate TEXT NOT NULL,
-            deliveryDate TEXT NOT NULL,
-            scheduledStartDate TEXT,
-            scheduledEndDate TEXT,
+            name TEXT NOT NULL,
             customerId TEXT NOT NULL,
             customerName TEXT NOT NULL,
-            customerTaxId TEXT,
-            productId TEXT NOT NULL,
-            productDescription TEXT NOT NULL,
-            quantity REAL NOT NULL,
-            inventory REAL,
-            inventoryErp REAL,
-            priority TEXT NOT NULL,
-            status TEXT NOT NULL,
-            pendingAction TEXT DEFAULT 'none',
+            status TEXT NOT NULL, -- planning, execution, testing, completed, canceled
+            priority TEXT NOT NULL, -- low, medium, high, urgent
+            startDate TEXT NOT NULL,
+            endDate TEXT NOT NULL,
+            coordinatorId INTEGER NOT NULL,
+            subcontractorId INTEGER,
+            description TEXT NOT NULL,
             notes TEXT,
-            requestedBy TEXT NOT NULL,
-            approvedBy TEXT,
-            lastStatusUpdateBy TEXT,
-            lastStatusUpdateNotes TEXT,
-            lastModifiedBy TEXT,
-            lastModifiedAt TEXT,
-            hasBeenModified BOOLEAN DEFAULT FALSE,
-            deliveredQuantity REAL,
-            erpPackageNumber TEXT,
-            erpTicketNumber TEXT,
-            reopened BOOLEAN DEFAULT FALSE,
-            assignmentId TEXT,
-            previousStatus TEXT
+            billingStatus TEXT DEFAULT 'pending', -- pending, invoiced
+            createdAt TEXT NOT NULL,
+            updatedAt TEXT NOT NULL
         );
-         CREATE TABLE IF NOT EXISTS production_order_history (
+        CREATE TABLE IF NOT EXISTS project_advances (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            orderId INTEGER NOT NULL,
+            projectId INTEGER NOT NULL,
             timestamp TEXT NOT NULL,
-            status TEXT NOT NULL,
-            notes TEXT,
-            updatedBy TEXT NOT NULL,
-            FOREIGN KEY (orderId) REFERENCES production_orders(id)
+            content TEXT NOT NULL,
+            userId INTEGER NOT NULL,
+            userName TEXT NOT NULL,
+            FOREIGN KEY (projectId) REFERENCES projects(id) ON DELETE CASCADE
+        );
+        CREATE TABLE IF NOT EXISTS project_attachments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            projectId INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            fileName TEXT NOT NULL,
+            fileType TEXT NOT NULL,
+            data TEXT NOT NULL, -- Base64
+            uploadedBy TEXT NOT NULL,
+            createdAt TEXT NOT NULL,
+            FOREIGN KEY (projectId) REFERENCES projects(id) ON DELETE CASCADE
+        );
+        CREATE TABLE IF NOT EXISTS project_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            projectId INTEGER NOT NULL,
+            description TEXT NOT NULL,
+            quantity REAL NOT NULL,
+            unitPrice REAL NOT NULL,
+            type TEXT NOT NULL, -- material, service
+            FOREIGN KEY (projectId) REFERENCES projects(id) ON DELETE CASCADE
         );
     `;
     db.exec(schema);
 
-    const defaultCustomStatuses: CustomStatus[] = [
-        { id: 'custom-1', label: '', color: '#8884d8', isActive: false },
-        { id: 'custom-2', label: '', color: '#82ca9d', isActive: false },
-        { id: 'custom-3', label: '', color: '#ffc658', isActive: false },
-        { id: 'custom-4', label: '', color: '#ff8042', isActive: false },
-    ];
-
-    const defaultPdfColumns = ['consecutive', 'customerName', 'productDescription', 'quantity', 'deliveryDate', 'status'];
-
-    db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('orderPrefix', 'OP-')`).run();
-    db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('nextOrderNumber', '1')`).run();
-    db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('showCustomerTaxId', 'true')`).run();
-    db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('assignments', '[]')`).run();
-    db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('requireAssignmentForStart', 'false')`).run();
-    db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('assignmentLabel', 'Asignado a')`).run();
-    db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('customStatuses', ?)`).run(JSON.stringify(defaultCustomStatuses));
-    db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('pdfPaperSize', 'letter')`).run();
-    db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('pdfOrientation', 'portrait')`).run();
-    db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('pdfExportColumns', ?)`).run(JSON.stringify(defaultPdfColumns));
-    db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('pdfTopLegend', '')`).run();
-    db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('fieldsToTrackChanges', '[]')`).run();
+    db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('projectPrefix', 'PROJ-')`).run();
+    db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('nextProjectNumber', '1')`).run();
+    db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('pdfTopLegend', 'ACTA DE ENTREGA DE PROYECTO TI')`).run();
 }
 
 export async function runPlannerMigrations(db: Database) {
-    const plannerTableInfo = db.prepare(`PRAGMA table_info(production_orders)`).all() as { name: string }[];
-    const plannerColumns = new Set(plannerTableInfo.map(c => c.name));
-    
-    if (plannerColumns.has('machineId')) {
-        db.exec('ALTER TABLE production_orders RENAME COLUMN machineId TO assignmentId');
+    // Migration logic if tables exist from previous versions
+    const hasProjects = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='projects'`).get();
+    if (!hasProjects) {
+        await initializePlannerDb(db);
     }
-    if (!plannerColumns.has('assignmentId')) db.exec(`ALTER TABLE production_orders ADD COLUMN assignmentId TEXT`);
-    if (!plannerColumns.has('deliveredQuantity')) db.exec(`ALTER TABLE production_orders ADD COLUMN deliveredQuantity REAL`);
-    if (!plannerColumns.has('purchaseOrder')) db.exec(`ALTER TABLE production_orders ADD COLUMN purchaseOrder TEXT`);
-    if (!plannerColumns.has('scheduledStartDate')) db.exec(`ALTER TABLE production_orders ADD COLUMN scheduledStartDate TEXT`);
-    if (!plannerColumns.has('scheduledEndDate')) db.exec(`ALTER TABLE production_orders ADD COLUMN scheduledEndDate TEXT`);
-    if (!plannerColumns.has('lastModifiedBy')) db.exec(`ALTER TABLE production_orders ADD COLUMN lastModifiedBy TEXT`);
-    if (!plannerColumns.has('lastModifiedAt')) db.exec(`ALTER TABLE production_orders ADD COLUMN lastModifiedAt TEXT`);
-    if (!plannerColumns.has('hasBeenModified')) db.exec(`ALTER TABLE production_orders ADD COLUMN hasBeenModified BOOLEAN DEFAULT FALSE`);
-    if (!plannerColumns.has('previousStatus')) db.exec(`ALTER TABLE production_orders ADD COLUMN previousStatus TEXT`);
-    if (!plannerColumns.has('pendingAction')) db.exec(`ALTER TABLE production_orders ADD COLUMN pendingAction TEXT DEFAULT 'none'`);
-    if (!plannerColumns.has('inventoryErp')) db.exec(`ALTER TABLE production_orders ADD COLUMN inventoryErp REAL`);
-    if (!plannerColumns.has('customerTaxId')) db.exec(`ALTER TABLE production_orders ADD COLUMN customerTaxId TEXT`);
 }
 
 export async function getSettings(): Promise<PlannerSettings> {
     const db = await connectPlannerDb();
-    const settingsRows = db.prepare('SELECT * FROM planner_settings').all() as { key: string; value: string }[];
-    
-    const settings: PlannerSettings = {
-        orderPrefix: 'OP-',
-        nextOrderNumber: 1,
-        showCustomerTaxId: true,
-        assignments: [],
-        requireAssignmentForStart: false,
-        assignmentLabel: 'Asignado a',
-        customStatuses: [],
-        pdfPaperSize: 'letter',
-        pdfOrientation: 'portrait',
-        pdfExportColumns: [],
-        pdfTopLegend: '',
-        fieldsToTrackChanges: [],
-    };
-
-    for (const row of settingsRows) {
-        if (row.key === 'nextOrderNumber') settings.nextOrderNumber = Number(row.value);
-        else if (row.key === 'orderPrefix') settings.orderPrefix = row.value;
-        else if (row.key === 'showCustomerTaxId') settings.showCustomerTaxId = row.value === 'true';
-        else if (row.key === 'assignments') settings.assignments = JSON.parse(row.value);
-        else if (row.key === 'requireAssignmentForStart') settings.requireAssignmentForStart = row.value === 'true';
-        else if (row.key === 'assignmentLabel') settings.assignmentLabel = row.value;
-        else if (row.key === 'customStatuses') settings.customStatuses = JSON.parse(row.value);
-        else if (row.key === 'pdfPaperSize') settings.pdfPaperSize = row.value as 'letter' | 'legal';
-        else if (row.key === 'pdfOrientation') settings.pdfOrientation = row.value as 'portrait' | 'landscape';
-        else if (row.key === 'pdfExportColumns') settings.pdfExportColumns = JSON.parse(row.value);
-        else if (row.key === 'pdfTopLegend') settings.pdfTopLegend = row.value;
-        else if (row.key === 'fieldsToTrackChanges') settings.fieldsToTrackChanges = JSON.parse(row.value);
-    }
-    return JSON.parse(JSON.stringify(settings));
-}
-
-export async function saveSettings(settings: PlannerSettings): Promise<void> {
-    const db = await connectPlannerDb();
-    
-    const transaction = db.transaction((settingsToUpdate: PlannerSettings) => {
-        const keys: (keyof PlannerSettings)[] = ['orderPrefix', 'nextOrderNumber', 'showCustomerTaxId', 'assignments', 'requireAssignmentForStart', 'assignmentLabel', 'customStatuses', 'pdfPaperSize', 'pdfOrientation', 'pdfExportColumns', 'pdfTopLegend', 'fieldsToTrackChanges'];
-        for (const key of keys) {
-            if (settingsToUpdate[key] !== undefined) {
-                const value = typeof settingsToUpdate[key] === 'object' ? JSON.stringify(settingsToUpdate[key]) : String(settingsToUpdate[key]);
-                db.prepare('INSERT OR REPLACE INTO planner_settings (key, value) VALUES (?, ?)').run(key, value);
-            }
-        }
+    const rows = db.prepare('SELECT * FROM planner_settings').all() as { key: string; value: string }[];
+    const settings: any = {};
+    rows.forEach(row => {
+        if (row.key === 'nextProjectNumber') settings.nextProjectNumber = Number(row.value);
+        else settings[row.key] = row.value;
     });
-
-    transaction(settings);
+    return settings as PlannerSettings;
 }
 
-export async function getOrders(options: { 
-    page?: number; 
-    pageSize?: number;
-}): Promise<{ activeOrders: ProductionOrder[], archivedOrders: ProductionOrder[], totalArchivedCount: number }> {
+export async function saveSettings(settings: Partial<PlannerSettings>): Promise<void> {
     const db = await connectPlannerDb();
-    
-    const { page = 0, pageSize = 50 } = options;
-    const archivedStatuses = `'completed', 'canceled'`;
-
-    const activeOrders: ProductionOrder[] = db.prepare(`
-        SELECT * FROM production_orders 
-        WHERE status NOT IN (${archivedStatuses}) 
-        ORDER BY requestDate DESC
-    `).all() as ProductionOrder[];
-    
-    const archivedOrders: ProductionOrder[] = db.prepare(`
-        SELECT * FROM production_orders 
-        WHERE status IN (${archivedStatuses}) 
-        ORDER BY requestDate DESC 
-        LIMIT ? OFFSET ?
-    `).all(pageSize, page * pageSize) as ProductionOrder[];
-        
-    const totalArchivedCount = (db.prepare(`
-        SELECT COUNT(*) as count 
-        FROM production_orders 
-        WHERE status IN (${archivedStatuses})
-    `).get() as { count: number }).count;
-
-    return { activeOrders: JSON.parse(JSON.stringify(activeOrders)), archivedOrders: JSON.parse(JSON.stringify(archivedOrders)), totalArchivedCount };
+    const upsert = db.prepare('INSERT OR REPLACE INTO planner_settings (key, value) VALUES (?, ?)');
+    Object.entries(settings).forEach(([key, value]) => {
+        upsert.run(key, String(value));
+    });
 }
 
-export async function addOrder(order: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'assignmentId' | 'previousStatus' | 'scheduledStartDate' | 'scheduledEndDate' | 'requestedBy' | 'hasBeenModified' | 'lastModifiedBy' | 'lastModifiedAt'| 'lastStatusUpdateBy' | 'lastStatusUpdateNotes' | 'approvedBy'>, requestedBy: string): Promise<ProductionOrder> {
+export async function getProjects(): Promise<TIProject[]> {
+    const db = await connectPlannerDb();
+    return db.prepare('SELECT * FROM projects ORDER BY createdAt DESC').all() as TIProject[];
+}
+
+export async function getProjectById(id: number): Promise<TIProject | null> {
+    const db = await connectPlannerDb();
+    return db.prepare('SELECT * FROM projects WHERE id = ?').get(id) as TIProject | null;
+}
+
+export async function addProject(project: Omit<TIProject, 'id' | 'consecutive' | 'createdAt' | 'updatedAt' | 'billingStatus'>): Promise<TIProject> {
     const db = await connectPlannerDb();
     const settings = await getSettings();
-    const nextNumber = settings.nextOrderNumber || 1;
-    const prefix = settings.orderPrefix || 'OP-';
+    const nextNum = settings.nextProjectNumber || 1;
+    const consecutive = `${settings.projectPrefix || 'PROJ-'}${nextNum.toString().padStart(5, '0')}`;
+    const now = new Date().toISOString();
 
-    const newOrder: Omit<ProductionOrder, 'id'> = {
-        ...order,
-        requestedBy: requestedBy,
-        consecutive: `${prefix}${nextNumber.toString().padStart(5, '0')}`,
-        requestDate: new Date().toISOString(),
-        status: 'pending',
-        pendingAction: 'none',
-        reopened: false,
-        assignmentId: null,
-        previousStatus: null,
-        scheduledStartDate: null,
-        scheduledEndDate: null,
-        hasBeenModified: false,
-    };
+    const info = db.prepare(`
+        INSERT INTO projects (consecutive, name, customerId, customerName, status, priority, startDate, endDate, coordinatorId, subcontractorId, description, notes, createdAt, updatedAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(consecutive, project.name, project.customerId, project.customerName, project.status, project.priority, project.startDate, project.endDate, project.coordinatorId, project.subcontractorId, project.description, project.notes, now, now);
 
-    const stmt = db.prepare(`
-        INSERT INTO production_orders (
-            consecutive, purchaseOrder, requestDate, deliveryDate, scheduledStartDate, scheduledEndDate,
-            customerId, customerName, customerTaxId, productId, productDescription, quantity, inventory, inventoryErp, priority,
-            status, pendingAction, notes, requestedBy, reopened, assignmentId, previousStatus, hasBeenModified
-        ) VALUES (
-            @consecutive, @purchaseOrder, @requestDate, @deliveryDate, @scheduledStartDate, @scheduledEndDate,
-            @customerId, @customerName, @customerTaxId, @productId, @productDescription, @quantity, @inventory, @inventoryErp, @priority,
-            @status, @pendingAction, @notes, @requestedBy, @reopened, @assignmentId, @previousStatus, @hasBeenModified
-        )
-    `);
-
-    const info = stmt.run({
-        ...newOrder,
-        purchaseOrder: newOrder.purchaseOrder || null,
-        inventory: newOrder.inventory ?? null,
-        inventoryErp: newOrder.inventoryErp ?? null,
-        notes: newOrder.notes || null,
-        reopened: newOrder.reopened ? 1 : 0,
-        hasBeenModified: newOrder.hasBeenModified ? 1 : 0,
-    });
-    
-    const newOrderId = info.lastInsertRowid as number;
-    await saveSettings({ ...settings, nextOrderNumber: nextNumber + 1 });
-    
-    db.prepare('INSERT INTO production_order_history (orderId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)')
-      .run(newOrderId, new Date().toISOString(), 'pending', newOrder.requestedBy, 'Orden creada');
-
-    return db.prepare('SELECT * FROM production_orders WHERE id = ?').get(newOrderId) as ProductionOrder;
+    await saveSettings({ nextProjectNumber: nextNum + 1 });
+    return db.prepare('SELECT * FROM projects WHERE id = ?').get(info.lastInsertRowid) as TIProject;
 }
 
-export async function updateOrder(payload: UpdateProductionOrderPayload): Promise<ProductionOrder> {
+export async function updateProject(project: TIProject): Promise<TIProject> {
     const db = await connectPlannerDb();
-    const { orderId, updatedBy, ...dataToUpdate } = payload;
-    
-    const currentOrder = db.prepare('SELECT * FROM production_orders WHERE id = ?').get(orderId) as ProductionOrder | undefined;
-    if (!currentOrder) throw new Error("Order not found.");
-
-    const settings = await getSettings();
-    const fieldsToTrack = settings.fieldsToTrackChanges || [];
-    let hasBeenModified = currentOrder.hasBeenModified;
-    const changes: string[] = [];
-    
-    if (currentOrder.status !== 'pending') {
-        Object.keys(dataToUpdate).forEach(field => {
-            if (fieldsToTrack.includes(field)) {
-                const newVal = (dataToUpdate as Record<string, unknown>)[field];
-                const oldVal = (currentOrder as Record<string, unknown>)[field];
-                if (newVal !== undefined && String(oldVal || '') !== String(newVal || '')) {
-                    changes.push(`${field}: de '${oldVal || 'N/A'}' a '${newVal || 'N/A'}'`);
-                    hasBeenModified = true;
-                }
-            }
-        });
-    }
-
-    const transaction = db.transaction(() => {
-        db.prepare(`
-            UPDATE production_orders SET
-                deliveryDate = @deliveryDate,
-                customerId = @customerId,
-                customerName = @customerName,
-                productId = @productId,
-                productDescription = @productDescription,
-                quantity = @quantity,
-                inventory = @inventory,
-                notes = @notes,
-                purchaseOrder = @purchaseOrder,
-                lastModifiedBy = @updatedBy,
-                lastModifiedAt = @lastModifiedAt,
-                hasBeenModified = @hasBeenModified
-            WHERE id = @orderId
-        `).run({ 
-            ...dataToUpdate,
-            orderId, 
-            updatedBy, 
-            lastModifiedAt: new Date().toISOString(), 
-            hasBeenModified: hasBeenModified ? 1 : 0 
-        });
-
-        if (changes.length > 0) {
-            db.prepare('INSERT INTO production_order_history (orderId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)')
-              .run(orderId, new Date().toISOString(), currentOrder.status, updatedBy, `Orden editada. ${changes.join('. ')}`);
-        }
-    });
-
-    transaction();
-    return db.prepare('SELECT * FROM production_orders WHERE id = ?').get(orderId) as ProductionOrder;
+    const now = new Date().toISOString();
+    db.prepare(`
+        UPDATE projects SET
+            name = ?, status = ?, priority = ?, startDate = ?, endDate = ?,
+            coordinatorId = ?, subcontractorId = ?, description = ?, notes = ?,
+            billingStatus = ?, updatedAt = ?
+        WHERE id = ?
+    `).run(project.name, project.status, project.priority, project.startDate, project.endDate, project.coordinatorId, project.subcontractorId, project.description, project.notes, project.billingStatus, now, project.id);
+    return project;
 }
 
-export async function updateStatus(payload: UpdateStatusPayload): Promise<ProductionOrder> {
+export async function getProjectAdvances(projectId: number): Promise<ProjectAdvance[]> {
     const db = await connectPlannerDb();
-    const { orderId, status, notes, updatedBy, deliveredQuantity, reopen } = payload;
-
-    const currentOrder = db.prepare('SELECT * FROM production_orders WHERE id = ?').get(orderId) as ProductionOrder | undefined;
-    if (!currentOrder) throw new Error("Order not found.");
-    
-    const approvedBy = (status === 'approved' && !currentOrder.approvedBy) ? updatedBy : currentOrder.approvedBy;
-    
-    const transaction = db.transaction(() => {
-        db.prepare(`
-            UPDATE production_orders SET
-                status = @status,
-                lastStatusUpdateNotes = @notes,
-                lastStatusUpdateBy = @updatedBy,
-                approvedBy = @approvedBy,
-                deliveredQuantity = @deliveredQuantity,
-                reopened = @reopened,
-                pendingAction = 'none',
-                previousStatus = NULL
-            WHERE id = @orderId
-        `).run({
-            status,
-            notes: notes || null,
-            updatedBy,
-            approvedBy,
-            orderId,
-            deliveredQuantity: deliveredQuantity !== undefined ? deliveredQuantity : currentOrder.deliveredQuantity,
-            reopened: reopen ? 1 : (currentOrder.reopened ? 1 : 0),
-        });
-        
-        db.prepare('INSERT INTO ticket_threads (ticketId, userId, userName, type, content, createdAt) VALUES (?, ?, ?, ?, ?, ?)')
-          .run(orderId, 0, updatedBy, 'status_change', notes, new Date().toISOString());
-    });
-
-    transaction();
-    return db.prepare('SELECT * FROM production_orders WHERE id = ?').get(orderId) as ProductionOrder;
+    return db.prepare('SELECT * FROM project_advances WHERE projectId = ? ORDER BY timestamp ASC').all(projectId) as ProjectAdvance[];
 }
 
-export async function updateDetails(payload: UpdateOrderDetailsPayload): Promise<ProductionOrder> {
+export async function addProjectAdvance(advance: Omit<ProjectAdvance, 'id' | 'timestamp'>): Promise<ProjectAdvance> {
     const db = await connectPlannerDb();
-    const { orderId, priority, assignmentId, scheduledDateRange, updatedBy } = payload;
-    
-    const currentOrder = db.prepare('SELECT * FROM production_orders WHERE id = ?').get(orderId) as ProductionOrder | undefined;
-    if (!currentOrder) throw new Error("Order not found.");
-
-    let query = 'UPDATE production_orders SET';
-    const params: Record<string, string | number | null> = { orderId };
-    const updates: string[] = [];
-    const historyItems: string[] = [];
-
-    if (priority && currentOrder.priority !== priority) {
-        updates.push('priority = @priority');
-        params.priority = priority;
-        historyItems.push(`Prioridad: de ${currentOrder.priority} a ${priority}`);
-    }
-    if (assignmentId !== undefined && currentOrder.assignmentId !== assignmentId) {
-        updates.push('assignmentId = @assignmentId');
-        params.assignmentId = assignmentId;
-        historyItems.push(`Asignación actualizada`);
-    }
-     if (scheduledDateRange) {
-        const newStartDate = scheduledDateRange.from ? scheduledDateRange.from.toISOString().split('T')[0] : null;
-        const newEndDate = scheduledDateRange.to ? scheduledDateRange.to.toISOString().split('T')[0] : null;
-        updates.push('scheduledStartDate = @scheduledStartDate', 'scheduledEndDate = @scheduledEndDate');
-        params.scheduledStartDate = newStartDate;
-        params.scheduledEndDate = newEndDate;
-        historyItems.push(`Programación actualizada`);
-    }
-    
-    if (updates.length > 0) {
-        query += ` ${updates.join(', ')} WHERE id = @orderId`;
-        const transaction = db.transaction(() => {
-            db.prepare(query).run(params);
-            db.prepare('INSERT INTO production_order_history (orderId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)')
-              .run(orderId, new Date().toISOString(), currentOrder.status, updatedBy, `Detalles actualizados: ${historyItems.join('. ')}`);
-        });
-        transaction();
-    }
-
-    return db.prepare('SELECT * FROM production_orders WHERE id = ?').get(orderId) as ProductionOrder;
+    const now = new Date().toISOString();
+    const info = db.prepare(`INSERT INTO project_advances (projectId, timestamp, content, userId, userName) VALUES (?, ?, ?, ?, ?)`).run(advance.projectId, now, advance.content, advance.userId, advance.userName);
+    return db.prepare('SELECT * FROM project_advances WHERE id = ?').get(info.lastInsertRowid) as ProjectAdvance;
 }
 
-export async function getOrderHistory(orderId: number): Promise<ProductionOrderHistoryEntry[]> {
+export async function getProjectAttachments(projectId: number): Promise<ProjectAttachment[]> {
     const db = await connectPlannerDb();
-    return db.prepare('SELECT * FROM production_order_history WHERE orderId = ? ORDER BY timestamp DESC').all(orderId) as ProductionOrderHistoryEntry[];
+    return db.prepare('SELECT * FROM project_attachments WHERE projectId = ? ORDER BY createdAt DESC').all(projectId) as ProjectAttachment[];
 }
 
-export async function addNote(payload: { orderId: number; notes: string; updatedBy: string; }): Promise<ProductionOrder> {
+export async function addProjectAttachment(attachment: Omit<ProjectAttachment, 'id' | 'createdAt'>): Promise<ProjectAttachment> {
     const db = await connectPlannerDb();
-    const { orderId, notes, updatedBy } = payload;
-    const currentOrder = db.prepare('SELECT status FROM production_orders WHERE id = ?').get(orderId) as { status: string };
-
-    const transaction = db.transaction(() => {
-        db.prepare('UPDATE production_orders SET lastStatusUpdateNotes = ?, lastStatusUpdateBy = ? WHERE id = ?')
-          .run(notes, updatedBy, orderId);
-        db.prepare('INSERT INTO production_order_history (orderId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)')
-          .run(orderId, new Date().toISOString(), currentOrder.status, updatedBy, `Nota agregada: ${notes}`);
-    });
-
-    transaction();
-    return db.prepare('SELECT * FROM production_orders WHERE id = ?').get(orderId) as ProductionOrder;
+    const now = new Date().toISOString();
+    const info = db.prepare(`INSERT INTO project_attachments (projectId, name, fileName, fileType, data, uploadedBy, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)`).run(attachment.projectId, attachment.name, attachment.fileName, attachment.fileType, attachment.data, attachment.uploadedBy, now);
+    return db.prepare('SELECT * FROM project_attachments WHERE id = ?').get(info.lastInsertRowid) as ProjectAttachment;
 }
 
-export async function updatePendingAction(payload: AdministrativeActionPayload): Promise<ProductionOrder> {
+export async function getProjectItems(projectId: number): Promise<ProjectItem[]> {
     const db = await connectPlannerDb();
-    const { entityId, action, updatedBy } = payload;
-    const currentOrder = db.prepare('SELECT status FROM production_orders WHERE id = ?').get(entityId) as { status: string };
+    return db.prepare('SELECT * FROM project_items WHERE projectId = ?').all(projectId) as ProjectItem[];
+}
 
-    const transaction = db.transaction(() => {
-        db.prepare(`UPDATE production_orders SET pendingAction = @action WHERE id = @entityId`).run({ action, entityId });
-        db.prepare('INSERT INTO production_order_history (orderId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)')
-          .run(entityId, new Date().toISOString(), currentOrder.status, updatedBy, `Acción administrativa '${action}' solicitada`);
-    });
-    
-    transaction();
-    return db.prepare('SELECT * FROM production_orders WHERE id = ?').get(entityId) as ProductionOrder;
+export async function saveProjectItem(item: Omit<ProjectItem, 'id'>): Promise<ProjectItem> {
+    const db = await connectPlannerDb();
+    const info = db.prepare(`INSERT INTO project_items (projectId, description, quantity, unitPrice, type) VALUES (?, ?, ?, ?, ?)`).run(item.projectId, item.description, item.quantity, item.unitPrice, item.type);
+    return db.prepare('SELECT * FROM project_items WHERE id = ?').get(info.lastInsertRowid) as ProjectItem;
+}
+
+export async function deleteProjectItem(id: number): Promise<void> {
+    const db = await connectPlannerDb();
+    db.prepare('DELETE FROM project_items WHERE id = ?').run(id);
 }

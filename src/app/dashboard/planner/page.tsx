@@ -1,560 +1,262 @@
 /**
- * @fileoverview Main page for the Production Planner module.
+ * @fileoverview Main page for the redesigned TI Project Manager module.
  */
 'use client';
 
-import React from 'react';
-import { usePlanner } from '@/modules/planner/hooks/usePlanner';
-import { Button } from '@/components/ui/button';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useAuth } from '@/modules/core/hooks/useAuth';
+import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
-import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
-import { FilePlus, Loader2, FilterX, CalendarIcon, ChevronLeft, ChevronRight, RefreshCw, MoreVertical, History, Undo2, Check, PackageCheck, XCircle, Pencil, AlertTriangle, MessageSquarePlus, FileDown, Play, Pause, Wrench, Hourglass } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
-import { cn } from '@/lib/utils';
-import { Skeleton } from '@/components/ui/skeleton';
-import { SearchInput } from '@/components/ui/search-input';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { ProductionOrder, ProductionOrderPriority, NotePayload } from '@/modules/core/types';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Checkbox } from "@/components/ui/checkbox";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { PlusCircle, Search, Calendar as CalendarIcon, Users, Settings, FileText, ChevronRight, Loader2, Briefcase, Truck, HardDrive, Network, ShieldCheck } from 'lucide-react';
+import { useToast } from '@/modules/core/hooks/use-toast';
+import { getProjects, createProject } from '@/modules/planner/lib/actions';
+import type { TIProject, Customer, ProjectStatus, ProjectPriority, User, ThirdPartyProvider } from '@/modules/core/types';
+import { format, parseISO } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { SearchInput } from '@/components/ui/search-input';
+import { useDebounce } from 'use-debounce';
+import Link from 'next/link';
+import { getThirdPartyProviders } from '@/modules/tickets/lib/actions';
 
-export default function PlannerPage() {
-    const {
-        state,
-        actions,
-        selectors,
-        isAuthorized,
-    } = usePlanner();
+const statusConfig: { [key in ProjectStatus]: { label: string, color: string, icon: any } } = {
+    planning: { label: 'Planeación', color: 'bg-yellow-500', icon: FileText },
+    execution: { label: 'Ejecución', color: 'bg-blue-500', icon: Briefcase },
+    testing: { label: 'Pruebas', color: 'bg-purple-500', icon: ShieldCheck },
+    completed: { label: 'Finalizado', color: 'bg-green-600', icon: ShieldCheck },
+    canceled: { label: 'Cancelado', color: 'bg-red-600', icon: ShieldCheck },
+};
 
-    if (isAuthorized === null || (isAuthorized && state.isLoading)) {
-        return (
-            <main className="flex-1 p-4 md:p-6">
-                <div className="flex justify-between items-center mb-6">
-                    <h1 className="text-2xl font-bold">Gestor de Proyectos</h1>
-                    <Skeleton className="h-10 w-32" />
-                </div>
-                <Card>
-                    <CardContent className="p-4 space-y-4">
-                        <div className="flex flex-col md:flex-row gap-4">
-                           <Skeleton className="h-10 w-full max-w-sm" />
-                           <Skeleton className="h-10 w-full md:w-[180px]" />
-                           <Skeleton className="h-10 w-full md:w-[240px]" />
-                           <Skeleton className="h-10 w-full md:w-[240px]" />
-                        </div>
-                    </CardContent>
-                </Card>
-                 <div className="space-y-4 mt-6">
-                    <Skeleton className="h-56 w-full" />
-                    <Skeleton className="h-56 w-full" />
-                    <Skeleton className="h-56 w-full" />
-                </div>
-            </main>
-        )
-    }
+const priorityConfig: { [key in ProjectPriority]: { label: string, color: string } } = {
+    low: { label: 'Baja', color: 'bg-gray-400' },
+    medium: { label: 'Media', color: 'bg-blue-400' },
+    high: { label: 'Alta', color: 'bg-orange-500' },
+    urgent: { label: 'Urgente', color: 'bg-red-600' },
+};
 
-    const renderOrderCard = (order: ProductionOrder) => {
-        const canEdit = (selectors.hasPermission('planner:edit:pending') && ['pending', 'on-hold'].includes(order.status)) || (selectors.hasPermission('planner:edit:approved') && ['approved', 'in-progress', 'in-queue'].includes(order.status));
-        
-        const canApprove = selectors.hasPermission('planner:status:approve') && order.status === 'pending';
-        const canQueue = selectors.hasPermission('planner:status:in-queue') && order.status === 'approved';
-        const canStart = selectors.hasPermission('planner:status:in-progress') && order.status === 'in-queue';
-        const canResumeFromHold = selectors.hasPermission('planner:status:in-progress') && (order.status === 'on-hold' || order.status === 'in-maintenance');
-        const canHold = selectors.hasPermission('planner:status:on-hold') && order.status === 'in-progress';
-        const canMaintain = selectors.hasPermission('planner:status:on-hold') && order.status === 'in-progress';
-        const canComplete = selectors.hasPermission('planner:status:completed') && order.status === 'in-progress';
-        
-        const canRequestUnapproval = selectors.hasPermission('planner:status:unapprove-request') && ['approved', 'in-queue'].includes(order.status) && order.pendingAction === 'none';
-        const canCancelPending = selectors.hasPermission('planner:status:cancel') && order.status === 'pending';
-        const canRequestCancel = selectors.hasPermission('planner:status:cancel-approved') && ['approved', 'in-progress', 'on-hold', 'in-queue', 'in-maintenance'].includes(order.status) && order.pendingAction === 'none';
+export default function TIPlannerPage() {
+    const { setTitle } = usePageTitle();
+    const { customers, users, isLoading: isAuthLoading } = useAuth();
+    const { toast } = useToast();
 
-        const canReopen = selectors.hasPermission('planner:reopen') && (order.status === 'completed' || order.status === 'canceled');
-        
-        const daysRemaining = selectors.getDaysRemaining(order.deliveryDate);
-        const scheduledDaysRemaining = selectors.getScheduledDaysRemaining(order);
-        
-        return (
-            <Card key={order.id} className="w-full flex flex-col">
-                <CardHeader className="p-4">
-                    <div className="flex justify-between items-start gap-2">
-                        <div>
-                            <CardTitle className="text-lg">{order.consecutive} - [{order.productId}] {order.productDescription}</CardTitle>
-                            <CardDescription>Cliente: {order.customerName} {state.plannerSettings?.showCustomerTaxId && `(${order.customerTaxId})`}</CardDescription>
-                        </div>
-                        <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
-                            {!!order.reopened && <Badge variant="destructive"><RefreshCw className="mr-1 h-3 w-3" /> Reabierta</Badge>}
-                            {!!order.hasBeenModified && <Badge variant="destructive" className="animate-pulse"><AlertTriangle className="mr-1 h-3 w-3" /> Modificado</Badge>}
-                             <Button variant="ghost" size="icon" onClick={() => actions.handleOpenHistory(order)}><History className="h-4 w-4" /></Button>
-                             <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                    <DropdownMenuLabel>Acciones del Proyecto</DropdownMenuLabel>
-                                    <DropdownMenuSeparator/>
-                                    {canEdit && <DropdownMenuItem onSelect={() => { actions.setOrderToEdit(order); actions.setEditOrderDialogOpen(true); }}><Pencil className="mr-2"/> Editar Proyecto</DropdownMenuItem>}
-                                    <DropdownMenuItem onSelect={() => actions.openAddNoteDialog(order)}><MessageSquarePlus className="mr-2" /> Añadir Nota</DropdownMenuItem>
-                                    <DropdownMenuItem onSelect={() => actions.handleExportSingleOrderPDF(order)}><FileDown className="mr-2"/> Exportar a PDF</DropdownMenuItem>
-                                    <DropdownMenuSeparator/>
-                                    <DropdownMenuLabel>Cambio de Estado</DropdownMenuLabel>
-                                    <DropdownMenuSeparator/>
-                                    {canApprove && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'approved')} className="text-green-600"><Check className="mr-2"/> Aprobar</DropdownMenuItem>}
-                                    {canQueue && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'in-queue')} className="text-cyan-600"><Hourglass className="mr-2"/> Poner en Cola</DropdownMenuItem>}
-                                    {canStart && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'in-progress')} className="text-blue-600"><Play className="mr-2"/> Iniciar Progreso</DropdownMenuItem>}
-                                    {canResumeFromHold && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'in-progress')} className="text-blue-600"><Play className="mr-2"/> Reanudar Progreso</DropdownMenuItem>}
-                                    {canHold && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'on-hold')} className="text-gray-600"><Pause className="mr-2"/> Poner en Espera</DropdownMenuItem>}
-                                    {canMaintain && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'in-maintenance')} className="text-gray-600"><Wrench className="mr-2"/> Poner en Mantenimiento</DropdownMenuItem>}
-                                    {canComplete && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'completed')} className="text-indigo-600"><PackageCheck className="mr-2"/> Marcar como Completado</DropdownMenuItem>}
-                                    <DropdownMenuSeparator/>
-                                    {canRequestUnapproval && <DropdownMenuItem onSelect={() => actions.openAdminActionDialog(order, 'unapproval-request')} className="text-orange-600"><AlertTriangle className="mr-2"/> Solicitar Desaprobación</DropdownMenuItem>}
-                                    <DropdownMenuSeparator/>
-                                    {canCancelPending && <DropdownMenuItem onSelect={() => actions.openStatusDialog(order, 'canceled')} className="text-red-600"><XCircle className="mr-2"/> Cancelar Proyecto</DropdownMenuItem>}
-                                    {canRequestCancel && <DropdownMenuItem onSelect={() => actions.openAdminActionDialog(order, 'cancellation-request')} className="text-red-600 font-bold"><XCircle className="mr-2"/> Solicitar Cancelación</DropdownMenuItem>}
-                                    {canReopen && <DropdownMenuItem onSelect={() => { actions.setOrderToUpdate(order); actions.setReopenDialogOpen(true); }} className="text-orange-600"><Undo2 className="mr-2"/> Reabrir</DropdownMenuItem>}
-                                </DropdownMenuContent>
-                            </DropdownMenu>
-                        </div>
-                    </div>
-                </CardHeader>
-                <CardContent className="p-4 pt-0 flex-grow">
-                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-4 gap-y-6 text-sm">
-                        <div className="space-y-1">
-                            <p className="font-semibold text-muted-foreground">Estado Actual</p>
-                            <div className="flex items-center gap-2">
-                                <span className={cn("h-3 w-3 rounded-full", selectors.statusConfig[order.status]?.color)}></span>
-                                <span className="font-medium">{selectors.statusConfig[order.status]?.label || order.status}</span>
-                            </div>
-                        </div>
-                        <div className="space-y-1">
-                            <p className="font-semibold text-muted-foreground">Prioridad</p>
-                             <Select value={order.priority} onValueChange={(value) => actions.handleDetailUpdate(order.id, { priority: value as ProductionOrderPriority })}>
-                                <SelectTrigger className={cn("h-8 w-32 border-0 focus:ring-0", selectors.priorityConfig[order.priority]?.className)}>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                     {Object.entries(selectors.priorityConfig).map(([key, config]) => (
-                                        <SelectItem key={key} value={key} disabled={!selectors.hasPermission('planner:priority:update')}>{config.label}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="space-y-1">
-                             <p className="font-semibold text-muted-foreground">{state.plannerSettings?.assignmentLabel || 'Asignado a'}</p>
-                            <Select value={order.assignmentId || 'none'} onValueChange={(value) => actions.handleDetailUpdate(order.id, { assignmentId: value })}>
-                                <SelectTrigger className="h-8 w-40 border-0 focus:ring-0">
-                                    <SelectValue placeholder="Sin Asignar" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="none">Sin Asignar</SelectItem>
-                                    {state.plannerSettings?.assignments.map(assignment => (
-                                        <SelectItem key={assignment.id} value={assignment.id} disabled={!selectors.hasPermission('planner:machine:assign')}>{assignment.name}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                         <div className="space-y-1">
-                            <p className="font-semibold text-muted-foreground">Fecha Prog.</p>
-                            <div className="flex flex-col sm:flex-row sm:items-center gap-1">
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <Button size="sm" variant="outline" className="h-8 w-48 justify-start text-left font-normal" disabled={!selectors.hasPermission('planner:schedule')}><CalendarIcon className="mr-2 h-4 w-4" />{order.scheduledStartDate ? `${format(parseISO(order.scheduledStartDate), 'dd/MM/yy')} - ${order.scheduledEndDate ? format(parseISO(order.scheduledEndDate), 'dd/MM/yy') : ''}` : 'No programada'}</Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0"><Calendar mode="range" selected={{ from: order.scheduledStartDate ? parseISO(order.scheduledStartDate) : undefined, to: order.scheduledEndDate ? parseISO(order.scheduledEndDate) : undefined }} onSelect={(range) => actions.handleDetailUpdate(order.id, { scheduledDateRange: range })} /></PopoverContent>
-                                </Popover>
-                                <span className={cn('text-xs font-semibold', scheduledDaysRemaining.color)}>({scheduledDaysRemaining.label})</span>
-                            </div>
-                        </div>
-                        <div className="space-y-1">
-                            <p className="font-semibold text-muted-foreground">Fecha Requerida</p>
-                            <div className="flex items-center gap-2">
-                                <span>{format(parseISO(order.deliveryDate), 'dd/MM/yyyy')}</span>
-                                <span className={cn('text-xs font-semibold', daysRemaining.color)}>({daysRemaining.label})</span>
-                            </div>
-                        </div>
-                        <div className="space-y-1"><p className="font-semibold text-muted-foreground">Cant. Solicitada</p><p className="font-bold text-lg">{order.quantity.toLocaleString()}</p></div>
-                        
-                        {(order.deliveredQuantity !== null && order.deliveredQuantity !== undefined) && (
-                            <>
-                                <div className="space-y-1"><p className="font-semibold text-muted-foreground">Cant. Entregada</p><p className="font-bold text-lg text-green-600">{order.deliveredQuantity.toLocaleString()}</p></div>
-                                <div className="space-y-1">
-                                    <p className="font-semibold text-muted-foreground">Diferencia</p>
-                                    <p className={cn("font-bold text-lg", (order.deliveredQuantity - order.quantity) > 0 && "text-blue-600", (order.deliveredQuantity - order.quantity) < 0 && "text-destructive")}>
-                                        {(order.deliveredQuantity - order.quantity).toLocaleString()}
-                                    </p>
-                                </div>
-                            </>
-                        )}
-                        
-                        {order.purchaseOrder && <div className="space-y-1"><p className="font-semibold text-muted-foreground">Nº OC Cliente</p><p>{order.purchaseOrder}</p></div>}
-                        
-                        {order.inventory !== null && order.inventory !== undefined && (
-                            <div className="space-y-1"><p className="font-semibold text-muted-foreground">Inv. Manual (Creación)</p><p>{order.inventory.toLocaleString()}</p></div>
-                        )}
-                        {order.inventoryErp !== null && order.inventoryErp !== undefined && (
-                            <div className="space-y-1"><p className="font-semibold text-muted-foreground">Inv. ERP (Creación)</p><p>{order.inventoryErp.toLocaleString()}</p></div>
-                        )}
-
-                        {order.erpPackageNumber && <div className="space-y-1"><p className="font-semibold text-muted-foreground">Nº Paquete ERP</p><p>{order.erpPackageNumber}</p></div>}
-                        {order.erpTicketNumber && <div className="space-y-1"><p className="font-semibold text-muted-foreground">Nº Boleta ERP</p><p>{order.erpTicketNumber}</p></div>}
-                    </div>
-                     {order.pendingAction !== 'none' && (
-                        <div className="mt-4">
-                            <AlertDialog open={state.isActionDialogOpen && state.orderToUpdate?.id === order.id} onOpenChange={(open) => { if (!open) actions.setActionDialogOpen(false); }}>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                        <AlertDialogTitle>Gestionar Solicitud Pendiente</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                            El proyecto tiene una solicitud de &quot;{order.pendingAction === 'unapproval-request' ? 'Desaprobación' : 'Cancelación'}&quot; pendiente. Puedes aprobar o rechazar esta solicitud.
-                                        </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <div className="py-4 space-y-2">
-                                        <Label htmlFor="admin-action-notes">Notas (Requerido para aprobar o rechazar)</Label>
-                                        <Textarea id="admin-action-notes" value={state.statusUpdateNotes} onChange={e => actions.setStatusUpdateNotes(e.target.value)} placeholder="Motivo de la acción..."/>
-                                    </div>
-                                    <AlertDialogFooter>
-                                        <AlertDialogCancel>Cerrar</AlertDialogCancel>
-                                        <Button variant="secondary" onClick={() => actions.handleAdminAction(false)} disabled={!state.statusUpdateNotes.trim() || state.isSubmitting}>Rechazar Solicitud</Button>
-                                        <Button onClick={() => actions.handleAdminAction(true)} className={order.pendingAction === 'cancellation-request' ? 'bg-destructive hover:bg-destructive/90' : ''} disabled={!state.statusUpdateNotes.trim() || state.isSubmitting}>Aprobar Solicitud</Button>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
-                        </div>
-                    )}
-                     {order.notes && (<div className="mt-4 text-xs bg-muted p-2 rounded-md"><p className="font-semibold">Notas del Proyecto:</p><p className="text-muted-foreground">&quot;{order.notes}&quot;</p></div>)}
-                     {order.lastStatusUpdateNotes && (<div className="mt-2 text-xs bg-muted p-2 rounded-md"><p className="font-semibold">Última nota de estado:</p><p className="text-muted-foreground">&quot;{order.lastStatusUpdateNotes}&quot; - <span className="italic">{order.lastStatusUpdateBy}</span></p></div>)}
-                     {order.hasBeenModified && order.lastModifiedBy && (<div className="mt-2 text-xs text-red-700 bg-red-100 p-2 rounded-md"><p className="font-semibold">Última Modificación por:</p><p className="">{order.lastModifiedBy} el {format(parseISO(order.lastModifiedAt as string), "dd/MM/yy 'a las' HH:mm")}</p></div>)}
-                </CardContent>
-                <CardFooter className="p-4 pt-0 text-xs text-muted-foreground flex flex-wrap justify-between gap-2">
-                    <span>Solicitado por: {order.requestedBy} el {format(parseISO(order.requestDate), 'dd/MM/yyyy')}</span>
-                    {order.approvedBy && <span>Aprobado por: {order.approvedBy}</span>}
-                </CardFooter>
-            </Card>
-        );
-    }
+    const [projects, setProjects] = useState<TIProject[]>([]);
+    const [providers, setProviders] = useState<ThirdPartyProvider[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isFormOpen, setFormOpen] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     
+    // Search states
+    const [customerSearch, setCustomerSearch] = useState('');
+    const [isCustomerSearchOpen, setCustomerSearchOpen] = useState(false);
+    const [debouncedCustomerSearch] = useDebounce(customerSearch, 500);
+
+    const [newProject, setNewProject] = useState<Omit<TIProject, 'id' | 'consecutive' | 'createdAt' | 'updatedAt' | 'billingStatus'>>({
+        name: '',
+        customerId: '',
+        customerName: '',
+        status: 'planning',
+        priority: 'medium',
+        startDate: new Date().toISOString().split('T')[0],
+        endDate: new Date(new Date().setDate(new Date().getDate() + 15)).toISOString().split('T')[0],
+        coordinatorId: 0,
+        subcontractorId: null,
+        description: '',
+        notes: '',
+    });
+
+    useEffect(() => {
+        setTitle("Gestor de Proyectos TI");
+        fetchData();
+    }, [setTitle]);
+
+    const fetchData = async () => {
+        setIsLoading(true);
+        try {
+            const [pData, provData] = await Promise.all([
+                getProjects(),
+                getThirdPartyProviders()
+            ]);
+            setProjects(pData);
+            setProviders(provData);
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const customerOptions = useMemo(() => {
+        if (debouncedCustomerSearch.length < 2) return [];
+        return customers.filter(c => 
+            c.name.toLowerCase().includes(debouncedCustomerSearch.toLowerCase()) || 
+            c.id.toLowerCase().includes(debouncedCustomerSearch.toLowerCase())
+        ).map(c => ({ value: c.id, label: `${c.name} (${c.id})` }));
+    }, [customers, debouncedCustomerSearch]);
+
+    const handleSelectCustomer = (id: string) => {
+        const customer = customers.find(c => c.id === id);
+        if (customer) {
+            setNewProject({ ...newProject, customerId: id, customerName: customer.name });
+            setCustomerSearch(customer.name);
+            setCustomerSearchOpen(false);
+        }
+    };
+
+    const handleCreate = async () => {
+        if (!newProject.customerId || !newProject.name || !newProject.coordinatorId) {
+            toast({ title: "Datos insuficientes", description: "Cliente, nombre y coordinador son requeridos.", variant: "destructive" });
+            return;
+        }
+        setIsSubmitting(true);
+        try {
+            await createProject(newProject);
+            toast({ title: "Proyecto Iniciado" });
+            fetchData();
+            setFormOpen(false);
+        } catch (e: any) {
+            toast({ title: "Error", description: e.message, variant: "destructive" });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    if (isLoading || isAuthLoading) {
+        return <div className="p-8 space-y-4"><Loader2 className="h-12 w-12 animate-spin mx-auto text-primary" /></div>;
+    }
+
+    const coordinators = users.filter(u => u.role === 'admin' || u.role === 'support-agent');
+
     return (
-        <main className="flex-1 p-4 md:p-6 lg:p-8">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
-                <h1 className="text-lg font-semibold md:text-2xl">Gestor de Proyectos</h1>
-                 <div className="flex items-center gap-2 md:gap-4 flex-wrap">
-                    <Button variant="outline" onClick={() => actions.loadInitialData()} disabled={state.isLoading}>
-                        {state.isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-                        Refrescar
-                    </Button>
-                     <div className="flex items-center gap-1">
-                        <Button variant={state.viewingArchived ? "outline" : "secondary"} onClick={() => actions.setViewingArchived(false)}>Activos</Button>
-                        <Button variant={state.viewingArchived ? "secondary" : "outline"} onClick={() => actions.setViewingArchived(true)}>Archivados</Button>
-                     </div>
-                     {selectors.hasPermission('planner:create') && (
-                        <Dialog open={state.isNewOrderDialogOpen} onOpenChange={actions.setNewOrderDialogOpen}>
-                            <DialogTrigger asChild>
-                                <Button><FilePlus className="mr-2"/> Nuevo Proyecto</Button>
-                            </DialogTrigger>
-                            <DialogContent className="sm:max-w-3xl">
-                                <form onSubmit={(e) => { e.preventDefault(); actions.handleCreateOrder(); }}>
-                                    <DialogHeader>
-                                        <DialogTitle>Crear Nuevo Proyecto</DialogTitle>
-                                        <DialogDescription>Complete los detalles para enviar un nuevo proyecto.</DialogDescription>
-                                    </DialogHeader>
-                                    <ScrollArea className="h-[60vh] md:h-auto">
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4">
-                                            <div className="space-y-2">
-                                                <Label htmlFor="customer-search">Cliente</Label>
-                                                <SearchInput
-                                                    options={selectors.customerOptions}
-                                                    onSelect={actions.handleSelectCustomer}
-                                                    value={state.customerSearchTerm}
-                                                    onValueChange={actions.setCustomerSearchTerm}
-                                                    placeholder="Buscar cliente..."
-                                                    onKeyDown={actions.handleCustomerInputKeyDown}
-                                                    open={state.isCustomerSearchOpen}
-                                                    onOpenChange={actions.setCustomerSearchOpen}
-                                                />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label htmlFor="product-search">Descripción del Proyecto</Label>
-                                                <SearchInput
-                                                    options={selectors.productOptions}
-                                                    onSelect={actions.handleSelectProduct}
-                                                    value={state.productSearchTerm}
-                                                    onValueChange={actions.setProductSearchTerm}
-                                                    placeholder="Buscar o describir el proyecto..."
-                                                    onKeyDown={actions.handleProductInputKeyDown}
-                                                    open={state.isProductSearchOpen}
-                                                    onOpenChange={actions.setProductSearchOpen}
-                                                />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label htmlFor="new-order-purchase-order">Nº OC Cliente (Opcional)</Label>
-                                                <Input id="new-order-purchase-order" placeholder="Ej: OC-12345" value={state.newOrder.purchaseOrder || ''} onChange={(e) => actions.setNewOrder({ purchaseOrder: e.target.value })} />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label htmlFor="new-order-quantity">Cantidad</Label>
-                                                <Input id="new-order-quantity" type="number" placeholder="0.00" value={state.newOrder.quantity || ''} onChange={e => actions.setNewOrder({ quantity: Number(e.target.value) })} required />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label htmlFor="new-order-inventory">Inventario Actual (Manual)</Label>
-                                                <Input id="new-order-inventory" type="number" placeholder="0.00" value={state.newOrder.inventory || ''} onChange={e => actions.setNewOrder({ inventory: Number(e.target.value) })} />
-                                            </div>
-                                             <div className="space-y-2">
-                                                <Label htmlFor="new-order-inventory-erp">Inventario Actual (ERP)</Label>
-                                                <Input id="new-order-inventory-erp" value={(selectors.stockLevels.find(s => s.itemId === state.newOrder.productId)?.totalStock ?? 0).toLocaleString()} disabled />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label htmlFor="new-order-delivery-date">Fecha de Entrega Requerida</Label>
-                                                <Input id="new-order-delivery-date" type="date" value={state.newOrder.deliveryDate} onChange={e => actions.setNewOrder({ deliveryDate: e.target.value })} required />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label htmlFor="new-order-priority">Prioridad</Label>
-                                                <Select value={state.newOrder.priority} onValueChange={(value: ProductionOrderPriority) => actions.setNewOrder({priority: value})}>
-                                                    <SelectTrigger id="new-order-priority"><SelectValue placeholder="Seleccione una prioridad" /></SelectTrigger>
-                                                    <SelectContent>
-                                                        {Object.entries(selectors.priorityConfig).map(([key, config]) => (<SelectItem key={key} value={key}>{config.label}</SelectItem>))}
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-                                            <div className="space-y-2 col-span-1 md:col-span-2">
-                                                <Label htmlFor="new-order-notes">Notas Adicionales</Label>
-                                                <Textarea id="new-order-notes" placeholder="Instrucciones especiales, detalles del proyecto, etc." value={state.newOrder.notes || ''} onChange={e => actions.setNewOrder({ notes: e.target.value })} />
-                                            </div>
-                                        </div>
-                                    </ScrollArea>
-                                    <DialogFooter>
-                                        <DialogClose asChild><Button type="button" variant="ghost">Cancelar</Button></DialogClose>
-                                        <Button type="submit" disabled={state.isSubmitting}>{state.isSubmitting && <Loader2 className="mr-2 animate-spin"/>}Crear Proyecto</Button>
-                                    </DialogFooter>
-                                </form>
-                            </DialogContent>
-                        </Dialog>
-                     )}
-                </div>
+        <main className="flex-1 p-4 md:p-6 lg:p-8 space-y-6">
+            <div className="flex justify-between items-center">
+                <h1 className="text-2xl font-bold flex items-center gap-2">
+                    <Network className="h-6 w-6 text-primary" /> Proyectos TI Activos
+                </h1>
+                <Dialog open={isFormOpen} onOpenChange={setFormOpen}>
+                    <DialogTrigger asChild>
+                        <Button><PlusCircle className="mr-2 h-4 w-4" /> Nuevo Proyecto</Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-4xl">
+                        <DialogHeader>
+                            <DialogTitle>Iniciar Nuevo Proyecto TI</DialogTitle>
+                            <DialogDescription>Define el alcance, responsables y cronograma inicial.</DialogDescription>
+                        </DialogHeader>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
+                            <div className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label>Cliente</Label>
+                                    <SearchInput 
+                                        options={customerOptions}
+                                        onSelect={handleSelectCustomer}
+                                        value={customerSearch}
+                                        onValueChange={setCustomerSearch}
+                                        open={isCustomerSearchOpen}
+                                        onOpenChange={setCustomerSearchOpen}
+                                        placeholder="Buscar cliente..."
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Nombre del Proyecto</Label>
+                                    <Input value={newProject.name} onChange={e => setNewProject({...newProject, name: e.target.value})} placeholder="Ej: Instalación de Cámaras de Seguridad" />
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label>Fecha Inicio</Label>
+                                        <Input type="date" value={newProject.startDate} onChange={e => setNewProject({...newProject, startDate: e.target.value})} />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Fecha Compromiso</Label>
+                                        <Input type="date" value={newProject.endDate} onChange={e => setNewProject({...newProject, endDate: e.target.value})} />
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label>Coordinador Interno (Soporte)</Label>
+                                    <Select value={String(newProject.coordinatorId)} onValueChange={v => setNewProject({...newProject, coordinatorId: Number(v)})}>
+                                        <SelectTrigger><SelectValue placeholder="Selecciona un técnico..." /></SelectTrigger>
+                                        <SelectContent>
+                                            {coordinators.map(u => <SelectItem key={u.id} value={String(u.id)}>{u.name}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Subcontratista (Opcional)</Label>
+                                    <Select value={String(newProject.subcontractorId || 'none')} onValueChange={v => setNewProject({...newProject, subcontractorId: v === 'none' ? null : Number(v)})}>
+                                        <SelectTrigger><SelectValue placeholder="Sin tercero externo" /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="none">Gestión Interna</SelectItem>
+                                            {providers.map(p => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Alcance / Descripción Inicial</Label>
+                                    <Textarea value={newProject.description} onChange={e => setNewProject({...newProject, description: e.target.value})} rows={3} placeholder="Detalla los objetivos del proyecto..." />
+                                </div>
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
+                            <Button onClick={handleCreate} disabled={isSubmitting}>
+                                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Crear e Iniciar Planeación
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             </div>
-            <Card>
-                <CardContent className="p-4 space-y-4">
-                    <div className="flex flex-col md:flex-row gap-4">
-                        <Input placeholder="Buscar por Nº proyecto, cliente o descripción..." value={state.searchTerm} onChange={(e) => actions.setSearchTerm(e.target.value)} className="max-w-sm" />
-                        <Select value={state.statusFilter} onValueChange={actions.setStatusFilter}>
-                            <SelectTrigger className="w-full md:w-[180px]"><SelectValue placeholder="Filtrar por estado..." /></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">Todos los Estados</SelectItem>
-                                {Object.entries(selectors.statusConfig).map(([key, { label }]) => {
-                                    return <SelectItem key={key} value={key}>{label}</SelectItem>
-                                })}
-                            </SelectContent>
-                        </Select>
-                         <Select value={state.classificationFilter} onValueChange={actions.setClassificationFilter}>
-                            <SelectTrigger className="w-full md:w-[240px]"><SelectValue placeholder="Filtrar por clasificación..." /></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">Todas las Clasificaciones</SelectItem>
-                                {selectors.classifications.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                            </SelectContent>
-                        </Select>
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <Button variant={"outline"} className={cn("w-full md:w-[240px] justify-start text-left font-normal", !state.dateFilter && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{state.dateFilter?.from ? (state.dateFilter.to ? (`${format(state.dateFilter.from, "LLL dd, y")} - ${format(state.dateFilter.to, "LLL dd, y")}`) : (format(state.dateFilter.from, "LLL dd, y"))) : (<span>Filtrar por fecha</span>)}</Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start"><Calendar mode="range" selected={state.dateFilter} onSelect={actions.setDateFilter} /></PopoverContent>
-                        </Popover>
-                         <DropdownMenu>
-                            <DropdownMenuTrigger asChild><Button variant="outline"><FileDown className="mr-2 h-4 w-4"/>Exportar PDF</Button></DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuItem onSelect={() => actions.handleExportPDF('portrait')}>
-                                    Exportar Vertical
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onSelect={() => actions.handleExportPDF('landscape')}>
-                                    Exportar Horizontal
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                        <Button variant="ghost" onClick={() => { actions.setSearchTerm(''); actions.setStatusFilter('all'); actions.setClassificationFilter('all'); actions.setDateFilter(undefined); }}><FilterX className="mr-2 h-4 w-4" />Limpiar</Button>
-                    </div>
-                     {state.viewingArchived && (
-                        <div className="flex items-center gap-2">
-                            <Label htmlFor="page-size">Registros por página:</Label>
-                            <Select value={String(state.pageSize)} onValueChange={(value) => actions.setPageSize(Number(value))}><SelectTrigger id="page-size" className="w-[100px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="50">50</SelectItem><SelectItem value="100">100</SelectItem><SelectItem value="200">200</SelectItem></SelectContent></Select>
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
-            
-            <div className="space-y-4 mt-6">
-                {state.isLoading ? (
-                    Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-56 w-full" />)
-                ) : selectors.filteredOrders.length > 0 ? (
-                    selectors.filteredOrders.map(renderOrderCard)
-                ) : (
-                    <div className="col-span-full flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-24">
-                        <div className="flex flex-col items-center gap-2 text-center">
-                            <h3 className="text-2xl font-bold tracking-tight">No se encontraron proyectos.</h3>
-                            <p className="text-sm text-muted-foreground">Intenta ajustar los filtros de búsqueda o crea un nuevo proyecto.</p>
-                        </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {projects.map(project => (
+                    <Link key={project.id} href={`/dashboard/planner/${project.id}`}>
+                        <Card className="hover:shadow-md transition-all cursor-pointer group">
+                            <CardHeader className="pb-2">
+                                <div className="flex justify-between items-start mb-2">
+                                    <Badge variant="secondary" className="font-mono text-[10px]">{project.consecutive}</Badge>
+                                    <Badge className={statusConfig[project.status].color}>{statusConfig[project.status].label}</Badge>
+                                </div>
+                                <CardTitle className="text-lg group-hover:text-primary transition-colors">{project.name}</CardTitle>
+                                <CardDescription>{project.customerName}</CardDescription>
+                            </CardHeader>
+                            <CardContent className="py-2 space-y-3">
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                    <CalendarIcon className="h-3 w-3" />
+                                    <span>{format(parseISO(project.startDate), 'dd/MM/yy')} al {format(parseISO(project.endDate), 'dd/MM/yy')}</span>
+                                </div>
+                                <div className="flex items-center gap-4">
+                                    <div className="flex items-center gap-1 text-[10px] uppercase font-bold text-muted-foreground">
+                                        <Users className="h-3 w-3" /> 
+                                        {users.find(u => u.id === project.coordinatorId)?.name.split(' ')[0]}
+                                    </div>
+                                    {project.subcontractorId && (
+                                        <div className="flex items-center gap-1 text-[10px] uppercase font-bold text-amber-600">
+                                            <Truck className="h-3 w-3" /> 
+                                            Ext.
+                                        </div>
+                                    )}
+                                </div>
+                            </CardContent>
+                            <CardFooter className="pt-2 border-t text-xs flex justify-between">
+                                <span className={cn("font-bold", priorityConfig[project.priority].color.replace('bg-', 'text-'))}>Prioridad {priorityConfig[project.priority].label}</span>
+                                <ChevronRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </CardFooter>
+                        </Card>
+                    </Link>
+                ))}
+                {projects.length === 0 && (
+                    <div className="col-span-full py-20 text-center border-2 border-dashed rounded-lg bg-muted/20">
+                        <p className="text-muted-foreground">No hay proyectos registrados en este momento.</p>
                     </div>
                 )}
             </div>
-
-             {state.viewingArchived && state.totalArchived > state.pageSize && (
-                 <div className="flex items-center justify-center space-x-2 py-4">
-                    <Button variant="outline" size="sm" onClick={() => actions.setArchivedPage(p => p - 1)} disabled={state.archivedPage === 0}><ChevronLeft className="mr-2 h-4 w-4" />Anterior</Button>
-                    <span className="text-sm text-muted-foreground">Página {state.archivedPage + 1} de {Math.ceil(state.totalArchived / state.pageSize)}</span>
-                    <Button variant="outline" size="sm" onClick={() => actions.setArchivedPage(p => p + 1)} disabled={(state.archivedPage + 1) * state.pageSize >= state.totalArchived}>Siguiente<ChevronRight className="ml-2 h-4 w-4" /></Button>
-                </div>
-            )}
-            
-            <Dialog open={state.isEditOrderDialogOpen} onOpenChange={actions.setEditOrderDialogOpen}>
-                <DialogContent className="sm:max-w-3xl">
-                    <form onSubmit={actions.handleEditOrder}>
-                        <DialogHeader>
-                            <DialogTitle>Editar Proyecto - {state.orderToEdit?.consecutive}</DialogTitle>
-                            <DialogDescription>Modifique los campos necesarios y guarde los cambios.</DialogDescription>
-                        </DialogHeader>
-                        <ScrollArea className="h-[60vh] md:h-auto">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4">
-                                <div className="space-y-2">
-                                    <Label>Cliente</Label>
-                                    <Input value={state.orderToEdit?.customerName || ''} disabled />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Descripción</Label>
-                                    <Input value={state.orderToEdit?.productDescription || ''} disabled />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="edit-order-quantity">Cantidad</Label>
-                                    <Input id="edit-order-quantity" type="number" value={state.orderToEdit?.quantity || ''} onChange={e => actions.setOrderToEdit({ ...state.orderToEdit, quantity: Number(e.target.value) } as ProductionOrder)} required />
-                                </div>
-                                 <div className="space-y-2">
-                                    <Label htmlFor="edit-order-delivery-date">Fecha de Entrega</Label>
-                                    <Input id="edit-order-delivery-date" type="date" value={state.orderToEdit?.deliveryDate ? format(parseISO(state.orderToEdit.deliveryDate), 'yyyy-MM-dd') : ''} onChange={e => actions.setOrderToEdit({ ...state.orderToEdit, deliveryDate: e.target.value } as ProductionOrder)} required />
-                                </div>
-                                 <div className="space-y-2">
-                                    <Label htmlFor="edit-order-purchase-order">Nº OC Cliente</Label>
-                                    <Input id="edit-order-purchase-order" value={state.orderToEdit?.purchaseOrder || ''} onChange={e => actions.setOrderToEdit({ ...state.orderToEdit, purchaseOrder: e.target.value } as ProductionOrder)} />
-                                </div>
-                                <div className="space-y-2 col-span-1 md:col-span-2">
-                                    <Label htmlFor="edit-order-notes">Notas</Label>
-                                    <Textarea id="edit-order-notes" value={state.orderToEdit?.notes || ''} onChange={e => actions.setOrderToEdit({ ...state.orderToEdit, notes: e.target.value } as ProductionOrder)} />
-                                </div>
-                            </div>
-                        </ScrollArea>
-                        <DialogFooter>
-                            <DialogClose asChild><Button type="button" variant="ghost">Cancelar</Button></DialogClose>
-                            <Button type="submit" disabled={state.isSubmitting}>{state.isSubmitting && <Loader2 className="mr-2 animate-spin"/>}Guardar Cambios</Button>
-                        </DialogFooter>
-                    </form>
-                </DialogContent>
-            </Dialog>
-
-            <Dialog open={state.isStatusDialogOpen} onOpenChange={actions.setStatusDialogOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Actualizar Estado del Proyecto</DialogTitle>
-                        <DialogDescription>Estás a punto de cambiar el estado a &quot;{state.newStatus ? selectors.statusConfig[state.newStatus]?.label : ''}&quot;.</DialogDescription>
-                    </DialogHeader>
-                    <div className="py-4 space-y-4">
-                        {state.newStatus === 'completed' && (
-                            <div className="space-y-2">
-                                <Label htmlFor="status-delivered-quantity">Cantidad Entregada</Label>
-                                <Input id="status-delivered-quantity" type="number" value={state.deliveredQuantity} onChange={(e) => actions.setDeliveredQuantity(e.target.value)} placeholder={`Cantidad solicitada: ${state.orderToUpdate?.quantity.toLocaleString()}`} />
-                            </div>
-                        )}
-                        <div className="space-y-2">
-                            <Label htmlFor="status-notes">Notas (Opcional)</Label>
-                            <Textarea id="status-notes" value={state.statusUpdateNotes} onChange={e => actions.setStatusUpdateNotes(e.target.value)} placeholder="Ej: Aprobado por Gerencia..." />
-                        </div>
-                    </div>
-                     <DialogFooter>
-                        <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
-                        <Button onClick={() => actions.handleStatusUpdate(state.newStatus || undefined)} disabled={state.isSubmitting}>{state.isSubmitting && <Loader2 className="mr-2 animate-spin"/>}Actualizar Estado</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-             <Dialog open={state.isReopenDialogOpen} onOpenChange={(isOpen) => { actions.setReopenDialogOpen(isOpen); if (!isOpen) { actions.setReopenStep(0); actions.setReopenConfirmationText(''); }}}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2"><AlertTriangle className="text-destructive" /> Reabrir Proyecto Finalizado</DialogTitle>
-                        <DialogDescription>Estás a punto de reabrir el proyecto {state.orderToUpdate?.consecutive}. Esta acción es irreversible y moverá el proyecto de nuevo a &quot;Pendiente&quot;.</DialogDescription>
-                    </DialogHeader>
-                    <div className="py-4 space-y-4">
-                        <div className="flex items-center space-x-2">
-                            <Checkbox id="reopen-confirm-checkbox" onCheckedChange={(checked) => actions.setReopenStep(checked ? 1 : 0)} />
-                            <Label htmlFor="reopen-confirm-checkbox" className="font-medium text-destructive">Entiendo que esta acción no se puede deshacer.</Label>
-                        </div>
-                        {state.reopenStep > 0 && (
-                            <div className="space-y-2">
-                                <Label htmlFor="reopen-confirmation-text">Para confirmar, escribe &quot;REABRIR&quot; en el campo de abajo:</Label>
-                                <Input id="reopen-confirmation-text" value={state.reopenConfirmationText} onChange={(e) => { actions.setReopenConfirmationText(e.target.value.toUpperCase()); if (e.target.value.toUpperCase() === 'REABRIR') {actions.setReopenStep(2);} else {actions.setReopenStep(1);}}} className="border-destructive focus-visible:ring-destructive" />
-                            </div>
-                        )}
-                    </div>
-                    <DialogFooter>
-                        <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
-                        <Button onClick={actions.handleReopenOrder} disabled={state.reopenStep !== 2 || state.reopenConfirmationText !== 'REABRIR' || state.isSubmitting}>{state.isSubmitting && <Loader2 className="mr-2 animate-spin"/>}Reabrir Proyecto</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            <Dialog open={state.isHistoryDialogOpen} onOpenChange={actions.setHistoryDialogOpen}>
-                <DialogContent className="sm:max-w-2xl">
-                    <DialogHeader>
-                        <DialogTitle>Historial de Cambios - Proyecto {state.historyOrder?.consecutive}</DialogTitle>
-                        <DialogDescription>Registro de todos los cambios de estado para este proyecto.</DialogDescription>
-                    </DialogHeader>
-                    <div className="py-4">
-                        {state.isHistoryLoading ? (
-                            <div className="flex justify-center items-center h-40"><Loader2 className="animate-spin" /></div>
-                        ) : state.history.length > 0 ? (
-                            <ScrollArea className="h-96">
-                                <Table><TableHeader><TableRow><TableHead>Fecha y Hora</TableHead><TableHead>Estado</TableHead><TableHead>Usuario</TableHead><TableHead>Notas</TableHead></TableRow></TableHeader>
-                                    <TableBody>
-                                        {state.history.map(entry => (
-                                            <TableRow key={entry.id}>
-                                                <TableCell>{format(parseISO(entry.timestamp), 'dd/MM/yyyy HH:mm:ss')}</TableCell>
-                                                <TableCell><Badge style={{ backgroundColor: selectors.statusConfig[entry.status]?.color }} className="text-white">{selectors.statusConfig[entry.status]?.label || entry.status}</Badge></TableCell>
-                                                <TableCell>{entry.updatedBy}</TableCell>
-                                                <TableCell>{entry.notes || '-'}</TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            </ScrollArea>
-                        ) : (
-                            <p className="text-center text-muted-foreground py-8">No hay historial de cambios para este proyecto.</p>
-                        )}
-                    </div>
-                </DialogContent>
-            </Dialog>
-
-            <Dialog open={state.isAddNoteDialogOpen} onOpenChange={actions.setAddNoteDialogOpen}>
-                <DialogContent>
-                     <DialogHeader>
-                        <DialogTitle>Añadir Nota al Proyecto {state.notePayload?.orderId}</DialogTitle>
-                        <DialogDescription>Agrega una nota o actualización al proyecto sin cambiar su estado actual.</DialogDescription>
-                    </DialogHeader>
-                     <div className="py-4 space-y-2">
-                        <Label htmlFor="add-note-textarea">Nota</Label>
-                        <Textarea id="add-note-textarea" value={state.notePayload?.notes || ''} onChange={e => actions.setNotePayload({ ...state.notePayload, notes: e.target.value } as NotePayload)} placeholder="Añade aquí una nota o actualización..." />
-                    </div>
-                    <DialogFooter>
-                        <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
-                        <Button onClick={actions.handleAddNote} disabled={state.isSubmitting}>{state.isSubmitting && <Loader2 className="mr-2 animate-spin"/>}Añadir Nota</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            {(state.isSubmitting || state.isLoading) && (
-                <div className="fixed bottom-4 right-4 flex items-center gap-2 rounded-lg bg-primary p-3 text-primary-foreground shadow-lg">
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                    <span>Procesando...</span>
-                </div>
-            )}
         </main>
     );
 }
