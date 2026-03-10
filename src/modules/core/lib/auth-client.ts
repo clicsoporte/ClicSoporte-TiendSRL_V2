@@ -8,6 +8,7 @@ import {
     getAllUsers as getAllUsersServer, 
     login as loginServer, 
     updateUser as updateUserServer,
+    deleteUser as deleteUserServer,
     comparePasswords as comparePasswordsServer, 
     addUser as addUserServer, 
     logout as logoutServer,
@@ -54,6 +55,22 @@ export async function addUser(userData: Omit<User, 'id'> & { password: string })
  */
 export async function updateUser(user: User): Promise<User> {
     return await updateUserServer(user);
+}
+
+/**
+ * Deletes a user.
+ */
+export async function deleteUser(id: number): Promise<void> {
+    return await deleteUserServer(id);
+}
+
+/**
+ * Saves all users (masive update).
+ */
+export async function saveAllUsers(users: User[]): Promise<void> {
+    for (const user of users) {
+        await updateUserServer(user);
+    }
 }
 
 /**

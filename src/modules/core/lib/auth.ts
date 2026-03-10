@@ -6,10 +6,15 @@
 import { cache } from 'react';
 import { cookies } from 'next/headers';
 import { connectDb } from './db';
-import type { User } from '../types';
+import type { User, ExchangeRateApiResponse } from '../types';
 import bcrypt from 'bcryptjs';
 import { logInfo, logWarn } from './logger';
 import { SESSION_COOKIE, SALT_ROUNDS, SESSION_DURATION } from './auth-constants';
+import { getAllRoles } from './roles-db';
+import { getCompanySettings } from './settings-db';
+import { getAllCustomers, getAllProducts, getAllStock, getAllExemptions, getCabysCatalog } from './data-access-db';
+import { getExchangeRate } from './api-actions';
+import { getUnreadSuggestionsCount } from './suggestions-actions';
 
 /**
  * Retrieves the currently authenticated user based on the session cookie.
@@ -100,7 +105,7 @@ export async function addUser(userData: Omit<User, 'id'> & { password: string })
 export async function updateUser(user: User): Promise<User> {
     const db = await connectDb();
     let query = 'UPDATE users SET name = ?, email = ?, phone = ?, whatsapp = ?, role = ?, forcePasswordChange = ?';
-    const params: (string | number | null)[] = [user.name, user.email, user.phone || null, user.whatsapp || null, user.role, user.forcePasswordChange ? 1 : 0];
+    const params: (string | number | null | boolean)[] = [user.name, user.email, user.phone || null, user.whatsapp || null, user.role, user.forcePasswordChange ? 1 : 0];
 
     if (user.password) {
         query += ', password = ?';
@@ -125,4 +130,30 @@ export async function comparePasswords(userId: number, password: string): Promis
     const user = db.prepare('SELECT password FROM users WHERE id = ?').get(userId) as { password?: string };
     if (!user?.password) return false;
     return await bcrypt.compare(password, user.password);
+}
+
+/**
+ * Fetches all initial data for the AuthProvider in one go.
+ */
+export async function getInitialAuthData() {
+    const [
+        roles, companySettings, customers, products, stock, exemptions, 
+        exchangeRate, unreadSuggestions, users
+    ] = await Promise.all([
+        getAllRoles(), getCompanySettings(), getAllCustomers(), getAllProducts(),
+        getAllStock(), getAllExemptions(), getExchangeRate(),
+        getUnreadSuggestionsCount(), getAllUsers()
+    ]);
+
+    const rateData: { rate: number | null; date: string | null } = { rate: null, date: null };
+    const erRes = exchangeRate as ExchangeRateApiResponse;
+    if (erRes?.venta?.valor) {
+        rateData.rate = erRes.venta.valor;
+        rateData.date = erRes.venta.fecha;
+    }
+
+    return {
+        roles, companySettings, customers, products, stock, exemptions,
+        exchangeRate: rateData, unreadSuggestions, users, exemptionLaws: [] // Laws could be fetched too
+    };
 }

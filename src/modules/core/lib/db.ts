@@ -7,6 +7,7 @@ import type { Database } from 'better-sqlite3';
 import { connectDb as baseConnectDb } from './db-connection';
 import { initialUsers, initialRoles } from './db-constants';
 import bcrypt from 'bcryptjs';
+import type { LogEntry, DateRange } from '../types';
 
 const DB_FILE = 'intratool.db';
 const SALT_ROUNDS = 10;
@@ -75,6 +76,13 @@ export async function initializeMainDatabase(db: Database) {
             isRead INTEGER DEFAULT 0,
             timestamp TEXT NOT NULL
         );
+
+        CREATE TABLE IF NOT EXISTS user_preferences (
+            userId INTEGER NOT NULL,
+            key TEXT NOT NULL,
+            value TEXT NOT NULL,
+            PRIMARY KEY (userId, key)
+        );
     `;
 
     db.exec(mainSchema);
@@ -95,7 +103,67 @@ export async function runMainMigrations(db: Database) {
     const userColumns = new Set(userTableInfo.map(c => c.name));
 
     if (!userColumns.has('forcePasswordChange')) {
-        console.log("MIGRATION: Adding 'forcePasswordChange' to 'users' table.");
         db.exec(`ALTER TABLE users ADD COLUMN forcePasswordChange INTEGER DEFAULT 0;`);
     }
+}
+
+export async function getLogs(filters: { type?: string; search?: string; dateRange?: DateRange }): Promise<LogEntry[]> {
+    const db = await connectDb();
+    let query = 'SELECT * FROM logs';
+    const params: any[] = [];
+    const conditions: string[] = [];
+
+    if (filters.type && filters.type !== 'all') {
+        if (filters.type === 'operational') conditions.push("type = 'INFO'");
+        else conditions.push("type IN ('WARN', 'ERROR')");
+    }
+
+    if (filters.search) {
+        conditions.push("(message LIKE ? OR details LIKE ?)");
+        params.push(`%${filters.search}%`, `%${filters.search}%`);
+    }
+
+    if (filters.dateRange?.from) {
+        conditions.push("timestamp >= ?");
+        params.push(filters.dateRange.from.toISOString());
+    }
+
+    if (filters.dateRange?.to) {
+        conditions.push("timestamp <= ?");
+        params.push(filters.dateRange.to.toISOString());
+    }
+
+    if (conditions.length > 0) query += ' WHERE ' + conditions.join(' AND ');
+    query += ' ORDER BY timestamp DESC LIMIT 500';
+
+    const rows = db.prepare(query).all(...params) as any[];
+    return rows.map(r => ({ ...r, details: r.details ? JSON.parse(r.details) : undefined }));
+}
+
+export async function clearLogs(clearedBy: string, type: string, deleteAllTime: boolean) {
+    const db = await connectDb();
+    let query = 'DELETE FROM logs';
+    const conditions: string[] = [];
+    if (type === 'operational') conditions.push("type = 'INFO'");
+    else if (type === 'system') conditions.push("type IN ('WARN', 'ERROR')");
+
+    if (!deleteAllTime) {
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        conditions.push("timestamp < ?");
+        db.prepare(query + ' WHERE ' + conditions.join(' AND ')).run(thirtyDaysAgo.toISOString());
+    } else {
+        db.prepare(query + (conditions.length > 0 ? ' WHERE ' + conditions.join(' AND ') : '')).run();
+    }
+}
+
+export async function getUserPreferences(userId: number, key: string): Promise<any> {
+    const db = await connectDb();
+    const row = db.prepare('SELECT value FROM user_preferences WHERE userId = ? AND key = ?').get(userId, key) as { value: string } | undefined;
+    return row ? JSON.parse(row.value) : {};
+}
+
+export async function saveUserPreferences(userId: number, key: string, value: any): Promise<void> {
+    const db = await connectDb();
+    db.prepare('INSERT OR REPLACE INTO user_preferences (userId, key, value) VALUES (?, ?, ?)').run(userId, key, JSON.stringify(value));
 }

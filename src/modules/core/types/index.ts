@@ -21,8 +21,7 @@ export type User = {
   recentActivity: string;
   securityQuestion?: string;
   securityAnswer?: string;
-  supportPackageId?: string;
-  monthlyHoursBalance?: number;
+  forcePasswordChange?: boolean;
 };
 
 /**
@@ -121,8 +120,6 @@ export type Customer = {
     electronicDocEmail: string;
     isManual?: boolean;
     contacts: CustomerContact[];
-    supportPackageId?: string;
-    monthlyHoursBalance?: number;
 };
 
 /**
@@ -320,25 +317,12 @@ export type ProjectItem = {
     type: 'material' | 'service';
 };
 
-export type CustomStatus = {
-  id: string;
-  label: string;
-  color: string;
-  isActive: boolean;
-};
-
 export type PlannerSettings = {
     projectPrefix?: string;
     nextProjectNumber?: number;
-    orderPrefix?: string;
-    nextOrderNumber?: number;
     pdfTopLegend?: string;
     assignmentLabel: string;
-    customStatuses: CustomStatus[];
     pdfPaperSize: 'letter' | 'legal';
-    pdfOrientation: 'portrait' | 'landscape';
-    pdfExportColumns: string[];
-    fieldsToTrackChanges: string[];
     showCustomerTaxId: boolean;
     assignments: { id: string; name: string }[];
     requireAssignmentForStart: boolean;
@@ -602,18 +586,6 @@ export type SoftwareProduct = {
     id: number;
     name: string;
     isInternal: boolean;
-};
-
-export type TimeEntry = {
-    id: number;
-    ticketId: number;
-    userId: number;
-    startTime: string;
-    endTime: string | null;
-    duration: number;
-    notes: string | null;
-    isBillable: boolean;
-    createdAt: string;
 };
 
 export type ExpectedSchema = {
