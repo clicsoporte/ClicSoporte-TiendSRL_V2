@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Custom hook `usePlanner` for managing the state and logic of the Production Planner page.
  */
@@ -600,7 +601,7 @@ export const usePlanner = () => {
                         selectors.statusConfig[entry.status as keyof typeof selectors.statusConfig]?.label || entry.status,
                         entry.updatedBy,
                         entry.notes || ''
-                    ]),
+                    ] as RowInput),
                     columnStyles: {},
                 },
                 totals: []

@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Centralized PDF generation service for the entire application.
  */
@@ -141,16 +142,16 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         autoTable(doc, {
             startY: finalY,
             body: data.blocks.map(b => ([
-                { content: b.title, styles: { fontStyle: 'bold', cellPadding: { top: 0, right: 5, bottom: 2, left: 0 } } } as any,
-                { content: b.content, styles: { fontStyle: 'normal', cellPadding: { top: 0, right: 0, bottom: 2, left: 0 } } } as any
-            ])),
+                { content: b.title, styles: { fontStyle: 'bold', cellPadding: { top: 0, right: 5, bottom: 2, left: 0 } } },
+                { content: b.content, styles: { fontStyle: 'normal', cellPadding: { top: 0, right: 0, bottom: 2, left: 0 } } }
+            ] as RowInput)),
             theme: 'plain',
             tableWidth: 'wrap',
             styles: { fontSize: 9, cellPadding: 0 },
             columnStyles: { 0: { cellWidth: 'wrap' } },
             margin: { left: margin, right: margin }
         });
-        finalY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 15;
+        finalY = (doc as any).lastAutoTable.finalY + 15;
     }
 
     autoTable(doc, {
@@ -165,7 +166,7 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         didDrawPage: didDrawPage,
     });
     
-    finalY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY;
+    finalY = (doc as any).lastAutoTable.finalY;
     
     const pageHeight = doc.internal.pageSize.getHeight();
     let totalPages = doc.getNumberOfPages();
