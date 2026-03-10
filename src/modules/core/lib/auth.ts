@@ -10,7 +10,7 @@ import type { User } from '../types';
 import bcrypt from 'bcryptjs';
 import { logInfo, logWarn } from './logger';
 
-const SESSION_COOKIE = 'clic_tools_session';
+export const SESSION_COOKIE = 'clic_tools_session';
 const SALT_ROUNDS = 10;
 
 /**
