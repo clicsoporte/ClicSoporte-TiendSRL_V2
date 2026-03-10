@@ -83,13 +83,13 @@ export const useTickets = () => {
     const { companyData, users, customers } = useAuth();
 
     const [state, setState] = useState(initialState);
-    const [debouncedCustomerSearch] = useDebounce(state.customerSearchTerm, companyData?.searchDebounceTime ?? 500);
-    const [debouncedSearchTerm] = useDebounce(state.searchTerm, companyData?.searchDebounceTime ?? 500);
-
-
+    
     const updateState = useCallback((newState: Partial<typeof state>) => {
         setState(prevState => ({ ...prevState, ...newState }));
     }, []);
+
+    const [debouncedCustomerSearch] = useDebounce(state.customerSearchTerm, companyData?.searchDebounceTime ?? 500);
+    const [debouncedSearchTerm] = useDebounce(state.searchTerm, companyData?.searchDebounceTime ?? 500);
 
     const loadInitialData = useCallback(async () => {
         updateState({ isLoading: true });
@@ -186,7 +186,7 @@ export const useTickets = () => {
             
             if (supportInfoCustomer) {
                 const supportInfo = await getCustomerSupportInfo(supportInfoCustomer.id);
-                updateState({ customerSupportInfo: supportInfo as any });
+                updateState({ customerSupportInfo: supportInfo as { customer: Customer | ClientCompany | null, supportPackage: SupportPackage | null, services: Service[] } });
             } else {
                 updateState({ customerSupportInfo: null });
             }
@@ -211,7 +211,7 @@ export const useTickets = () => {
         },
 
         handleCreateTicket: async () => {
-            const user = users.find(u => u.id === users[0]?.id); // Temporary surrogate since useAuth current user isn't here
+            const user = users.find(u => u.id === users[0]?.id); // Temporary surrogate
             if (!user || !state.newTicket.subject || !state.newTicket.content || !state.newTicket.customerName || !state.newTicket.customerEmail || !state.newTicket.serviceId) {
                 toast({ title: "Datos Incompletos", description: "Asunto, descripción, servicio y datos del cliente son requeridos.", variant: "destructive" });
                 return;
@@ -265,7 +265,7 @@ export const useTickets = () => {
             }
         },
 
-        addThreadEntry: async (payload: { ticketId: number; userId: number; userName: string; content: string; type?: 'message' | 'note' }) => {
+        addThreadEntry: async (payload: { ticketId: number; userId: number; userName: string; content: string; type: 'message' | 'note' }) => {
             updateState({ isSubmitting: true });
             try {
                 const newEntry = await addThreadEntryServer({ ...payload, type: payload.type || 'message' });
@@ -307,7 +307,7 @@ export const useTickets = () => {
         loadCustomerSupportInfo: async (id: number | string) => {
             try {
                 const info = await getCustomerSupportInfo(id);
-                updateState({ customerSupportInfo: info as any });
+                updateState({ customerSupportInfo: info as { customer: Customer | ClientCompany | null, supportPackage: SupportPackage | null, services: Service[] } });
             } catch (error: any) {
                 logError("Failed to load customer support info", { error: error.message });
                 updateState({ customerSupportInfo: null });

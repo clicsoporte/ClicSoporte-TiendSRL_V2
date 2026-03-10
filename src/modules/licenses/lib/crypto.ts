@@ -79,7 +79,7 @@ async function getPrivateKey(): Promise<string> {
 export async function getPublicKey(): Promise<string | null> {
     try {
         return await fs.readFile(PUBLIC_KEY_PATH, 'utf-8');
-    } catch (err: unknown) {
+    } catch (_: unknown) {
         return null; // It's okay if it doesn't exist, the UI will prompt to create it.
     }
 }

@@ -22,7 +22,7 @@ export interface DocumentData {
         content: string;
     }[];
     table: {
-        columns: any[];
+        columns: (string | { content: string; styles?: Partial<Styles> })[];
         rows: RowInput[];
         columnStyles?: { [key: string]: Partial<Styles> };
     };
@@ -161,14 +161,14 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         theme: 'striped',
         headStyles: { fillColor: [41, 128, 185], textColor: 255, font: 'Helvetica', fontStyle: 'bold' },
         styles: { font: 'Helvetica', fontSize: 9, cellPadding: 4 },
-        columnStyles: data.table.columnStyles as any,
+        columnStyles: data.table.columnStyles as { [key: string]: Partial<Styles> },
         didDrawPage: didDrawPage,
     });
     
     finalY = (doc as any).lastAutoTable.finalY;
     
     const pageHeight = doc.internal.pageSize.getHeight();
-    let totalPages = (doc as any).internal.getNumberOfPages();
+    let totalPages = doc.internal.getNumberOfPages();
     let currentPage = totalPages;
 
     let bottomContentY = finalY + 20;
@@ -184,7 +184,6 @@ export const generateDocument = (data: DocumentData): jsPDF => {
     doc.setPage(currentPage);
     
     let leftY = bottomContentY;
-    let rightY = bottomContentY;
 
     doc.setFontSize(9);
     if (data.paymentInfo) {
@@ -206,6 +205,7 @@ export const generateDocument = (data: DocumentData): jsPDF => {
     
     const totalsX = pageWidth - margin;
     doc.setFontSize(10);
+    let rightY = bottomContentY;
     data.totals.forEach((total, index) => {
         const isLast = index === data.totals.length - 1;
         

@@ -222,7 +222,7 @@ export const useQuoter = () => {
         const lastLineRefs = lineInputRefs.current.get(lastLine.id);
         lastLineRefs?.qty?.focus();
     }
-  }, [lines.length, lines]);
+  }, [lines.length]);
 
   const customerOptions = useMemo(() => {
     if (debouncedCustomerSearch.length < 2) return [];
@@ -422,6 +422,13 @@ export const useQuoter = () => {
     await logInfo("Default decimal places updated", { newPrecision: decimalPlaces });
   };
   
+  const totals = useMemo(() => {
+    const subtotal = lines.reduce((acc, line) => acc + (line.quantity * line.price), 0);
+    const totalTaxes = lines.reduce((acc, line) => acc + (line.quantity * line.price * line.tax), 0);
+    const total = subtotal + totalTaxes;
+    return { subtotal, totalTaxes, total };
+  }, [lines]);
+
   const generatePDF = async () => {
     if (isAuthLoading || !companyData) {
         toast({ title: "Por favor espere", description: "Los datos de configuración de la empresa aún se están cargando.", variant: "destructive" });
@@ -553,10 +560,7 @@ export const useQuoter = () => {
           userId: currentUser.id,
           customerId: selectedCustomer ? selectedCustomer.id : null,
           customerDetails: customerDetails,
-          lines: lines.map((l) => {
-              const { displayQuantity: _1, displayPrice: _2, ...rest } = l;
-              return rest;
-          }),
+          lines: lines.map(({ displayQuantity: _, displayPrice: __, ...rest }) => rest),
           totals: totals,
           notes: notes,
           currency: currency,
@@ -575,8 +579,8 @@ export const useQuoter = () => {
         toast({ title: "Borrador Guardado", description: `La cotización Nº ${quoteNumber} ha sido guardada.` });
         await logInfo(`Quote draft saved: ${quoteNumber}`);
         await incrementAndSaveQuoteNumber();
-    } catch (error: unknown) {
-        logError("Failed to save draft", { error: (error as Error).message });
+    } catch (error: any) {
+        logError("Failed to save draft", { error: error.message });
         toast({ title: "Error", description: "No se pudo guardar el borrador.", variant: "destructive" });
     } finally {
         setIsProcessing(false);
@@ -586,7 +590,7 @@ export const useQuoter = () => {
   const loadDrafts = async () => {
     if (isAuthLoading || !currentUser) return;
     const draftsFromDb = await getAllQuoteDrafts(currentUser.id);
-    const enrichedDrafts = draftsFromDb.map((draft: QuoteDraft) => ({
+    const enrichedDrafts = draftsFromDb.map((draft) => ({
         ...draft,
         customer: customers.find(c => c.id === draft.customerId) || null
     }));
@@ -657,14 +661,6 @@ export const useQuoter = () => {
     setMobileColumnVisibility(prev => ({ ...prev, [column]: checked }));
   };
 
-  const totals = useMemo(() => {
-    const subtotal = lines.reduce((acc, line) => acc + (line.quantity * line.price), 0);
-    const totalTaxes = lines.reduce((acc, line) => acc + (line.quantity * line.price * line.tax), 0);
-    const total = subtotal + totalTaxes;
-    return { subtotal, totalTaxes, total };
-  }, [lines]);
-
-  
   const selectors = { totals, customerOptions, productOptions };
 
   return {

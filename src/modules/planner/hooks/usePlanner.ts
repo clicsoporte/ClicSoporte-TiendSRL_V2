@@ -24,7 +24,7 @@ import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useDebounce } from 'use-debounce';
 import { getDaysRemaining as getSimpleDaysRemaining } from '@/modules/core/lib/time-utils';
 import { generateDocument } from '@/modules/core/lib/pdf-generator';
-import type { RowInput } from 'jspdf-autotable';
+import type { RowInput, Styles } from 'jspdf-autotable';
 
 const emptyOrder: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'assignmentId' | 'previousStatus' | 'scheduledStartDate' | 'scheduledEndDate' | 'requestedBy' | 'hasBeenModified' | 'lastModifiedBy' | 'lastModifiedAt'| 'lastStatusUpdateBy' | 'lastStatusUpdateNotes' | 'approvedBy'> = {
     deliveryDate: '',
@@ -42,7 +42,7 @@ const emptyOrder: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | '
     pendingAction: 'none',
 };
 
-const priorityConfig = { 
+const priorityConfig: { [key in ProductionOrderPriority]: { label: string, className: string } } = { 
     low: { label: "Baja", className: "text-gray-500" }, 
     medium: { label: "Media", className: "text-blue-500" }, 
     high: { label: "Alta", className: "text-yellow-600" }, 
@@ -156,7 +156,7 @@ export const usePlanner = () => {
     }, [toast, state.viewingArchived, state.pageSize, updateState]);
     
     useEffect(() => {
-        setTitle("Gestor de Proyectos");
+        setTitle("Gestión de Proyectos");
         if (isAuthorized) {
             loadInitialData(0);
         }
@@ -524,9 +524,9 @@ export const usePlanner = () => {
                 table: {
                     columns: tableHeaders,
                     rows: tableRows,
-                    columnStyles: selectedColumnIds.reduce((acc: any, id, index) => {
+                    columnStyles: selectedColumnIds.reduce((acc: Record<string, Partial<Styles>>, id, index) => {
                         const col = allPossibleColumns.find(c => c.id === id);
-                        const styles: any = {};
+                        const styles: Partial<Styles> = {};
                         if (col?.width) { styles.cellWidth = col.width; }
                         if (id === 'quantity') { styles.halign = 'right'; }
                         if (Object.keys(styles).length > 0) acc[index] = styles;

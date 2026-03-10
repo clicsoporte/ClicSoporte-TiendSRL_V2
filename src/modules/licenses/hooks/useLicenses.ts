@@ -7,7 +7,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
-import { logError, logInfo } from '@/modules/core/lib/logger';
+import { logError } from '@/modules/core/lib/logger';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import type { License, SoftwareProduct, ClientCompany } from '@/modules/core/types';
 import { 
@@ -42,7 +42,7 @@ export const useLicenses = () => {
     const { isAuthorized } = useAuthorization(['licenses:read']);
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
-    const { user, companyData } = useAuth();
+    const { companyData } = useAuth();
 
     const [state, setState] = useState({
         isLoading: true,
@@ -60,11 +60,11 @@ export const useLicenses = () => {
         isCompanySearchOpen: false,
     });
 
-    const [debouncedCompanySearch] = useDebounce(state.companySearchTerm, companyData?.searchDebounceTime ?? 500);
-
-    const updateState = (newState: Partial<typeof state>) => {
+    const updateState = useCallback((newState: Partial<typeof state>) => {
         setState(prevState => ({ ...prevState, ...newState }));
-    };
+    }, []);
+
+    const [debouncedCompanySearch] = useDebounce(state.companySearchTerm, companyData?.searchDebounceTime ?? 500);
 
     const loadInitialData = useCallback(async () => {
         updateState({ isLoading: true });
@@ -76,12 +76,12 @@ export const useLicenses = () => {
             ]);
             updateState({ licenses: licensesData, softwareProducts: softwareData, clientCompanies: companiesData });
         } catch (error) {
-            logError('Failed to load license data', { error });
+            logError('Failed to load license data', { error: String(error) });
             toast({ title: "Error", description: "No se pudieron cargar los datos de licencias.", variant: "destructive" });
         } finally {
             updateState({ isLoading: false });
         }
-    }, [toast]);
+    }, [toast, updateState]);
 
     useEffect(() => {
         setTitle("Gestión de Licencias");
@@ -90,11 +90,11 @@ export const useLicenses = () => {
         }
     }, [isAuthorized, loadInitialData, setTitle]);
 
-    const handleCurrentLicenseChange = (field: keyof typeof emptyLicense, value: any) => {
+    const handleCurrentLicenseChange = (field: keyof typeof emptyLicense, value: string | number | boolean | null) => {
         updateState({ currentLicense: { ...state.currentLicense, [field]: value } });
     };
     
-    const handleNewSoftwareChange = (field: keyof typeof emptySoftwareProduct, value: any) => {
+    const handleNewSoftwareChange = (field: keyof typeof emptySoftwareProduct, value: string | boolean) => {
         updateState({ newSoftwareProduct: { ...state.newSoftwareProduct, [field]: value } });
     };
 
@@ -125,9 +125,10 @@ export const useLicenses = () => {
                 toast({ title: "Licencia Creada" });
             }
             updateState({ isFormOpen: false, currentLicense: emptyLicense, isEditing: false, companySearchTerm: '' });
-        } catch (error: any) {
-            logError('Failed to save license', { error: error.message });
-            toast({ title: "Error al Guardar", description: error.message, variant: "destructive" });
+        } catch (error: unknown) {
+            const err = error as { message: string };
+            logError('Failed to save license', { error: err.message });
+            toast({ title: "Error al Guardar", description: err.message, variant: "destructive" });
         } finally {
             updateState({ isSubmitting: false });
         }
@@ -150,9 +151,10 @@ export const useLicenses = () => {
             await deleteLicenseServer(state.licenseToDelete.id);
             updateState({ licenses: state.licenses.filter(l => l.id !== state.licenseToDelete!.id), licenseToDelete: null });
             toast({ title: "Licencia Eliminada" });
-        } catch (error: any) {
-            logError('Failed to delete license', { error: error.message });
-            toast({ title: "Error al Eliminar", description: error.message, variant: "destructive" });
+        } catch (error: unknown) {
+            const err = error as { message: string };
+            logError('Failed to delete license', { error: err.message });
+            toast({ title: "Error al Eliminar", description: err.message, variant: "destructive" });
         } finally {
             updateState({ isSubmitting: false });
         }
@@ -164,8 +166,9 @@ export const useLicenses = () => {
             const newProd = await addSoftwareProduct(state.newSoftwareProduct);
             updateState({ softwareProducts: [...state.softwareProducts, newProd], newSoftwareProduct: emptySoftwareProduct });
             toast({ title: "Producto de Software Creado" });
-        } catch (error: any) {
-            toast({ title: "Error", description: error.message, variant: "destructive" });
+        } catch (error: unknown) {
+            const err = error as { message: string };
+            toast({ title: "Error", description: err.message, variant: "destructive" });
         }
     };
     
@@ -174,8 +177,9 @@ export const useLicenses = () => {
             await deleteSoftwareProduct(id);
             updateState({ softwareProducts: state.softwareProducts.filter(p => p.id !== id) });
             toast({ title: "Producto de Software Eliminado" });
-        } catch (error: any) {
-            toast({ title: "Error", description: error.message, variant: "destructive" });
+        } catch (error: unknown) {
+            const err = error as { message: string };
+            toast({ title: "Error", description: err.message, variant: "destructive" });
         }
     };
 
@@ -199,8 +203,9 @@ export const useLicenses = () => {
             } else {
                 toast({ title: "Error", description: result.message, variant: 'destructive' });
             }
-        } catch (error: any) {
-            toast({ title: "Error Crítico", description: error.message, variant: 'destructive' });
+        } catch (error: unknown) {
+            const err = error as { message: string };
+            toast({ title: "Error Crítico", description: err.message, variant: 'destructive' });
         } finally {
             updateState({ isSubmitting: false });
         }

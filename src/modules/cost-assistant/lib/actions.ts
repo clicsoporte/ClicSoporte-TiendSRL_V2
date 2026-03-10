@@ -20,7 +20,7 @@ import path from 'path';
 import fs from 'fs';
 import { getUserPreferences, saveUserPreferences } from '@/modules/core/lib/db';
 
-const getValue = <T>(obj: any, path: string[], defaultValue: T): T => {
+const getValue = <T>(obj: Record<string, any>, path: string[], defaultValue: T): T => {
     const result = path.reduce((acc, key) => {
         if (typeof acc === 'object' && acc !== null && key in acc) {
             return acc[key];
@@ -67,7 +67,7 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
         },
     });
 
-    let json;
+    let json: Record<string, any>;
     try {
         json = parser.parse(xmlContent);
     } catch (e: unknown) {
@@ -120,7 +120,7 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
         const codigosComerciales = getValue<any[]>(linea, ['CodigoComercial'], []);
         
         if (codigosComerciales.length > 0) {
-            const preferredCodeNode = codigosComerciales.find((c) => c.Tipo === '01');
+            const preferredCodeNode = codigosComerciales.find((c: any) => c.Tipo === '01');
             if (preferredCodeNode && preferredCodeNode.Codigo) {
                 supplierCode = preferredCodeNode.Codigo;
                 supplierCodeType = preferredCodeNode.Tipo;
@@ -242,7 +242,7 @@ const defaultSettings: CostAssistantSettings = {
 export async function getCostAssistantSettings(userId: number): Promise<CostAssistantSettings> {
     const userPrefs = await getUserPreferences(userId, 'costAssistantSettings');
     const dbSettings = await getDbSettings();
-    const settings = { ...defaultSettings, ...dbSettings, ...userPrefs };
+    const settings = { ...defaultSettings, ...dbSettings, ...userPrefs } as CostAssistantSettings;
     return settings;
 }
 

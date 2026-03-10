@@ -7,7 +7,7 @@
 'use server';
 
 import sql from 'mssql';
-import { logError, logInfo } from './logger';
+import { logError } from './logger';
 import { getSqlConfig } from './config-db';
 
 let pool: sql.ConnectionPool | null = null;
@@ -100,7 +100,7 @@ async function getConnectionPool(): Promise<sql.ConnectionPool> {
             const newPool = new sql.ConnectionPool(config);
             
             newPool.on('error', err => {
-                logError('Error en el pool de SQL Server', { error: err });
+                logError('Error en el pool de SQL Server', { error: String(err) });
                 pool = null; // Reset pool on error
             });
 
@@ -109,9 +109,10 @@ async function getConnectionPool(): Promise<sql.ConnectionPool> {
             pool = newPool;
             return pool;
 
-        } catch (err: any) {
+        } catch (err: unknown) {
             pool = null;
-            logError("Error al conectar con SQL Server", { error: { message: err.message, code: err.code }});
+            const error = err as { message: string; code?: string };
+            logError("Error al conectar con SQL Server", { error: { message: error.message, code: error.code }});
             throw new Error(`No se pudo establecer la conexión con la base de datos de SQL Server.`);
         } finally {
             isConnecting = false;
@@ -128,28 +129,27 @@ async function getConnectionPool(): Promise<sql.ConnectionPool> {
  * @returns {Promise<any[]>} A promise that resolves to an array of records.
  * @throws {Error} If the query is invalid or if the database connection fails.
  */
-export async function executeQuery(query: string): Promise<any[]> {
+export async function executeQuery(query: string): Promise<Record<string, unknown>[]> {
     validateSelectOnly(query);
     
-    let connection: sql.ConnectionPool;
-    
     try {
-        connection = await getConnectionPool();
+        const connection = await getConnectionPool();
         const result = await connection.request().query(query);
-        return result.recordset;
+        return result.recordset as Record<string, unknown>[];
         
-    } catch (err: any) {
+    } catch (err: unknown) {
+        const error = err as { message: string; code?: string };
         logError("Error al ejecutar consulta SELECT", { 
-            error: err.message,
-            code: err.code,
+            error: error.message,
+            code: error.code,
             query: query.substring(0, 500)
         });
         
-        if (err.code === 'ESOCKET' || err.code === 'ECONNCLOSED') {
+        if (error.code === 'ESOCKET' || error.code === 'ECONNCLOSED') {
             pool = null; // Reset pool for reconnection on next attempt
         }
         
-        throw new Error(`Error en la consulta SQL: ${err.message}`);
+        throw new Error(`Error en la consulta SQL: ${error.message}`);
     }
 }
 
@@ -163,9 +163,9 @@ export async function testSqlConnection(): Promise<void> {
         const connection = await getConnectionPool();
         // A simple query to confirm the connection is live.
         await connection.request().query('SELECT 1');
-        logInfo('SQL Server connection test successful.');
-    } catch (err: any) {
-        logError('SQL Server connection test failed', { error: err.message });
-        throw new Error(`La prueba de conexión falló: ${err.message}`);
+    } catch (err: unknown) {
+        const error = err as { message: string };
+        logError('SQL Server connection test failed', { error: error.message });
+        throw new Error(`La prueba de conexión falló: ${error.message}`);
     }
 }

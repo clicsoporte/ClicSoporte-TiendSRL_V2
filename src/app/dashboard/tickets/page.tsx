@@ -24,7 +24,7 @@ import Link from "next/link";
 import { useAuth } from "@/modules/core/hooks/useAuth";
 import { useDropzone } from 'react-dropzone';
 import { useMemo } from 'react';
-import type { TicketPriority, SupportPackage, Service } from '@/modules/core/types';
+import type { TicketPriority, SupportPackage, Service, Ticket } from '@/modules/core/types';
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function TicketsPage() {
@@ -54,7 +54,7 @@ export default function TicketsPage() {
             return { covered: true, message: '' };
         }
         
-        const { supportPackage, services } = customerSupportInfo as { supportPackage: SupportPackage | null, services: Service[] };
+        const { supportPackage, services } = customerSupportInfo;
         const selectedService = services.find(s => s.id === newTicket.serviceId);
 
         if (!supportPackage || !selectedService) {
@@ -71,7 +71,7 @@ export default function TicketsPage() {
         return { covered: false, message: 'Servicio no especificado en el paquete. Se cobrará por separado.' };
     }, [customerSupportInfo, newTicket.serviceId]);
 
-    const renderTicketRow = (ticket: any) => {
+    const renderTicketRow = (ticket: Ticket) => {
         const { priorityConfig, statusConfig } = selectors;
         return (
             <TableRow key={ticket.id} className="cursor-pointer" onClick={() => router.push(`/dashboard/tickets/${ticket.id}`)}>
@@ -84,14 +84,14 @@ export default function TicketsPage() {
                     </div>
                 </TableCell>
                 <TableCell>
-                    <Badge variant={priorityConfig[ticket.priority as TicketPriority]?.variant as "default" | "secondary" | "destructive" | "outline"}>
-                        {priorityConfig[ticket.priority as TicketPriority]?.label || ticket.priority}
+                    <Badge variant={priorityConfig[ticket.priority]?.variant as "default" | "secondary" | "destructive" | "outline"}>
+                        {priorityConfig[ticket.priority]?.label || ticket.priority}
                     </Badge>
                 </TableCell>
                 <TableCell>
                     <div className="flex items-center gap-2">
-                        <span className={cn("h-2 w-2 rounded-full", statusConfig[ticket.status as keyof typeof statusConfig]?.color)}></span>
-                        <span>{statusConfig[ticket.status as keyof typeof statusConfig]?.label || ticket.status}</span>
+                        <span className={cn("h-2 w-2 rounded-full", statusConfig[ticket.status]?.color)}></span>
+                        <span>{statusConfig[ticket.status]?.label || ticket.status}</span>
                     </div>
                 </TableCell>
                 <TableCell className="hidden md:table-cell">{format(parseISO(ticket.createdAt), 'dd/MM/yyyy HH:mm')}</TableCell>
@@ -240,7 +240,7 @@ export default function TicketsPage() {
                                                 <Card className="bg-muted/50">
                                                     <CardHeader className="p-3"><CardTitle className="text-base">Plan de Soporte</CardTitle></CardHeader>
                                                     <CardContent className="p-3 pt-0 text-sm space-y-1">
-                                                        <p><strong>Paquete:</strong> {(customerSupportInfo.supportPackage as SupportPackage)?.name || 'No Asignado'}</p>
+                                                        <p><strong>Paquete:</strong> {customerSupportInfo.supportPackage?.name || 'No Asignado'}</p>
                                                         <p><strong>Horas Restantes:</strong> {('monthlyHoursBalance' in customerSupportInfo.customer && (customerSupportInfo.customer as any).monthlyHoursBalance?.toFixed(2)) || 'N/A'}</p>
                                                     </CardContent>
                                                 </Card>
@@ -305,7 +305,7 @@ export default function TicketsPage() {
                             <SelectTrigger className="w-full md:w-[180px]"><SelectValue /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="all">Todos los Estados</SelectItem>
-                                {Object.entries(selectors.statusConfig).map(([key, config]: [string, any]) => (
+                                {Object.entries(selectors.statusConfig).map(([key, config]) => (
                                     <SelectItem key={key} value={key}>{config.label}</SelectItem>
                                 ))}
                             </SelectContent>
@@ -314,7 +314,7 @@ export default function TicketsPage() {
                             <SelectTrigger className="w-full md:w-[180px]"><SelectValue /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="all">Todas las Prioridades</SelectItem>
-                                {Object.entries(selectors.priorityConfig).map(([key, config]: [string, any]) => (
+                                {Object.entries(selectors.priorityConfig).map(([key, config]) => (
                                     <SelectItem key={key} value={key}>{config.label}</SelectItem>
                                 ))}
                             </SelectContent>

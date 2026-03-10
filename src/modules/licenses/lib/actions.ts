@@ -3,7 +3,7 @@
  */
 'use client';
 
-import { logInfo, logError } from '@/modules/core/lib/logger';
+import { logInfo } from '@/modules/core/lib/logger';
 import type { License, SoftwareProduct } from '@/modules/core/types';
 import { 
     getLicenses as getLicensesServer, 
