@@ -10,42 +10,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/modules/core/hooks/use-toast";
 import { logError, logInfo } from "@/modules/core/lib/logger";
-import type { PlannerSettings, CustomStatus } from "@/modules/core/types";
+import type { PlannerSettings } from "@/modules/core/types";
 import { usePageTitle } from "@/modules/core/hooks/usePageTitle";
 import { useAuthorization } from "@/modules/core/hooks/useAuthorization";
 import { getPlannerSettings, savePlannerSettings } from "@/modules/planner/lib/actions";
-import { PlusCircle, Trash2, Palette, Save, Loader2 } from "lucide-react";
+import { PlusCircle, Trash2, Save, Loader2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-
-const defaultColors = [ '#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#ff7300', '#0088fe', '#00c49f', '#ffbb28' ];
-
-const availableColumns = [
-    { id: 'consecutive', label: 'Nº Proyecto' },
-    { id: 'customerName', label: 'Cliente' },
-    { id: 'productDescription', label: 'Descripción' },
-    { id: 'quantity', label: 'Cant.' },
-    { id: 'deliveryDate', label: 'Fecha Entrega' },
-    { id: 'scheduledDate', label: 'Fecha Programada' },
-    { id: 'status', label: 'Estado' },
-    { id: 'assignmentId', label: 'Asignación' },
-    { id: 'priority', label: 'Prioridad' },
-];
-
-const availableFieldsToTrack = [
-    { id: 'quantity', label: 'Cantidad' },
-    { id: 'deliveryDate', label: 'Fecha Entrega' },
-    { id: 'notes', label: 'Notas' },
-    { id: 'purchaseOrder', label: 'Nº OC Cliente' },
-    { id: 'customerId', label: 'Cliente' },
-    { id: 'productId', label: 'Producto' },
-];
 
 export default function PlannerSettingsPage() {
     const { isAuthorized } = useAuthorization(['admin:settings:planner']);
@@ -92,41 +66,6 @@ export default function PlannerSettingsPage() {
         setSettings(prev => prev ? { ...prev, assignments: prev.assignments.filter(m => m.id !== id) } : null);
         toast({ title: "Asignación Eliminada", description: "La asignación ha sido eliminada. Guarda los cambios para confirmar.", variant: "destructive"});
     };
-
-    const handleCustomStatusChange = (id: string, field: keyof CustomStatus, value: string | boolean) => {
-        if (!settings) return;
-        setSettings(prev => {
-            if (!prev) return null;
-            const updatedStatuses = prev.customStatuses.map(cs => 
-                cs.id === id ? { ...cs, [field]: value } : cs
-            );
-            return { ...prev, customStatuses: updatedStatuses };
-        });
-    };
-
-    const handlePdfColumnChange = (columnId: string, checked: boolean) => {
-        if (!settings) return;
-        setSettings(prev => {
-            if (!prev) return null;
-            const currentColumns = prev.pdfExportColumns || [];
-            const newColumns = checked 
-                ? [...currentColumns, columnId]
-                : currentColumns.filter(id => id !== columnId);
-            return { ...prev, pdfExportColumns: newColumns };
-        });
-    };
-
-    const handleFieldToTrackChange = (fieldId: string, checked: boolean) => {
-        if (!settings) return;
-        setSettings(prev => {
-            if (!prev) return null;
-            const currentFields = prev.fieldsToTrackChanges || [];
-            const newFields = checked
-                ? [...currentFields, fieldId]
-                : currentFields.filter(id => id !== fieldId);
-            return { ...prev, fieldsToTrackChanges: newFields };
-        });
-    }
 
     const handleSave = async () => {
         if (!settings) return;
@@ -194,7 +133,7 @@ export default function PlannerSettingsPage() {
                                     onChange={(e) => setSettings(prev => prev ? { ...prev, assignmentLabel: e.target.value } : null)}
                                 />
                                 <p className="text-sm text-muted-foreground">
-                                    Cambia el texto que se muestra para la asignación (ej: &quot;Técnico&quot;, &quot;Recurso&quot;, &quot;Encargado&quot;).
+                                    Cambia el texto que se muestra para la asignación (ej: "Técnico", "Recurso", "Encargado").
                                 </p>
                             </div>
                         </div>
@@ -220,7 +159,7 @@ export default function PlannerSettingsPage() {
                     </CardContent>
                 </Card>
 
-                <Accordion type="multiple" defaultValue={['assignments', 'custom-statuses']} className="w-full space-y-6">
+                <Accordion type="multiple" defaultValue={['assignments']} className="w-full space-y-6">
                     <Card>
                         <AccordionItem value="assignments">
                             <AccordionTrigger className="p-6">

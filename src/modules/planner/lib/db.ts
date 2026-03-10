@@ -88,7 +88,7 @@ export async function runPlannerMigrations(db: Database) {
 export async function getSettings(): Promise<PlannerSettings> {
     const db = await connectPlannerDb();
     const rows = db.prepare('SELECT * FROM planner_settings').all() as { key: string; value: string }[];
-    const settings: any = {};
+    const settings: Record<string, unknown> = {};
     rows.forEach(row => {
         if (row.key === 'nextProjectNumber' || row.key === 'nextOrderNumber') {
             settings[row.key] = Number(row.value);

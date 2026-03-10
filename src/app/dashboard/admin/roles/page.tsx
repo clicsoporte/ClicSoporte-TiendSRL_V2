@@ -28,7 +28,6 @@ import {
     AlertDialogDescription,
     AlertDialogFooter,
     AlertDialogHeader,
-    AlertDialogTitle,
     AlertDialogTrigger,
 } from "../../../../components/ui/alert-dialog";
 import { Checkbox } from "../../../../components/ui/checkbox";
@@ -372,7 +371,7 @@ export default function RolesPage() {
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                             <AlertDialogHeader>
-                                <AlertDialogTitle>¿Eliminar el rol "{role.name}"?</AlertDialogTitle>
+                                <AlertDialogTitle>¿Eliminar el rol &quot;{role.name}&quot;?</AlertDialogTitle>
                                 <AlertDialogDescription>
                                     Esta acción no se puede deshacer. Los usuarios asignados a este rol perderán sus permisos.
                                 </AlertDialogDescription>
