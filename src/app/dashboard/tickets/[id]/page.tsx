@@ -36,7 +36,7 @@ export default function TicketDetailPage() {
     const ticketId = Number(params.id);
     const { isAuthorized, hasPermission } = useAuthorization(['tickets:read:all']);
     const { actions, selectors } = useTickets();
-    const { users: allUsers, user: currentUser } = useAuth();
+    const { users: _allUsers, user: currentUser } = useAuth();
     const { toast } = useToast();
     
     const [ticket, setTicket] = useState<Ticket | null>(null);
@@ -46,9 +46,9 @@ export default function TicketDetailPage() {
     const [isDeleting, setIsDeleting] = useState(false);
     
     const supportUsers = useMemo(() => {
-        if (!allUsers) return [];
-        return allUsers.filter(u => u.role === 'admin' || u.role === 'support-agent');
-    }, [allUsers]);
+        if (!_allUsers) return [];
+        return _allUsers.filter(u => u.role === 'admin' || u.role === 'support-agent');
+    }, [_allUsers]);
 
     const loadData = useCallback(async () => {
         if (ticketId && isAuthorized) {
@@ -66,12 +66,19 @@ export default function TicketDetailPage() {
     }, [loadData]);
     
     const handleAddReply = async () => {
-        if (!replyContent.trim()) {
-            toast({ title: "Error", description: "La respuesta no puede estar vacía.", variant: "destructive" });
+        if (!replyContent.trim() || !currentUser) {
+            if (!replyContent.trim()) {
+                toast({ title: "Error", description: "La respuesta no puede estar vacía.", variant: "destructive" });
+            }
             return;
         }
         setIsReplying(true);
-        const newEntry = await actions.addThreadEntry({ ticketId, content: replyContent });
+        const newEntry = await actions.addThreadEntry({ 
+            ticketId, 
+            content: replyContent,
+            userId: currentUser.id,
+            userName: currentUser.name
+        });
         if (newEntry) {
             setThread(prev => [...prev, newEntry]);
             setReplyContent("");
