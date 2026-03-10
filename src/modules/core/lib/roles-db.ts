@@ -6,7 +6,7 @@
 
 import { connectDb } from './db';
 import type { Role } from '../types';
-import { initialRoles } from './data';
+import { initialRoles } from './db-constants';
 
 /**
  * Retrieves all roles from the database.
