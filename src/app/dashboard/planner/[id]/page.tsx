@@ -21,9 +21,9 @@ import {
     getProjectAttachments, addProjectAttachment, getProjectItems, 
     saveProjectItem, deleteProjectItem, updateProject 
 } from '@/modules/planner/lib/actions';
-import type { TIProject, ProjectAdvance, ProjectAttachment, ProjectItem, ProjectStatus } from '@/modules/core/types';
+import type { TIProject, ProjectAdvance, ProjectAttachment, ProjectItem, ProjectStatus, ProjectPriority } from '@/modules/core/types';
 import { format, parseISO } from 'date-fns';
-import { Loader2, Send, Paperclip, Plus, Trash2, FileDown, ArrowLeft, History, Truck, UserCircle, Briefcase, Package, FileText } from 'lucide-react';
+import { Loader2, Send, Paperclip, Plus, Trash2, FileDown, ArrowLeft, History, Truck, UserCircle, Briefcase, Package, FileText, Info } from 'lucide-react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { generateDocument } from '@/modules/core/lib/pdf-generator';
 
@@ -125,16 +125,30 @@ export default function ProjectDetailsPage() {
         try {
             await updateProject(updated);
             setProject(updated);
-            toast({ title: `Proyecto movido a ${newStatus}` });
+            toast({ title: `Estado actualizado a ${newStatus}` });
         } catch {
-            toast({ title: "Error", variant: "destructive" });
+            toast({ title: "Error al cambiar estado", variant: "destructive" });
+        }
+    };
+
+    const handlePriorityChange = async (newPriority: ProjectPriority) => {
+        if (!project) return;
+        const updated = { ...project, priority: newPriority };
+        try {
+            await updateProject(updated);
+            setProject(updated);
+            toast({ title: `Prioridad actualizada a ${newPriority}` });
+        } catch {
+            toast({ title: "Error al cambiar prioridad", variant: "destructive" });
         }
     };
 
     const handleGenerateDeliveryPDF = async () => {
         if (!project || !companyData) return;
         
-        const total = items.reduce((acc, i) => acc + (i.quantity * i.unitPrice), 0);
+        const subtotal = items.reduce((acc, i) => acc + (i.quantity * i.unitPrice), 0);
+        const tax = subtotal * 0.13;
+        const total = subtotal + tax;
 
         const tableRows = items.map(item => [
             item.type === 'material' ? '[M]' : '[S]',
@@ -157,13 +171,15 @@ export default function ProjectDetailsPage() {
                 { title: "Resumen de Ejecución", content: `Inicio: ${project.startDate}\nFin: ${project.endDate}\nCoordinador: ${user?.name}` }
             ],
             table: {
-                columns: ["Tipo", "Descripción del Ítem", "Cant.", "Precio Unit.", "Subtotal"],
+                columns: ["Tipo", "Descripción", "Cant.", "Precio Unit.", "Subtotal"],
                 rows: tableRows,
                 columnStyles: { 0: { cellWidth: 30 }, 4: { halign: 'right' } }
             },
-            notes: "Este documento certifica la entrega satisfactoria de los activos y servicios detallados anteriormente.",
+            notes: "Este documento certifica la entrega técnica satisfactoria. Los materiales detallados incluyen garantía de fábrica.",
             totals: [
-                { label: "Monto Total Proyecto:", value: `¢${total.toLocaleString('es-CR')}` }
+                { label: "Subtotal:", value: `¢${subtotal.toLocaleString('es-CR')}` },
+                { label: "IVA (13%):", value: `¢${tax.toLocaleString('es-CR')}` },
+                { label: "Total Proyecto:", value: `¢${total.toLocaleString('es-CR')}` }
             ]
         });
 
@@ -178,17 +194,32 @@ export default function ProjectDetailsPage() {
         <main className="flex-1 p-4 md:p-6 lg:p-8 space-y-6 bg-muted/20 min-h-screen">
             <div className="flex justify-between items-center">
                 <Button variant="ghost" onClick={() => router.back()}><ArrowLeft className="mr-2 h-4 w-4" /> Volver</Button>
-                <div className="flex gap-2">
-                    <Button variant="outline" onClick={handleGenerateDeliveryPDF}><FileDown className="mr-2 h-4 w-4" /> Generar Acta de Entrega</Button>
-                    <Select value={project.status} onValueChange={(v: ProjectStatus) => handleStatusChange(v)}>
-                        <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="planning">Planeación</SelectItem>
-                            <SelectItem value="execution">Ejecución</SelectItem>
-                            <SelectItem value="testing">Pruebas</SelectItem>
-                            <SelectItem value="completed">Finalizar</SelectItem>
-                        </SelectContent>
-                    </Select>
+                <div className="flex items-center gap-4">
+                    <div className="flex flex-col items-end">
+                        <Label className="text-[10px] uppercase font-bold text-muted-foreground mb-1">Prioridad</Label>
+                        <Select value={project.priority} onValueChange={(v: ProjectPriority) => handlePriorityChange(v)}>
+                            <SelectTrigger className="w-[120px] h-8 text-xs"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="low">Baja</SelectItem>
+                                <SelectItem value="medium">Media</SelectItem>
+                                <SelectItem value="high">Alta</SelectItem>
+                                <SelectItem value="urgent">Urgente</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="flex flex-col items-end">
+                        <Label className="text-[10px] uppercase font-bold text-muted-foreground mb-1">Estado</Label>
+                        <Select value={project.status} onValueChange={(v: ProjectStatus) => handleStatusChange(v)}>
+                            <SelectTrigger className="w-[150px] h-8 text-xs"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="planning">Planeación</SelectItem>
+                                <SelectItem value="execution">Ejecución</SelectItem>
+                                <SelectItem value="testing">Pruebas</SelectItem>
+                                <SelectItem value="completed">Finalizar</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={handleGenerateDeliveryPDF}><FileDown className="mr-2 h-4 w-4" /> Acta de Entrega</Button>
                 </div>
             </div>
 
@@ -239,20 +270,24 @@ export default function ProjectDetailsPage() {
                         </TabsContent>
 
                         <TabsContent value="items" className="space-y-4 py-4">
+                            <div className="bg-amber-50 border border-amber-200 p-3 rounded-lg mb-4 flex items-center gap-3">
+                                <Info className="h-5 w-5 text-amber-600" />
+                                <p className="text-xs text-amber-800">Ingrese los precios unitarios <strong>Sin IVA</strong>. El sistema aplicará el 13% automáticamente al generar el acta de entrega.</p>
+                            </div>
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-2 items-end bg-muted/30 p-4 rounded-lg border">
                                 <div className="md:col-span-2 space-y-1"><Label>Descripción</Label><Input value={newItem.description} onChange={e => setNewItem({...newItem, description: e.target.value})} placeholder="Material o Servicio..." /></div>
                                 <div className="space-y-1"><Label>Cant.</Label><Input type="number" value={newItem.quantity} onChange={e => setNewItem({...newItem, quantity: Number(e.target.value)})} /></div>
                                 <div className="space-y-1"><Label>Tipo</Label>
                                     <Select value={newItem.type} onValueChange={(v: 'material' | 'service') => setNewItem({...newItem, type: v})}>
                                         <SelectTrigger><SelectValue /></SelectTrigger>
-                                        <SelectContent><SelectItem value="material">Material</SelectItem><SelectItem value="service">Servicio/Mano Obra</SelectItem></SelectContent>
+                                        <SelectContent><SelectItem value="material">Material</SelectItem><SelectItem value="service">Servicio</SelectItem></SelectContent>
                                     </Select>
                                 </div>
-                                <div className="space-y-1"><Label>Precio Unit.</Label><Input type="number" value={newItem.unitPrice} onChange={e => setNewItem({...newItem, unitPrice: Number(e.target.value)})} /></div>
+                                <div className="space-y-1"><Label>Precio Unit. (Sin IVA)</Label><Input type="number" value={newItem.unitPrice} onChange={e => setNewItem({...newItem, unitPrice: Number(e.target.value)})} /></div>
                                 <Button onClick={handleAddItem} className="md:col-start-4"><Plus className="h-4 w-4 mr-2" /> Agregar</Button>
                             </div>
                             <Table>
-                                <TableHeader><TableRow><TableHead>Tipo</TableHead><TableHead>Descripción</TableHead><TableHead>Cant.</TableHead><TableHead>Subtotal</TableHead><TableHead></TableHead></TableRow></TableHeader>
+                                <TableHeader><TableRow><TableHead>Tipo</TableHead><TableHead>Descripción</TableHead><TableHead>Cant.</TableHead><TableHead>Subtotal (s/IVA)</TableHead><TableHead></TableHead></TableRow></TableHeader>
                                 <TableBody>
                                     {items.map(i => (
                                         <TableRow key={i.id}>
@@ -307,10 +342,10 @@ export default function ProjectDetailsPage() {
                     </Card>
 
                     <Card className="bg-primary text-primary-foreground">
-                        <CardHeader><CardTitle className="text-sm font-bold uppercase opacity-80">Monto Facturable</CardTitle></CardHeader>
+                        <CardHeader><CardTitle className="text-sm font-bold uppercase opacity-80">Monto Proyectado (Con IVA)</CardTitle></CardHeader>
                         <CardContent>
-                            <p className="text-3xl font-bold">¢{items.reduce((acc, i) => acc + (i.quantity * i.unitPrice), 0).toLocaleString('es-CR')}</p>
-                            <p className="text-xs opacity-70 mt-2">Basado en materiales y mano de obra registrados.</p>
+                            <p className="text-3xl font-bold">¢{(items.reduce((acc, i) => acc + (i.quantity * i.unitPrice), 0) * 1.13).toLocaleString('es-CR')}</p>
+                            <p className="text-xs opacity-70 mt-2">Basado en materiales y mano de obra registrados + 13% IVA.</p>
                         </CardContent>
                     </Card>
                 </div>

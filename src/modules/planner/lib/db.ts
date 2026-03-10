@@ -88,11 +88,32 @@ export async function runPlannerMigrations(db: Database) {
 export async function getSettings(): Promise<PlannerSettings> {
     const db = await connectPlannerDb();
     const rows = db.prepare('SELECT * FROM planner_settings').all() as { key: string; value: string }[];
-    const settings: Record<string, unknown> = {};
+    const settings: any = {};
     rows.forEach(row => {
-        if (row.key === 'nextProjectNumber') settings.nextProjectNumber = Number(row.value);
-        else settings[row.key] = row.value;
+        if (row.key === 'nextProjectNumber' || row.key === 'nextOrderNumber') {
+            settings[row.key] = Number(row.value);
+        } else if (['assignments', 'customStatuses', 'pdfExportColumns', 'fieldsToTrackChanges'].includes(row.key)) {
+            try {
+                settings[row.key] = JSON.parse(row.value);
+            } catch {
+                settings[row.key] = [];
+            }
+        } else if (['showCustomerTaxId', 'requireAssignmentForStart'].includes(row.key)) {
+            settings[row.key] = row.value === 'true' || row.value === '1';
+        } else {
+            settings[row.key] = row.value;
+        }
     });
+
+    // Ensure array properties exist
+    if (!settings.assignments) settings.assignments = [];
+    if (!settings.customStatuses) settings.customStatuses = [];
+    if (!settings.pdfExportColumns) settings.pdfExportColumns = [];
+    if (!settings.fieldsToTrackChanges) settings.fieldsToTrackChanges = [];
+    if (settings.showCustomerTaxId === undefined) settings.showCustomerTaxId = true;
+    if (settings.requireAssignmentForStart === undefined) settings.requireAssignmentForStart = false;
+    if (!settings.assignmentLabel) settings.assignmentLabel = 'Asignado a';
+
     return settings as unknown as PlannerSettings;
 }
 
@@ -100,7 +121,8 @@ export async function saveSettings(settings: Partial<PlannerSettings>): Promise<
     const db = await connectPlannerDb();
     const upsert = db.prepare('INSERT OR REPLACE INTO planner_settings (key, value) VALUES (?, ?)');
     Object.entries(settings).forEach(([key, value]) => {
-        upsert.run(key, String(value));
+        const valueToStore = typeof value === 'object' ? JSON.stringify(value) : String(value);
+        upsert.run(key, valueToStore);
     });
 }
 
@@ -118,7 +140,8 @@ export async function addProject(project: Omit<TIProject, 'id' | 'consecutive' |
     const db = await connectPlannerDb();
     const settings = await getSettings();
     const nextNum = settings.nextProjectNumber || 1;
-    const consecutive = `${settings.projectPrefix || 'PROJ-'}${nextNum.toString().padStart(5, '0')}`;
+    const prefix = settings.projectPrefix || 'PROJ-';
+    const consecutive = `${prefix}${nextNum.toString().padStart(5, '0')}`;
     const now = new Date().toISOString();
 
     const info = db.prepare(`

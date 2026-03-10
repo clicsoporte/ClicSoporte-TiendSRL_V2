@@ -1,3 +1,6 @@
+/**
+ * @fileoverview Configuration page for TI Project Manager.
+ */
 'use client';
 
 import { useState, useEffect } from "react";
@@ -11,7 +14,7 @@ import type { PlannerSettings, CustomStatus } from "@/modules/core/types";
 import { usePageTitle } from "@/modules/core/hooks/usePageTitle";
 import { useAuthorization } from "@/modules/core/hooks/useAuthorization";
 import { getPlannerSettings, savePlannerSettings } from "@/modules/planner/lib/actions";
-import { PlusCircle, Trash2, Palette, Save } from "lucide-react";
+import { PlusCircle, Trash2, Palette, Save, Loader2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
@@ -50,44 +53,21 @@ export default function PlannerSettingsPage() {
     const { toast } = useToast();
     const [settings, setSettings] = useState<PlannerSettings | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
     const [newAssignment, setNewAssignment] = useState({ id: "", name: "" });
 
     useEffect(() => {
         setTitle("Configuración del Gestor de Proyectos");
         const loadSettings = async () => {
             setIsLoading(true);
-            const currentSettings = await getPlannerSettings();
-            if (!currentSettings.assignmentLabel) {
-                currentSettings.assignmentLabel = 'Asignado a';
+            try {
+                const currentSettings = await getPlannerSettings();
+                setSettings(currentSettings);
+            } catch (error) {
+                console.error("Failed to load settings:", error);
+            } finally {
+                setIsLoading(false);
             }
-            if (!currentSettings.customStatuses || currentSettings.customStatuses.length < 4) {
-                 currentSettings.customStatuses = [
-                    { id: 'custom-1', label: '', color: '#8884d8', isActive: false },
-                    { id: 'custom-2', label: '', color: '#82ca9d', isActive: false },
-                    { id: 'custom-3', label: '', color: '#ffc658', isActive: false },
-                    { id: 'custom-4', label: '', color: '#ff8042', isActive: false },
-                ];
-            }
-            if (!currentSettings.pdfPaperSize) {
-                currentSettings.pdfPaperSize = 'letter';
-            }
-             if (!currentSettings.pdfOrientation) {
-                currentSettings.pdfOrientation = 'portrait';
-            }
-            if (!currentSettings.pdfExportColumns || currentSettings.pdfExportColumns.length === 0) {
-                currentSettings.pdfExportColumns = availableColumns.map(c => c.id);
-            }
-            if (!Array.isArray(currentSettings.fieldsToTrackChanges)) {
-                currentSettings.fieldsToTrackChanges = ['quantity', 'deliveryDate', 'customerId', 'productId'];
-            }
-            if (currentSettings.showCustomerTaxId === undefined) {
-                currentSettings.showCustomerTaxId = true;
-            }
-            if (!currentSettings.assignments) {
-                currentSettings.assignments = [];
-            }
-            setSettings(currentSettings);
-            setIsLoading(false);
         };
         if (isAuthorized) {
             loadSettings();
@@ -99,7 +79,7 @@ export default function PlannerSettingsPage() {
             toast({ title: "Datos incompletos", description: "El ID y el Nombre de la asignación son requeridos.", variant: "destructive" });
             return;
         }
-        if (settings.assignments.some((m: { id: string }) => m.id === newAssignment.id)) {
+        if (settings.assignments.some(m => m.id === newAssignment.id)) {
             toast({ title: "ID Duplicado", description: "Ya existe una asignación con ese ID.", variant: "destructive" });
             return;
         }
@@ -109,15 +89,15 @@ export default function PlannerSettingsPage() {
 
     const handleDeleteAssignment = (id: string) => {
         if (!settings) return;
-        setSettings(prev => prev ? { ...prev, assignments: prev.assignments.filter((m: { id: string }) => m.id !== id) } : null);
+        setSettings(prev => prev ? { ...prev, assignments: prev.assignments.filter(m => m.id !== id) } : null);
         toast({ title: "Asignación Eliminada", description: "La asignación ha sido eliminada. Guarda los cambios para confirmar.", variant: "destructive"});
     };
 
-    const handleCustomStatusChange = (id: CustomStatus['id'], field: keyof CustomStatus, value: string | boolean) => {
+    const handleCustomStatusChange = (id: string, field: keyof CustomStatus, value: string | boolean) => {
         if (!settings) return;
         setSettings(prev => {
             if (!prev) return null;
-            const updatedStatuses = prev.customStatuses.map((cs: CustomStatus) => 
+            const updatedStatuses = prev.customStatuses.map(cs => 
                 cs.id === id ? { ...cs, [field]: value } : cs
             );
             return { ...prev, customStatuses: updatedStatuses };
@@ -131,7 +111,7 @@ export default function PlannerSettingsPage() {
             const currentColumns = prev.pdfExportColumns || [];
             const newColumns = checked 
                 ? [...currentColumns, columnId]
-                : currentColumns.filter((id: string) => id !== columnId);
+                : currentColumns.filter(id => id !== columnId);
             return { ...prev, pdfExportColumns: newColumns };
         });
     };
@@ -143,13 +123,14 @@ export default function PlannerSettingsPage() {
             const currentFields = prev.fieldsToTrackChanges || [];
             const newFields = checked
                 ? [...currentFields, fieldId]
-                : currentFields.filter((id: string) => id !== fieldId);
+                : currentFields.filter(id => id !== fieldId);
             return { ...prev, fieldsToTrackChanges: newFields };
         });
     }
 
     const handleSave = async () => {
         if (!settings) return;
+        setIsSaving(true);
         try {
             await savePlannerSettings(settings);
             toast({ title: "Configuración Guardada", description: "Los ajustes del gestor de proyectos han sido guardados." });
@@ -157,6 +138,8 @@ export default function PlannerSettingsPage() {
         } catch (error: unknown) {
             logError("Failed to save planner settings", { error: (error as Error).message });
             toast({ title: "Error", description: "No se pudieron guardar los ajustes.", variant: "destructive" });
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -187,20 +170,20 @@ export default function PlannerSettingsPage() {
                     <CardContent className="space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                              <div className="space-y-2">
-                                <Label htmlFor="orderPrefix">Prefijo de Proyecto</Label>
+                                <Label htmlFor="projectPrefix">Prefijo de Proyecto</Label>
                                 <Input
-                                    id="orderPrefix"
-                                    value={settings.orderPrefix || settings.projectPrefix || 'PROJ-'}
-                                    onChange={(e) => setSettings(prev => prev ? { ...prev, orderPrefix: e.target.value } : null)}
+                                    id="projectPrefix"
+                                    value={settings.projectPrefix || ''}
+                                    onChange={(e) => setSettings(prev => prev ? { ...prev, projectPrefix: e.target.value } : null)}
                                 />
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="nextOrderNumber">Próximo Número de Proyecto</Label>
+                                <Label htmlFor="nextProjectNumber">Próximo Número de Proyecto</Label>
                                 <Input
-                                    id="nextOrderNumber"
+                                    id="nextProjectNumber"
                                     type="number"
-                                    value={settings.nextOrderNumber || settings.nextProjectNumber || 1}
-                                    onChange={(e) => setSettings(prev => prev ? { ...prev, nextOrderNumber: Number(e.target.value) } : null)}
+                                    value={settings.nextProjectNumber || 1}
+                                    onChange={(e) => setSettings(prev => prev ? { ...prev, nextProjectNumber: Number(e.target.value) } : null)}
                                 />
                             </div>
                             <div className="space-y-2">
@@ -233,24 +216,21 @@ export default function PlannerSettingsPage() {
                                 />
                                 <Label htmlFor="require-assignment">Requerir asignación para iniciar el proyecto</Label>
                             </div>
-                            <p className="text-sm text-muted-foreground mt-2">
-                               Si se activa, será obligatorio realizar una asignación al proyecto antes de poder cambiar su estado a &quot;En Progreso&quot;.
-                            </p>
                         </div>
                     </CardContent>
                 </Card>
 
-                <Accordion type="multiple" defaultValue={['assignments', 'custom-statuses', 'pdf-export']} className="w-full space-y-6">
+                <Accordion type="multiple" defaultValue={['assignments', 'custom-statuses']} className="w-full space-y-6">
                     <Card>
                         <AccordionItem value="assignments">
                             <AccordionTrigger className="p-6">
                                 <CardTitle>Gestión de Asignaciones</CardTitle>
                             </AccordionTrigger>
                             <AccordionContent className="p-6 pt-0">
-                                <CardDescription className="mb-4">Añade o elimina las opciones de asignación disponibles (técnicos, recursos, etc.).</CardDescription>
+                                <CardDescription className="mb-4">Añade o elimina las opciones de asignación disponibles.</CardDescription>
                                 <div className="space-y-4">
                                     <div className="max-h-60 overflow-y-auto pr-2 space-y-2">
-                                        {settings.assignments.map((assignment: { id: string; name: string }) => (
+                                        {settings.assignments && settings.assignments.map(assignment => (
                                             <div key={assignment.id} className="flex items-center justify-between rounded-lg border p-3">
                                                 <div>
                                                     <p className="font-medium">{assignment.name}</p>
@@ -282,114 +262,18 @@ export default function PlannerSettingsPage() {
                     </Card>
 
                     <Card>
-                        <AccordionItem value="custom-statuses">
-                            <AccordionTrigger className="p-6">
-                                <CardTitle>Estados Personalizados de Proyectos</CardTitle>
-                            </AccordionTrigger>
-                            <AccordionContent className="p-6 pt-0">
-                                <CardDescription className="mb-4">Define hasta 4 estados adicionales para tu flujo de trabajo. Solo se mostrarán si están activos y tienen un nombre.</CardDescription>
-                                <div className="space-y-6">
-                                    {settings.customStatuses.map((status: CustomStatus, index: number) => (
-                                        <div key={status.id} className="space-y-4 rounded-lg border p-4">
-                                            <div className="flex items-center justify-between">
-                                                <h4 className="font-semibold">Estado Personalizado {index + 1}</h4>
-                                                <div className="flex items-center space-x-2">
-                                                    <Label htmlFor={`active-${status.id}`}>Activo</Label>
-                                                    <Switch
-                                                        id={`active-${status.id}`}
-                                                        checked={status.isActive}
-                                                        onCheckedChange={(checked) => handleCustomStatusChange(status.id, 'isActive', checked)}
-                                                    />
-                                                </div>
-                                            </div>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
-                                                <div className="space-y-2">
-                                                    <Label htmlFor={`label-${status.id}`}>Nombre del Estado (Etiqueta)</Label>
-                                                    <Input
-                                                        id={`label-${status.id}`}
-                                                        value={status.label}
-                                                        onChange={(e) => handleCustomStatusChange(status.id, 'label', e.target.value)}
-                                                        placeholder="Ej: En Diseño, Esperando Material"
-                                                    />
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <Label htmlFor={`color-${status.id}`}>Color</Label>
-                                                    <div className="flex items-center gap-2">
-                                                        <Input
-                                                            id={`color-${status.id}`}
-                                                            value={status.color}
-                                                            onChange={(e) => handleCustomStatusChange(status.id, 'color', e.target.value)}
-                                                        />
-                                                        <Popover>
-                                                            <PopoverTrigger asChild>
-                                                                <Button variant="outline" size="icon">
-                                                                    <Palette className="h-4 w-4" />
-                                                                </Button>
-                                                            </PopoverTrigger>
-                                                            <PopoverContent className="w-48 p-2">
-                                                                <div className="grid grid-cols-4 gap-2">
-                                                                    {defaultColors.map(color => (
-                                                                        <button
-                                                                            key={color}
-                                                                            className={cn("h-8 w-8 rounded-full border", color === status.color && "ring-2 ring-ring")}
-                                                                            style={{ backgroundColor: color }}
-                                                                            onClick={() => handleCustomStatusChange(status.id, 'color', color)}
-                                                                        />
-                                                                    ))}
-                                                                </div>
-                                                            </PopoverContent>
-                                                        </Popover>
-                                                        <div className="h-8 w-8 rounded-full border" style={{ backgroundColor: status.color }} />
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </AccordionContent>
-                        </AccordionItem>
-                    </Card>
-
-                    <Card>
-                        <AccordionItem value="change-detection">
-                             <AccordionTrigger className="p-6">
-                                <CardTitle>Detección de Cambios</CardTitle>
-                            </AccordionTrigger>
-                            <AccordionContent className="p-6 pt-0">
-                                <CardDescription className="mb-4">Selecciona qué campos, al ser modificados después de que un proyecto sea aprobado, activarán la alerta &quot;Modificado&quot;.</CardDescription>
-                                <div className="space-y-4 p-4 border rounded-md">
-                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                                        {availableFieldsToTrack.map(field => (
-                                            <div key={field.id} className="flex items-center space-x-2">
-                                                <Checkbox
-                                                    id={`track-field-${field.id}`}
-                                                    checked={settings.fieldsToTrackChanges.includes(field.id)}
-                                                    onCheckedChange={(checked) => handleFieldToTrackChange(field.id, checked as boolean)}
-                                                />
-                                                <Label htmlFor={`track-field-${field.id}`} className="font-normal">{field.label}</Label>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            </AccordionContent>
-                        </AccordionItem>
-                    </Card>
-
-                    <Card>
                         <AccordionItem value="pdf-export">
                             <AccordionTrigger className="p-6">
-                                <CardTitle>Configuración de Exportación a PDF</CardTitle>
+                                <CardTitle>Configuración de Reportes</CardTitle>
                             </AccordionTrigger>
                             <AccordionContent className="p-6 pt-0">
-                                <CardDescription className="mb-4">Personaliza el contenido y formato de los reportes PDF de proyectos.</CardDescription>
                                 <div className="space-y-6">
                                      <div className="space-y-2">
-                                        <Label htmlFor="pdf-top-legend">Leyenda Superior del PDF (Opcional)</Label>
+                                        <Label htmlFor="pdf-top-legend">Leyenda Superior del PDF</Label>
                                         <Input
                                             id="pdf-top-legend"
                                             value={settings.pdfTopLegend || ''}
                                             onChange={(e) => setSettings(prev => prev ? { ...prev, pdfTopLegend: e.target.value } : null)}
-                                            placeholder="Ej: Documento Controlado - Versión 1.0"
                                         />
                                     </div>
                                     <div className="grid grid-cols-2 gap-6">
@@ -402,45 +286,13 @@ export default function PlannerSettingsPage() {
                                             >
                                                 <div className="flex items-center space-x-2">
                                                     <RadioGroupItem value="letter" id="r-letter" />
-                                                    <Label htmlFor="r-letter">Carta (Letter)</Label>
+                                                    <Label htmlFor="r-letter">Carta</Label>
                                                 </div>
                                                 <div className="flex items-center space-x-2">
                                                     <RadioGroupItem value="legal" id="r-legal" />
-                                                    <Label htmlFor="r-legal">Oficio (Legal)</Label>
+                                                    <Label htmlFor="r-legal">Oficio</Label>
                                                 </div>
                                             </RadioGroup>
-                                        </div>
-                                         <div className="space-y-2">
-                                            <Label>Orientación</Label>
-                                            <RadioGroup
-                                                value={settings.pdfOrientation}
-                                                onValueChange={(value) => setSettings(prev => prev ? { ...prev, pdfOrientation: value as 'portrait' | 'landscape' } : null)}
-                                                className="flex items-center gap-4"
-                                            >
-                                                <div className="flex items-center space-x-2">
-                                                    <RadioGroupItem value="portrait" id="r-portrait" />
-                                                    <Label htmlFor="r-portrait">Vertical</Label>
-                                                </div>
-                                                <div className="flex items-center space-x-2">
-                                                    <RadioGroupItem value="landscape" id="r-landscape" />
-                                                    <Label htmlFor="r-landscape">Horizontal</Label>
-                                                </div>
-                                            </RadioGroup>
-                                        </div>
-                                    </div>
-                                    <div className="space-y-4">
-                                        <Label>Columnas a Incluir en el Reporte</Label>
-                                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 p-4 border rounded-md">
-                                            {availableColumns.map(col => (
-                                                <div key={col.id} className="flex items-center space-x-2">
-                                                    <Checkbox
-                                                        id={`pdf-col-${col.id}`}
-                                                        checked={settings.pdfExportColumns.includes(col.id)}
-                                                        onCheckedChange={(checked) => handlePdfColumnChange(col.id, checked as boolean)}
-                                                    />
-                                                    <Label htmlFor={`pdf-col-${col.id}`} className="font-normal">{col.label}</Label>
-                                                </div>
-                                            ))}
                                         </div>
                                     </div>
                                 </div>
@@ -451,7 +303,10 @@ export default function PlannerSettingsPage() {
 
                 <Card>
                     <CardFooter className="border-t px-6 py-4">
-                        <Button onClick={handleSave}><Save className="mr-2 h-4 w-4"/>Guardar Todos los Cambios</Button>
+                        <Button onClick={handleSave} disabled={isSaving}>
+                            {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
+                            Guardar Todos los Cambios
+                        </Button>
                     </CardFooter>
                 </Card>
             </div>
