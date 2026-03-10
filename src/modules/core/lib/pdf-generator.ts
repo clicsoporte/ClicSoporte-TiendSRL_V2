@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Centralized PDF generation service for the entire application.
  */

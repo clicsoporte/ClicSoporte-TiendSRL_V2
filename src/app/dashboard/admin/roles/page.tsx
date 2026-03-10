@@ -30,7 +30,6 @@ import {
     AlertDialogFooter,
     AlertDialogHeader,
     AlertDialogTitle,
-    AlertDialogTrigger,
 } from "../../../../components/ui/alert-dialog";
 import { Checkbox } from "../../../../components/ui/checkbox";
 import { Label } from "../../../../components/ui/label";
@@ -61,11 +60,9 @@ const permissionGroups = {
     "Gestión de Contratos": ["contracts:read", "contracts:manage"],
     "Gestión de Proveedores": ["providers:read", "providers:manage"],
     "Gestión de Licencias": ["licenses:read", "licenses:manage", "licenses:admin:keys"],
-    "Proyectos TI (Lectura y Creación)": ["planner:read", "planner:create"],
-    "Proyectos TI (Acciones)": [
-        "planner:reopen", "planner:status:approve", "planner:status:in-queue", "planner:status:in-progress", "planner:status:on-hold", 
-        "planner:status:completed", "planner:status:cancel", "planner:status:cancel-approved",
-        "planner:priority:update", "planner:machine:assign", "planner:schedule"
+    "Proyectos TI": [
+        "planner:read", "planner:create", "planner:reopen", "planner:status:approve", "planner:status:in-progress", 
+        "planner:status:completed", "planner:priority:update"
     ],
     "Consultas Hacienda": ["hacienda:query"],
     "Analíticas": ["analytics:read"],
@@ -93,14 +90,14 @@ const permissionTranslations: { [key: string]: string } = {
     "tickets:delete": "Tickets: Eliminar",
     "tickets:admin:settings": "Tickets: Administrar Configuración",
     "customers:read": "Clientes: Leer",
-    "customers:manage": "Clientes: Gestionar (Crear/Editar/Eliminar)",
+    "customers:manage": "Clientes: Gestionar",
     "contracts:read": "Contratos: Leer",
     "contracts:manage": "Contratos: Gestionar",
     "providers:read": "Proveedores: Leer",
     "providers:manage": "Proveedores: Gestionar",
     "licenses:read": "Licencias: Leer",
-    "licenses:manage": "Licencias: Gestionar (Crear/Editar/Eliminar)",
-    "licenses:admin:keys": "Licencias: Gestionar Claves Criptográficas",
+    "licenses:manage": "Licencias: Gestionar",
+    "licenses:admin:keys": "Licencias: Claves Criptográficas",
     "planner:read": "Proyectos: Leer",
     "planner:create": "Proyectos: Crear",
     "planner:reopen": "Proyectos: Reabrir",
@@ -279,7 +276,6 @@ export default function RolesPage() {
                                 <AlertDialogTitle>¿Restablecer Roles por Defecto?</AlertDialogTitle>
                                 <AlertDialogDescription>
                                     Esta acción restaurará los roles por defecto a sus permisos originales.
-                                    Los roles personalizados que hayas creado no se verán afectados.
                                 </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
@@ -376,7 +372,7 @@ export default function RolesPage() {
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                             <AlertDialogHeader>
-                                <AlertDialogTitle>¿Eliminar el rol &quot;{role.name}&quot;?</AlertDialogTitle>
+                                <AlertDialogTitle>¿Eliminar el rol "{role.name}"?</AlertDialogTitle>
                                 <AlertDialogDescription>
                                     Esta acción no se puede deshacer. Los usuarios asignados a este rol perderán sus permisos.
                                 </AlertDialogDescription>

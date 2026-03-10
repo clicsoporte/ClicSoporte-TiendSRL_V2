@@ -52,11 +52,9 @@ export const initialRoles: Role[] = [
     permissions: [
         "dashboard:access", "quotes:create", "quotes:generate", "quotes:drafts:create", 
         "quotes:drafts:read", "quotes:drafts:delete", "cost-assistant:access",
-        "planner:read", "planner:create", "planner:edit:pending", "planner:edit:approved",
-        "planner:reopen", "planner:schedule", "planner:status:approve", "planner:status:in-queue",
-        "planner:status:in-progress", "planner:status:on-hold", "planner:status:completed",
-        "planner:status:cancel", "planner:status:cancel-approved", "planner:priority:update",
-        "planner:machine:assign", "analytics:read", "users:create", "users:read", "users:update",
+        "planner:read", "planner:create", "planner:reopen", "planner:status:approve", 
+        "planner:status:in-progress", "planner:status:completed", "planner:priority:update",
+        "analytics:read", "users:create", "users:read", "users:update",
         "users:delete", "roles:create", "roles:read", "roles:update", "roles:delete",
         "admin:settings:general", "admin:settings:api", "admin:settings:planner", "admin:settings:stock", 
         "admin:suggestions:read", "admin:import:run", "admin:import:files", "admin:import:sql", 
@@ -70,22 +68,23 @@ export const initialRoles: Role[] = [
   {
     id: "viewer",
     name: "Viewer",
-    permissions: ["dashboard:access", "quotes:create", "quotes:drafts:read", "tickets:read:all", "planner:read", "contracts:read"],
+    permissions: ["dashboard:access", "quotes:create", "tickets:read:all", "planner:read", "contracts:read"],
   },
   {
     id: 'planner-user',
     name: 'Planificador',
     permissions: [
         "dashboard:access", "planner:read", "planner:create", "planner:status:approve", 
-        "planner:status:in-progress", "planner:status:on-hold", "planner:status:completed", 
-        "planner:status:cancel", "planner:priority:update", "planner:machine:assign",
+        "planner:status:in-progress", "planner:status:completed", "planner:priority:update",
+        "customers:read", "providers:read"
     ]
   },
   {
     id: 'support-agent',
     name: 'Soporte Técnico',
     permissions: [
-        "dashboard:access", "tickets:create", "tickets:read:all", "tickets:update", "customers:read", "contracts:read"
+        "dashboard:access", "tickets:create", "tickets:read:all", "tickets:update", 
+        "customers:read", "contracts:read", "providers:read", "hacienda:query"
     ]
   }
 ];

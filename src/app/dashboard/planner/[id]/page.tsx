@@ -24,7 +24,7 @@ import {
 } from '@/modules/planner/lib/actions';
 import type { TIProject, ProjectAdvance, ProjectAttachment, ProjectItem, ProjectStatus, ProjectPriority } from '@/modules/core/types';
 import { format, parseISO } from 'date-fns';
-import { Loader2, Send, Paperclip, Plus, Trash2, FileDown, ArrowLeft, History, Truck, UserCircle, Briefcase, Package, FileText, Info } from 'lucide-react';
+import { Loader2, Send, Paperclip, Plus, Trash2, FileDown, ArrowLeft, History, Truck, UserCircle, Package, FileText, Info } from 'lucide-react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { generateDocument } from '@/modules/core/lib/pdf-generator';
 
@@ -292,7 +292,7 @@ export default function ProjectDetailsPage() {
                                 <TableBody>
                                     {items.map(i => (
                                         <TableRow key={i.id}>
-                                            <TableCell>{i.type === 'material' ? <Package className="h-4 w-4 text-muted-foreground" /> : <Briefcase className="h-4 w-4 text-blue-500" />}</TableCell>
+                                            <TableCell>{i.type === 'material' ? <Package className="h-4 w-4 text-muted-foreground" /> : <Info className="h-4 w-4 text-blue-500" />}</TableCell>
                                             <TableCell className="font-medium">{i.description}</TableCell>
                                             <TableCell>{i.quantity}</TableCell>
                                             <TableCell>¢{(i.quantity * i.unitPrice).toLocaleString()}</TableCell>
