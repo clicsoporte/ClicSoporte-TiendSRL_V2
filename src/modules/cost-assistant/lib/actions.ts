@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Server Actions for the Cost Assistant module.
  * These functions handle server-side logic like processing XML files,
@@ -22,9 +21,9 @@ import fs from 'fs';
 import { getUserPreferences, saveUserPreferences } from '@/modules/core/lib/db';
 
 const getValue = <T>(obj: Record<string, unknown>, pathArray: string[], defaultValue: T): T => {
-    const result = pathArray.reduce((acc: any, key) => {
+    const result = pathArray.reduce((acc: unknown, key) => {
         if (typeof acc === 'object' && acc !== null && key in acc) {
-            return acc[key];
+            return (acc as Record<string, unknown>)[key];
         }
         return undefined;
     }, obj);
@@ -98,12 +97,14 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
         invoiceDate: fechaEmision,
     };
 
-    const detalleServicio = getValue<any>(rootNode, ['DetalleServicio'], null);
+    const detalleServicio = getValue<Record<string, unknown>>(rootNode, ['DetalleServicio'], {});
     if (!detalleServicio || !detalleServicio.LineaDetalle) {
         return { lines: [], invoiceInfo };
     }
     
-    const lineasDetalle: any[] = Array.isArray(detalleServicio.LineaDetalle) ? detalleServicio.LineaDetalle : [detalleServicio.LineaDetalle];
+    const lineasDetalle: Record<string, unknown>[] = Array.isArray(detalleServicio.LineaDetalle) 
+        ? detalleServicio.LineaDetalle as Record<string, unknown>[] 
+        : [detalleServicio.LineaDetalle as Record<string, unknown>];
 
 
     const moneda = getValue<string>(rootNode, ['ResumenFactura', 'CodigoTipoMoneda', 'CodigoMoneda'], 'CRC');
@@ -113,52 +114,52 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
 
     const lines: CostAssistantLine[] = [];
     for (const [index, linea] of lineasDetalle.entries()) {
-        const cantidad = parseDecimal(getValue(linea as Record<string, unknown>, ['Cantidad'], '0'));
+        const cantidad = parseDecimal(getValue(linea, ['Cantidad'], '0'));
         if (cantidad === 0) continue;
         
         let supplierCode = 'N/A';
         let supplierCodeType = '04'; // Default to 'Uso Interno'
-        const codigosComerciales = getValue<any[]>(linea as Record<string, unknown>, ['CodigoComercial'], []);
+        const codigosComerciales = getValue<Record<string, unknown>[]>(linea, ['CodigoComercial'], []);
         
         if (codigosComerciales.length > 0) {
-            const preferredCodeNode = codigosComerciales.find((c: any) => c.Tipo === '01');
+            const preferredCodeNode = codigosComerciales.find((c) => c.Tipo === '01');
             if (preferredCodeNode && preferredCodeNode.Codigo) {
-                supplierCode = preferredCodeNode.Codigo;
-                supplierCodeType = preferredCodeNode.Tipo;
+                supplierCode = preferredCodeNode.Codigo as string;
+                supplierCodeType = preferredCodeNode.Tipo as string;
             } else if (codigosComerciales.length > 0 && codigosComerciales[0].Codigo) {
-                supplierCode = codigosComerciales[0].Codigo;
-                supplierCodeType = codigosComerciales[0].Tipo;
+                supplierCode = codigosComerciales[0].Codigo as string;
+                supplierCodeType = codigosComerciales[0].Tipo as string;
             }
         }
         
-        const cabysV43 = getValue<string>(linea as Record<string, unknown>, ['Codigo'], '');
-        const cabysV44 = getValue<string>(linea as Record<string, unknown>, ['CodigoCABYS'], '');
+        const cabysV43 = getValue<string>(linea, ['Codigo'], '');
+        const cabysV44 = getValue<string>(linea, ['CodigoCABYS'], '');
         const cabysCode = cabysV44 || cabysV43 || 'N/A';
         
-        const montoTotalLinea = parseDecimal(getValue(linea as Record<string, unknown>, ['MontoTotalLinea'], '0'));
+        const montoTotalLinea = parseDecimal(getValue(linea, ['MontoTotalLinea'], '0'));
         
-        const descuentoNode = getValue<any>(linea as Record<string, unknown>, ['Descuento'], null);
-        const discountAmount = descuentoNode ? parseDecimal(getValue(descuentoNode as Record<string, unknown>, ['MontoDescuento'], '0')) : 0;
+        const descuentoNode = getValue<Record<string, unknown>>(linea, ['Descuento'], {});
+        const discountAmount = (descuentoNode && descuentoNode.MontoDescuento) ? parseDecimal(descuentoNode.MontoDescuento) : 0;
         
-        const subTotal = parseDecimal(getValue(linea as Record<string, unknown>, ['SubTotal'], '0'));
+        const subTotal = parseDecimal(getValue(linea, ['SubTotal'], '0'));
         
         const subTotalWithDiscount = subTotal - discountAmount;
         
         const unitCostWithTax = cantidad > 0 ? montoTotalLinea / cantidad : 0;
         const unitCostWithoutTax = cantidad > 0 ? subTotalWithDiscount / cantidad : 0;
 
-        const impuestoNode = getValue<any>(linea as Record<string, unknown>, ['Impuesto'], null);
+        const impuestoNode = getValue<Record<string, unknown>>(linea, ['Impuesto'], {});
         let taxRate = 0.13; // Default
         let taxCode = '08'; // Default
-        if (impuestoNode) {
-            taxRate = parseDecimal(getValue(impuestoNode as Record<string, unknown>, ['Tarifa'], '13')) / 100;
-            taxCode = getValue(impuestoNode as Record<string, unknown>, ['CodigoTarifaIVA'], '08');
+        if (impuestoNode && impuestoNode.Tarifa) {
+            taxRate = parseDecimal(impuestoNode.Tarifa) / 100;
+            taxCode = (impuestoNode.CodigoTarifaIVA as string) || '08';
         }
         
         const unitCostWithTaxInColones = moneda === 'USD' ? unitCostWithTax * tipoCambio : unitCostWithTax;
         const unitCostWithoutTaxInColones = moneda === 'USD' ? unitCostWithoutTax * tipoCambio : unitCostWithoutTax;
         
-        const numeroLinea = getValue<number>(linea as Record<string, unknown>, ['NumeroLinea'], index + 1);
+        const numeroLinea = getValue<number>(linea, ['NumeroLinea'], index + 1);
 
         lines.push({
             id: `${numeroConsecutivo}-${numeroLinea}-${supplierCode}-${index}`,
@@ -167,7 +168,7 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
             cabysCode: cabysCode,
             supplierCode: supplierCode,
             supplierCodeType: supplierCodeType,
-            description: getValue<string>(linea as Record<string, unknown>, ['Detalle'], ''),
+            description: getValue<string>(linea, ['Detalle'], ''),
             quantity: cantidad,
             discountAmount,
             unitCostWithTax: unitCostWithTaxInColones,

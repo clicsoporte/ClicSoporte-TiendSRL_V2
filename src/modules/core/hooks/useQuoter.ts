@@ -560,10 +560,13 @@ export const useQuoter = () => {
           userId: currentUser.id,
           customerId: selectedCustomer ? selectedCustomer.id : null,
           customerDetails: customerDetails,
-          lines: lines.map((line) => {
-              const { displayQuantity: _dq, displayPrice: _dp, ...rest } = line;
-              return rest;
-          }),
+          lines: lines.map((line) => ({
+              id: line.id,
+              product: line.product,
+              quantity: line.quantity,
+              price: line.price,
+              tax: line.tax
+          })),
           totals: totals,
           notes: notes,
           currency: currency,

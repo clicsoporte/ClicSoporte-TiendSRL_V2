@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Centralized PDF generation service for the entire application.
  */
@@ -35,6 +34,12 @@ export interface DocumentData {
     topLegend?: string;
 }
 
+interface jsPDFWithAutoTable extends jsPDF {
+    lastAutoTable: {
+        finalY: number;
+    };
+}
+
 const addFooter = (doc: jsPDF, pageNumber: number, totalPages: number) => {
     const pageHeight = doc.internal.pageSize.getHeight();
     const pageWidth = doc.internal.pageSize.getWidth();
@@ -44,7 +49,7 @@ const addFooter = (doc: jsPDF, pageNumber: number, totalPages: number) => {
 };
 
 export const generateDocument = (data: DocumentData): jsPDF => {
-    const doc = new jsPDF({ putOnlyUsedFonts: true, orientation: data.orientation || 'portrait', unit: 'pt', format: data.paperSize || 'letter' });
+    const doc = new jsPDF({ putOnlyUsedFonts: true, orientation: data.orientation || 'portrait', unit: 'pt', format: data.paperSize || 'letter' }) as jsPDFWithAutoTable;
     const margin = 40;
     const pageWidth = doc.internal.pageSize.getWidth();
     let finalY = 0;
@@ -151,7 +156,7 @@ export const generateDocument = (data: DocumentData): jsPDF => {
             columnStyles: { 0: { cellWidth: 'wrap' } },
             margin: { left: margin, right: margin }
         });
-        finalY = (doc as any).lastAutoTable.finalY + 15;
+        finalY = doc.lastAutoTable.finalY + 15;
     }
 
     autoTable(doc, {
@@ -166,7 +171,7 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         didDrawPage: didDrawPage,
     });
     
-    finalY = (doc as any).lastAutoTable.finalY;
+    finalY = doc.lastAutoTable.finalY;
     
     const pageHeight = doc.internal.pageSize.getHeight();
     let totalPages = doc.getNumberOfPages();

@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Custom hook `usePlanner` for managing the state and logic of the Production Planner page.
  */
@@ -222,7 +221,7 @@ export const usePlanner = () => {
                 setState(prevState => ({
                     ...prevState,
                     isNewOrderDialogOpen: false,
-                    newOrder: { ...emptyOrder, deliveryDate: new Date().toISOString().split('T')[0] } as any,
+                    newOrder: { ...emptyOrder, deliveryDate: new Date().toISOString().split('T')[0] } as typeof emptyOrder,
                     customerSearchTerm: '',
                     productSearchTerm: '',
                     activeOrders: [...prevState.activeOrders, createdOrder]

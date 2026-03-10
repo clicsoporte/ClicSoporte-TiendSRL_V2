@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Custom hook `useQuoter` for managing the state and logic of the QuoterPage component.
  */
@@ -561,12 +560,13 @@ export const useQuoter = () => {
           userId: currentUser.id,
           customerId: selectedCustomer ? selectedCustomer.id : null,
           customerDetails: customerDetails,
-          lines: lines.map((line) => {
-              const draftLine = { ...line };
-              // eslint-disable-next-line @typescript-eslint/no-unused-vars
-              const { displayQuantity: _dq, displayPrice: _dp, ...rest } = draftLine;
-              return rest;
-          }),
+          lines: lines.map((line) => ({
+              id: line.id,
+              product: line.product,
+              quantity: line.quantity,
+              price: line.price,
+              tax: line.tax
+          })),
           totals: totals,
           notes: notes,
           currency: currency,
