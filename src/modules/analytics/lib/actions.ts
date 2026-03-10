@@ -93,7 +93,9 @@ async function getTimeTrackingKpis(range?: DateRange): Promise<TimeTrackingKpi> 
     const byUserMap = new Map<number, { userId: number; userName: string; billable: number; nonBillable: number }>();
 
     timeEntries.forEach(entry => {
-        const durationHours = entry.duration / 3600000; // ms to hours
+        // Safe check for duration. Timers currently running have duration = null.
+        const durationMs = entry.duration || 0;
+        const durationHours = durationMs / 3600000; // ms to hours
         result.totalHours += durationHours;
 
         if (!byUserMap.has(entry.userId)) {
