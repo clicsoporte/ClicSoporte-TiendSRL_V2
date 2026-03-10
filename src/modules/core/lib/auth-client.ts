@@ -1,101 +1,64 @@
 /**
- * @fileoverview This file contains client-side functions for interacting with server-side authentication logic.
- * This abstraction layer prevents direct DB access from the client and ensures that server-side
- * functions are called correctly. It's safe to use these functions in "use client" components.
+ * @fileoverview Client-side functions for interacting with server-side authentication logic.
  */
 'use client';
 
 import type { User } from '@/modules/core/types';
-import { getAllUsers as getAllUsersServer, getUserById as getUserByIdServer, login as loginServer, saveAllUsers as saveAllUsersServer, comparePasswords as comparePasswordsServer, addUser as addUserServer, logout as logoutServer } from './auth';
-
-const CURRENT_USER_ID_KEY = 'currentUserId';
+import { 
+    getAllUsers as getAllUsersServer, 
+    login as loginServer, 
+    updateUser as updateUserServer,
+    comparePasswords as comparePasswordsServer, 
+    addUser as addUserServer, 
+    logout as logoutServer,
+    getCurrentUser as getCurrentUserServer
+} from './auth';
 
 /**
- * Logs in a user and stores their ID in session storage.
- * @param {string} email - The user's email.
- * @param {string} password - The password provided by the user.
- * @returns {Promise<boolean>} A promise that resolves to true if login is successful, false otherwise.
+ * Logs in a user.
  */
-export async function login(email: string, password: string): Promise<boolean> {
-    const user = await loginServer(email, password);
-    if (user) {
-        sessionStorage.setItem(CURRENT_USER_ID_KEY, String(user.id));
-        return true;
-    }
-    return false;
+export async function login(email: string, password: string): Promise<{ user: User | null, forcePasswordChange: boolean }> {
+    return await loginServer(email, password);
 }
 
 /**
- * Logs out the current user by removing their ID from session storage.
- * Dispatches a "storage" event to notify other components of the logout.
+ * Logs out the current user.
  */
 export async function logout() {
-    const userId = sessionStorage.getItem(CURRENT_USER_ID_KEY);
-    if (userId) {
-        await logoutServer(Number(userId));
-    }
-    sessionStorage.removeItem(CURRENT_USER_ID_KEY);
-    window.dispatchEvent(new Event("storage"));
+    await logoutServer();
 }
 
 /**
  * Retrieves the currently logged-in user from the server.
- * Reads the user ID from session storage and fetches the full user object.
- * @returns {Promise<User | null>} A promise that resolves to the user object, or null if no user is logged in.
  */
 export async function getCurrentUser(): Promise<User | null> {
-    const currentUserId = sessionStorage.getItem(CURRENT_USER_ID_KEY);
-    if (!currentUserId) return null;
-
-    try {
-        const user = await getUserByIdServer(Number(currentUserId));
-        return user ? JSON.parse(JSON.stringify(user)) : null;
-    } catch (error) {
-        console.error("Failed to get current user by ID:", error);
-        return null;
-    }
+    return await getCurrentUserServer();
 }
 
 /**
  * Retrieves all users from the server.
- * This is a client-side wrapper for the server-side function.
- * @returns {Promise<User[]>} A promise that resolves to an array of all users.
  */
 export async function getAllUsers(): Promise<User[]> {
-    const users = await getAllUsersServer();
-    return JSON.parse(JSON.stringify(users));
+    return await getAllUsersServer();
 }
 
 /**
- * Adds a new user via a server action.
- * @param userData - The new user's data.
- * @returns The created user object.
+ * Adds a new user.
  */
-export async function addUser(userData: Omit<User, 'id' | 'avatar' | 'recentActivity' | 'securityQuestion' | 'securityAnswer'> & { password: string }): Promise<User> {
-    const user = await addUserServer(userData);
-    return JSON.parse(JSON.stringify(user));
+export async function addUser(userData: Omit<User, 'id'> & { password: string }): Promise<User> {
+    return await addUserServer(userData);
 }
 
 /**
- * Saves the entire list of users to the database via the server.
- * This is a client-side wrapper for the server-side function.
- * @param {User[]} users - The full array of users to save.
- * @returns {Promise<void>} A promise that resolves when the users are saved.
+ * Updates a user.
  */
-export async function saveAllUsers(users: User[]): Promise<void> {
-    return saveAllUsersServer(users);
+export async function updateUser(user: User): Promise<User> {
+    return await updateUserServer(user);
 }
 
 /**
- * Compares a plaintext password with a stored bcrypt hash for a given user.
- * This is a client-side wrapper for the server-side password comparison.
- * @param {number} userId - The ID of the user whose password hash should be retrieved.
- * @param {string} password - The plaintext password to check.
- * @param {object} [clientInfo] - Optional client IP and host for logging.
- * @returns {Promise<boolean>} True if the password matches the hash.
+ * Compares passwords.
  */
-export async function comparePasswords(userId: number, password: string, clientInfo?: { ip: string, host: string }): Promise<boolean> {
-    return await comparePasswordsServer(userId, password, clientInfo);
+export async function comparePasswords(userId: number, password: string): Promise<boolean> {
+    return await comparePasswordsServer(userId, password);
 }
-
-    

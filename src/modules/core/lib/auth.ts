@@ -37,7 +37,11 @@ export const getCurrentUser = cache(async (): Promise<User | null> => {
     }
 });
 
-export async function login(email: string, passwordProvided: string): Promise<User | null> {
+/**
+ * Attempts to log in a user.
+ * @returns The user object and whether a password change is required.
+ */
+export async function login(email: string, passwordProvided: string): Promise<{ user: User | null, forcePasswordChange: boolean }> {
     const db = await connectDb();
     try {
         const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email) as User | undefined;
@@ -55,14 +59,17 @@ export async function login(email: string, passwordProvided: string): Promise<Us
 
                 const { password: _, ...safeUser } = user;
                 await logInfo(`User '${user.name}' logged in successfully.`);
-                return JSON.parse(JSON.stringify(safeUser));
+                return { 
+                    user: JSON.parse(JSON.stringify(safeUser)), 
+                    forcePasswordChange: !!user.forcePasswordChange 
+                };
             }
         }
         await logWarn(`Failed login attempt for email: ${email}`);
-        return null;
+        return { user: null, forcePasswordChange: false };
     } catch (error) {
         console.error("Login error:", error);
-        return null;
+        return { user: null, forcePasswordChange: false };
     }
 }
 
@@ -95,7 +102,7 @@ export async function addUser(userData: Omit<User, 'id'> & { password: string })
 export async function updateUser(user: User): Promise<User> {
     const db = await connectDb();
     let query = 'UPDATE users SET name = ?, email = ?, phone = ?, whatsapp = ?, role = ?, forcePasswordChange = ?';
-    const params: any[] = [user.name, user.email, user.phone, user.whatsapp, user.role, user.forcePasswordChange ? 1 : 0];
+    const params: (string | number | null)[] = [user.name, user.email, user.phone || null, user.whatsapp || null, user.role, user.forcePasswordChange ? 1 : 0];
 
     if (user.password) {
         query += ', password = ?';
