@@ -9,9 +9,7 @@ import { connectDb } from './db';
 import type { User } from '../types';
 import bcrypt from 'bcryptjs';
 import { logInfo, logWarn } from './logger';
-
-export const SESSION_COOKIE = 'clic_tools_session';
-const SALT_ROUNDS = 10;
+import { SESSION_COOKIE, SALT_ROUNDS, SESSION_DURATION } from './auth-constants';
 
 /**
  * Retrieves the currently authenticated user based on the session cookie.
@@ -53,7 +51,7 @@ export async function login(email: string, passwordProvided: string): Promise<{ 
                     httpOnly: true,
                     secure: process.env.NODE_ENV === 'production',
                     sameSite: 'lax',
-                    maxAge: 60 * 60 * 8, // 8 hours
+                    maxAge: SESSION_DURATION,
                     path: '/',
                 });
 
