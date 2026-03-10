@@ -1,13 +1,13 @@
+
 /**
  * @fileoverview Server-side functions for maintenance operations (backup, restore, reset).
- * Separated to avoid circular dependencies.
  */
 "use server";
 
 import fs from 'fs';
 import path from 'path';
-import { DB_MODULES } from './data';
-import type { UpdateBackupInfo, DatabaseModule } from '../types';
+import { DB_MODULES_METADATA, type DatabaseModuleMetadata } from './db-registry';
+import type { UpdateBackupInfo } from '../types';
 
 const dbDirectory = path.join(process.cwd(), 'dbs');
 const UPDATE_BACKUP_DIR = 'update_backups';
@@ -23,7 +23,7 @@ export async function backupAllForUpdate(): Promise<void> {
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
 
-    for (const moduleInfo of DB_MODULES) {
+    for (const moduleInfo of DB_MODULES_METADATA) {
         const sourcePath = path.join(dbDirectory, moduleInfo.dbFile);
         if (fs.existsSync(sourcePath)) {
             const backupFileName = `${moduleInfo.id}_${timestamp}.db`;
@@ -45,9 +45,8 @@ export async function restoreAllFromUpdateBackup(timestamp: string): Promise<voi
         throw new Error("No backup files found for the selected timestamp.");
     }
     
-    // Use a special filename to signal a restore on next startup
     for (const backup of backupsForTimestamp) {
-        const moduleInfo = DB_MODULES.find(m => m.id === backup.moduleId);
+        const moduleInfo = DB_MODULES_METADATA.find(m => m.id === backup.moduleId);
         if (moduleInfo) {
             const sourceBackupPath = path.join(backupDir, backup.fileName);
             const targetRestorePath = path.join(dbDirectory, `${moduleInfo.dbFile}_restore.db`);
@@ -60,7 +59,6 @@ export async function restoreAllFromUpdateBackup(timestamp: string): Promise<voi
 
 /**
  * Lists all available update backups.
- * @returns {Promise<UpdateBackupInfo[]>} A list of backup information objects.
  */
 export async function listAllUpdateBackups(): Promise<UpdateBackupInfo[]> {
     if (!fs.existsSync(backupDir)) {
@@ -72,7 +70,7 @@ export async function listAllUpdateBackups(): Promise<UpdateBackupInfo[]> {
             const match = file.match(/^(.+?)_(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z)\.db$/);
             if (match) {
                 const [, moduleId, timestamp] = match;
-                const moduleInfo = DB_MODULES.find(m => m.id === moduleId);
+                const moduleInfo = DB_MODULES_METADATA.find(m => m.id === moduleId);
                 return {
                     moduleId: moduleId,
                     moduleName: moduleInfo?.name || moduleId,
@@ -88,7 +86,6 @@ export async function listAllUpdateBackups(): Promise<UpdateBackupInfo[]> {
 
 /**
  * Deletes all backup sets except for the most recent one.
- * @returns {Promise<number>} The number of backup sets deleted.
  */
 export async function deleteOldUpdateBackups(): Promise<number> {
     const backups = await listAllUpdateBackups();
@@ -111,8 +108,6 @@ export async function deleteOldUpdateBackups(): Promise<number> {
 
 /**
  * Handles the server-side logic for uploading backup files.
- * @param {FormData} formData - The form data containing the files.
- * @returns {Promise<number>} The number of files successfully uploaded.
  */
 export async function uploadBackupFile(formData: FormData): Promise<number> {
     const files = formData.getAll('backupFiles') as File[];
@@ -130,18 +125,16 @@ export async function uploadBackupFile(formData: FormData): Promise<number> {
 }
 
 /**
- * Resets one or all databases to their initial state by deleting the DB files.
- * The system will re-initialize them on next startup.
- * @param {string} moduleId - The ID of the module to reset, or '__all__' for a full factory reset.
+ * Resets one or all databases to their initial state.
  */
 export async function factoryReset(moduleId: string): Promise<void> {
     if (moduleId === '__all__') {
-        for (const moduleInfo of DB_MODULES) {
+        for (const moduleInfo of DB_MODULES_METADATA) {
             const dbPath = path.join(dbDirectory, moduleInfo.dbFile);
             if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
         }
     } else {
-        const moduleInfo = DB_MODULES.find(m => m.id === moduleId);
+        const moduleInfo = DB_MODULES_METADATA.find(m => m.id === moduleId);
         if (moduleInfo) {
             const dbPath = path.join(dbDirectory, moduleInfo.dbFile);
             if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
@@ -152,9 +145,8 @@ export async function factoryReset(moduleId: string): Promise<void> {
 }
 
 /**
- * Retrieves the list of configurable database modules.
- * @returns {Promise<Omit<DatabaseModule, 'initFn' | 'migrationFn'>[]>}
+ * Retrieves the list of configurable database modules metadata.
  */
-export async function getDbModules(): Promise<Omit<DatabaseModule, 'initFn' | 'migrationFn'>[]> {
-    return DB_MODULES.map(({ id, name, dbFile }) => ({ id, name, dbFile }));
+export async function getDbModules(): Promise<DatabaseModuleMetadata[]> {
+    return DB_MODULES_METADATA.map(({ id, name, dbFile }) => ({ id, name, dbFile }));
 }

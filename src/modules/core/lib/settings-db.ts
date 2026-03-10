@@ -1,19 +1,18 @@
+
 /**
  * @fileoverview Server-side functions for managing system-wide settings.
- * Separated to avoid circular dependencies.
  */
 "use server";
 
 import { connectDb } from './db';
 import type { Company, ApiSettings, ExemptionLaw } from '../types';
-import { initialCompany } from './data';
+import { initialCompany } from './db-constants';
 import { getExchangeRate as fetchExchangeRateFromApi } from './api-actions';
 
 /**
  * Retrieves the main company settings from the database.
- * @returns {Promise<Company | null>} The company settings object.
  */
-export async function getCompanySettings(): Promise<Company | null> {
+export async function getCompanySettings(): Promise<Company> {
     const db = await connectDb();
     try {
         const row = db.prepare('SELECT * FROM company_settings WHERE id = 1').get() as Company | undefined;
@@ -23,13 +22,13 @@ export async function getCompanySettings(): Promise<Company | null> {
                 supportPackages: JSON.parse(row.supportPackages as unknown as string || '[]'),
                 servicesCatalog: JSON.parse(row.servicesCatalog as unknown as string || '[]')
             };
-            // Ensure the returned object is a plain JavaScript object
             return JSON.parse(JSON.stringify(settings));
         }
-        // If no settings exist, insert the initial ones.
+        
+        // Seeding default company settings if none exist
         db.prepare(`INSERT OR IGNORE INTO company_settings (id, name, taxId, address, phone, email, systemName, quotePrefix, nextQuoteNumber, decimalPlaces, quoterShowTaxId, searchDebounceTime, syncWarningHours, importMode, supportPackages, servicesCatalog) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
             initialCompany.name, initialCompany.taxId, initialCompany.address, initialCompany.phone, initialCompany.email, initialCompany.systemName,
-            initialCompany.quotePrefix, initialCompany.nextQuoteNumber, initialCompany.decimalPlaces, true, initialCompany.searchDebounceTime, initialCompany.syncWarningHours, initialCompany.importMode, 
+            initialCompany.quotePrefix, initialCompany.nextQuoteNumber, initialCompany.decimalPlaces, 1, initialCompany.searchDebounceTime, initialCompany.syncWarningHours, initialCompany.importMode, 
             JSON.stringify(initialCompany.supportPackages), JSON.stringify(initialCompany.servicesCatalog)
         );
         return JSON.parse(JSON.stringify(initialCompany));
@@ -42,7 +41,6 @@ export async function getCompanySettings(): Promise<Company | null> {
 
 /**
  * Saves the main company settings to the database.
- * @param {Company} data - The company settings object to save.
  */
 export async function saveCompanySettings(data: Company): Promise<void> {
     const db = await connectDb();
@@ -69,7 +67,6 @@ export async function saveCompanySettings(data: Company): Promise<void> {
 
 /**
  * Retrieves API settings from the database.
- * @returns {Promise<ApiSettings | null>}
  */
 export async function getApiSettings(): Promise<ApiSettings | null> {
     const db = await connectDb();
@@ -84,7 +81,6 @@ export async function getApiSettings(): Promise<ApiSettings | null> {
 
 /**
  * Saves API settings to the database.
- * @param {ApiSettings} settings - The API settings to save.
  */
 export async function saveApiSettings(settings: ApiSettings): Promise<void> {
     const db = await connectDb();
@@ -94,7 +90,6 @@ export async function saveApiSettings(settings: ApiSettings): Promise<void> {
 
 /**
  * Retrieves the list of exemption laws from the database.
- * @returns {Promise<ExemptionLaw[]>}
  */
 export async function getExemptionLaws(): Promise<ExemptionLaw[]> {
     const db = await connectDb();
@@ -108,8 +103,7 @@ export async function getExemptionLaws(): Promise<ExemptionLaw[]> {
 }
 
 /**
- * Saves the entire list of exemption laws, replacing the existing ones.
- * @param {ExemptionLaw[]} laws - The array of laws to save.
+ * Saves the entire list of exemption laws.
  */
 export async function saveExemptionLaws(laws: ExemptionLaw[]): Promise<void> {
     const db = await connectDb();
@@ -125,8 +119,6 @@ export async function saveExemptionLaws(laws: ExemptionLaw[]): Promise<void> {
 
 /**
  * Gets the exchange rate, trying the cache first, then fetching from the API if needed.
- * @param {boolean} forceRefresh - If true, bypasses the cache and fetches from the API.
- * @returns {Promise<{ rate: number | null, date: string | null }>} The exchange rate and its date.
  */
 export async function getAndCacheExchangeRate(forceRefresh: boolean = false): Promise<{ rate: number | null, date: string | null }> {
     const db = await connectDb();
@@ -154,7 +146,6 @@ export async function getAndCacheExchangeRate(forceRefresh: boolean = false): Pr
         console.error("Failed to fetch and cache exchange rate from API:", error);
     }
     
-    // Fallback to the most recent rate in the DB if API fails
     try {
         const lastRate = db.prepare('SELECT rate, date FROM exchange_rates ORDER BY date DESC LIMIT 1').get() as { rate: number, date: string } | undefined;
         if (lastRate) {

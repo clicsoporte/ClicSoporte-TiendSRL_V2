@@ -4,13 +4,18 @@
  */
 "use server";
 
-import { connectDb } from '../../core/lib/db';
+import type { Database } from 'better-sqlite3';
+import { connectDb as baseConnectDb } from '@/modules/core/lib/db-connection';
 import type { ProductionOrder, PlannerSettings, UpdateStatusPayload, UpdateOrderDetailsPayload, ProductionOrderHistoryEntry, CustomStatus, AdministrativeActionPayload, UpdateProductionOrderPayload } from '../../core/types';
 import { format, parseISO } from 'date-fns';
 
 const PLANNER_DB_FILE = 'planner.db';
 
-export async function initializePlannerDb(db: import('better-sqlite3').Database) {
+export async function connectPlannerDb(): Promise<Database> {
+    return baseConnectDb(PLANNER_DB_FILE, initializePlannerDb, runPlannerMigrations);
+}
+
+export async function initializePlannerDb(db: Database) {
     const schema = `
         CREATE TABLE IF NOT EXISTS planner_settings (
             key TEXT PRIMARY KEY,
@@ -83,13 +88,9 @@ export async function initializePlannerDb(db: import('better-sqlite3').Database)
     db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('pdfExportColumns', ?)`).run(JSON.stringify(defaultPdfColumns));
     db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('pdfTopLegend', '')`).run();
     db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('fieldsToTrackChanges', '[]')`).run();
-    
-    console.log(`Database ${PLANNER_DB_FILE} initialized for Production Planner.`);
-    
-    await runPlannerMigrations(db);
 }
 
-export async function runPlannerMigrations(db: import('better-sqlite3').Database) {
+export async function runPlannerMigrations(db: Database) {
     const plannerTableInfo = db.prepare(`PRAGMA table_info(production_orders)`).all() as { name: string }[];
     const plannerColumns = new Set(plannerTableInfo.map(c => c.name));
     
@@ -108,90 +109,10 @@ export async function runPlannerMigrations(db: import('better-sqlite3').Database
     if (!plannerColumns.has('pendingAction')) db.exec(`ALTER TABLE production_orders ADD COLUMN pendingAction TEXT DEFAULT 'none'`);
     if (!plannerColumns.has('inventoryErp')) db.exec(`ALTER TABLE production_orders ADD COLUMN inventoryErp REAL`);
     if (!plannerColumns.has('customerTaxId')) db.exec(`ALTER TABLE production_orders ADD COLUMN customerTaxId TEXT`);
-    
-
-    const historyTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='production_order_history'`).get();
-    if (!historyTable) {
-         console.log("MIGRATION (planner.db): Creating production_order_history table.");
-         db.exec(`
-            CREATE TABLE production_order_history (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                orderId INTEGER NOT NULL,
-                timestamp TEXT NOT NULL,
-                status TEXT NOT NULL,
-                notes TEXT,
-                updatedBy TEXT NOT NULL,
-                FOREIGN KEY (orderId) REFERENCES production_orders(id)
-            );
-         `);
-    }
-
-    const settingsTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='planner_settings'`).get();
-    if (settingsTable) {
-        if (db.prepare(`SELECT key FROM planner_settings WHERE key = 'machines'`).get()) {
-            db.exec(`UPDATE planner_settings SET key = 'assignments' WHERE key = 'machines'`);
-        }
-        if (!db.prepare(`SELECT key FROM planner_settings WHERE key = 'requireAssignmentForStart'`).get()) {
-            db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('requireAssignmentForStart', 'false')`).run();
-        }
-        if (db.prepare(`SELECT key FROM planner_settings WHERE key = 'requireMachineForStart'`).get()) {
-            db.exec(`UPDATE planner_settings SET key = 'requireAssignmentForStart' WHERE key = 'requireMachineForStart'`);
-        }
-        if (!db.prepare(`SELECT key FROM planner_settings WHERE key = 'orderPrefix'`).get()) {
-            db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('orderPrefix', 'OP-')`).run();
-        }
-        if (!db.prepare(`SELECT key FROM planner_settings WHERE key = 'nextOrderNumber'`).get()) {
-            db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('nextOrderNumber', '1')`).run();
-        }
-        const customStatusesRow = db.prepare(`SELECT value FROM planner_settings WHERE key = 'customStatuses'`).get() as { value: string } | undefined;
-        if (!customStatusesRow) {
-            console.log("MIGRATION (planner.db): Adding customStatuses to settings.");
-            const defaultCustomStatuses: CustomStatus[] = [
-                { id: 'custom-1', label: '', color: '#8884d8', isActive: false },
-                { id: 'custom-2', label: '', color: '#82ca9d', isActive: false },
-                { id: 'custom-3', label: '', color: '#ffc658', isActive: false },
-                { id: 'custom-4', label: '', color: '#ff8042', isActive: false },
-            ];
-            db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('customStatuses', ?)`).run(JSON.stringify(defaultCustomStatuses));
-        }
-
-        const pdfPaperSizeRow = db.prepare(`SELECT value FROM planner_settings WHERE key = 'pdfPaperSize'`).get() as { value: string } | undefined;
-        if (!pdfPaperSizeRow) {
-            console.log("MIGRATION (planner.db): Adding pdfPaperSize and pdfOrientation to settings.");
-            db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('pdfPaperSize', 'letter')`).run();
-            db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('pdfOrientation', 'portrait')`).run();
-        }
-
-        const pdfExportColumnsRow = db.prepare(`SELECT value FROM planner_settings WHERE key = 'pdfExportColumns'`).get() as { value: string } | undefined;
-        if (!pdfExportColumnsRow) {
-            console.log("MIGRATION (planner.db): Adding pdfExportColumns to settings.");
-            const defaultColumns = ['consecutive', 'customerName', 'productDescription', 'quantity', 'deliveryDate', 'status'];
-            db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('pdfExportColumns', ?)`).run(JSON.stringify(defaultColumns));
-        }
-
-        const pdfTopLegendRow = db.prepare(`SELECT value FROM planner_settings WHERE key = 'pdfTopLegend'`).get() as { value: string } | undefined;
-        if (!pdfTopLegendRow) {
-            console.log("MIGRATION (planner.db): Adding pdfTopLegend to settings.");
-            db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('pdfTopLegend', '')`).run();
-        }
-
-        const fieldsToTrackRow = db.prepare(`SELECT value FROM planner_settings WHERE key = 'fieldsToTrackChanges'`).get() as { value: string } | undefined;
-        if (!fieldsToTrackRow) {
-            console.log("MIGRATION (planner.db): Adding fieldsToTrackChanges to settings.");
-            const defaultFields = ['quantity', 'deliveryDate', 'customerId', 'productId'];
-            db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('fieldsToTrackChanges', ?)`).run(JSON.stringify(defaultFields));
-        }
-        
-        if (!db.prepare(`SELECT key FROM planner_settings WHERE key = 'showCustomerTaxId'`).get()) {
-            console.log("MIGRATION (planner.db): Adding showCustomerTaxId to settings.");
-            db.prepare(`INSERT INTO planner_settings (key, value) VALUES ('showCustomerTaxId', 'true')`).run();
-        }
-    }
 }
 
-
 export async function getSettings(): Promise<PlannerSettings> {
-    const db = await connectDb(PLANNER_DB_FILE);
+    const db = await connectPlannerDb();
     const settingsRows = db.prepare('SELECT * FROM planner_settings').all() as { key: string; value: string }[];
     
     const settings: PlannerSettings = {
@@ -227,7 +148,7 @@ export async function getSettings(): Promise<PlannerSettings> {
 }
 
 export async function saveSettings(settings: PlannerSettings): Promise<void> {
-    const db = await connectDb(PLANNER_DB_FILE);
+    const db = await connectPlannerDb();
     
     const transaction = db.transaction((settingsToUpdate: PlannerSettings) => {
         const keys: (keyof PlannerSettings)[] = ['orderPrefix', 'nextOrderNumber', 'showCustomerTaxId', 'assignments', 'requireAssignmentForStart', 'assignmentLabel', 'customStatuses', 'pdfPaperSize', 'pdfOrientation', 'pdfExportColumns', 'pdfTopLegend', 'fieldsToTrackChanges'];
@@ -246,19 +167,17 @@ export async function getOrders(options: {
     page?: number; 
     pageSize?: number;
 }): Promise<{ activeOrders: ProductionOrder[], archivedOrders: ProductionOrder[], totalArchivedCount: number }> {
-    const db = await connectDb(PLANNER_DB_FILE);
+    const db = await connectPlannerDb();
     
     const { page = 0, pageSize = 50 } = options;
     const archivedStatuses = `'completed', 'canceled'`;
 
-    // Fetch all active orders
     const activeOrders: ProductionOrder[] = db.prepare(`
         SELECT * FROM production_orders 
         WHERE status NOT IN (${archivedStatuses}) 
         ORDER BY requestDate DESC
     `).all() as ProductionOrder[];
     
-    // Fetch paginated archived orders
     const archivedOrders: ProductionOrder[] = db.prepare(`
         SELECT * FROM production_orders 
         WHERE status IN (${archivedStatuses}) 
@@ -275,10 +194,8 @@ export async function getOrders(options: {
     return { activeOrders: JSON.parse(JSON.stringify(activeOrders)), archivedOrders: JSON.parse(JSON.stringify(archivedOrders)), totalArchivedCount };
 }
 
-
 export async function addOrder(order: Omit<ProductionOrder, 'id' | 'consecutive' | 'requestDate' | 'status' | 'reopened' | 'erpPackageNumber' | 'erpTicketNumber' | 'assignmentId' | 'previousStatus' | 'scheduledStartDate' | 'scheduledEndDate' | 'requestedBy' | 'hasBeenModified' | 'lastModifiedBy' | 'lastModifiedAt'| 'lastStatusUpdateBy' | 'lastStatusUpdateNotes' | 'approvedBy'>, requestedBy: string): Promise<ProductionOrder> {
-    const db = await connectDb(PLANNER_DB_FILE);
-    
+    const db = await connectPlannerDb();
     const settings = await getSettings();
     const nextNumber = settings.nextOrderNumber || 1;
     const prefix = settings.orderPrefix || 'OP-';
@@ -310,7 +227,7 @@ export async function addOrder(order: Omit<ProductionOrder, 'id' | 'consecutive'
         )
     `);
 
-    const preparedOrder = {
+    const info = stmt.run({
         ...newOrder,
         purchaseOrder: newOrder.purchaseOrder || null,
         inventory: newOrder.inventory ?? null,
@@ -318,42 +235,38 @@ export async function addOrder(order: Omit<ProductionOrder, 'id' | 'consecutive'
         notes: newOrder.notes || null,
         reopened: newOrder.reopened ? 1 : 0,
         hasBeenModified: newOrder.hasBeenModified ? 1 : 0,
-    };
-
-    const info = stmt.run(preparedOrder);
+    });
+    
     const newOrderId = info.lastInsertRowid as number;
-
     await saveSettings({ ...settings, nextOrderNumber: nextNumber + 1 });
     
-    const historyStmt = db.prepare('INSERT INTO production_order_history (orderId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)');
-    historyStmt.run(newOrderId, new Date().toISOString(), 'pending', newOrder.requestedBy, 'Orden creada');
+    db.prepare('INSERT INTO production_order_history (orderId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)')
+      .run(newOrderId, new Date().toISOString(), 'pending', newOrder.requestedBy, 'Orden creada');
 
-    const createdOrder = db.prepare('SELECT * FROM production_orders WHERE id = ?').get(newOrderId) as ProductionOrder;
-    return JSON.parse(JSON.stringify(createdOrder));
+    return db.prepare('SELECT * FROM production_orders WHERE id = ?').get(newOrderId) as ProductionOrder;
 }
 
 export async function updateOrder(payload: UpdateProductionOrderPayload): Promise<ProductionOrder> {
-    const db = await connectDb(PLANNER_DB_FILE);
+    const db = await connectPlannerDb();
     const { orderId, updatedBy, ...dataToUpdate } = payload;
     
     const currentOrder = db.prepare('SELECT * FROM production_orders WHERE id = ?').get(orderId) as ProductionOrder | undefined;
-    if (!currentOrder) {
-        throw new Error("Order not found.");
-    }
+    if (!currentOrder) throw new Error("Order not found.");
+
     const settings = await getSettings();
     const fieldsToTrack = settings.fieldsToTrackChanges || [];
-
     let hasBeenModified = currentOrder.hasBeenModified;
     const changes: string[] = [];
     
     if (currentOrder.status !== 'pending') {
         Object.keys(dataToUpdate).forEach(field => {
-            const key = field as keyof Omit<UpdateProductionOrderPayload, 'orderId' | 'updatedBy'>;
-            const newValue = dataToUpdate[key];
-            const oldValue = currentOrder[key as keyof ProductionOrder];
-            if (fieldsToTrack.includes(field) && newValue !== undefined && String(oldValue || '') !== String(newValue || '')) {
-                changes.push(`${field}: de '${oldValue || 'N/A'}' a '${newValue || 'N/A'}'`);
-                hasBeenModified = true;
+            if (fieldsToTrack.includes(field)) {
+                const newVal = (dataToUpdate as any)[field];
+                const oldVal = (currentOrder as any)[field];
+                if (newVal !== undefined && String(oldVal || '') !== String(newVal || '')) {
+                    changes.push(`${field}: de '${oldVal || 'N/A'}' a '${newVal || 'N/A'}'`);
+                    hasBeenModified = true;
+                }
             }
         });
     }
@@ -383,34 +296,26 @@ export async function updateOrder(payload: UpdateProductionOrderPayload): Promis
         });
 
         if (changes.length > 0) {
-            const historyNotes = `Orden editada. ${changes.join('. ')}`;
-            const historyStmt = db.prepare('INSERT INTO production_order_history (orderId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)');
-            historyStmt.run(orderId, new Date().toISOString(), currentOrder.status, updatedBy, historyNotes);
+            db.prepare('INSERT INTO production_order_history (orderId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)')
+              .run(orderId, new Date().toISOString(), currentOrder.status, updatedBy, `Orden editada. ${changes.join('. ')}`);
         }
     });
 
     transaction();
-    
-    const updatedOrder = db.prepare('SELECT * FROM production_orders WHERE id = ?').get(orderId) as ProductionOrder;
-    return JSON.parse(JSON.stringify(updatedOrder));
+    return db.prepare('SELECT * FROM production_orders WHERE id = ?').get(orderId) as ProductionOrder;
 }
 
 export async function updateStatus(payload: UpdateStatusPayload): Promise<ProductionOrder> {
-    const db = await connectDb(PLANNER_DB_FILE);
+    const db = await connectPlannerDb();
     const { orderId, status, notes, updatedBy, deliveredQuantity, reopen } = payload;
 
     const currentOrder = db.prepare('SELECT * FROM production_orders WHERE id = ?').get(orderId) as ProductionOrder | undefined;
-    if (!currentOrder) {
-        throw new Error("Order not found.");
-    }
+    if (!currentOrder) throw new Error("Order not found.");
     
-    let approvedBy = currentOrder.approvedBy;
-    if (status === 'approved' && !currentOrder.approvedBy) {
-        approvedBy = updatedBy;
-    }
+    const approvedBy = (status === 'approved' && !currentOrder.approvedBy) ? updatedBy : currentOrder.approvedBy;
     
     const transaction = db.transaction(() => {
-        const stmt = db.prepare(`
+        db.prepare(`
             UPDATE production_orders SET
                 status = @status,
                 lastStatusUpdateNotes = @notes,
@@ -421,9 +326,7 @@ export async function updateStatus(payload: UpdateStatusPayload): Promise<Produc
                 pendingAction = 'none',
                 previousStatus = NULL
             WHERE id = @orderId
-        `);
-
-        stmt.run({
+        `).run({
             status,
             notes: notes || null,
             updatedBy,
@@ -433,24 +336,23 @@ export async function updateStatus(payload: UpdateStatusPayload): Promise<Produc
             reopened: reopen ? 1 : (currentOrder.reopened ? 1 : 0),
         });
         
-        const historyStmt = db.prepare('INSERT INTO production_order_history (orderId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)');
-        historyStmt.run(orderId, new Date().toISOString(), status, updatedBy, notes);
+        db.prepare('INSERT INTO production_order_history (orderId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)')
+          .run(orderId, new Date().toISOString(), status, updatedBy, notes);
     });
 
     transaction();
-    const updatedOrder = db.prepare('SELECT * FROM production_orders WHERE id = ?').get(orderId) as ProductionOrder;
-    return JSON.parse(JSON.stringify(updatedOrder));
+    return db.prepare('SELECT * FROM production_orders WHERE id = ?').get(orderId) as ProductionOrder;
 }
 
 export async function updateDetails(payload: UpdateOrderDetailsPayload): Promise<ProductionOrder> {
-    const db = await connectDb(PLANNER_DB_FILE);
+    const db = await connectPlannerDb();
     const { orderId, priority, assignmentId, scheduledDateRange, updatedBy } = payload;
     
     const currentOrder = db.prepare('SELECT * FROM production_orders WHERE id = ?').get(orderId) as ProductionOrder | undefined;
     if (!currentOrder) throw new Error("Order not found.");
 
     let query = 'UPDATE production_orders SET';
-    const params: { [key: string]: string | number | null } = { orderId };
+    const params: any = { orderId };
     const updates: string[] = [];
     const historyItems: string[] = [];
 
@@ -460,104 +362,64 @@ export async function updateDetails(payload: UpdateOrderDetailsPayload): Promise
         historyItems.push(`Prioridad: de ${currentOrder.priority} a ${priority}`);
     }
     if (assignmentId !== undefined && currentOrder.assignmentId !== assignmentId) {
-        const settings = await getSettings();
-        const oldAssignmentName = currentOrder.assignmentId ? settings.assignments.find(m => m.id === currentOrder.assignmentId)?.name : 'N/A';
-        const newAssignmentName = assignmentId ? settings.assignments.find(m => m.id === assignmentId)?.name : 'N/A';
         updates.push('assignmentId = @assignmentId');
         params.assignmentId = assignmentId;
-        historyItems.push(`${settings.assignmentLabel || 'Asignación'}: de ${oldAssignmentName} a ${newAssignmentName}`);
+        historyItems.push(`Asignación actualizada`);
     }
      if (scheduledDateRange) {
         const newStartDate = scheduledDateRange.from ? scheduledDateRange.from.toISOString().split('T')[0] : null;
         const newEndDate = scheduledDateRange.to ? scheduledDateRange.to.toISOString().split('T')[0] : null;
-        if (currentOrder.scheduledStartDate !== newStartDate || currentOrder.scheduledEndDate !== newEndDate) {
-            updates.push('scheduledStartDate = @scheduledStartDate', 'scheduledEndDate = @scheduledEndDate');
-            params.scheduledStartDate = newStartDate;
-            params.scheduledEndDate = newEndDate;
-            
-            const oldStart = currentOrder.scheduledStartDate ? format(parseISO(currentOrder.scheduledStartDate), 'dd/MM/yy') : 'N/A';
-            const oldEnd = currentOrder.scheduledEndDate ? format(parseISO(currentOrder.scheduledEndDate), 'dd/MM/yy') : 'N/A';
-            const newStart = newStartDate ? format(parseISO(newStartDate), 'dd/MM/yy') : 'N/A';
-            const newEnd = newEndDate ? format(parseISO(newEndDate), 'dd/MM/yy') : 'N/A';
-            historyItems.push(`Fecha Prog.: de ${oldStart}-${oldEnd} a ${newStart}-${newEnd}`);
-        }
+        updates.push('scheduledStartDate = @scheduledStartDate', 'scheduledEndDate = @scheduledEndDate');
+        params.scheduledStartDate = newStartDate;
+        params.scheduledEndDate = newEndDate;
+        historyItems.push(`Programación actualizada`);
     }
     
-    if (updates.length === 0) {
-        const orderWithoutChanges = db.prepare('SELECT * FROM production_orders WHERE id = ?').get(orderId) as ProductionOrder;
-        return JSON.parse(JSON.stringify(orderWithoutChanges));
-    };
+    if (updates.length > 0) {
+        query += ` ${updates.join(', ')} WHERE id = @orderId`;
+        const transaction = db.transaction(() => {
+            db.prepare(query).run(params);
+            db.prepare('INSERT INTO production_order_history (orderId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)')
+              .run(orderId, new Date().toISOString(), currentOrder.status, updatedBy, `Detalles actualizados: ${historyItems.join('. ')}`);
+        });
+        transaction();
+    }
 
-    query += ` ${updates.join(', ')} WHERE id = @orderId`;
-    const historyNotes = `Detalles actualizados: ${historyItems.join('. ')}`;
-    
-    const transaction = db.transaction(() => {
-        db.prepare(query).run(params);
-        
-        const historyStmt = db.prepare('INSERT INTO production_order_history (orderId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)');
-        const currentStatus = (db.prepare('SELECT status FROM production_orders WHERE id = ?').get(orderId) as { status: string }).status;
-        historyStmt.run(orderId, new Date().toISOString(), currentStatus, updatedBy, historyNotes);
-    });
-
-    transaction();
-    const updatedOrder = db.prepare('SELECT * FROM production_orders WHERE id = ?').get(orderId) as ProductionOrder;
-    return JSON.parse(JSON.stringify(updatedOrder));
+    return db.prepare('SELECT * FROM production_orders WHERE id = ?').get(orderId) as ProductionOrder;
 }
-
 
 export async function getOrderHistory(orderId: number): Promise<ProductionOrderHistoryEntry[]> {
-    const db = await connectDb(PLANNER_DB_FILE);
-    const results = db.prepare('SELECT * FROM production_order_history WHERE orderId = ? ORDER BY timestamp DESC').all(orderId) as ProductionOrderHistoryEntry[];
-    return JSON.parse(JSON.stringify(results));
+    const db = await connectPlannerDb();
+    return db.prepare('SELECT * FROM production_order_history WHERE orderId = ? ORDER BY timestamp DESC').all(orderId) as ProductionOrderHistoryEntry[];
 }
 
-
-
 export async function addNote(payload: { orderId: number; notes: string; updatedBy: string; }): Promise<ProductionOrder> {
-    const db = await connectDb(PLANNER_DB_FILE);
+    const db = await connectPlannerDb();
     const { orderId, notes, updatedBy } = payload;
-
-    const currentOrder = db.prepare('SELECT status FROM production_orders WHERE id = ?').get(orderId) as ProductionOrder | undefined;
-    if (!currentOrder) {
-        throw new Error("Order not found.");
-    }
+    const currentOrder = db.prepare('SELECT status FROM production_orders WHERE id = ?').get(orderId) as { status: string };
 
     const transaction = db.transaction(() => {
         db.prepare('UPDATE production_orders SET lastStatusUpdateNotes = ?, lastStatusUpdateBy = ? WHERE id = ?')
           .run(notes, updatedBy, orderId);
-        
-        const historyStmt = db.prepare('INSERT INTO production_order_history (orderId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)');
-        historyStmt.run(orderId, new Date().toISOString(), currentOrder.status, updatedBy, `Nota agregada: ${notes}`);
+        db.prepare('INSERT INTO production_order_history (orderId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)')
+          .run(orderId, new Date().toISOString(), currentOrder.status, updatedBy, `Nota agregada: ${notes}`);
     });
 
     transaction();
-    const updatedOrder = db.prepare('SELECT * FROM production_orders WHERE id = ?').get(orderId) as ProductionOrder;
-    return JSON.parse(JSON.stringify(updatedOrder));
+    return db.prepare('SELECT * FROM production_orders WHERE id = ?').get(orderId) as ProductionOrder;
 }
 
 export async function updatePendingAction(payload: AdministrativeActionPayload): Promise<ProductionOrder> {
-    const db = await connectDb(PLANNER_DB_FILE);
-    const { entityId, action, notes, updatedBy } = payload;
-
-    const currentOrder = db.prepare('SELECT * FROM production_orders WHERE id = ?').get(entityId) as ProductionOrder | undefined;
-    if (!currentOrder) throw new Error("Order not found.");
+    const db = await connectPlannerDb();
+    const { entityId, action, updatedBy } = payload;
+    const currentOrder = db.prepare('SELECT status FROM production_orders WHERE id = ?').get(entityId) as { status: string };
 
     const transaction = db.transaction(() => {
-        db.prepare(`
-            UPDATE production_orders SET
-                pendingAction = @action,
-                previousStatus = CASE WHEN @action != 'none' THEN status ELSE previousStatus END
-            WHERE id = @entityId
-        `).run({ action, entityId });
-        
-        const historyStmt = db.prepare('INSERT INTO production_order_history (orderId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)');
-        const historyNote = action === 'none' 
-            ? 'Acción administrativa rechazada/cancelada' 
-            : `Solicitud de ${action === 'unapproval-request' ? 'desaprobación' : 'cancelación'} iniciada`;
-        historyStmt.run(entityId, new Date().toISOString(), currentOrder.status, updatedBy, `${historyNote}: ${notes}`);
+        db.prepare(`UPDATE production_orders SET pendingAction = @action WHERE id = @entityId`).run({ action, entityId });
+        db.prepare('INSERT INTO production_order_history (orderId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)')
+          .run(entityId, new Date().toISOString(), currentOrder.status, updatedBy, `Acción administrativa '${action}' solicitada`);
     });
     
     transaction();
-    const result = db.prepare('SELECT * FROM production_orders WHERE id = ?').get(entityId) as ProductionOrder;
-    return JSON.parse(JSON.stringify(result));
+    return db.prepare('SELECT * FROM production_orders WHERE id = ?').get(entityId) as ProductionOrder;
 }

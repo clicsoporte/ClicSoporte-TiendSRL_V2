@@ -1,12 +1,12 @@
+
 /**
- * @fileoverview This file handles the SQLite database connection.
+ * @fileoverview Main database initialization and shared utility functions.
  */
 "use server";
 
-import Database from 'better-sqlite3';
-import path from 'path';
-import fs from 'fs';
-import { initialUsers, initialRoles, DB_MODULES } from './data';
+import type { Database } from 'better-sqlite3';
+import { connectDb as baseConnectDb } from './db-connection';
+import { initialUsers, initialRoles } from './db-constants';
 import type { LogEntry, DateRange } from '@/modules/core/types';
 import bcrypt from 'bcryptjs';
 import { addLog as dbAddLog } from './logger-db';
@@ -14,103 +14,20 @@ import { addLog as dbAddLog } from './logger-db';
 const DB_FILE = 'intratool.db';
 const SALT_ROUNDS = 10;
 
-const dbDirectory = path.join(process.cwd(), 'dbs');
-const dbConnections = new Map<string, Database.Database>();
-
 /**
- * Establishes a connection to a specific SQLite database file.
+ * Shared connection function for the main system database.
  */
-export async function connectDb(dbFile: string = DB_FILE): Promise<Database.Database> {
-    if (dbConnections.has(dbFile) && dbConnections.get(dbFile)!.open) {
-        return dbConnections.get(dbFile)!;
+export async function connectDb(dbFile: string = DB_FILE): Promise<Database> {
+    if (dbFile === DB_FILE) {
+        return baseConnectDb(DB_FILE, initializeMainDatabase);
     }
-    
-    const dbPath = path.join(dbDirectory, dbFile);
-    if (!fs.existsSync(dbDirectory)) {
-        fs.mkdirSync(dbDirectory, { recursive: true });
-    }
-
-    const restoreFilePath = `${dbPath}_restore.db`;
-    if (fs.existsSync(restoreFilePath)) {
-        console.log(`Restore file found for ${dbFile}. Applying restore...`);
-        try {
-            if (dbConnections.has(dbFile) && dbConnections.get(dbFile)?.open) {
-                dbConnections.get(dbFile)!.close();
-                dbConnections.delete(dbFile);
-            }
-            if (fs.existsSync(dbPath)) {
-                fs.copyFileSync(dbPath, `${dbPath}.bak`);
-                fs.unlinkSync(dbPath);
-            }
-            fs.renameSync(restoreFilePath, dbPath);
-            await dbAddLog({ type: "WARN", message: `Database for module ${dbFile} was restored from a backup on startup.` });
-        } catch(e: unknown) {
-            console.error(`Failed to apply restore for ${dbFile}: ${(e as Error).message}`);
-            if (fs.existsSync(restoreFilePath)) fs.unlinkSync(restoreFilePath);
-        }
-    }
-
-    let db: Database.Database | null = null;
-    let dbExistsAndIsValid = false;
-
-    if (fs.existsSync(dbPath)) {
-        try {
-            db = new Database(dbPath);
-            db.pragma('journal_mode = WAL');
-
-            const moduleConfig = DB_MODULES.find(m => m.dbFile === dbFile);
-            let mainTable: string | null = null;
-            if (moduleConfig?.id === 'clic-tools-main') mainTable = 'users';
-            else if (moduleConfig?.id === 'production-planner') mainTable = 'production_orders';
-            else if (moduleConfig?.id === 'cost-assistant') mainTable = 'drafts';
-            else if (moduleConfig?.id === 'tickets') mainTable = 'tickets';
-            else if (moduleConfig?.id === 'licenses') mainTable = 'licenses';
-            else if (moduleConfig?.id === 'timesheet') mainTable = 'time_entries';
-            
-            if (mainTable) {
-                const tableCheck = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name=?`).get(mainTable);
-                if (tableCheck) {
-                    dbExistsAndIsValid = true;
-                }
-            } else {
-                dbExistsAndIsValid = true; 
-            }
-        } catch (error) {
-            console.error(`Database ${dbFile} is corrupted. It will be re-initialized.`, error);
-            if (dbConnections.has(dbFile) && dbConnections.get(dbFile)?.open) {
-                dbConnections.get(dbFile)!.close();
-            }
-            if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
-            dbExistsAndIsValid = false;
-        }
-    }
-
-    if (!dbExistsAndIsValid) {
-        db = new Database(dbPath);
-        db.pragma('journal_mode = WAL');
-        console.log(`Database ${dbFile} not found or corrupt, creating and initializing...`);
-        const moduleConfig = DB_MODULES.find(m => m.dbFile === dbFile);
-        if (moduleConfig?.initFn) {
-            await moduleConfig.initFn(db);
-        }
-    }
-
-    const moduleConfig = DB_MODULES.find(m => m.dbFile === dbFile);
-    if (moduleConfig?.migrationFn) {
-        try {
-            await moduleConfig.migrationFn(db!);
-        } catch (error) {
-            console.error(`Migration failed for ${dbFile}:`, error);
-        }
-    }
-
-    dbConnections.set(dbFile, db!);
-    return db!;
+    // Fallback for other modules that still call this with a custom filename
+    return baseConnectDb(dbFile);
 }
 
-export async function initializeMainDatabase(db: import('better-sqlite3').Database) {
+export async function initializeMainDatabase(db: Database) {
     const mainSchema = `
-        CREATE TABLE users (
+        CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY,
             name TEXT NOT NULL,
             email TEXT UNIQUE NOT NULL,
@@ -124,14 +41,14 @@ export async function initializeMainDatabase(db: import('better-sqlite3').Databa
             securityAnswer TEXT
         );
 
-        CREATE TABLE user_preferences (
+        CREATE TABLE IF NOT EXISTS user_preferences (
             id TEXT PRIMARY KEY,
             userId INTEGER NOT NULL,
             settingName TEXT NOT NULL,
             value TEXT NOT NULL
         );
 
-        CREATE TABLE company_settings (
+        CREATE TABLE IF NOT EXISTS company_settings (
             id INTEGER PRIMARY KEY DEFAULT 1,
             name TEXT, taxId TEXT, address TEXT, phone TEXT, email TEXT,
             logoUrl TEXT, systemName TEXT,
@@ -142,20 +59,20 @@ export async function initializeMainDatabase(db: import('better-sqlite3').Databa
             supportPackages TEXT, servicesCatalog TEXT
         );
         
-        CREATE TABLE api_settings (
+        CREATE TABLE IF NOT EXISTS api_settings (
             id INTEGER PRIMARY KEY DEFAULT 1,
             exchangeRateApi TEXT,
             haciendaExemptionApi TEXT,
             haciendaTributariaApi TEXT
         );
 
-        CREATE TABLE exemption_laws (
+        CREATE TABLE IF NOT EXISTS exemption_laws (
             docType TEXT PRIMARY KEY,
             institutionName TEXT NOT NULL,
             authNumber TEXT
         );
         
-        CREATE TABLE logs (
+        CREATE TABLE IF NOT EXISTS logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             timestamp TEXT NOT NULL,
             type TEXT NOT NULL,
@@ -163,64 +80,59 @@ export async function initializeMainDatabase(db: import('better-sqlite3').Databa
             details TEXT
         );
 
-        CREATE TABLE customers (
+        CREATE TABLE IF NOT EXISTS customers (
             id TEXT PRIMARY KEY, name TEXT, address TEXT, phone TEXT, taxId TEXT, currency TEXT,
             creditLimit REAL, paymentCondition TEXT, salesperson TEXT, active TEXT, email TEXT, electronicDocEmail TEXT,
             supportPackageId TEXT, monthlyHoursBalance REAL
         );
 
-        CREATE TABLE products (
+        CREATE TABLE IF NOT EXISTS products (
             id TEXT PRIMARY KEY, description TEXT, classification TEXT, lastEntry TEXT, active TEXT,
             notes TEXT, unit TEXT, isBasicGood TEXT, cabys TEXT
         );
 
-        CREATE TABLE exemptions (
+        CREATE TABLE IF NOT EXISTS exemptions (
             code TEXT PRIMARY KEY, description TEXT, customer TEXT, authNumber TEXT, startDate TEXT,
             endDate TEXT, percentage REAL, docType TEXT, institutionName TEXT, institutionCode TEXT
         );
 
-        CREATE TABLE stock (
+        CREATE TABLE IF NOT EXISTS stock (
             itemId TEXT PRIMARY KEY,
             stockByWarehouse TEXT NOT NULL,
             totalStock REAL NOT NULL
         );
         
-        CREATE TABLE stock_settings (
-            key TEXT PRIMARY KEY,
-            value TEXT
-        );
-
-        CREATE TABLE roles (
+        CREATE TABLE IF NOT EXISTS roles (
             id TEXT PRIMARY KEY, name TEXT NOT NULL, permissions TEXT NOT NULL
         );
 
-        CREATE TABLE quote_drafts (
+        CREATE TABLE IF NOT EXISTS quote_drafts (
             id TEXT PRIMARY KEY, createdAt TEXT NOT NULL, userId INTEGER, customerId TEXT,
             lines TEXT, totals TEXT, notes TEXT, currency TEXT, exchangeRate REAL, purchaseOrderNumber TEXT,
             customerDetails TEXT, deliveryAddress TEXT, deliveryDate TEXT, sellerName TEXT,
             sellerType TEXT, quoteDate TEXT, validUntilDate TEXT, paymentTerms TEXT, creditDays INTEGER
         );
 
-        CREATE TABLE sql_config (
+        CREATE TABLE IF NOT EXISTS sql_config (
             key TEXT PRIMARY KEY, value TEXT
         );
 
-        CREATE TABLE import_queries (
+        CREATE TABLE IF NOT EXISTS import_queries (
             type TEXT PRIMARY KEY, query TEXT
         );
         
-        CREATE TABLE cabys_catalog (
+        CREATE TABLE IF NOT EXISTS cabys_catalog (
             code TEXT PRIMARY KEY,
             description TEXT NOT NULL,
             taxRate REAL
         );
 
-        CREATE TABLE exchange_rates (
+        CREATE TABLE IF NOT EXISTS exchange_rates (
             date TEXT PRIMARY KEY,
             rate REAL NOT NULL
         );
 
-        CREATE TABLE suggestions (
+        CREATE TABLE IF NOT EXISTS suggestions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             content TEXT NOT NULL,
             userId INTEGER,
@@ -232,16 +144,15 @@ export async function initializeMainDatabase(db: import('better-sqlite3').Databa
 
     db.exec(mainSchema);
 
-    const userInsert = db.prepare('INSERT INTO users (id, name, email, password, phone, whatsapp, avatar, role, recentActivity, securityQuestion, securityAnswer) VALUES (@id, @name, @email, @password, @phone, @whatsapp, @avatar, @role, @recentActivity, @securityQuestion, @securityAnswer)');
+    // Initial data seeding
+    const userInsert = db.prepare('INSERT OR IGNORE INTO users (id, name, email, password, phone, whatsapp, avatar, role, recentActivity, securityQuestion, securityAnswer) VALUES (@id, @name, @email, @password, @phone, @whatsapp, @avatar, @role, @recentActivity, @securityQuestion, @securityAnswer)');
     initialUsers.forEach(user => {
         const hashedPassword = bcrypt.hashSync(user.password!, SALT_ROUNDS);
         userInsert.run({ ...user, password: hashedPassword });
     });
 
-    const roleInsert = db.prepare('INSERT INTO roles (id, name, permissions) VALUES (@id, @name, @permissions)');
+    const roleInsert = db.prepare('INSERT OR IGNORE INTO roles (id, name, permissions) VALUES (@id, @name, @permissions)');
     initialRoles.forEach(role => roleInsert.run({ ...role, permissions: JSON.stringify(role.permissions) }));
-    
-    console.log(`Database intratool.db initialized.`);
 }
 
 export async function getUserPreferences(userId: number, settingName: string): Promise<Record<string, unknown>> {
