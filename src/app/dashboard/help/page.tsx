@@ -18,7 +18,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "../../../components/ui/accordion";
-import { DollarSign, ShieldQuestion, LifeBuoy, Rocket, CalendarCheck, CheckCircle, Wrench, Save, Copy, AlertTriangle, Play, Pause, History, Undo2, BadgeInfo, CreditCard, MessageSquare, Trash2, Download, Briefcase, ListChecks, Hourglass, Ticket, KeyRound, AreaChart, FileScan, UploadCloud, Network, Zap, Lock, Radio, MousePointer2 } from "lucide-react";
+import { DollarSign, ShieldQuestion, LifeBuoy, Rocket, CalendarCheck, CheckCircle, Wrench, Save, Copy, AlertTriangle, History, BadgeInfo, CreditCard, MessageSquare, Trash2, Download, Briefcase, ListChecks, Ticket, KeyRound, AreaChart, FileScan, UploadCloud, Network, Zap, Lock, Radio, Monitor } from "lucide-react";
 import { Skeleton } from "../../../components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAuth } from "@/modules/core/hooks/useAuth";
@@ -103,7 +103,7 @@ export default function HelpPage() {
                         Guía Maestra: Módulo Cotizador
                     </AccordionTrigger>
                     <AccordionContent className="prose max-w-none text-base space-y-4">
-                        <p>Esta es tu herramienta principal para crear y enviar cotizaciones profesionales a los clientes. Su diseño está optimizado para la velocidad y la precisión.</p>
+                        <p>Esta era tu herramienta principal para crear y enviar cotizaciones profesionales a los clientes. Su diseño está optimizado para la velocidad y la precisión.</p>
                         
                         <h4 className="font-semibold text-lg pt-2 border-t">Flujo de Trabajo Recomendado</h4>
                         <ol className="list-decimal space-y-4 pl-6">
@@ -190,13 +190,13 @@ export default function HelpPage() {
 
                     <h4 className="font-semibold text-lg flex items-center gap-2"><Radio className="h-5 w-5 text-cyan-600"/> Caso: Enlaces Inalámbricos (Ubiquiti)</h4>
                     <ul className="list-disc space-y-2 pl-6 text-sm">
-                        <li><strong>Hitos:</strong> Registro de bitácora para "Línea de vista confirmada" y "Alineación de antenas".</li>
+                        <li><strong>Hitos:</strong> Registro de bitácora para &quot;Línea de vista confirmada&quot; y &quot;Alineación de antenas&quot;.</li>
                         <li><strong>Documentación:</strong> Sube fotos de la intensidad de señal y fotos de las antenas instaladas en torre.</li>
                     </ul>
 
                     <h4 className="font-semibold text-lg flex items-center gap-2"><Briefcase className="h-5 w-5 text-orange-600"/> Caso: Punto de Venta (POS)</h4>
                     <ul className="list-disc space-y-2 pl-6 text-sm">
-                        <li><strong>Integración:</strong> Consolida PC, Escáner, Caja de dinero e Impresora térmica en un solo "Acta de Entrega".</li>
+                        <li><strong>Integración:</strong> Consolida PC, Escáner, Caja de dinero e Impresora térmica en un solo &quot;Acta de Entrega&quot;.</li>
                         <li><strong>Capacitación:</strong> Registra en bitácora el tiempo invertido en enseñar al cliente el uso del software.</li>
                     </ul>
 
@@ -214,7 +214,7 @@ export default function HelpPage() {
                             <strong>Paso 2: Registro de Bitácora (<History className="inline h-4 w-4"/>).</strong> Documenta cada visita técnica y cambio de equipo.
                         </li>
                         <li>
-                            <strong>Paso 3: Cierre y Acta de Entrega (<Download className="inline h-4 w-4"/>).</strong> Genera el PDF final que detalla todo lo entregado "Llave en Mano" para que administración proceda con el cobro.
+                            <strong>Paso 3: Cierre y Acta de Entrega (<Download className="inline h-4 w-4"/>).</strong> Genera el PDF final que detalla todo lo entregado &quot;Llave en Mano&quot; para que administración proceda con el cobro.
                         </li>
                     </ul>
                 </AccordionContent>

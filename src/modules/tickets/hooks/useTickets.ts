@@ -9,7 +9,7 @@ import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError } from '@/modules/core/lib/logger';
 import { useAuth } from '@/modules/core/hooks/useAuth';
-import type { NewTicketPayload, Ticket, TicketPriority, TicketStatus, TicketThread, User, HelpTopic, ClientCompany, Customer, Contract, ThirdPartyProvider } from '@/modules/core/types';
+import type { NewTicketPayload, Ticket, TicketPriority, TicketStatus, TicketThread, User, HelpTopic, Contract, ThirdPartyProvider } from '@/modules/core/types';
 import {
     saveTicket, getTickets, getTicketById as getTicketByIdServer,
     getTicketThread as getTicketThreadServer,

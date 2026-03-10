@@ -36,9 +36,10 @@ export async function createProject(project: Omit<TIProject, 'id' | 'consecutive
         const result = await addProjectDb(project);
         await logInfo(`Proyecto TI ${result.consecutive} creado: ${result.name}`);
         return JSON.parse(JSON.stringify(result));
-    } catch (e: any) {
-        logError('Error creando proyecto', { error: e.message });
-        throw e;
+    } catch (error: unknown) {
+        const err = error as Error;
+        logError('Error creando proyecto', { error: err.message });
+        throw err;
     }
 }
 

@@ -6,23 +6,21 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
-import { PlusCircle, Search, Edit, Trash2, Loader2, FileText, Calendar as CalendarIcon } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Loader2, FileText } from 'lucide-react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { getContracts, saveContract, updateContract, deleteContract } from '@/modules/contracts/lib/actions';
-import type { Contract, Customer, Service } from '@/modules/core/types';
+import type { Contract } from '@/modules/core/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { format, parseISO } from 'date-fns';
-import { es } from 'date-fns/locale';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SearchInput } from '@/components/ui/search-input';
 import { useDebounce } from 'use-debounce';
 
@@ -84,11 +82,11 @@ export default function ContractsPage() {
     };
 
     const toggleService = (serviceId: string, type: 'included' | 'excluded') => {
-        const otherType = type === 'included' ? 'excludedServices' : 'includedServices';
-        const targetType = type === 'included' ? 'includedServices' : 'excludedServices';
+        const otherTypeKey = type === 'included' ? 'excludedServices' : 'includedServices';
+        const targetTypeKey = type === 'included' ? 'includedServices' : 'excludedServices';
         
-        let targetList = [...(currentContract as any)[targetType]];
-        let otherList = [...(currentContract as any)[otherType]];
+        let targetList = [...(currentContract as any)[targetTypeKey]];
+        let otherList = [...(currentContract as any)[otherTypeKey]];
 
         if (targetList.includes(serviceId)) {
             targetList = targetList.filter(id => id !== serviceId);
@@ -99,9 +97,9 @@ export default function ContractsPage() {
 
         setCurrentContract({
             ...currentContract,
-            [targetType]: targetList,
-            [otherType]: otherList
-        });
+            [targetTypeKey]: targetList,
+            [otherTypeKey]: otherList
+        } as Contract);
     };
 
     const handleSave = async () => {
@@ -123,8 +121,8 @@ export default function ContractsPage() {
             setCurrentContract(emptyContract);
             setIsEditing(false);
             setCustomerSearchTerm('');
-        } catch (error: any) {
-            toast({ title: "Error", description: error.message, variant: "destructive" });
+        } catch (error: unknown) {
+            toast({ title: "Error", description: (error as Error).message, variant: "destructive" });
         } finally {
             setIsSubmitting(false);
         }
@@ -144,8 +142,8 @@ export default function ContractsPage() {
             await deleteContract(id);
             toast({ title: "Contrato eliminado", variant: "destructive" });
             await fetchContracts();
-        } catch (error: any) {
-            toast({ title: "Error", description: error.message, variant: "destructive" });
+        } catch (error: unknown) {
+            toast({ title: "Error", description: (error as Error).message, variant: "destructive" });
         }
     };
 

@@ -42,31 +42,31 @@ export async function initializeContractsDb(db: Database): Promise<void> {
     console.log(`Database ${CONTRACTS_DB_FILE} initialized for Contract Management.`);
 }
 
-export async function runContractsMigrations(db: Database) {
+export async function runContractsMigrations(_db: Database) {
     // Migrations for contracts module can be added here
 }
 
 export async function getContracts(customerId?: string): Promise<Contract[]> {
     const db = await connectContractsDb();
     let query = 'SELECT * FROM contracts';
-    const params: any[] = [];
+    const params: (string | number)[] = [];
     if (customerId) {
         query += ' WHERE customerId = ?';
         params.push(customerId);
     }
     query += ' ORDER BY createdAt DESC';
-    const rows = db.prepare(query).all(...params) as any[];
+    const rows = db.prepare(query).all(...params) as Record<string, unknown>[];
     return rows.map(row => ({
         ...row,
-        includedServices: JSON.parse(row.includedServices || '[]'),
-        excludedServices: JSON.parse(row.excludedServices || '[]')
-    })) as Contract[];
+        includedServices: JSON.parse((row.includedServices as string) || '[]'),
+        excludedServices: JSON.parse((row.excludedServices as string) || '[]')
+    })) as unknown as Contract[];
 }
 
 export async function addContract(contractData: Omit<Contract, 'id' | 'consecutive' | 'createdAt'>): Promise<Contract> {
     const db = await connectContractsDb();
-    const prefixRow = db.prepare("SELECT value FROM contract_settings WHERE key = 'contractPrefix'").get() as { value: string };
-    const numberRow = db.prepare("SELECT value FROM contract_settings WHERE key = 'nextContractNumber'").get() as { value: string };
+    const prefixRow = db.prepare("SELECT value FROM contract_settings WHERE key = 'contractPrefix'").get() as { value: string } | undefined;
+    const numberRow = db.prepare("SELECT value FROM contract_settings WHERE key = 'nextContractNumber'").get() as { value: string } | undefined;
     
     const prefix = prefixRow?.value || 'CON-';
     const nextNumber = parseInt(numberRow?.value || '1', 10);
@@ -91,12 +91,12 @@ export async function addContract(contractData: Omit<Contract, 'id' | 'consecuti
         return db.prepare('SELECT * FROM contracts WHERE id = ?').get(info.lastInsertRowid);
     });
 
-    const result = transaction() as any;
+    const result = transaction() as Record<string, unknown>;
     return {
         ...result,
-        includedServices: JSON.parse(result.includedServices || '[]'),
-        excludedServices: JSON.parse(result.excludedServices || '[]')
-    } as Contract;
+        includedServices: JSON.parse((result.includedServices as string) || '[]'),
+        excludedServices: JSON.parse((result.excludedServices as string) || '[]')
+    } as unknown as Contract;
 }
 
 export async function updateContract(contract: Contract): Promise<Contract> {
@@ -127,13 +127,13 @@ export async function getActiveContractForCustomer(customerId: string): Promise<
         SELECT * FROM contracts 
         WHERE customerId = ? AND status = 'active' AND startDate <= ? AND endDate >= ?
         LIMIT 1
-    `).get(customerId, now, now) as any;
+    `).get(customerId, now, now) as Record<string, unknown> | undefined;
     
     if (!row) return null;
     
     return {
         ...row,
-        includedServices: JSON.parse(row.includedServices || '[]'),
-        excludedServices: JSON.parse(row.excludedServices || '[]')
-    } as Contract;
+        includedServices: JSON.parse((row.includedServices as string) || '[]'),
+        excludedServices: JSON.parse((row.excludedServices as string) || '[]')
+    } as unknown as Contract;
 }

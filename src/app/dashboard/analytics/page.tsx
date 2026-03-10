@@ -6,7 +6,7 @@
 import { useAnalytics } from '@/modules/analytics/hooks/useAnalytics';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AreaChart, CalendarCheck, Hourglass, Ticket, Users, FileText, BadgeAlert, Coins } from 'lucide-react';
+import { AreaChart, CalendarCheck, Hourglass, Ticket, FileText, BadgeAlert, Coins } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
 import { Button } from '@/components/ui/button';
@@ -35,7 +35,7 @@ const StatCard = ({ title, value, icon: Icon, isLoading, color = "text-muted-for
 
 export default function AnalyticsPage() {
     const { state, actions } = useAnalytics();
-    const { isLoading: isAuthLoading, userRole } = useAuth();
+    const { isLoading: isAuthLoading } = useAuth();
     
     if (isAuthLoading || state.isLoading) {
         return <div className="p-8"><Skeleton className="h-full w-full" /></div>;

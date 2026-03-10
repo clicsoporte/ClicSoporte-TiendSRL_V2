@@ -15,10 +15,10 @@ import { logInfo } from './logger';
 export async function getAllCustomers(): Promise<Customer[]> {
     const db = await connectDb();
     try {
-        const results = db.prepare('SELECT * FROM customers ORDER BY name ASC').all() as any[];
+        const results = db.prepare('SELECT * FROM customers ORDER BY name ASC').all() as Record<string, unknown>[];
         const enrichedResults = results.map(c => ({
             ...c,
-            contacts: JSON.parse(c.contacts || '[]'),
+            contacts: JSON.parse((c.contacts as string) || '[]'),
             isManual: !!c.isManual
         }));
         return JSON.parse(JSON.stringify(enrichedResults));

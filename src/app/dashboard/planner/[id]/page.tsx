@@ -5,13 +5,13 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -58,8 +58,8 @@ export default function ProjectDetailsPage() {
             setAdvances(adv);
             setAttachments(att);
             setItems(its);
-        } catch (e) {
-            console.error(e);
+        } catch (_e) {
+            console.error("Failed to load project data");
         } finally {
             setIsLoading(false);
         }
@@ -76,7 +76,7 @@ export default function ProjectDetailsPage() {
             const added = await addProjectAdvance({ projectId, content: newAdvance, userId: user.id, userName: user.name });
             setAdvances([...advances, added]);
             setNewAdvance("");
-        } catch (e) {
+        } catch (_e) {
             toast({ title: "Error", variant: "destructive" });
         } finally {
             setIsSubmitting(false);
@@ -101,7 +101,7 @@ export default function ProjectDetailsPage() {
                 });
                 setAttachments([added, ...attachments]);
                 toast({ title: "Archivo Adjuntado" });
-            } catch (e) {
+            } catch (_e) {
                 toast({ title: "Error al subir", variant: "destructive" });
             }
         };
@@ -114,7 +114,7 @@ export default function ProjectDetailsPage() {
             const saved = await saveProjectItem({ ...newItem, projectId });
             setItems([...items, saved]);
             setNewItem({ description: '', quantity: 1, unitPrice: 0, type: 'material' });
-        } catch (e) {
+        } catch (_e) {
             toast({ title: "Error", variant: "destructive" });
         }
     };
@@ -126,7 +126,7 @@ export default function ProjectDetailsPage() {
             await updateProject(updated);
             setProject(updated);
             toast({ title: `Proyecto movido a ${newStatus}` });
-        } catch (e) {
+        } catch (_e) {
             toast({ title: "Error", variant: "destructive" });
         }
     };
@@ -275,7 +275,9 @@ export default function ProjectDetailsPage() {
                                 {attachments.map(att => (
                                     <div key={att.id} className="group relative border rounded-lg overflow-hidden bg-card aspect-square flex flex-col items-center justify-center p-2 text-center">
                                         {att.fileType.startsWith('image/') ? (
-                                            <img src={att.data} alt={att.name} className="absolute inset-0 w-full h-full object-cover opacity-20 group-hover:opacity-10 transition-opacity" />
+                                            <div className="absolute inset-0 w-full h-full opacity-20 group-hover:opacity-10 transition-opacity">
+                                                <Image src={att.data} alt={att.name} fill className="object-cover" />
+                                            </div>
                                         ) : <FileText className="h-12 w-12 text-muted-foreground mb-2" />}
                                         <span className="text-[10px] font-bold truncate w-full">{att.name}</span>
                                         <span className="text-[8px] text-muted-foreground">Por: {att.uploadedBy}</span>

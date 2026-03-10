@@ -14,7 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { PlusCircle, Calendar as CalendarIcon, Users, FileText, ChevronRight, Loader2, Briefcase, Truck, Network, ShieldCheck, Radio, Monitor, Zap, Lock } from 'lucide-react';
+import { PlusCircle, Calendar as CalendarIcon, Users, FileText, ChevronRight, Loader2, Briefcase, Truck, Network, Radio, Monitor, Zap, Lock } from 'lucide-react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { getProjects, createProject } from '@/modules/planner/lib/actions';
 import type { TIProject, ProjectStatus, ProjectPriority, ProjectCategory, ThirdPartyProvider } from '@/modules/core/types';
@@ -33,7 +33,7 @@ const statusConfig: { [key in ProjectStatus]: { label: string, color: string } }
     canceled: { label: 'Cancelado', color: 'bg-red-600' },
 };
 
-const categoryConfig: { [key in ProjectCategory]: { label: string, icon: any, color: string } } = {
+const categoryConfig: { [key in ProjectCategory]: { label: string, icon: React.ElementType, color: string } } = {
     cctv: { label: 'Video Vigilancia (CCTV)', icon: Monitor, color: 'text-blue-600' },
     alarms: { label: 'Seguridad (Alarmas)', icon: Lock, color: 'text-red-600' },
     wireless: { label: 'Redes Inalámbricas', icon: Radio, color: 'text-cyan-600' },
@@ -132,8 +132,8 @@ export default function TIPlannerPage() {
             toast({ title: "Proyecto Iniciado" });
             fetchData();
             setFormOpen(false);
-        } catch (e: any) {
-            toast({ title: "Error", description: e.message, variant: "destructive" });
+        } catch (error: unknown) {
+            toast({ title: "Error", description: (error as Error).message, variant: "destructive" });
         } finally {
             setIsSubmitting(false);
         }

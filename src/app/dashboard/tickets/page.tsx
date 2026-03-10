@@ -5,9 +5,9 @@
 
 import { useTickets } from "@/modules/tickets/hooks/useTickets";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
-import { FilePlus, Loader2, FilterX, Users, AlertCircle, ShieldCheck, ShieldAlert, BadgeAlert } from "lucide-react";
+import { FilePlus, Loader2, FilterX, ShieldCheck, ShieldAlert } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -22,7 +22,7 @@ import { useRouter } from "next/navigation";
 import { useAuthorization } from "@/modules/core/hooks/useAuthorization";
 import Link from "next/link";
 import { useAuth } from "@/modules/core/hooks/useAuth";
-import type { TicketPriority, Ticket } from '@/modules/core/types';
+import type { Ticket } from '@/modules/core/types';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
 
@@ -97,7 +97,7 @@ export default function TicketsPage() {
                      {hasPermission('tickets:admin:settings') && (
                         <Button variant="outline" asChild size="sm">
                             <Link href="/dashboard/admin/tickets">
-                                <Users className="mr-2 h-4 w-4" /> Configuración
+                                <FilePlus className="mr-2 h-4 w-4" /> Configuración
                             </Link>
                         </Button>
                     )}

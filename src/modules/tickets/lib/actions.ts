@@ -4,7 +4,7 @@
 'use client';
 
 import { logInfo, logError } from '@/modules/core/lib/logger';
-import type { Ticket, NewTicketPayload, User, TicketThread, HelpTopic, ClientCompany, Customer, SupportPackage, Service, ThirdPartyProvider } from '@/modules/core/types';
+import type { Ticket, NewTicketPayload, User, TicketThread, HelpTopic, ClientCompany, SupportPackage, Service, ThirdPartyProvider } from '@/modules/core/types';
 import { 
     addTicket as addTicketServer, 
     getTickets as getTicketsServer, 
@@ -39,7 +39,7 @@ export async function saveTicket(payload: NewTicketPayload, user: User): Promise
             customer: payload.customerName 
         });
         return JSON.parse(JSON.stringify(createdTicket));
-    } catch (error) {
+    } catch (error: unknown) {
         logError("Error saving ticket", { error: (error as Error).message });
         throw error;
     }
@@ -112,7 +112,7 @@ export async function deleteTicket(id: number): Promise<void> {
     return deleteTicketServer(id);
 }
 
-export async function getCustomerSupportInfo(companyId: number | string): Promise<{ customer: any; supportPackage: SupportPackage | null, services: Service[] }> {
+export async function getCustomerSupportInfo(companyId: number | string): Promise<{ customer: Record<string, unknown> | null; supportPackage: SupportPackage | null, services: Service[] }> {
     const info = await getCustomerSupportInfoServer(companyId);
     return JSON.parse(JSON.stringify(info));
 }

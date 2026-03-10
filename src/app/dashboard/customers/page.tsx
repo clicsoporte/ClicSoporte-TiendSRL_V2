@@ -6,7 +6,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -91,8 +91,8 @@ export default function CustomersPage() {
             setFormOpen(false);
             setCurrentCustomer(emptyCustomer);
             setIsEditing(false);
-        } catch (error: any) {
-            toast({ title: "Error", description: error.message, variant: "destructive" });
+        } catch (error: unknown) {
+            toast({ title: "Error", description: (error as Error).message, variant: "destructive" });
         } finally {
             setIsSubmitting(false);
         }
@@ -113,8 +113,8 @@ export default function CustomersPage() {
             await deleteCustomer(id);
             toast({ title: "Cliente Eliminado", variant: "destructive" });
             await refreshAuth();
-        } catch (error: any) {
-            toast({ title: "Error", description: error.message, variant: "destructive" });
+        } catch (error: unknown) {
+            toast({ title: "Error", description: (error as Error).message, variant: "destructive" });
         } finally {
             setIsSubmitting(false);
         }
@@ -136,7 +136,7 @@ export default function CustomersPage() {
     const handleRemoveContact = (id: string) => {
         setCurrentCustomer(prev => ({
             ...prev,
-            contacts: prev.contacts.filter(c => c.id !== id)
+            contacts: (prev.contacts || []).filter(c => c.id !== id)
         }));
     };
 
@@ -214,31 +214,31 @@ export default function CustomersPage() {
                                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                             <div className="space-y-1.5">
                                                 <Label htmlFor="contact-name" className="text-xs">Nombre Completo</Label>
-                                                <Input size={1} id="contact-name" value={newContact.name} onChange={e => setNewContact({...newContact, name: e.target.value})} placeholder="Ej: Juan Perez" className="h-8 text-xs" />
+                                                <Input id="contact-name" value={newContact.name} onChange={e => setNewContact({...newContact, name: e.target.value})} placeholder="Ej: Juan Perez" className="h-8 text-xs" />
                                             </div>
                                             <div className="space-y-1.5">
                                                 <Label htmlFor="contact-email" className="text-xs">Correo</Label>
-                                                <Input size={1} id="contact-email" type="email" value={newContact.email} onChange={e => setNewContact({...newContact, email: e.target.value})} placeholder="juan@ejemplo.com" className="h-8 text-xs" />
+                                                <Input id="contact-email" type="email" value={newContact.email} onChange={e => setNewContact({...newContact, email: e.target.value})} placeholder="juan@ejemplo.com" className="h-8 text-xs" />
                                             </div>
                                             <div className="space-y-1.5">
                                                 <Label htmlFor="contact-dept" className="text-xs">Departamento / Área</Label>
-                                                <Input size={1} id="contact-dept" value={newContact.department} onChange={e => setNewContact({...newContact, department: e.target.value})} placeholder="Ej: TI, RRHH" className="h-8 text-xs" />
+                                                <Input id="contact-dept" value={newContact.department} onChange={e => setNewContact({...newContact, department: e.target.value})} placeholder="Ej: TI, RRHH" className="h-8 text-xs" />
                                             </div>
                                             <div className="space-y-1.5">
                                                 <Label htmlFor="contact-pos" className="text-xs">Puesto</Label>
-                                                <Input size={1} id="contact-pos" value={newContact.position} onChange={e => setNewContact({...newContact, position: e.target.value})} placeholder="Ej: Gerente" className="h-8 text-xs" />
+                                                <Input id="contact-pos" value={newContact.position} onChange={e => setNewContact({...newContact, position: e.target.value})} placeholder="Ej: Gerente" className="h-8 text-xs" />
                                             </div>
                                             <div className="space-y-1.5">
                                                 <Label htmlFor="contact-phone" className="text-xs">Tel. Oficina</Label>
-                                                <Input size={1} id="contact-phone" value={newContact.officePhone} onChange={e => setNewContact({...newContact, officePhone: e.target.value})} placeholder="2222-3333" className="h-8 text-xs" />
+                                                <Input id="contact-phone" value={newContact.officePhone} onChange={e => setNewContact({...newContact, officePhone: e.target.value})} placeholder="2222-3333" className="h-8 text-xs" />
                                             </div>
                                             <div className="space-y-1.5">
                                                 <Label htmlFor="contact-ws" className="text-xs">WhatsApp</Label>
-                                                <Input size={1} id="contact-ws" value={newContact.whatsapp} onChange={e => setNewContact({...newContact, whatsapp: e.target.value})} placeholder="8888-9999" className="h-8 text-xs" />
+                                                <Input id="contact-ws" value={newContact.whatsapp} onChange={e => setNewContact({...newContact, whatsapp: e.target.value})} placeholder="8888-9999" className="h-8 text-xs" />
                                             </div>
                                             <div className="space-y-1.5">
                                                 <Label htmlFor="contact-branch" className="text-xs">Sucursal</Label>
-                                                <Input size={1} id="contact-branch" value={newContact.branch} onChange={e => setNewContact({...newContact, branch: e.target.value})} placeholder="Ej: San José" className="h-8 text-xs" />
+                                                <Input id="contact-branch" value={newContact.branch} onChange={e => setNewContact({...newContact, branch: e.target.value})} placeholder="Ej: San José" className="h-8 text-xs" />
                                             </div>
                                             <div className="flex items-end lg:col-span-2">
                                                 <Button type="button" size="sm" onClick={handleAddContactToList} className="w-full">
