@@ -63,13 +63,14 @@ export const initialRoles: Role[] = [
         "admin:import:sql-config", "admin:logs:read", "admin:logs:clear", "admin:maintenance:backup", 
         "admin:maintenance:restore", "admin:maintenance:reset", "hacienda:query", "tickets:create", 
         "tickets:read:all", "tickets:update", "tickets:delete", "tickets:admin:settings", "licenses:read", 
-        "licenses:manage", "licenses:admin:keys"
+        "licenses:manage", "licenses:admin:keys", "customers:read", "customers:manage",
+        "contracts:read", "contracts:manage", "providers:read", "providers:manage"
     ],
   },
   {
     id: "viewer",
     name: "Viewer",
-    permissions: ["dashboard:access", "quotes:create", "quotes:drafts:read"],
+    permissions: ["dashboard:access", "quotes:create", "quotes:drafts:read", "tickets:read:all", "planner:read", "contracts:read"],
   },
   {
     id: 'planner-user',
@@ -84,7 +85,7 @@ export const initialRoles: Role[] = [
     id: 'support-agent',
     name: 'Soporte Técnico',
     permissions: [
-        "dashboard:access", "tickets:create", "tickets:read:all", "tickets:update"
+        "dashboard:access", "tickets:create", "tickets:read:all", "tickets:update", "customers:read", "contracts:read"
     ]
   }
 ];

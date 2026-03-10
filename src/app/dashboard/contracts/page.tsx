@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Page for managing support contracts.
  */
@@ -82,25 +83,30 @@ export default function ContractsPage() {
     };
 
     const toggleService = (serviceId: string, type: 'included' | 'excluded') => {
-        const targetTypeKey = type === 'included' ? 'includedServices' : 'excludedServices' as keyof Contract;
-        const otherTypeKey = type === 'included' ? 'excludedServices' : 'includedServices' as keyof Contract;
+        const targetTypeKey = (type === 'included' ? 'includedServices' : 'excludedServices') as keyof Contract;
+        const otherTypeKey = (type === 'included' ? 'excludedServices' : 'includedServices') as keyof Contract;
         
-        const currentData = currentContract as Record<string, unknown>;
-        let targetList = Array.isArray(currentData[targetTypeKey]) ? [...(currentData[targetTypeKey] as string[])] : [];
-        let otherList = Array.isArray(currentData[otherTypeKey]) ? [...(currentData[otherTypeKey] as string[])] : [];
+        // Use a functional update to safely access previous properties without 'any'
+        setCurrentContract(prev => {
+            const prevIncluded = prev.includedServices || [];
+            const prevExcluded = prev.excludedServices || [];
+            
+            let targetList = type === 'included' ? [...prevIncluded] : [...prevExcluded];
+            let otherList = type === 'included' ? [...prevExcluded] : [...prevIncluded];
 
-        if (targetList.includes(serviceId)) {
-            targetList = targetList.filter(id => id !== serviceId);
-        } else {
-            targetList.push(serviceId);
-            otherList = otherList.filter(id => id !== serviceId);
-        }
+            if (targetList.includes(serviceId)) {
+                targetList = targetList.filter(id => id !== serviceId);
+            } else {
+                targetList.push(serviceId);
+                otherList = otherList.filter(id => id !== serviceId);
+            }
 
-        setCurrentContract({
-            ...currentContract,
-            [targetTypeKey]: targetList,
-            [otherTypeKey]: otherList
-        } as Contract);
+            return {
+                ...prev,
+                [targetTypeKey]: targetList,
+                [otherTypeKey]: otherList
+            } as Contract;
+        });
     };
 
     const handleSave = async () => {

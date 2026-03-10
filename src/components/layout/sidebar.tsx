@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Sidebar component for the main application layout.
  */
@@ -40,7 +41,7 @@ import { useAuth } from "@/modules/core/hooks/useAuth";
 
 export function AppSidebar() {
   const pathname = usePathname();
-  const { user: currentUser, companyData, userRole, isLoading, unreadSuggestionsCount } = useAuth();
+  const { user: currentUser, companyData, userRole, isLoading, unreadSuggestionsCount, hasPermission } = useAuth();
   const { isMobile, setOpenMobile } = useSidebar();
 
   const handleLinkClick = () => {
@@ -78,7 +79,7 @@ export function AppSidebar() {
     )
   }
 
-  const navLinks: Tool[] = [
+  const navLinks: (Tool & { permission?: string })[] = [
     {
       id: "dashboard",
       name: "Panel",
@@ -87,6 +88,7 @@ export function AppSidebar() {
       icon: LayoutDashboard,
       bgColor: "bg-blue-500",
       textColor: "text-white",
+      permission: "dashboard:access"
     },
     {
       id: "tickets",
@@ -96,6 +98,7 @@ export function AppSidebar() {
       icon: Ticket,
       bgColor: "bg-blue-500",
       textColor: "text-white",
+      permission: "tickets:read:all"
     },
     {
       id: "customers",
@@ -105,6 +108,7 @@ export function AppSidebar() {
       icon: Users,
       bgColor: "bg-amber-600",
       textColor: "text-white",
+      permission: "customers:read"
     },
     {
       id: "contracts",
@@ -114,6 +118,7 @@ export function AppSidebar() {
       icon: FileText,
       bgColor: "bg-indigo-600",
       textColor: "text-white",
+      permission: "contracts:read"
     },
     {
       id: "licenses",
@@ -123,6 +128,7 @@ export function AppSidebar() {
       icon: KeyRound,
       bgColor: "bg-indigo-500",
       textColor: "text-white",
+      permission: "licenses:read"
     },
      {
       id: "planner",
@@ -132,6 +138,7 @@ export function AppSidebar() {
       icon: CalendarCheck,
       bgColor: "bg-purple-500",
       textColor: "text-white",
+      permission: "planner:read"
     },
     {
         id: "quoter",
@@ -141,6 +148,7 @@ export function AppSidebar() {
         icon: SheetIcon,
         bgColor: "bg-green-500",
         textColor: "text-white",
+        permission: "quotes:create"
     },
     {
         id: "cost-assistant",
@@ -150,6 +158,7 @@ export function AppSidebar() {
         icon: FileScan,
         bgColor: "bg-orange-600",
         textColor: "text-white",
+        permission: "cost-assistant:access"
     },
      {
       id: "hacienda-query",
@@ -159,6 +168,7 @@ export function AppSidebar() {
       icon: Search,
       bgColor: "bg-blue-600",
       textColor: "text-white",
+      permission: "hacienda:query"
     },
     {
       id: "analytics",
@@ -168,6 +178,7 @@ export function AppSidebar() {
       icon: AreaChart,
       bgColor: "bg-rose-600",
       textColor: "text-white",
+      permission: "analytics:read"
     },
     {
       id: "help",
@@ -179,6 +190,8 @@ export function AppSidebar() {
       textColor: "text-white",
     },
   ];
+
+  const visibleLinks = navLinks.filter(link => !link.permission || hasPermission(link.permission));
 
   return (
       <Sidebar collapsible="icon" className="border-r z-20">
@@ -194,7 +207,7 @@ export function AppSidebar() {
         </SidebarHeader>
         <SidebarContent>
           <SidebarMenu>
-            {navLinks.map((item) => (
+            {visibleLinks.map((item) => (
                 <SidebarMenuItem key={item.id}>
                     <SidebarMenuButton
                     asChild
