@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Main tool definitions for the application dashboards.
  */
@@ -12,12 +11,41 @@ import {
   KeyRound,
   AreaChart,
   Search,
+  Users,
+  FileText
 } from "lucide-react";
 
 /**
  * List of tools available on the main dashboard.
  */
 export const mainTools: Tool[] = [
+  {
+    id: "tickets",
+    name: "Soporte Técnico",
+    description: "Gestionar tickets y dar soporte a los clientes.",
+    href: "/dashboard/tickets",
+    icon: Ticket,
+    bgColor: "bg-blue-500",
+    textColor: "text-white",
+  },
+  {
+    id: "customers",
+    name: "Clientes",
+    description: "Administrar base de clientes y contactos.",
+    href: "/dashboard/customers",
+    icon: Users,
+    bgColor: "bg-amber-600",
+    textColor: "text-white",
+  },
+  {
+    id: "contracts",
+    name: "Contratos",
+    description: "Gestionar contratos de soporte y coberturas.",
+    href: "/dashboard/contracts",
+    icon: FileText,
+    bgColor: "bg-indigo-600",
+    textColor: "text-white",
+  },
   {
     id: "quoter",
     name: "Cotizador",
@@ -43,15 +71,6 @@ export const mainTools: Tool[] = [
     href: "/dashboard/planner",
     icon: CalendarCheck,
     bgColor: "bg-purple-500",
-    textColor: "text-white",
-  },
-  {
-    id: "tickets",
-    name: "Soporte Técnico",
-    description: "Gestionar tickets y dar soporte a los clientes.",
-    href: "/dashboard/tickets",
-    icon: Ticket,
-    bgColor: "bg-blue-500",
     textColor: "text-white",
   },
   {

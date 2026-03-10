@@ -6,6 +6,7 @@
 
 import { connectDb } from './db';
 import type { Product, Customer, StockInfo, Exemption } from '@/modules/core/types';
+import { logInfo } from './logger';
 
 /**
  * Retrieves all customers from the database.
@@ -14,12 +15,40 @@ import type { Product, Customer, StockInfo, Exemption } from '@/modules/core/typ
 export async function getAllCustomers(): Promise<Customer[]> {
     const db = await connectDb();
     try {
-        const results = db.prepare('SELECT * FROM customers').all() as Customer[];
+        const results = db.prepare('SELECT * FROM customers ORDER BY name ASC').all() as Customer[];
         return JSON.parse(JSON.stringify(results));
     } catch (error) {
         console.error("Failed to get all customers:", error);
         return [];
     }
+}
+
+/**
+ * Adds or updates a customer manually.
+ */
+export async function upsertCustomer(customer: Customer): Promise<Customer> {
+    const db = await connectDb();
+    const stmt = db.prepare(`
+        INSERT INTO customers (id, name, address, phone, taxId, currency, creditLimit, paymentCondition, salesperson, active, email, electronicDocEmail, isManual)
+        VALUES (@id, @name, @address, @phone, @taxId, @currency, @creditLimit, @paymentCondition, @salesperson, @active, @email, @electronicDocEmail, 1)
+        ON CONFLICT(id) DO UPDATE SET
+            name = excluded.name, address = excluded.address, phone = excluded.phone, taxId = excluded.taxId, currency = excluded.currency,
+            creditLimit = excluded.creditLimit, paymentCondition = excluded.paymentCondition, salesperson = excluded.salesperson, active = excluded.active,
+            email = excluded.email, electronicDocEmail = excluded.electronicDocEmail
+    `);
+    
+    stmt.run(customer);
+    await logInfo(`Cliente gestionado manualmente: ${customer.name} (${customer.id})`);
+    return customer;
+}
+
+/**
+ * Deletes a customer.
+ */
+export async function deleteCustomer(id: string): Promise<void> {
+    const db = await connectDb();
+    db.prepare('DELETE FROM customers WHERE id = ?').run(id);
+    await logInfo(`Cliente eliminado ID: ${id}`);
 }
 
 /**

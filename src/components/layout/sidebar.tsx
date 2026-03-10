@@ -29,6 +29,8 @@ import {
   AreaChart,
   Network,
   Sheet as SheetIcon,
+  Users,
+  FileText
 } from "lucide-react";
 import type { Tool } from "../../modules/core/types";
 import { UserNav } from "./user-nav";
@@ -93,6 +95,24 @@ export function AppSidebar() {
       href: "/dashboard/tickets",
       icon: Ticket,
       bgColor: "bg-blue-500",
+      textColor: "text-white",
+    },
+    {
+      id: "customers",
+      name: "Clientes",
+      description: "Administrar base de clientes.",
+      href: "/dashboard/customers",
+      icon: Users,
+      bgColor: "bg-amber-600",
+      textColor: "text-white",
+    },
+    {
+      id: "contracts",
+      name: "Contratos",
+      description: "Contratos de soporte.",
+      href: "/dashboard/contracts",
+      icon: FileText,
+      bgColor: "bg-indigo-600",
       textColor: "text-white",
     },
     {

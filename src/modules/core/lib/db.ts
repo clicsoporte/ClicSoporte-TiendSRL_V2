@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Main database initialization and shared utility functions.
  */
@@ -83,7 +82,7 @@ export async function initializeMainDatabase(db: Database) {
         CREATE TABLE IF NOT EXISTS customers (
             id TEXT PRIMARY KEY, name TEXT, address TEXT, phone TEXT, taxId TEXT, currency TEXT,
             creditLimit REAL, paymentCondition TEXT, salesperson TEXT, active TEXT, email TEXT, electronicDocEmail TEXT,
-            supportPackageId TEXT, monthlyHoursBalance REAL
+            supportPackageId TEXT, monthlyHoursBalance REAL, isManual BOOLEAN DEFAULT FALSE
         );
 
         CREATE TABLE IF NOT EXISTS products (

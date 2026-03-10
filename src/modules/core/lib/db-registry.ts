@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Registry of database modules. 
  * This file contains metadata about the databases used in the system.
@@ -18,4 +17,5 @@ export const DB_MODULES_METADATA: DatabaseModuleMetadata[] = [
     { id: 'tickets', name: 'Soporte Técnico', dbFile: 'tickets.db' },
     { id: 'licenses', name: 'Gestión de Licencias', dbFile: 'licenses.db' },
     { id: 'timesheet', name: 'Hoja de Tiempos', dbFile: 'timesheet.db' },
+    { id: 'contracts', name: 'Gestión de Contratos', dbFile: 'contracts.db' },
 ];

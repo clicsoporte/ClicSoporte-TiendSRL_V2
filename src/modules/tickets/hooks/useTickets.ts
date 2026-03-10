@@ -9,7 +9,7 @@ import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError } from '@/modules/core/lib/logger';
 import { useAuth } from '@/modules/core/hooks/useAuth';
-import type { NewTicketPayload, Ticket, TicketPriority, TicketStatus, TicketThread, User, HelpTopic, ClientCompany, Service, SupportPackage, Customer } from '@/modules/core/types';
+import type { NewTicketPayload, Ticket, TicketPriority, TicketStatus, TicketThread, User, HelpTopic, ClientCompany, Service, Customer, Contract } from '@/modules/core/types';
 import {
     saveTicket, getTickets, getTicketById as getTicketByIdServer,
     getTicketThread as getTicketThreadServer,
@@ -17,9 +17,8 @@ import {
     updateTicketDetails as updateTicketDetailsServer,
     getHelpTopics, addClientCompany,
     deleteTicket,
-    getCustomerSupportInfo,
 } from '../lib/actions';
-import { getClientCompanies } from '../lib/db';
+import { getActiveContractForCustomer } from '@/modules/contracts/lib/actions';
 import { useDebounce } from 'use-debounce';
 
 const emptyTicket: NewTicketPayload = {
@@ -59,7 +58,7 @@ const initialState = {
     priorityFilter: 'all',
     currentThread: [] as TicketThread[],
     clientCompanies: [] as ClientCompany[],
-    customerSupportInfo: null as { customer: Customer | ClientCompany | null, supportPackage: SupportPackage | null, services: Service[] } | null,
+    customerContract: null as Contract | null,
 };
 
 const priorityConfig: { [key in TicketPriority]: { label: string, variant: 'default' | 'secondary' | 'destructive' | 'outline' } } = {
@@ -94,12 +93,9 @@ export const useTickets = () => {
     const loadInitialData = useCallback(async () => {
         updateState({ isLoading: true });
         try {
-            const [fetchedTickets, fetchedHelpTopics, fetchedClientCompanies] = await Promise.all([
-                getTickets(),
-                getHelpTopics(),
-                getClientCompanies()
-            ]);
-            updateState({ tickets: fetchedTickets, helpTopics: fetchedHelpTopics, clientCompanies: fetchedClientCompanies });
+            const fetchedTickets = await getTickets();
+            const fetchedHelpTopics = await getHelpTopics();
+            updateState({ tickets: fetchedTickets, helpTopics: fetchedHelpTopics });
         } catch (error) {
             logError("Failed to load tickets", { error: (error as Error).message });
             toast({ title: "Error", description: "No se pudieron cargar los tickets.", variant: "destructive" });
@@ -145,74 +141,28 @@ export const useTickets = () => {
             updateState({ newTicket: { ...state.newTicket, [field]: value } });
         },
 
-        handleNewCustomerChange: (field: keyof typeof emptyCustomer, value: string) => {
-            updateState({ newCustomer: { ...state.newCustomer, [field]: value } });
-        },
-
-        handleSelectCompany: async (entityIdentifier: string) => {
-            const [type, id] = entityIdentifier.split('-');
-            const entityId = type === 'manual' ? parseInt(id, 10) : id;
-
-            let companyName = '';
-            let customerName = '';
-            let customerEmail = '';
-            let companyId: number | null = null;
-            let supportInfoCustomer: Customer | ClientCompany | null = null;
-
-            if (type === 'manual') {
-                const clientCompany = state.clientCompanies.find(c => c.id === entityId);
-                if (clientCompany) {
-                    companyName = clientCompany.name;
-                    customerName = clientCompany.name;
-                    customerEmail = clientCompany.email;
-                    companyId = clientCompany.id;
-                    supportInfoCustomer = clientCompany;
-                }
-            } else if (type === 'erp') {
-                const erpCustomer = customers.find(c => c.id === entityId);
-                if (erpCustomer) {
-                    companyName = erpCustomer.name;
-                    customerName = erpCustomer.name;
-                    customerEmail = erpCustomer.email || erpCustomer.electronicDocEmail;
-                    supportInfoCustomer = erpCustomer;
-                }
-            }
+        handleSelectCompany: async (customerId: string) => {
+            const customer = customers.find(c => c.id === customerId);
+            if (!customer) return;
 
             updateState({
-                newTicket: { ...state.newTicket, companyId, companyName, customerName, customerEmail },
-                customerSearchTerm: companyName,
+                newTicket: { 
+                    ...state.newTicket, 
+                    companyId: null, // No longer using companyId from old system
+                    companyName: customer.name, 
+                    customerName: customer.name, 
+                    customerEmail: customer.email || customer.electronicDocEmail 
+                },
+                customerSearchTerm: customer.name,
                 isCustomerSearchOpen: false,
             });
             
-            if (supportInfoCustomer) {
-                const supportInfo = await getCustomerSupportInfo(supportInfoCustomer.id);
-                updateState({ customerSupportInfo: supportInfo as { customer: Customer | ClientCompany | null, supportPackage: SupportPackage | null, services: Service[] } });
-            } else {
-                updateState({ customerSupportInfo: null });
-            }
-        },
-
-        handleCreateCustomer: async () => {
-            if (!state.newCustomer.name || !state.newCustomer.taxId) {
-                toast({ title: "Datos Incompletos", description: "El nombre y la cédula jurídica son requeridos.", variant: "destructive" });
-                return;
-            }
-            updateState({ isSubmitting: true });
-            try {
-                const newCompany = await addClientCompany(state.newCustomer);
-                toast({ title: "Empresa Creada", description: "La nueva empresa cliente ha sido añadida." });
-                updateState({ isNewCustomerDialogOpen: false, newCustomer: emptyCustomer, clientCompanies: [...state.clientCompanies, newCompany] });
-            } catch (error: unknown) {
-                const err = error as Error;
-                logError("Failed to create ticket customer", { error: err.message });
-                toast({ title: "Error", description: `No se pudo crear el cliente: ${err.message}`, variant: "destructive" });
-            } finally {
-                updateState({ isSubmitting: false });
-            }
+            const activeContract = await getActiveContractForCustomer(customer.id);
+            updateState({ customerContract: activeContract });
         },
 
         handleCreateTicket: async () => {
-            const user = users.find(u => u.id === users[0]?.id); // Temporary surrogate
+            const user = users[0]; // Temporary surrogate
             if (!user || !state.newTicket.subject || !state.newTicket.content || !state.newTicket.customerName || !state.newTicket.customerEmail || !state.newTicket.serviceId) {
                 toast({ title: "Datos Incompletos", description: "Asunto, descripción, servicio y datos del cliente son requeridos.", variant: "destructive" });
                 return;
@@ -304,17 +254,7 @@ export const useTickets = () => {
         },
 
         resetNewTicketForm: () => {
-            updateState({ newTicket: emptyTicket, customerSearchTerm: '', customerSupportInfo: null });
-        },
-
-        loadCustomerSupportInfo: async (id: number | string) => {
-            try {
-                const info = await getCustomerSupportInfo(id);
-                updateState({ customerSupportInfo: info as { customer: Customer | ClientCompany | null, supportPackage: SupportPackage | null, services: Service[] } });
-            } catch (error: unknown) {
-                logError("Failed to load customer support info", { error: (error as Error).message });
-                updateState({ customerSupportInfo: null });
-            }
+            updateState({ newTicket: emptyTicket, customerSearchTerm: '', customerContract: null });
         }
     };
 
@@ -325,21 +265,13 @@ export const useTickets = () => {
             if (!users) return [];
             return users.filter(u => u.role === 'admin' || u.role === 'support-agent');
         }, [users]),
-        clientCompanyOptions: useMemo(() => {
+        customerOptions: useMemo(() => {
             if (debouncedCustomerSearch.length < 2) return [];
-
-            const clientCompanyResults = state.clientCompanies.filter(c =>
+            return customers.filter(c =>
                 c.name.toLowerCase().includes(debouncedCustomerSearch.toLowerCase()) ||
                 c.taxId.includes(debouncedCustomerSearch)
-            ).map(c => ({ value: `manual-${c.id}`, label: `${c.name} (${c.taxId})` }));
-
-            const erpCustomerResults = customers.filter(c =>
-                c.name.toLowerCase().includes(debouncedCustomerSearch.toLowerCase()) ||
-                c.taxId.includes(debouncedCustomerSearch)
-            ).map(c => ({ value: `erp-${c.id}`, label: `[ERP] ${c.name} (${c.taxId})` }));
-
-            return [...clientCompanyResults, ...erpCustomerResults];
-        }, [state.clientCompanies, customers, debouncedCustomerSearch]),
+            ).map(c => ({ value: c.id, label: `${c.name} (${c.id})` }));
+        }, [customers, debouncedCustomerSearch]),
         filteredTickets: useMemo(() => {
             return state.tickets.filter(ticket => {
                 const searchMatch = debouncedSearchTerm

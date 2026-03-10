@@ -21,8 +21,6 @@ export type User = {
   recentActivity: string;
   securityQuestion?: string;
   securityAnswer?: string;
-  supportPackageId?: string;
-  monthlyHoursBalance?: number;
 };
 
 /**
@@ -90,7 +88,7 @@ export type Role = {
 };
 
 /**
- * Represents a customer, typically imported from an ERP system.
+ * Represents a customer. Can be imported or created manually.
  */
 export type Customer = {
     id: string;
@@ -105,8 +103,27 @@ export type Customer = {
     active: 'S' | 'N';
     email: string;
     electronicDocEmail: string;
-    supportPackageId?: string;
-    monthlyHoursBalance?: number;
+    isManual?: boolean;
+};
+
+/**
+ * Represents a support contract for a client.
+ */
+export type Contract = {
+    id: number;
+    consecutive: string;
+    name: string;
+    customerId: string;
+    startDate: string;
+    endDate: string;
+    status: 'active' | 'inactive' | 'expired';
+    includedServices: string[]; // JSON array of service IDs
+    excludedServices: string[]; // JSON array of service IDs
+    monthlyHours: number;
+    price: number;
+    currency: string;
+    notes?: string;
+    createdAt: string;
 };
 
 /**
