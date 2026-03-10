@@ -14,24 +14,35 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { PlusCircle, Search, Calendar as CalendarIcon, Users, Settings, FileText, ChevronRight, Loader2, Briefcase, Truck, HardDrive, Network, ShieldCheck } from 'lucide-react';
+import { PlusCircle, Calendar as CalendarIcon, Users, FileText, ChevronRight, Loader2, Briefcase, Truck, Network, ShieldCheck, Radio, Monitor, Zap, Lock } from 'lucide-react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { getProjects, createProject } from '@/modules/planner/lib/actions';
-import type { TIProject, Customer, ProjectStatus, ProjectPriority, User, ThirdPartyProvider } from '@/modules/core/types';
+import type { TIProject, ProjectStatus, ProjectPriority, ProjectCategory, ThirdPartyProvider } from '@/modules/core/types';
 import { format, parseISO } from 'date-fns';
-import { es } from 'date-fns/locale';
 import { SearchInput } from '@/components/ui/search-input';
 import { useDebounce } from 'use-debounce';
 import Link from 'next/link';
 import { getThirdPartyProviders } from '@/modules/tickets/lib/actions';
+import { cn } from '@/lib/utils';
 
-const statusConfig: { [key in ProjectStatus]: { label: string, color: string, icon: any } } = {
-    planning: { label: 'Planeación', color: 'bg-yellow-500', icon: FileText },
-    execution: { label: 'Ejecución', color: 'bg-blue-500', icon: Briefcase },
-    testing: { label: 'Pruebas', color: 'bg-purple-500', icon: ShieldCheck },
-    completed: { label: 'Finalizado', color: 'bg-green-600', icon: ShieldCheck },
-    canceled: { label: 'Cancelado', color: 'bg-red-600', icon: ShieldCheck },
+const statusConfig: { [key in ProjectStatus]: { label: string, color: string } } = {
+    planning: { label: 'Planeación', color: 'bg-yellow-500' },
+    execution: { label: 'Ejecución', color: 'bg-blue-500' },
+    testing: { label: 'Pruebas', color: 'bg-purple-500' },
+    completed: { label: 'Finalizado', color: 'bg-green-600' },
+    canceled: { label: 'Cancelado', color: 'bg-red-600' },
+};
+
+const categoryConfig: { [key in ProjectCategory]: { label: string, icon: any, color: string } } = {
+    cctv: { label: 'Video Vigilancia (CCTV)', icon: Monitor, color: 'text-blue-600' },
+    alarms: { label: 'Seguridad (Alarmas)', icon: Lock, color: 'text-red-600' },
+    wireless: { label: 'Redes Inalámbricas', icon: Radio, color: 'text-cyan-600' },
+    pos: { label: 'Puntos de Venta (POS)', icon: Briefcase, color: 'text-orange-600' },
+    fencing: { label: 'Cercados Perimetrales', icon: Zap, color: 'text-yellow-600' },
+    server: { label: 'Infraestructura Servidores', icon: Network, color: 'text-indigo-600' },
+    networking: { label: 'Cableado Estructurado', icon: Network, color: 'text-emerald-600' },
+    telephony: { label: 'Telefonía IP', icon: Network, color: 'text-violet-600' },
+    other: { label: 'Otro Servicio TI', icon: FileText, color: 'text-gray-600' },
 };
 
 const priorityConfig: { [key in ProjectPriority]: { label: string, color: string } } = {
@@ -61,6 +72,7 @@ export default function TIPlannerPage() {
         name: '',
         customerId: '',
         customerName: '',
+        category: 'other',
         status: 'planning',
         priority: 'medium',
         startDate: new Date().toISOString().split('T')[0],
@@ -128,7 +140,7 @@ export default function TIPlannerPage() {
     };
 
     if (isLoading || isAuthLoading) {
-        return <div className="p-8 space-y-4"><Loader2 className="h-12 w-12 animate-spin mx-auto text-primary" /></div>;
+        return <div className="flex h-screen items-center justify-center"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
     }
 
     const coordinators = users.filter(u => u.role === 'admin' || u.role === 'support-agent');
@@ -137,7 +149,7 @@ export default function TIPlannerPage() {
         <main className="flex-1 p-4 md:p-6 lg:p-8 space-y-6">
             <div className="flex justify-between items-center">
                 <h1 className="text-2xl font-bold flex items-center gap-2">
-                    <Network className="h-6 w-6 text-primary" /> Proyectos TI Activos
+                    <Network className="h-6 w-6 text-primary" /> Proyectos TI Llave en Mano
                 </h1>
                 <Dialog open={isFormOpen} onOpenChange={setFormOpen}>
                     <DialogTrigger asChild>
@@ -145,11 +157,27 @@ export default function TIPlannerPage() {
                     </DialogTrigger>
                     <DialogContent className="sm:max-w-4xl">
                         <DialogHeader>
-                            <DialogTitle>Iniciar Nuevo Proyecto TI</DialogTitle>
-                            <DialogDescription>Define el alcance, responsables y cronograma inicial.</DialogDescription>
+                            <DialogTitle>Iniciar Proyecto TI Integral</DialogTitle>
+                            <DialogDescription>Define el alcance técnico, los equipos y el personal involucrado.</DialogDescription>
                         </DialogHeader>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
                             <div className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label>Categoría de Servicio</Label>
+                                    <Select value={newProject.category} onValueChange={v => setNewProject({...newProject, category: v as ProjectCategory})}>
+                                        <SelectTrigger><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                            {Object.entries(categoryConfig).map(([key, config]) => (
+                                                <SelectItem key={key} value={key}>
+                                                    <div className="flex items-center gap-2">
+                                                        <config.icon className={cn("h-4 w-4", config.color)} />
+                                                        <span>{config.label}</span>
+                                                    </div>
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
                                 <div className="space-y-2">
                                     <Label>Cliente</Label>
                                     <SearchInput 
@@ -164,7 +192,7 @@ export default function TIPlannerPage() {
                                 </div>
                                 <div className="space-y-2">
                                     <Label>Nombre del Proyecto</Label>
-                                    <Input value={newProject.name} onChange={e => setNewProject({...newProject, name: e.target.value})} placeholder="Ej: Instalación de Cámaras de Seguridad" />
+                                    <Input value={newProject.name} onChange={e => setNewProject({...newProject, name: e.target.value})} placeholder="Ej: Sistema Paradox Central" />
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
@@ -188,18 +216,18 @@ export default function TIPlannerPage() {
                                     </Select>
                                 </div>
                                 <div className="space-y-2">
-                                    <Label>Subcontratista (Opcional)</Label>
+                                    <Label>Subcontratista (Instalador Externo)</Label>
                                     <Select value={String(newProject.subcontractorId || 'none')} onValueChange={v => setNewProject({...newProject, subcontractorId: v === 'none' ? null : Number(v)})}>
-                                        <SelectTrigger><SelectValue placeholder="Sin tercero externo" /></SelectTrigger>
+                                        <SelectTrigger><SelectValue placeholder="Gestión Interna Completa" /></SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="none">Gestión Interna</SelectItem>
+                                            <SelectItem value="none">Gestión Interna Completa</SelectItem>
                                             {providers.map(p => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}
                                         </SelectContent>
                                     </Select>
                                 </div>
                                 <div className="space-y-2">
-                                    <Label>Alcance / Descripción Inicial</Label>
-                                    <Textarea value={newProject.description} onChange={e => setNewProject({...newProject, description: e.target.value})} rows={3} placeholder="Detalla los objetivos del proyecto..." />
+                                    <Label>Descripción Llave en Mano</Label>
+                                    <Textarea value={newProject.description} onChange={e => setNewProject({...newProject, description: e.target.value})} rows={3} placeholder="Detalla los entregables finales y configuración..." />
                                 </div>
                             </div>
                         </div>
@@ -207,7 +235,7 @@ export default function TIPlannerPage() {
                             <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
                             <Button onClick={handleCreate} disabled={isSubmitting}>
                                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                Crear e Iniciar Planeación
+                                Abrir Proyecto
                             </Button>
                         </DialogFooter>
                     </DialogContent>
@@ -215,42 +243,50 @@ export default function TIPlannerPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {projects.map(project => (
-                    <Link key={project.id} href={`/dashboard/planner/${project.id}`}>
-                        <Card className="hover:shadow-md transition-all cursor-pointer group">
-                            <CardHeader className="pb-2">
-                                <div className="flex justify-between items-start mb-2">
-                                    <Badge variant="secondary" className="font-mono text-[10px]">{project.consecutive}</Badge>
-                                    <Badge className={statusConfig[project.status].color}>{statusConfig[project.status].label}</Badge>
-                                </div>
-                                <CardTitle className="text-lg group-hover:text-primary transition-colors">{project.name}</CardTitle>
-                                <CardDescription>{project.customerName}</CardDescription>
-                            </CardHeader>
-                            <CardContent className="py-2 space-y-3">
-                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                    <CalendarIcon className="h-3 w-3" />
-                                    <span>{format(parseISO(project.startDate), 'dd/MM/yy')} al {format(parseISO(project.endDate), 'dd/MM/yy')}</span>
-                                </div>
-                                <div className="flex items-center gap-4">
-                                    <div className="flex items-center gap-1 text-[10px] uppercase font-bold text-muted-foreground">
-                                        <Users className="h-3 w-3" /> 
-                                        {users.find(u => u.id === project.coordinatorId)?.name.split(' ')[0]}
-                                    </div>
-                                    {project.subcontractorId && (
-                                        <div className="flex items-center gap-1 text-[10px] uppercase font-bold text-amber-600">
-                                            <Truck className="h-3 w-3" /> 
-                                            Ext.
+                {projects.map(project => {
+                    const CategoryIcon = categoryConfig[project.category]?.icon || FileText;
+                    const catInfo = categoryConfig[project.category] || categoryConfig.other;
+                    
+                    return (
+                        <Link key={project.id} href={`/dashboard/planner/${project.id}`}>
+                            <Card className="hover:shadow-md transition-all cursor-pointer group border-l-4" style={{ borderLeftColor: 'currentColor' }}>
+                                <CardHeader className="pb-2">
+                                    <div className="flex justify-between items-start mb-2">
+                                        <div className="flex items-center gap-2">
+                                            <CategoryIcon className={cn("h-5 w-5", catInfo.color)} />
+                                            <Badge variant="secondary" className="font-mono text-[10px]">{project.consecutive}</Badge>
                                         </div>
-                                    )}
-                                </div>
-                            </CardContent>
-                            <CardFooter className="pt-2 border-t text-xs flex justify-between">
-                                <span className={cn("font-bold", priorityConfig[project.priority].color.replace('bg-', 'text-'))}>Prioridad {priorityConfig[project.priority].label}</span>
-                                <ChevronRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" />
-                            </CardFooter>
-                        </Card>
-                    </Link>
-                ))}
+                                        <Badge className={statusConfig[project.status].color}>{statusConfig[project.status].label}</Badge>
+                                    </div>
+                                    <CardTitle className="text-lg group-hover:text-primary transition-colors">{project.name}</CardTitle>
+                                    <CardDescription>{project.customerName}</CardDescription>
+                                </CardHeader>
+                                <CardContent className="py-2 space-y-3">
+                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                        <CalendarIcon className="h-3 w-3" />
+                                        <span>{format(parseISO(project.startDate), 'dd/MM/yy')} al {format(parseISO(project.endDate), 'dd/MM/yy')}</span>
+                                    </div>
+                                    <div className="flex items-center gap-4">
+                                        <div className="flex items-center gap-1 text-[10px] uppercase font-bold text-muted-foreground">
+                                            <Users className="h-3 w-3" /> 
+                                            {users.find(u => u.id === project.coordinatorId)?.name.split(' ')[0]}
+                                        </div>
+                                        {project.subcontractorId && (
+                                            <div className="flex items-center gap-1 text-[10px] uppercase font-bold text-amber-600">
+                                                <Truck className="h-3 w-3" /> 
+                                                Ext.
+                                            </div>
+                                        )}
+                                    </div>
+                                </CardContent>
+                                <CardFooter className="pt-2 border-t text-xs flex justify-between">
+                                    <span className={cn("font-bold", priorityConfig[project.priority].color.replace('bg-', 'text-'))}>Prioridad {priorityConfig[project.priority].label}</span>
+                                    <ChevronRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                </CardFooter>
+                            </Card>
+                        </Link>
+                    )
+                })}
                 {projects.length === 0 && (
                     <div className="col-span-full py-20 text-center border-2 border-dashed rounded-lg bg-muted/20">
                         <p className="text-muted-foreground">No hay proyectos registrados en este momento.</p>

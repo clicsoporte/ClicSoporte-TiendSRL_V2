@@ -18,7 +18,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "../../../components/ui/accordion";
-import { DollarSign, ShieldQuestion, LifeBuoy, Rocket, CalendarCheck, CheckCircle, Wrench, Save, Copy, AlertTriangle, Play, Pause, History, Undo2, BadgeInfo, CreditCard, MessageSquare, Trash2, Download, Briefcase, ListChecks, Hourglass, Ticket, KeyRound, AreaChart, FileScan, UploadCloud, Network } from "lucide-react";
+import { DollarSign, ShieldQuestion, LifeBuoy, Rocket, CalendarCheck, CheckCircle, Wrench, Save, Copy, AlertTriangle, Play, Pause, History, Undo2, BadgeInfo, CreditCard, MessageSquare, Trash2, Download, Briefcase, ListChecks, Hourglass, Ticket, KeyRound, AreaChart, FileScan, UploadCloud, Network, Zap, Lock, Radio, MousePointer2 } from "lucide-react";
 import { Skeleton } from "../../../components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAuth } from "@/modules/core/hooks/useAuth";
@@ -174,45 +174,47 @@ export default function HelpPage() {
                 <AccordionItem value="item-planner">
                 <AccordionTrigger className="text-lg font-semibold">
                     <CalendarCheck className="mr-4 h-6 w-6 text-purple-500" />
-                    Tutorial: Módulo Gestor de Proyectos
+                    Tutorial: Módulo Gestor de Proyectos TI (Llave en Mano)
                 </AccordionTrigger>
                 <AccordionContent className="prose max-w-none text-base space-y-4">
                     <p>
-                    Organiza y visualiza la carga de trabajo del taller o la producción. Permite un seguimiento detallado de cada proyecto.
+                    Organiza y visualiza la carga de trabajo de proyectos integrales. Permite un seguimiento detallado desde la venta de equipos hasta la configuración final.
                     </p>
+                    
+                    <h4 className="font-semibold text-lg flex items-center gap-2"><Lock className="h-5 w-5 text-red-600"/> Caso: Alarmas Paradox / Seguridad</h4>
+                    <ul className="list-disc space-y-2 pl-6 text-sm">
+                        <li><strong>Materiales:</strong> Agrega paneles centralizados, sensores de movimiento, teclados y sirenas.</li>
+                        <li><strong>Mano de Obra:</strong> Subcontrata la instalación física a un tercero.</li>
+                        <li><strong>Configuración:</strong> El coordinador de soporte realiza la programación de zonas y pruebas de comunicación.</li>
+                    </ul>
+
+                    <h4 className="font-semibold text-lg flex items-center gap-2"><Radio className="h-5 w-5 text-cyan-600"/> Caso: Enlaces Inalámbricos (Ubiquiti)</h4>
+                    <ul className="list-disc space-y-2 pl-6 text-sm">
+                        <li><strong>Hitos:</strong> Registro de bitácora para "Línea de vista confirmada" y "Alineación de antenas".</li>
+                        <li><strong>Documentación:</strong> Sube fotos de la intensidad de señal y fotos de las antenas instaladas en torre.</li>
+                    </ul>
+
+                    <h4 className="font-semibold text-lg flex items-center gap-2"><Briefcase className="h-5 w-5 text-orange-600"/> Caso: Punto de Venta (POS)</h4>
+                    <ul className="list-disc space-y-2 pl-6 text-sm">
+                        <li><strong>Integración:</strong> Consolida PC, Escáner, Caja de dinero e Impresora térmica en un solo "Acta de Entrega".</li>
+                        <li><strong>Capacitación:</strong> Registra en bitácora el tiempo invertido en enseñar al cliente el uso del software.</li>
+                    </ul>
+
+                    <h4 className="font-semibold text-lg flex items-center gap-2"><Zap className="h-5 w-5 text-yellow-600"/> Caso: Cercado Eléctrico</h4>
+                    <ul className="list-disc space-y-2 pl-6 text-sm">
+                        <li><strong>Involucrados:</strong> Asigna al proveedor de cercados externo mientras el equipo de soporte monitorea la integración con la alarma.</li>
+                    </ul>
+
+                    <h4 className="font-semibold text-lg border-t pt-2">Flujo General:</h4>
                     <ul className="list-disc space-y-3 pl-6">
                         <li>
-                            <strong>Paso 1: Crear Proyectos.</strong> Similar a los otros módulos, crea un nuevo proyecto buscando al cliente y el producto. Establece la cantidad, la fecha de entrega y la prioridad.
+                            <strong>Paso 1: Crear Proyecto y Categorizar.</strong> Selecciona el tipo de servicio (CCTV, Alarma, Wireless, etc.) para habilitar el icono correspondiente.
                         </li>
                         <li>
-                            <strong>Paso 2: Flujo de Estados y Trazabilidad.</strong>
-                            <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
-                                <li><strong>Pendiente:</strong> El proyecto ha sido creado y espera aprobación.</li>
-                                <li><strong>Aprobado (<CheckCircle className="inline h-4 w-4 text-green-600"/>):</strong> El proyecto está autorizado para producción.</li>
-                                <li><strong>En Cola (<Hourglass className="inline h-4 w-4 text-cyan-600"/>):</strong> El proyecto está listo, esperando que se libere un recurso para poder iniciar.</li>
-                                <li><strong>En Progreso (<Play className="inline h-4 w-4 text-blue-600"/>):</strong> El proyecto se está produciendo activamente.</li>
-                                <li><strong>En Espera / Mantenimiento (<Pause className="inline h-4 w-4 text-gray-600"/>):</strong> La producción se detuvo temporalmente.</li>
-                                <li><strong>Completado:</strong> El proyecto ha finalizado satisfactoriamente.</li>
-                            </ul>
+                            <strong>Paso 2: Registro de Bitácora (<History className="inline h-4 w-4"/>).</strong> Documenta cada visita técnica y cambio de equipo.
                         </li>
                         <li>
-                            <strong>Paso 3: Alertas y Solicitudes de Cambio.</strong>
-                            <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
-                                <li><strong>Aviso de &quot;Modificado&quot; (<AlertTriangle className="inline h-4 w-4 text-red-600" />):</strong> Si un proyecto se edita después de ser aprobado, aparecerá esta alerta para notificar a todos sobre el cambio.</li>
-                                <li><strong>Solicitar Desaprobación (<Undo2 className="inline h-4 w-4 text-orange-600"/>):</strong> Si un proyecto ya aprobado necesita un cambio mayor, un usuario puede &quot;Solicitar Desaprobación&quot;. Esto bloquea el proyecto y requiere que un administrador la apruebe o rechace.</li>
-                                <li><strong>Solicitar Cancelación:</strong> Permite pedir la cancelación de un proyecto que ya está en el flujo, requiriendo aprobación administrativa.</li>
-                            </ul>
-                        </li>
-                        <li>
-                            <strong>Paso 4: Programación y Prioridades.</strong>
-                            <ul className="list-[circle] space-y-2 pl-5 mt-2 text-sm">
-                                <li><strong>Programación por Rango:</strong> Haz clic en el área de &quot;Fecha Programada&quot; para abrir un calendario y seleccionar un rango de fechas.</li>
-                                <li><strong>Asignación:</strong> Asigna cada proyecto a un recurso u operario específico.</li>
-                                <li><strong>Prioridades y Cuenta Regresiva:</strong> Usa el selector de prioridad para organizar el trabajo.</li>
-                            </ul>
-                        </li>
-                        <li>
-                            <strong>Historial (<History className="inline h-4 w-4"/>):</strong> Haz clic en el icono de historial en cualquier proyecto para ver un registro detallado de cada cambio.
+                            <strong>Paso 3: Cierre y Acta de Entrega (<Download className="inline h-4 w-4"/>).</strong> Genera el PDF final que detalla todo lo entregado "Llave en Mano" para que administración proceda con el cobro.
                         </li>
                     </ul>
                 </AccordionContent>

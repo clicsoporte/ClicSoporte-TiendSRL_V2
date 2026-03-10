@@ -25,6 +25,7 @@ export async function initializePlannerDb(db: Database) {
             name TEXT NOT NULL,
             customerId TEXT NOT NULL,
             customerName TEXT NOT NULL,
+            category TEXT NOT NULL DEFAULT 'other', -- alarms, wireless, pos, fencing, cctv, etc.
             status TEXT NOT NULL, -- planning, execution, testing, completed, canceled
             priority TEXT NOT NULL, -- low, medium, high, urgent
             startDate TEXT NOT NULL,
@@ -75,10 +76,12 @@ export async function initializePlannerDb(db: Database) {
 }
 
 export async function runPlannerMigrations(db: Database) {
-    // Migration logic if tables exist from previous versions
-    const hasProjects = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='projects'`).get();
-    if (!hasProjects) {
-        await initializePlannerDb(db);
+    const tableInfo = db.prepare(`PRAGMA table_info(projects)`).all() as { name: string }[];
+    const columns = new Set(tableInfo.map(c => c.name));
+    
+    if (!columns.has('category')) {
+        console.log("MIGRATION (planner.db): Adding 'category' column to 'projects' table.");
+        db.exec(`ALTER TABLE projects ADD COLUMN category TEXT NOT NULL DEFAULT 'other';`);
     }
 }
 
@@ -119,9 +122,9 @@ export async function addProject(project: Omit<TIProject, 'id' | 'consecutive' |
     const now = new Date().toISOString();
 
     const info = db.prepare(`
-        INSERT INTO projects (consecutive, name, customerId, customerName, status, priority, startDate, endDate, coordinatorId, subcontractorId, description, notes, createdAt, updatedAt)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(consecutive, project.name, project.customerId, project.customerName, project.status, project.priority, project.startDate, project.endDate, project.coordinatorId, project.subcontractorId, project.description, project.notes, now, now);
+        INSERT INTO projects (consecutive, name, customerId, customerName, category, status, priority, startDate, endDate, coordinatorId, subcontractorId, description, notes, createdAt, updatedAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(consecutive, project.name, project.customerId, project.customerName, project.category, project.status, project.priority, project.startDate, project.endDate, project.coordinatorId, project.subcontractorId, project.description, project.notes, now, now);
 
     await saveSettings({ nextProjectNumber: nextNum + 1 });
     return db.prepare('SELECT * FROM projects WHERE id = ?').get(info.lastInsertRowid) as TIProject;
@@ -132,11 +135,11 @@ export async function updateProject(project: TIProject): Promise<TIProject> {
     const now = new Date().toISOString();
     db.prepare(`
         UPDATE projects SET
-            name = ?, status = ?, priority = ?, startDate = ?, endDate = ?,
+            name = ?, category = ?, status = ?, priority = ?, startDate = ?, endDate = ?,
             coordinatorId = ?, subcontractorId = ?, description = ?, notes = ?,
             billingStatus = ?, updatedAt = ?
         WHERE id = ?
-    `).run(project.name, project.status, project.priority, project.startDate, project.endDate, project.coordinatorId, project.subcontractorId, project.description, project.notes, project.billingStatus, now, project.id);
+    `).run(project.name, project.category, project.status, project.priority, project.startDate, project.endDate, project.coordinatorId, project.subcontractorId, project.description, project.notes, project.billingStatus, now, project.id);
     return project;
 }
 

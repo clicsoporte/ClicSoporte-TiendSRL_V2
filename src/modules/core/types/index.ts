@@ -267,6 +267,7 @@ export type ExemptionLaw = {
 
 export type ProjectStatus = 'planning' | 'execution' | 'testing' | 'completed' | 'canceled';
 export type ProjectPriority = 'low' | 'medium' | 'high' | 'urgent';
+export type ProjectCategory = 'cctv' | 'alarms' | 'wireless' | 'pos' | 'fencing' | 'server' | 'networking' | 'telephony' | 'other';
 
 export type TIProject = {
   id: number;
@@ -276,6 +277,7 @@ export type TIProject = {
   customerName: string;
   status: ProjectStatus;
   priority: ProjectPriority;
+  category: ProjectCategory;
   startDate: string;
   endDate: string;
   coordinatorId: number; // Internal support agent
