@@ -133,7 +133,7 @@ export default function PlannerSettingsPage() {
                                     onChange={(e) => setSettings(prev => prev ? { ...prev, assignmentLabel: e.target.value } : null)}
                                 />
                                 <p className="text-sm text-muted-foreground">
-                                    Cambia el texto que se muestra para la asignación (ej: "Técnico", "Recurso", "Encargado").
+                                    Cambia el texto que se muestra para la asignación (ej: &quot;Técnico&quot;, &quot;Recurso&quot;, &quot;Encargado&quot;).
                                 </p>
                             </div>
                         </div>
