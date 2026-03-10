@@ -1,130 +1,123 @@
 /**
- * @fileoverview Server-side authentication and user management functions.
+ * @fileoverview Server-side authentication using HttpOnly cookies and React cache.
  */
 "use server";
 
+import { cache } from 'react';
+import { cookies } from 'next/headers';
 import { connectDb } from './db';
 import type { User } from '../types';
 import bcrypt from 'bcryptjs';
 import { logInfo, logWarn } from './logger';
-import { headers } from 'next/headers';
 
+const SESSION_COOKIE = 'clic_tools_session';
 const SALT_ROUNDS = 10;
 
-export async function login(email: string, passwordProvided: string): Promise<User | null> {
-  const db = await connectDb();
-  const requestHeaders = headers();
-  const clientIp = requestHeaders.get('x-forwarded-for') ?? 'Unknown IP';
-  const clientHost = requestHeaders.get('host') ?? 'Unknown Host';
-  const logMeta = { email, ip: clientIp, host: clientHost };
-  
-  try {
-    const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email) as User | undefined;
+/**
+ * Retrieves the currently authenticated user based on the session cookie.
+ * Cached per request to ensure efficiency.
+ */
+export const getCurrentUser = cache(async (): Promise<User | null> => {
+    const cookieStore = cookies();
+    const userId = cookieStore.get(SESSION_COOKIE)?.value;
 
-    if (user && user.password) {
-      const isMatch = await bcrypt.compare(passwordProvided, user.password);
-      if (isMatch) {
-        const userWithoutPassword = { ...user };
-        delete userWithoutPassword.password;
-        await logInfo(`User '${user.name}' logged in successfully.`, logMeta);
-        return JSON.parse(JSON.stringify(userWithoutPassword));
-      }
-    }
-    await logWarn(`Failed login attempt for email: ${email}`, logMeta);
-    return null;
-  } catch (error: unknown) {
-    console.error("Login error:", error);
-    await logWarn(`Login failed for email: ${email}`, logMeta);
-    return null;
-  }
-}
+    if (!userId) return null;
 
-export async function logout(userId: number): Promise<void> {
-    const db = await connectDb();
-    const user = db.prepare('SELECT name FROM users WHERE id = ?').get(userId) as { name: string } | undefined;
-    if (user) await logInfo(`User '${user.name}' logged out.`, { userId });
-}
-
-export async function getAllUsers(): Promise<User[]> {
-    const db = await connectDb();
     try {
-        const users = db.prepare('SELECT * FROM users ORDER BY name').all() as User[];
-        const safeUsers = users.map((u) => {
-            const safe = { ...u };
-            delete safe.password;
-            return safe;
-        });
-        return JSON.parse(JSON.stringify(safeUsers));
-    } catch (error) {
-        console.error("Failed to get all users:", error);
-        return [];
-    }
-}
+        const db = await connectDb();
+        const user = db.prepare('SELECT * FROM users WHERE id = ?').get(Number(userId)) as User | undefined;
 
-export async function getUserById(id: number): Promise<User | null> {
-    const db = await connectDb();
-    try {
-        const user = db.prepare('SELECT * FROM users WHERE id = ?').get(id) as User | undefined;
         if (!user) return null;
-        const userWithoutPassword = { ...user };
-        delete userWithoutPassword.password;
-        return JSON.parse(JSON.stringify(userWithoutPassword));
+
+        const { password: _, ...safeUser } = user;
+        return JSON.parse(JSON.stringify(safeUser));
     } catch (error) {
-        console.error(`Failed to get user by ID ${id}:`, error);
+        console.error("Error fetching current user:", error);
+        return null;
+    }
+});
+
+export async function login(email: string, passwordProvided: string): Promise<User | null> {
+    const db = await connectDb();
+    try {
+        const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email) as User | undefined;
+
+        if (user && user.password) {
+            const isMatch = await bcrypt.compare(passwordProvided, user.password);
+            if (isMatch) {
+                cookies().set(SESSION_COOKIE, String(user.id), {
+                    httpOnly: true,
+                    secure: process.env.NODE_ENV === 'production',
+                    sameSite: 'lax',
+                    maxAge: 60 * 60 * 8, // 8 hours
+                    path: '/',
+                });
+
+                const { password: _, ...safeUser } = user;
+                await logInfo(`User '${user.name}' logged in successfully.`);
+                return JSON.parse(JSON.stringify(safeUser));
+            }
+        }
+        await logWarn(`Failed login attempt for email: ${email}`);
+        return null;
+    } catch (error) {
+        console.error("Login error:", error);
         return null;
     }
 }
 
-export async function addUser(userData: Omit<User, 'id' | 'avatar' | 'recentActivity' | 'securityQuestion' | 'securityAnswer'> & { password: string }): Promise<User> {
-  const db = await connectDb();
-  const hashedPassword = bcrypt.hashSync(userData.password, SALT_ROUNDS);
-  const highestIdResult = db.prepare('SELECT MAX(id) as maxId FROM users').get() as { maxId: number | null };
-  const nextId = (highestIdResult.maxId || 0) + 1;
-
-  const userToCreate: User = {
-    id: nextId,
-    name: userData.name,
-    email: userData.email,
-    password: hashedPassword,
-    role: userData.role,
-    avatar: "",
-    recentActivity: "Usuario recién creado.",
-    phone: userData.phone || "",
-    whatsapp: userData.whatsapp || "",
-  };
-  
-  db.prepare(`INSERT INTO users (id, name, email, password, phone, whatsapp, avatar, role, recentActivity, securityQuestion, securityAnswer) VALUES (@id, @name, @email, @password, @phone, @whatsapp, @avatar, @role, @recentActivity, @securityQuestion, @securityAnswer)`)
-    .run({ ...userToCreate, phone: userToCreate.phone || null, whatsapp: userToCreate.whatsapp || null, securityQuestion: userToCreate.securityQuestion || null, securityAnswer: userToCreate.securityAnswer || null });
-
-  const userWithoutPassword = { ...userToCreate };
-  delete userWithoutPassword.password;
-  await logInfo(`Admin added user: ${userToCreate.name}`, { role: userToCreate.role });
-  return JSON.parse(JSON.stringify(userWithoutPassword));
+export async function logout(): Promise<void> {
+    const user = await getCurrentUser();
+    if (user) await logInfo(`User '${user.name}' logged out.`);
+    cookies().delete(SESSION_COOKIE);
 }
 
-export async function saveAllUsers(users: User[]): Promise<void> {
-   const db = await connectDb();
-   const upsert = db.prepare(`INSERT INTO users (id, name, email, password, phone, whatsapp, avatar, role, recentActivity, securityQuestion, securityAnswer) VALUES (@id, @name, @email, @password, @phone, @whatsapp, @avatar, @role, @recentActivity, @securityQuestion, @securityAnswer) ON CONFLICT(id) DO UPDATE SET name = excluded.name, email = excluded.email, password = excluded.password, phone = excluded.phone, whatsapp = excluded.whatsapp, avatar = excluded.avatar, role = excluded.role, recentActivity = excluded.recentActivity, securityQuestion = excluded.securityQuestion, securityAnswer = excluded.securityAnswer`);
-
-    const transaction = db.transaction((usersToSave: User[]) => {
-        const existingUsers = new Map<number, string | undefined>((db.prepare('SELECT id, password FROM users').all() as User[]).map(u => [u.id, u.password]));
-        for (const user of usersToSave) {
-          let passwordToSave = user.password || existingUsers.get(user.id);
-          if (passwordToSave && !passwordToSave.startsWith('$2a$')) {
-              passwordToSave = bcrypt.hashSync(passwordToSave, SALT_ROUNDS);
-          }
-          upsert.run({ ...user, password: passwordToSave, phone: user.phone || null, whatsapp: user.whatsapp || null, securityQuestion: user.securityQuestion || null, securityAnswer: user.securityAnswer || null });
-        }
-    });
-
-    transaction(users);
-}
-
-export async function comparePasswords(userId: number, password: string, clientInfo?: { ip: string, host: string }): Promise<boolean> {
+export async function getAllUsers(): Promise<User[]> {
     const db = await connectDb();
-    const user = db.prepare('SELECT password FROM users WHERE id = ?').get(userId) as User | undefined;
-    if (!user || !user.password) return false;
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) await logWarn('Password comparison failed during settings update.', clientInfo);
-    return isMatch;
+    const rows = db.prepare('SELECT id, name, email, phone, whatsapp, role, avatar, forcePasswordChange FROM users ORDER BY name').all() as User[];
+    return JSON.parse(JSON.stringify(rows));
+}
+
+export async function addUser(userData: Omit<User, 'id'> & { password: string }): Promise<User> {
+    const db = await connectDb();
+    const hashedPassword = bcrypt.hashSync(userData.password, SALT_ROUNDS);
+    
+    const info = db.prepare(`
+        INSERT INTO users (name, email, password, phone, whatsapp, role, forcePasswordChange)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(userData.name, userData.email, hashedPassword, userData.phone, userData.whatsapp, userData.role, userData.forcePasswordChange ? 1 : 0);
+
+    const newUser = db.prepare('SELECT * FROM users WHERE id = ?').get(info.lastInsertRowid) as User;
+    const { password: _, ...safeUser } = newUser;
+    return JSON.parse(JSON.stringify(safeUser));
+}
+
+export async function updateUser(user: User): Promise<User> {
+    const db = await connectDb();
+    let query = 'UPDATE users SET name = ?, email = ?, phone = ?, whatsapp = ?, role = ?, forcePasswordChange = ?';
+    const params: any[] = [user.name, user.email, user.phone, user.whatsapp, user.role, user.forcePasswordChange ? 1 : 0];
+
+    if (user.password) {
+        query += ', password = ?';
+        params.push(bcrypt.hashSync(user.password, SALT_ROUNDS));
+    }
+
+    query += ' WHERE id = ?';
+    params.push(user.id);
+
+    db.prepare(query).run(...params);
+    return user;
+}
+
+export async function deleteUser(id: number): Promise<void> {
+    const db = await connectDb();
+    if (id === 1) throw new Error("No se puede eliminar al admin principal.");
+    db.prepare('DELETE FROM users WHERE id = ?').run(id);
+}
+
+export async function comparePasswords(userId: number, password: string): Promise<boolean> {
+    const db = await connectDb();
+    const user = db.prepare('SELECT password FROM users WHERE id = ?').get(userId) as { password?: string };
+    if (!user?.password) return false;
+    return await bcrypt.compare(password, user.password);
 }

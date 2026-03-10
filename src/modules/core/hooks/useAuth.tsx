@@ -1,211 +1,86 @@
-
 /**
- * @fileoverview This file defines a central authentication context and hook.
- * It provides a single source of truth for the current user, their role, company data,
- * and loading status, preventing redundant data fetching and component re-renders.
+ * @fileoverview Optimized authentication context provider.
  */
 'use client';
 
 import React, { createContext, useState, useContext, ReactNode, FC, useEffect, useCallback } from "react";
-import type { User, Role, Company, Product, StockInfo, Customer, Exemption, ExemptionLaw } from "../types";
-import { getCurrentUser as getCurrentUserClient, getAllUsers } from '../lib/auth-client';
-import { getAllRoles } from '../lib/roles-db';
-import { getCompanySettings, getAndCacheExchangeRate, getExemptionLaws } from '../lib/settings-db';
-import { getAllCustomers, getAllProducts, getAllStock, getAllExemptions } from '../lib/data-access-db';
-import { getUnreadSuggestionsCount } from '../lib/suggestions-actions';
-import { usePathname, useRouter } from "next/navigation";
+import type { User, Role, Company } from "../types";
+import { getCurrentUser, logout as logoutServer } from '../lib/auth-client';
+import { getInitialAuthData } from '../lib/auth';
+import { useRouter, usePathname } from "next/navigation";
 import { Loader2 } from "lucide-react";
 
-/**
- * Defines the shape of the authentication context's value.
- */
 interface AuthContextType {
   user: User | null;
   userRole: Role | null;
-  users: User[];
-  roles: Role[];
   companyData: Company | null;
-  setCompanyData: (data: Company) => void;
-  customers: Customer[];
-  products: Product[];
-  stockLevels: StockInfo[];
-  allExemptions: Exemption[];
-  exemptionLaws: ExemptionLaw[];
-  unreadSuggestionsCount: number;
-  updateUnreadSuggestionsCount: () => Promise<void>;
-  exchangeRateData: { rate: number | null, date: string | null };
-  isLoading: boolean;
-  hasPermission: (permission: string) => boolean;
-  refreshAuth: () => Promise<{ isAuthenticated: boolean; } | void>;
-  refreshAuthAndRedirect: (path: string) => Promise<void>;
-  refreshExchangeRate: () => Promise<void>;
+  isAuthReady: boolean;
+  refreshAuth: () => Promise<void>;
+  logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const FullPageLoader = () => (
-    <div className="flex h-screen w-full items-center justify-center bg-background">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-    </div>
-);
-
-
-/**
- * The provider component that wraps the authenticated parts of the application.
- * It handles the initial loading of all authentication-related data.
- * @param {object} props - The component props.
- * @param {ReactNode} props.children - The child components to render.
- */
 export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
+  const [user, setUser] = useState<User | null>(null);
+  const [userRole, setUserRole] = useState<Role | null>(null);
+  const [companyData, setCompanyData] = useState<Company | null>(null);
+  const [isAuthReady, setIsAuthReady] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
-  const [user, setUser] = useState<User | null>(null);
-  const [users, setUsers] = useState<User[]>([]);
-  const [userRole, setUserRole] = useState<Role | null>(null);
-  const [roles, setRoles] = useState<Role[]>([]);
-  const [companyData, setCompanyData] = useState<Company | null>(null);
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [stockLevels, setStockLevels] = useState<StockInfo[]>([]);
-  const [allExemptions, setAllExemptions] = useState<Exemption[]>([]);
-  const [exemptionLaws, setExemptionLaws] = useState<ExemptionLaw[]>([]);
-  const [unreadSuggestionsCount, setUnreadSuggestionsCount] = useState(0);
-  const [exchangeRateData, setExchangeRateData] = useState<{ rate: number | null, date: string | null }>({ rate: null, date: null });
-  const [isLoading, setIsLoading] = useState(true);
-
-  const refreshExchangeRate = useCallback(async () => {
-    const rateData = await getAndCacheExchangeRate(true);
-    setExchangeRateData(rateData || { rate: null, date: null });
-  }, []);
-
-  const updateUnreadSuggestionsCount = useCallback(async () => {
-    try {
-        const count = await getUnreadSuggestionsCount();
-        setUnreadSuggestionsCount(count);
-    } catch(e) {
-        console.error("Failed to update unread suggestions count:", e);
-    }
-  }, []);
 
   const loadAuthData = useCallback(async () => {
     try {
-      const currentUser = await getCurrentUserClient();
-      
+      const currentUser = await getCurrentUser();
       if (!currentUser) {
-        return { isAuthenticated: false };
+        setUser(null);
+        setIsAuthReady(true);
+        if (pathname.startsWith('/dashboard')) router.push('/');
+        return;
       }
 
-      const [
-        allRoles, companySettings, dbCustomers, dbProducts, 
-        dbStock, rateData, dbExemptions, dbLaws, unreadCount, allUsersData
-      ] = await Promise.all([
-        getAllRoles(), getCompanySettings(), getAllCustomers(), getAllProducts(), getAllStock(), 
-        getAndCacheExchangeRate(), getAllExemptions(), getExemptionLaws(), 
-        getUnreadSuggestionsCount(), getAllUsers()
-      ]);
-
+      // Single server-side call to get everything
+      const data = await getInitialAuthData();
       setUser(currentUser);
-      setUsers(allUsersData);
-      setCompanyData(companySettings);
-      setCustomers(dbCustomers);
-      setProducts(dbProducts);
-      setStockLevels(dbStock);
-      setAllExemptions(dbExemptions);
-      setExemptionLaws(dbLaws);
-      setRoles(allRoles);
-      setUnreadSuggestionsCount(unreadCount);
-      setExchangeRateData(rateData || { rate: null, date: null });
-
-      const role = allRoles.find((r) => r.id === currentUser.role);
-      setUserRole(role || null);
+      setCompanyData(data.companySettings);
       
-      return { isAuthenticated: true };
+      const role = data.roles.find((r: Role) => r.id === currentUser.role);
+      setUserRole(role || null);
+      setIsAuthReady(true);
     } catch (error) {
-      console.error("Failed to load authentication context data:", error);
-      setUser(null);
-      setUserRole(null);
-      return { isAuthenticated: false };
-    } finally {
-      setIsLoading(false);
+      console.error("Auth init failed", error);
+      setIsAuthReady(true);
     }
-  }, []);
-  
-  const refreshAuthAndRedirect = useCallback(async (path: string) => {
-    setIsLoading(true);
-    await loadAuthData();
-    router.push(path);
-  }, [loadAuthData, router]);
-
-  const hasPermission = useCallback((permission: string) => {
-    if (isLoading || !userRole) return false;
-    if (userRole.id === 'admin') return true;
-    return userRole.permissions.includes(permission);
-  }, [isLoading, userRole]);
+  }, [pathname, router]);
 
   useEffect(() => {
-    let isMounted = true;
+    loadAuthData();
+  }, [loadAuthData]);
 
-    const initialLoad = async () => {
-        if (!isMounted) return;
-        const authResult = await loadAuthData();
-        const isAuthenticated = authResult?.isAuthenticated ?? false;
-        if (isMounted && !isAuthenticated && pathname.startsWith('/dashboard')) {
-            router.replace('/');
-        }
-    };
-    initialLoad();
-
-    return () => {
-        isMounted = false;
-    };
-  }, [loadAuthData, pathname, router]);
-
-  const contextValue: AuthContextType = {
-    user,
-    userRole,
-    users,
-    roles,
-    companyData,
-    setCompanyData,
-    customers,
-    products,
-    stockLevels,
-    allExemptions,
-    exemptionLaws,
-    unreadSuggestionsCount,
-    updateUnreadSuggestionsCount,
-    exchangeRateData,
-    isLoading,
-    hasPermission,
-    refreshAuth: loadAuthData,
-    refreshAuthAndRedirect,
-    refreshExchangeRate,
+  const handleLogout = async () => {
+    await logoutServer();
+    setUser(null);
+    setUserRole(null);
+    window.location.href = '/';
   };
 
-  const isDashboardRoute = pathname.startsWith('/dashboard');
-
-  // While loading, show a full-page loader to prevent any content flash
-  // on authenticated routes. Public routes will render immediately.
-  if (isLoading && isDashboardRoute) {
-    return <FullPageLoader />;
+  if (!isAuthReady && pathname.startsWith('/dashboard')) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
   }
 
   return (
-    <AuthContext.Provider value={contextValue}>
+    <AuthContext.Provider value={{ user, userRole, companyData, isAuthReady, refreshAuth: loadAuthData, logout: handleLogout }}>
       {children}
     </AuthContext.Provider>
   );
 };
 
-/**
- * A custom hook to easily access the central authentication context.
- * Throws an error if used outside of an AuthProvider.
- * @returns {AuthContextType} The authentication context value.
- */
-export const useAuth = (): AuthContextType => {
-    const context = useContext(AuthContext);
-    if (context === undefined) {
-        throw new Error("useAuth must be used within an AuthProvider");
-    }
-    return context;
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) throw new Error("useAuth must be used within AuthProvider");
+  return context;
 };
