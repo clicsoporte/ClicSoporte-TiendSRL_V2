@@ -42,7 +42,7 @@ export async function initializeContractsDb(db: Database): Promise<void> {
     console.log(`Database ${CONTRACTS_DB_FILE} initialized for Contract Management.`);
 }
 
-export async function runContractsMigrations(_db: Database) {
+export async function runContractsMigrations() {
     // Migrations for contracts module can be added here
 }
 

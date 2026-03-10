@@ -58,7 +58,7 @@ export default function ProjectDetailsPage() {
             setAdvances(adv);
             setAttachments(att);
             setItems(its);
-        } catch (_e) {
+        } catch {
             console.error("Failed to load project data");
         } finally {
             setIsLoading(false);
@@ -76,7 +76,7 @@ export default function ProjectDetailsPage() {
             const added = await addProjectAdvance({ projectId, content: newAdvance, userId: user.id, userName: user.name });
             setAdvances([...advances, added]);
             setNewAdvance("");
-        } catch (_e) {
+        } catch {
             toast({ title: "Error", variant: "destructive" });
         } finally {
             setIsSubmitting(false);
@@ -101,7 +101,7 @@ export default function ProjectDetailsPage() {
                 });
                 setAttachments([added, ...attachments]);
                 toast({ title: "Archivo Adjuntado" });
-            } catch (_e) {
+            } catch {
                 toast({ title: "Error al subir", variant: "destructive" });
             }
         };
@@ -114,7 +114,7 @@ export default function ProjectDetailsPage() {
             const saved = await saveProjectItem({ ...newItem, projectId });
             setItems([...items, saved]);
             setNewItem({ description: '', quantity: 1, unitPrice: 0, type: 'material' });
-        } catch (_e) {
+        } catch {
             toast({ title: "Error", variant: "destructive" });
         }
     };
@@ -126,7 +126,7 @@ export default function ProjectDetailsPage() {
             await updateProject(updated);
             setProject(updated);
             toast({ title: `Proyecto movido a ${newStatus}` });
-        } catch (_e) {
+        } catch {
             toast({ title: "Error", variant: "destructive" });
         }
     };

@@ -6,7 +6,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -82,11 +82,12 @@ export default function ContractsPage() {
     };
 
     const toggleService = (serviceId: string, type: 'included' | 'excluded') => {
-        const otherTypeKey = type === 'included' ? 'excludedServices' : 'includedServices';
-        const targetTypeKey = type === 'included' ? 'includedServices' : 'excludedServices';
+        const targetTypeKey = type === 'included' ? 'includedServices' : 'excludedServices' as keyof Contract;
+        const otherTypeKey = type === 'included' ? 'excludedServices' : 'includedServices' as keyof Contract;
         
-        let targetList = [...(currentContract as any)[targetTypeKey]];
-        let otherList = [...(currentContract as any)[otherTypeKey]];
+        const currentData = currentContract as Record<string, unknown>;
+        let targetList = Array.isArray(currentData[targetTypeKey]) ? [...(currentData[targetTypeKey] as string[])] : [];
+        let otherList = Array.isArray(currentData[otherTypeKey]) ? [...(currentData[otherTypeKey] as string[])] : [];
 
         if (targetList.includes(serviceId)) {
             targetList = targetList.filter(id => id !== serviceId);
