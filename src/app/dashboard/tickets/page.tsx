@@ -1,5 +1,5 @@
 /**
- * @fileoverview Support tickets management page.
+ * @fileoverview Support tickets management page with contract validation.
  */
 'use client';
 
@@ -7,7 +7,7 @@ import { useTickets } from "@/modules/tickets/hooks/useTickets";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
-import { FilePlus, Loader2, FilterX, Users, AlertCircle } from "lucide-react";
+import { FilePlus, Loader2, FilterX, Users, AlertCircle, ShieldCheck, ShieldAlert, BadgeAlert } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -22,10 +22,9 @@ import { useRouter } from "next/navigation";
 import { useAuthorization } from "@/modules/core/hooks/useAuthorization";
 import Link from "next/link";
 import { useAuth } from "@/modules/core/hooks/useAuth";
-import { useDropzone } from 'react-dropzone';
-import { useMemo } from 'react';
-import type { TicketPriority, Ticket, Customer } from '@/modules/core/types';
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import type { TicketPriority, Ticket } from '@/modules/core/types';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Switch } from "@/components/ui/switch";
 
 export default function TicketsPage() {
     const { state, actions, selectors } = useTickets();
@@ -33,8 +32,6 @@ export default function TicketsPage() {
     const router = useRouter();
     const { companyData } = useAuth();
     
-    const { getRootProps, getInputProps, acceptedFiles } = useDropzone({});
-
     const {
         isLoading,
         isNewTicketDialogOpen,
@@ -46,41 +43,25 @@ export default function TicketsPage() {
         searchTerm,
         statusFilter,
         priorityFilter,
-        customerSupportInfo
+        activeContract,
+        providers
     } = state;
-    
-    const serviceCoverage = useMemo(() => {
-        if (!customerSupportInfo || !newTicket.serviceId) {
-            return { covered: true, message: '' };
-        }
-        
-        const { supportPackage, services } = customerSupportInfo;
-        const selectedService = services.find(s => s.id === newTicket.serviceId);
-
-        if (!supportPackage || !selectedService) {
-            return { covered: false, message: 'Servicio no definido en un paquete. Se cobrará por separado.' };
-        }
-
-        if (supportPackage.includedServices.includes(selectedService.id)) {
-            return { covered: true, message: `Servicio "${selectedService.name}" INCLUIDO en el paquete ${supportPackage.name}.` };
-        }
-        if (supportPackage.excludedServices.includes(selectedService.id)) {
-            return { covered: false, message: `Servicio "${selectedService.name}" EXCLUIDO del paquete ${supportPackage.name}. Se cobrará por separado.` };
-        }
-        
-        return { covered: false, message: 'Servicio no especificado en el paquete. Se cobrará por separado.' };
-    }, [customerSupportInfo, newTicket.serviceId]);
 
     const renderTicketRow = (ticket: Ticket) => {
         const { priorityConfig, statusConfig } = selectors;
         return (
-            <TableRow key={ticket.id} className="cursor-pointer" onClick={() => router.push(`/dashboard/tickets/${ticket.id}`)}>
-                <TableCell className="font-medium">{ticket.consecutive}</TableCell>
-                <TableCell>{ticket.subject}</TableCell>
+            <TableRow key={ticket.id} className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => router.push(`/dashboard/tickets/${ticket.id}`)}>
+                <TableCell className="font-mono font-bold text-xs">{ticket.consecutive}</TableCell>
+                <TableCell>
+                    <div className="flex items-center gap-2">
+                        <span>{ticket.subject}</span>
+                        {ticket.isBillable && <Badge variant="destructive" className="text-[10px] h-4 px-1">FACTURABLE</Badge>}
+                    </div>
+                </TableCell>
                 <TableCell>
                     <div className="flex flex-col">
-                        <span className="font-medium">{ticket.customerName}</span>
-                        {ticket.companyName && <span className="text-xs text-muted-foreground">{ticket.companyName}</span>}
+                        <span className="font-medium text-sm">{ticket.customerName}</span>
+                        {ticket.companyName && <span className="text-[10px] text-muted-foreground">{ticket.companyName}</span>}
                     </div>
                 </TableCell>
                 <TableCell>
@@ -89,12 +70,12 @@ export default function TicketsPage() {
                     </Badge>
                 </TableCell>
                 <TableCell>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 text-xs">
                         <span className={cn("h-2 w-2 rounded-full", statusConfig[ticket.status]?.color)}></span>
-                        <span>{statusConfig[ticket.status]?.label || ticket.status}</span>
+                        <span className="font-medium">{statusConfig[ticket.status]?.label || ticket.status}</span>
                     </div>
                 </TableCell>
-                <TableCell className="hidden md:table-cell">{format(parseISO(ticket.createdAt), 'dd/MM/yyyy HH:mm')}</TableCell>
+                <TableCell className="hidden md:table-cell text-xs text-muted-foreground">{format(parseISO(ticket.createdAt), 'dd/MM/yy HH:mm')}</TableCell>
             </TableRow>
         );
     }
@@ -102,182 +83,128 @@ export default function TicketsPage() {
     if (isLoading) {
         return (
              <main className="flex-1 p-4 md:p-6 lg:p-8">
-                <div className="flex items-center justify-between mb-6">
-                    <Skeleton className="h-8 w-64"/>
-                    <Skeleton className="h-10 w-32"/>
-                </div>
-                 <Card>
-                    <CardHeader>
-                        <Skeleton className="h-8 w-48"/>
-                        <Skeleton className="h-4 w-80 mt-2"/>
-                    </CardHeader>
-                    <CardContent className="space-y-4 pt-6">
-                        <div className="flex gap-4">
-                            <Skeleton className="h-10 flex-grow max-w-sm"/>
-                            <Skeleton className="h-10 w-40"/>
-                            <Skeleton className="h-10 w-40"/>
-                        </div>
-                        <Skeleton className="h-64 w-full" />
-                    </CardContent>
-                 </Card>
+                <div className="flex items-center justify-between mb-6"><Skeleton className="h-8 w-64"/><Skeleton className="h-10 w-32"/></div>
+                 <Card><CardHeader><Skeleton className="h-8 w-48"/><Skeleton className="h-4 w-80 mt-2"/></CardHeader><CardContent className="space-y-4 pt-6"><Skeleton className="h-64 w-full" /></CardContent></Card>
              </main>
         )
     }
 
     return (
         <main className="flex-1 p-4 md:p-6 lg:p-8">
-            <div className="flex items-center justify-between mb-6 gap-2">
-                <h1 className="text-2xl font-bold">Gestión de Tickets de Soporte</h1>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
+                <h1 className="text-2xl font-bold">Mesa de Ayuda</h1>
                 <div className="flex gap-2">
                      {hasPermission('tickets:admin:settings') && (
-                        <Button variant="outline" asChild>
+                        <Button variant="outline" asChild size="sm">
                             <Link href="/dashboard/admin/tickets">
-                                <Users className="mr-2 h-4 w-4" />
-                                Configuración
+                                <Users className="mr-2 h-4 w-4" /> Configuración
                             </Link>
                         </Button>
                     )}
                     {hasPermission('tickets:create') && (
                          <Dialog open={isNewTicketDialogOpen} onOpenChange={(open) => { actions.setNewTicketDialogOpen(open); if(!open) actions.resetNewTicketForm(); }}>
                             <DialogTrigger asChild>
-                                <Button>
-                                    <FilePlus className="mr-2 h-4 w-4" />
-                                    Nuevo Ticket
-                                </Button>
+                                <Button size="sm"><FilePlus className="mr-2 h-4 w-4" /> Nuevo Ticket</Button>
                             </DialogTrigger>
-                            <DialogContent className="sm:max-w-4xl" onPointerDownOutside={(e) => e.preventDefault()}>
+                            <DialogContent className="sm:max-w-5xl" onPointerDownOutside={(e) => e.preventDefault()}>
                                 <form onSubmit={(e) => { e.preventDefault(); actions.handleCreateTicket(); }}>
                                     <DialogHeader>
-                                        <DialogTitle>Crear Nuevo Ticket de Soporte</DialogTitle>
-                                        <DialogDescription>
-                                            Describe el problema. Busca un contacto o cliente del ERP para asociar el ticket.
-                                        </DialogDescription>
+                                        <DialogTitle>Abrir Nuevo Caso de Soporte</DialogTitle>
+                                        <DialogDescription>Valida la cobertura del contrato antes de proceder.</DialogDescription>
                                     </DialogHeader>
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 py-4">
                                         <div className="md:col-span-2 space-y-4">
                                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                                 <div className="space-y-2">
-                                                    <Label htmlFor="new-ticket-topic">Tema de Ayuda</Label>
+                                                    <Label className="text-xs">Tema de Ayuda</Label>
                                                     <Select value={String(newTicket.helpTopicId || '')} onValueChange={(v) => actions.handleNewTicketChange('helpTopicId', Number(v))} required>
-                                                        <SelectTrigger id="new-ticket-topic"><SelectValue placeholder="Seleccione un tema..."/></SelectTrigger>
-                                                        <SelectContent>
-                                                            {helpTopics.map(topic => (
-                                                                <SelectItem key={topic.id} value={String(topic.id)}>{topic.name}</SelectItem>
-                                                            ))}
-                                                        </SelectContent>
+                                                        <SelectTrigger className="h-8"><SelectValue placeholder="Seleccione un tema..."/></SelectTrigger>
+                                                        <SelectContent>{helpTopics.map(topic => (<SelectItem key={topic.id} value={String(topic.id)}>{topic.name}</SelectItem>))}</SelectContent>
                                                     </Select>
                                                 </div>
                                                  <div className="space-y-2">
-                                                    <Label htmlFor="new-ticket-priority">Prioridad</Label>
-                                                    <Select value={newTicket.priority} onValueChange={(v) => actions.handleNewTicketChange('priority', v as TicketPriority)}>
-                                                        <SelectTrigger id="new-ticket-priority"><SelectValue /></SelectTrigger>
+                                                    <Label className="text-xs">Servicio Requerido</Label>
+                                                    <Select value={newTicket.serviceId || "none"} onValueChange={(v) => actions.handleNewTicketChange('serviceId', v === 'none' ? null : v)} required>
+                                                        <SelectTrigger className="h-8"><SelectValue placeholder="Seleccione un servicio..."/></SelectTrigger>
                                                         <SelectContent>
-                                                            {Object.entries(selectors.priorityConfig).map(([key, config]) => (
-                                                                <SelectItem key={key} value={key}>{config.label}</SelectItem>
-                                                            ))}
+                                                            <SelectItem value="none">Ninguno</SelectItem>
+                                                            {companyData?.servicesCatalog.map(service => (<SelectItem key={service.id} value={service.id}>{service.name}</SelectItem>))}
                                                         </SelectContent>
                                                     </Select>
                                                 </div>
                                             </div>
-                                             <div className="space-y-2">
-                                                <Label htmlFor="new-ticket-service">Servicio Requerido</Label>
-                                                <Select value={newTicket.serviceId || "none"} onValueChange={(v) => actions.handleNewTicketChange('serviceId', v === 'none' ? null : v)} required>
-                                                    <SelectTrigger id="new-ticket-service"><SelectValue placeholder="Seleccione un servicio..."/></SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="none">Ninguno</SelectItem>
-                                                        {companyData?.servicesCatalog.map(service => (
-                                                            <SelectItem key={service.id} value={service.id}>{service.name}</SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-                                            {serviceCoverage.message && (
-                                                <Alert variant={serviceCoverage.covered ? 'default' : 'destructive'} className="text-xs">
-                                                    <AlertCircle className="h-4 w-4" />
-                                                    <AlertDescription>{serviceCoverage.message}</AlertDescription>
+
+                                            {selectors.coverageMessage && (
+                                                <Alert variant={newTicket.isBillable ? 'destructive' : 'default'} className="py-2">
+                                                    {newTicket.isBillable ? <ShieldAlert className="h-4 w-4" /> : <ShieldCheck className="h-4 w-4" />}
+                                                    <AlertTitle className="text-xs font-bold">{newTicket.isBillable ? 'FUERA DE CONTRATO' : 'INCLUIDO EN CONTRATO'}</AlertTitle>
+                                                    <AlertDescription className="text-[10px]">{selectors.coverageMessage}</AlertDescription>
                                                 </Alert>
                                             )}
 
                                             <div className="space-y-2">
-                                                <Label htmlFor="new-ticket-subject">Asunto</Label>
-                                                <Input
-                                                    id="new-ticket-subject"
-                                                    value={newTicket.subject}
-                                                    onChange={(e) => actions.handleNewTicketChange('subject', e.target.value)}
-                                                    required
-                                                />
+                                                <Label className="text-xs">Asunto</Label>
+                                                <Input id="new-ticket-subject" value={newTicket.subject} onChange={(e) => actions.handleNewTicketChange('subject', e.target.value)} required className="h-8" />
                                             </div>
                                             <div className="space-y-2">
-                                                <Label htmlFor="new-ticket-content">Descripción del Problema</Label>
-                                                <Textarea
-                                                    id="new-ticket-content"
-                                                    rows={8}
-                                                    value={newTicket.content}
-                                                    onChange={(e) => actions.handleNewTicketChange('content', e.target.value)}
-                                                    required
-                                                />
-                                            </div>
-                                            <div {...getRootProps()} className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:border-primary">
-                                                <input {...getInputProps()} />
-                                                <p>Arrastra archivos aquí o haz clic para seleccionarlos</p>
-                                                {acceptedFiles.length > 0 && <p className="text-sm mt-2">{acceptedFiles.map(f => f.name).join(', ')}</p>}
+                                                <Label className="text-xs">Descripción Detallada</Label>
+                                                <Textarea id="new-ticket-content" rows={6} value={newTicket.content} onChange={(e) => actions.handleNewTicketChange('content', e.target.value)} required />
                                             </div>
                                         </div>
-                                        <div className="md:col-span-1 space-y-4">
+                                        <div className="md:col-span-1 space-y-4 border-l pl-6">
                                             <div className="space-y-2">
-                                                <Label htmlFor="customer-search">Empresa Cliente</Label>
+                                                <Label className="text-xs">Empresa Cliente</Label>
                                                 <SearchInput
-                                                    options={selectors.clientCompanyOptions}
+                                                    options={selectors.customerOptions}
                                                     onSelect={actions.handleSelectCompany}
                                                     value={customerSearchTerm}
                                                     onValueChange={actions.setCustomerSearchTerm}
-                                                    placeholder="Buscar por nombre o cédula..."
+                                                    placeholder="Buscar cliente..."
                                                     open={isCustomerSearchOpen}
                                                     onOpenChange={actions.setCustomerSearchOpen}
                                                 />
                                             </div>
-                                            {customerSupportInfo && customerSupportInfo.customer && (
-                                                <Card className="bg-muted/50">
-                                                    <CardHeader className="p-3"><CardTitle className="text-base">Plan de Soporte</CardTitle></CardHeader>
-                                                    <CardContent className="p-3 pt-0 text-sm space-y-1">
-                                                        <p><strong>Paquete:</strong> {customerSupportInfo.supportPackage?.name || 'No Asignado'}</p>
-                                                        <p><strong>Horas Restantes:</strong> {('monthlyHoursBalance' in customerSupportInfo.customer && (customerSupportInfo.customer as Customer).monthlyHoursBalance?.toFixed(2)) || 'N/A'}</p>
-                                                    </CardContent>
-                                                </Card>
+                                            
+                                            {activeContract && (
+                                                <div className="bg-primary/5 p-3 rounded-lg border border-primary/20 space-y-1">
+                                                    <p className="text-[10px] font-bold text-primary uppercase">Contrato Activo</p>
+                                                    <p className="text-xs font-bold">{activeContract.name}</p>
+                                                    <p className="text-[10px] text-muted-foreground">Vence: {format(parseISO(activeContract.endDate), 'dd/MM/yyyy')}</p>
+                                                </div>
                                             )}
-                                            <div className="space-y-2">
-                                                <Label htmlFor="new-ticket-customer-name">Nombre del Contacto</Label>
-                                                <Input id="new-ticket-customer-name" value={newTicket.customerName} onChange={(e) => actions.handleNewTicketChange('customerName', e.target.value)} required />
+
+                                            <div className="space-y-4 pt-2">
+                                                <div className="flex items-center justify-between">
+                                                    <Label className="text-xs">¿Facturable aparte?</Label>
+                                                    <Switch 
+                                                        checked={newTicket.isBillable} 
+                                                        onCheckedChange={(checked) => actions.handleNewTicketChange('isBillable', checked)} 
+                                                    />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label className="text-xs">Proveedor Externo (Opcional)</Label>
+                                                    <Select value={String(newTicket.providerId || 'null')} onValueChange={(v) => actions.handleNewTicketChange('providerId', v === 'null' ? null : Number(v))}>
+                                                        <SelectTrigger className="h-8"><SelectValue placeholder="Servicio Interno"/></SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="null">Ninguno</SelectItem>
+                                                            {providers.map(p => (<SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
                                             </div>
-                                            <div className="space-y-2">
-                                                <Label htmlFor="new-ticket-customer-email">Email del Contacto</Label>
-                                                <Input id="new-ticket-customer-email" type="email" value={newTicket.customerEmail} onChange={(e) => actions.handleNewTicketChange('customerEmail', e.target.value)} required />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label htmlFor="new-ticket-assignee">Asignar a</Label>
-                                                <Select value={String(newTicket.assigneeId || 'null')} onValueChange={(v) => actions.handleNewTicketChange('assigneeId', v === 'null' ? null : Number(v))}>
-                                                    <SelectTrigger id="new-ticket-assignee"><SelectValue placeholder="Automático (por tema)"/></SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="null">Automático (por tema)</SelectItem>
-                                                        {selectors.supportUsers.map(u => (
-                                                            <SelectItem key={u.id} value={String(u.id)}>{u.name}</SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label htmlFor="new-ticket-due-date">Fecha de Vencimiento (Opcional)</Label>
-                                                <Input id="new-ticket-due-date" type="date" value={newTicket.dueDate || ''} onChange={(e) => actions.handleNewTicketChange('dueDate', e.target.value)} />
+
+                                            <div className="pt-4 space-y-2 border-t mt-4">
+                                                <Label className="text-xs">Contacto del Cliente</Label>
+                                                <Input id="new-ticket-customer-name" value={newTicket.customerName} onChange={(e) => actions.handleNewTicketChange('customerName', e.target.value)} required placeholder="Nombre" className="h-8 text-xs" />
+                                                <Input id="new-ticket-customer-email" type="email" value={newTicket.customerEmail} onChange={(e) => actions.handleNewTicketChange('customerEmail', e.target.value)} required placeholder="Email" className="h-8 text-xs" />
                                             </div>
                                         </div>
                                     </div>
-                                    <DialogFooter>
-                                        <DialogClose asChild>
-                                            <Button type="button" variant="ghost">Cancelar</Button>
-                                        </DialogClose>
-                                        <Button type="submit" disabled={isSubmitting}>
-                                            {isSubmitting && <Loader2 className="mr-2 animate-spin" />}
-                                            Crear Ticket
+                                    <DialogFooter className="border-t pt-4">
+                                        <DialogClose asChild><Button type="button" variant="ghost" size="sm">Cancelar</Button></DialogClose>
+                                        <Button type="submit" disabled={isSubmitting} size="sm">
+                                            {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}
+                                            Abrir Ticket
                                         </Button>
                                     </DialogFooter>
                                 </form>
@@ -286,63 +213,41 @@ export default function TicketsPage() {
                     )}
                 </div>
             </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <Card className="bg-primary/5 border-primary/20"><CardHeader className="p-4 pb-2"><CardTitle className="text-xs font-bold text-muted-foreground uppercase">Casos Abiertos</CardTitle></CardHeader><CardContent className="p-4 pt-0 text-2xl font-bold">{state.tickets.filter(t=>t.status !== 'closed').length}</CardContent></Card>
+                <Card className="bg-destructive/5 border-destructive/20"><CardHeader className="p-4 pb-2"><CardTitle className="text-xs font-bold text-muted-foreground uppercase">Facturables (Extras)</CardTitle></CardHeader><CardContent className="p-4 pt-0 text-2xl font-bold text-destructive">{state.tickets.filter(t=>t.isBillable && t.status !== 'closed').length}</CardContent></Card>
+                <Card className="bg-amber-50 border-amber-200"><CardHeader className="p-4 pb-2"><CardTitle className="text-xs font-bold text-muted-foreground uppercase">En Progreso</CardTitle></CardHeader><CardContent className="p-4 pt-0 text-2xl font-bold text-amber-600">{state.tickets.filter(t=>t.status === 'in_progress').length}</CardContent></Card>
+                <Card><CardHeader className="p-4 pb-2"><CardTitle className="text-xs font-bold text-muted-foreground uppercase">Total Tickets</CardTitle></CardHeader><CardContent className="p-4 pt-0 text-2xl font-bold">{state.tickets.length}</CardContent></Card>
+            </div>
+
             <Card>
                 <CardHeader>
-                    <CardTitle>Bandeja de Entrada</CardTitle>
-                    <CardDescription>
-                       Aquí se mostrarán todos los tickets de soporte.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
                     <div className="flex flex-col md:flex-row gap-4">
-                        <Input 
-                            placeholder="Buscar por Nº ticket, asunto o cliente..."
-                            value={searchTerm}
-                            onChange={(e) => actions.setSearchTerm(e.target.value)}
-                            className="max-sm"
-                        />
-                        <Select value={statusFilter} onValueChange={actions.setStatusFilter}>
-                            <SelectTrigger className="w-full md:w-[180px]"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">Todos los Estados</SelectItem>
-                                {Object.entries(selectors.statusConfig).map(([key, config]) => (
-                                    <SelectItem key={key} value={key}>{config.label}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                        <Select value={priorityFilter} onValueChange={actions.setPriorityFilter}>
-                            <SelectTrigger className="w-full md:w-[180px]"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">Todas las Prioridades</SelectItem>
-                                {Object.entries(selectors.priorityConfig).map(([key, config]) => (
-                                    <SelectItem key={key} value={key}>{config.label}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                        <Button variant="ghost" onClick={actions.clearFilters}><FilterX className="mr-2 h-4 w-4"/>Limpiar</Button>
+                        <Input placeholder="Buscar por Nº ticket, asunto o cliente..." value={searchTerm} onChange={(e) => actions.setSearchTerm(e.target.value)} className="max-w-sm h-9" />
+                        <Select value={statusFilter} onValueChange={actions.setStatusFilter}><SelectTrigger className="w-full md:w-[180px] h-9"><SelectValue placeholder="Estado"/></SelectTrigger><SelectContent><SelectItem value="all">Todos los Estados</SelectItem>{Object.entries(selectors.statusConfig).map(([key, config]) => (<SelectItem key={key} value={key}>{config.label}</SelectItem>))}</SelectContent></Select>
+                        <Select value={priorityFilter} onValueChange={actions.setPriorityFilter}><SelectTrigger className="w-full md:w-[180px] h-9"><SelectValue placeholder="Prioridad"/></SelectTrigger><SelectContent><SelectItem value="all">Todas las Prioridades</SelectItem>{Object.entries(selectors.priorityConfig).map(([key, config]) => (<SelectItem key={key} value={key}>{config.label}</SelectItem>))}</SelectContent></Select>
+                        <Button variant="ghost" size="sm" onClick={actions.clearFilters} className="h-9"><FilterX className="mr-2 h-4 w-4"/>Limpiar</Button>
                     </div>
-
-                    <div className="rounded-lg border">
+                </CardHeader>
+                <CardContent>
+                    <div className="rounded-md border">
                         <Table>
                             <TableHeader>
-                                <TableRow>
-                                    <TableHead>Ticket</TableHead>
-                                    <TableHead>Asunto</TableHead>
+                                <TableRow className="bg-muted/50">
+                                    <TableHead className="w-[100px]">ID</TableHead>
+                                    <TableHead>Descripción del Caso</TableHead>
                                     <TableHead>Cliente</TableHead>
-                                    <TableHead>Prioridad</TableHead>
-                                    <TableHead>Estado</TableHead>
-                                    <TableHead className="hidden md:table-cell">Creado</TableHead>
+                                    <TableHead className="w-[120px]">Prioridad</TableHead>
+                                    <TableHead className="w-[120px]">Estado</TableHead>
+                                    <TableHead className="hidden md:table-cell w-[150px]">Fecha</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {selectors.filteredTickets.length > 0 ? (
                                     selectors.filteredTickets.map(renderTicketRow)
                                 ) : (
-                                    <TableRow>
-                                        <TableCell colSpan={6} className="h-24 text-center">
-                                            No se encontraron tickets con los filtros actuales.
-                                        </TableCell>
-                                    </TableRow>
+                                    <TableRow><TableCell colSpan={6} className="h-24 text-center text-muted-foreground italic">No se encontraron casos con los filtros actuales.</TableCell></TableRow>
                                 )}
                             </TableBody>
                         </Table>

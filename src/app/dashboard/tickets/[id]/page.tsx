@@ -1,5 +1,5 @@
 /**
- * @fileoverview Ticket detail page.
+ * @fileoverview Ticket detail page with contract and provider integration.
  */
 'use client';
 
@@ -14,16 +14,16 @@ import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Paperclip, Send, Loader2, MoreVertical } from 'lucide-react';
+import { Paperclip, Send, Loader2, MoreVertical, CreditCard, ShieldCheck, ShieldAlert, Truck } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-
+import { Switch } from '@/components/ui/switch';
 
 const getInitials = (name: string) => {
     if (!name) return "??";
@@ -35,8 +35,8 @@ export default function TicketDetailPage() {
     const router = useRouter();
     const ticketId = Number(params.id);
     const { isAuthorized, hasPermission } = useAuthorization(['tickets:read:all']);
-    const { actions, selectors } = useTickets();
-    const { user: currentUser } = useAuth();
+    const { state, actions, selectors } = useTickets();
+    const { user: currentUser, companyData } = useAuth();
     const { toast } = useToast();
     
     const [ticket, setTicket] = useState<Ticket | null>(null);
@@ -45,10 +45,7 @@ export default function TicketDetailPage() {
     const [isReplying, setIsReplying] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     
-    const supportUsers = useMemo(() => {
-        if (!selectors.supportUsers) return [];
-        return selectors.supportUsers;
-    }, [selectors.supportUsers]);
+    const supportUsers = useMemo(() => selectors.supportUsers, [selectors.supportUsers]);
 
     const loadData = useCallback(async () => {
         if (ticketId && isAuthorized) {
@@ -66,12 +63,7 @@ export default function TicketDetailPage() {
     }, [loadData]);
     
     const handleAddReply = async () => {
-        if (!replyContent.trim() || !currentUser) {
-            if (!replyContent.trim()) {
-                toast({ title: "Error", description: "La respuesta no puede estar vacía.", variant: "destructive" });
-            }
-            return;
-        }
+        if (!replyContent.trim() || !currentUser) return;
         setIsReplying(true);
         const newEntry = await actions.addThreadEntry({ 
             ticketId, 
@@ -87,9 +79,9 @@ export default function TicketDetailPage() {
         setIsReplying(false);
     };
 
-    const handleDetailUpdate = async (updates: Partial<Pick<Ticket, 'status' | 'priority' | 'assigneeId'>>) => {
+    const handleDetailUpdate = async (updates: Partial<Pick<Ticket, 'status' | 'priority' | 'assigneeId' | 'isBillable' | 'providerId'>>) => {
         if (!currentUser || !hasPermission('tickets:update')) {
-             toast({ title: "Acción no permitida", description: "No tienes permiso para actualizar este ticket.", variant: "destructive" });
+             toast({ title: "Acción no permitida", variant: "destructive" });
             return;
         };
         const updatedTicket = await actions.updateTicketDetails(ticketId, updates, currentUser);
@@ -100,17 +92,14 @@ export default function TicketDetailPage() {
     };
 
     const handleDeleteTicket = async () => {
-        if (!ticket || !hasPermission('tickets:delete')) {
-            toast({ title: "Acción no permitida", variant: "destructive" });
-            return;
-        };
+        if (!ticket || !hasPermission('tickets:delete')) return;
         setIsDeleting(true);
         try {
             await actions.deleteTicket(ticket.id);
-            toast({ title: "Ticket Eliminado", description: "El ticket ha sido eliminado exitosamente." });
+            toast({ title: "Ticket Eliminado" });
             router.push('/dashboard/tickets');
         } catch {
-            toast({ title: "Error", description: "No se pudo eliminar el ticket.", variant: "destructive" });
+            toast({ title: "Error", variant: "destructive" });
         } finally {
             setIsDeleting(false);
         }
@@ -121,15 +110,12 @@ export default function TicketDetailPage() {
     if (!ticket) {
         return (
              <div className="flex h-[calc(100vh-4rem)]">
-                <div className="w-full md:w-2/3 lg:w-3/4 flex flex-col p-4">
-                    <Skeleton className="h-full w-full"/>
-                </div>
-                <div className="hidden md:block w-1/3 lg:w-1/4 p-4 border-l">
-                    <Skeleton className="h-full w-full"/>
-                </div>
+                <div className="w-full flex flex-col p-4"><Skeleton className="h-full w-full"/></div>
             </div>
         );
     }
+
+    const selectedService = companyData?.servicesCatalog.find(s => s.id === ticket.serviceId);
     
     return (
         <div className="flex h-[calc(100vh-4rem)] bg-muted/40">
@@ -139,62 +125,53 @@ export default function TicketDetailPage() {
                         <h1 className="text-xl font-bold">{ticket.subject}</h1>
                         <p className="text-sm text-muted-foreground">Ticket #{ticket.consecutive}</p>
                     </div>
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon"><MoreVertical className="h-5 w-5" /></Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                            {hasPermission('tickets:update') && <DropdownMenuItem disabled>Editar Ticket</DropdownMenuItem>}
-                            {hasPermission('tickets:delete') && (
-                                <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                        <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive">Eliminar Ticket</DropdownMenuItem>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                        <AlertDialogHeader>
-                                            <AlertDialogTitle>¿Confirmar eliminación?</AlertDialogTitle>
-                                            <AlertDialogDescription>Esta acción es permanente.</AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <AlertDialogFooter>
-                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                            <AlertDialogAction onClick={handleDeleteTicket} disabled={isDeleting}>
-                                                {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-                                                Sí, eliminar
-                                            </AlertDialogAction>
-                                        </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                </AlertDialog>
-                            )}
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                    <div className="flex items-center gap-2">
+                        {ticket.isBillable && <Badge variant="destructive" className="animate-pulse">FACTURABLE</Badge>}
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon"><MoreVertical className="h-5 w-5" /></Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+                                {hasPermission('tickets:delete') && (
+                                    <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                            <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive">Eliminar Ticket</DropdownMenuItem>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>¿Confirmar eliminación?</AlertDialogTitle>
+                                                <AlertDialogDescription>Esta acción es permanente.</AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                <AlertDialogAction onClick={handleDeleteTicket} disabled={isDeleting}>
+                                                    {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                                                    Sí, eliminar
+                                                </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
+                                )}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
                 </header>
                  <ScrollArea className="flex-1 p-4">
                     <div className="space-y-6">
                         {thread.map(item => (
-                            <div key={item.id} className={cn(
-                                "flex items-start gap-4",
-                                item.userId ? "justify-end" : ""
-                            )}>
-                                {!item.userId && (
-                                    <Avatar>
-                                        <AvatarFallback>{getInitials(item.userName)}</AvatarFallback>
-                                    </Avatar>
-                                )}
+                            <div key={item.id} className={cn("flex items-start gap-4", item.userId ? "justify-end" : "")}>
+                                {!item.userId && <Avatar><AvatarFallback>{getInitials(item.userName)}</AvatarFallback></Avatar>}
                                 <div className={cn(
-                                    "max-w-xl rounded-lg p-3 text-sm",
-                                    item.userId ? "bg-primary text-primary-foreground" : "bg-card",
-                                    item.type === 'status_change' && "bg-yellow-100 text-yellow-800 w-full text-center italic"
+                                    "max-w-xl rounded-lg p-3 text-sm shadow-sm",
+                                    item.userId ? "bg-primary text-primary-foreground" : "bg-card border",
+                                    item.type === 'status_change' && "bg-amber-100 text-amber-900 w-full text-center italic border-amber-200"
                                 )}>
                                     <p className="font-semibold">{item.userName}</p>
                                     <p className="whitespace-pre-wrap">{item.content}</p>
-                                    <p className="text-xs mt-2 opacity-70 text-right">{format(parseISO(item.createdAt), 'dd/MM/yyyy HH:mm')}</p>
+                                    <p className="text-[10px] mt-2 opacity-70 text-right">{format(parseISO(item.createdAt), 'dd/MM/yyyy HH:mm')}</p>
                                 </div>
-                                {item.userId && (
-                                     <Avatar>
-                                        <AvatarFallback>{getInitials(item.userName)}</AvatarFallback>
-                                    </Avatar>
-                                )}
+                                {item.userId && <Avatar><AvatarFallback>{getInitials(item.userName)}</AvatarFallback></Avatar>}
                             </div>
                         ))}
                     </div>
@@ -202,7 +179,7 @@ export default function TicketDetailPage() {
                 <div className="p-4 border-t bg-background">
                     <div className="relative">
                         <Textarea
-                            placeholder="Escribe tu respuesta..."
+                            placeholder="Escribe una respuesta o nota..."
                             className="pr-20"
                             rows={3}
                             value={replyContent}
@@ -212,28 +189,19 @@ export default function TicketDetailPage() {
                         <div className="absolute top-2 right-2 flex gap-1">
                              <Button type="button" size="icon" onClick={handleAddReply} disabled={isReplying || !hasPermission('tickets:update')}>
                                 {isReplying ? <Loader2 className="h-4 w-4 animate-spin"/> : <Send className="h-4 w-4" />}
-                                <span className="sr-only">Enviar</span>
-                            </Button>
-                             <Button type="button" size="icon" variant="ghost" disabled={!hasPermission('tickets:update')}>
-                                <Paperclip className="h-4 w-4" />
-                                <span className="sr-only">Adjuntar</span>
                             </Button>
                         </div>
                     </div>
                 </div>
             </div>
-            <aside className="hidden md:flex flex-col w-1/3 lg:w-1/4 border-l bg-background p-4 space-y-6">
+            <aside className="hidden md:flex flex-col w-80 lg:w-96 border-l bg-background p-4 space-y-6 overflow-y-auto">
                 <Card>
-                    <CardHeader>
-                        <CardTitle>Detalles del Ticket</CardTitle>
-                    </CardHeader>
-                    <CardContent className="text-sm space-y-4">
+                    <CardHeader className="p-4 pb-2"><CardTitle className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Estado del Caso</CardTitle></CardHeader>
+                    <CardContent className="p-4 pt-0 space-y-4">
                          <div className="space-y-1.5">
-                            <Label>Prioridad</Label>
+                            <Label className="text-xs">Prioridad</Label>
                             <Select value={ticket.priority} onValueChange={(v) => handleDetailUpdate({ priority: v as TicketPriority })} disabled={!hasPermission('tickets:update')}>
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
+                                <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                     {Object.entries(selectors.priorityConfig).map(([key, config]) => (
                                         <SelectItem key={key} value={key}>{config.label}</SelectItem>
@@ -242,11 +210,9 @@ export default function TicketDetailPage() {
                             </Select>
                         </div>
                         <div className="space-y-1.5">
-                            <Label>Estado</Label>
+                            <Label className="text-xs">Estado</Label>
                              <Select value={ticket.status} onValueChange={(v) => handleDetailUpdate({ status: v as TicketStatus })} disabled={!hasPermission('tickets:update')}>
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
+                                <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                      {Object.entries(selectors.statusConfig).map(([key, config]) => (
                                         <SelectItem key={key} value={key}>
@@ -259,41 +225,70 @@ export default function TicketDetailPage() {
                                 </SelectContent>
                             </Select>
                         </div>
-                         <div className="flex justify-between">
-                            <span className="text-muted-foreground">Creado</span>
-                            <span>{format(parseISO(ticket.createdAt), 'dd/MM/yyyy')}</span>
-                        </div>
                          <div className="space-y-1.5">
-                            <Label>Asignado a</Label>
+                            <Label className="text-xs">Técnico Asignado</Label>
                             <Select value={String(ticket.assigneeId || 'null')} onValueChange={(v) => handleDetailUpdate({ assigneeId: v === 'null' ? null : Number(v) })} disabled={!hasPermission('tickets:update')}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Sin Asignar"/>
-                                </SelectTrigger>
+                                <SelectTrigger className="h-8"><SelectValue placeholder="Sin Asignar"/></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="null">Sin Asignar</SelectItem>
-                                    {supportUsers.map(u => (
-                                        <SelectItem key={u.id} value={String(u.id)}>{u.name}</SelectItem>
-                                    ))}
+                                    {supportUsers.map(u => (<SelectItem key={u.id} value={String(u.id)}>{u.name}</SelectItem>))}
                                 </SelectContent>
                             </Select>
                         </div>
                     </CardContent>
                 </Card>
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Información del Cliente</CardTitle>
+
+                <Card className={cn(ticket.isBillable ? "border-destructive bg-destructive/5" : "border-green-200 bg-green-50/30")}>
+                    <CardHeader className="p-4 pb-2">
+                        <CardTitle className="text-sm font-bold flex items-center gap-2">
+                            <CreditCard className="h-4 w-4" /> FACTURACIÓN Y COBERTURA
+                        </CardTitle>
                     </CardHeader>
-                    <CardContent className="text-sm space-y-3">
-                       <div className="flex justify-between">
-                            <span className="text-muted-foreground">Nombre Contacto</span>
-                            <span className="font-medium text-right">{ticket.customerName}</span>
+                    <CardContent className="p-4 pt-0 space-y-4">
+                        <div className="flex items-center justify-between">
+                            <Label htmlFor="billable-switch" className="text-sm">Marcar como Facturable</Label>
+                            <Switch 
+                                id="billable-switch" 
+                                checked={ticket.isBillable} 
+                                onCheckedChange={(checked) => handleDetailUpdate({ isBillable: checked })}
+                                disabled={!hasPermission('tickets:update')}
+                            />
                         </div>
-                        {ticket.companyName && (
-                            <div className="flex justify-between">
-                                <span className="text-muted-foreground">Empresa</span>
-                                <span className="font-medium text-right">{ticket.companyName}</span>
+                        <div className="p-3 rounded-md border text-xs space-y-2">
+                            <div className="flex items-center gap-2">
+                                {ticket.isBillable ? <ShieldAlert className="h-4 w-4 text-destructive" /> : <ShieldCheck className="h-4 w-4 text-green-600" />}
+                                <span className="font-bold">{ticket.isBillable ? 'Servicio Adicional (Con Costo)' : 'Cubierto por Contrato'}</span>
                             </div>
-                        )}
+                            <p className="text-muted-foreground">Servicio: <strong>{selectedService?.name || 'General'}</strong></p>
+                            {ticket.contractId && <p className="text-muted-foreground">Línea de Contrato: <strong>#{ticket.contractId}</strong></p>}
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader className="p-4 pb-2">
+                        <CardTitle className="text-sm font-bold flex items-center gap-2">
+                            <Truck className="h-4 w-4" /> PROVEEDOR EXTERNO
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-4 pt-0 space-y-2">
+                        <Select value={String(ticket.providerId || 'null')} onValueChange={(v) => handleDetailUpdate({ providerId: v === 'null' ? null : Number(v) })} disabled={!hasPermission('tickets:update')}>
+                            <SelectTrigger className="h-8"><SelectValue placeholder="Sin proveedor externo"/></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="null">Ninguno (Soporte Interno)</SelectItem>
+                                {state.providers.map(p => (<SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>))}
+                            </SelectContent>
+                        </Select>
+                        <p className="text-[10px] text-muted-foreground">Usa esta opción si el caso requiere derivarse a una marca o soporte de tercero.</p>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader className="p-4 pb-2"><CardTitle className="text-sm font-bold">CLIENTE</CardTitle></CardHeader>
+                    <CardContent className="p-4 pt-0 text-sm space-y-1">
+                        <p className="font-bold">{ticket.customerName}</p>
+                        {ticket.companyName && <p className="text-xs text-muted-foreground">{ticket.companyName}</p>}
+                        <p className="text-xs text-muted-foreground mt-2">Creado: {format(parseISO(ticket.createdAt), 'dd/MM/yy HH:mm')}</p>
                     </CardContent>
                 </Card>
             </aside>

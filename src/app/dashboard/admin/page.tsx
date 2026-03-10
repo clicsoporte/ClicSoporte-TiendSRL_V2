@@ -49,6 +49,8 @@ export default function AdminDashboardPage() {
                 return hasPermission('licenses:admin:keys');
             case 'log-viewer':
                 return hasPermission('admin:logs:read');
+            case 'provider-management':
+                return hasPermission('tickets:admin:settings');
             default:
                 return true;
         }
@@ -84,7 +86,7 @@ export default function AdminDashboardPage() {
             <h2 className="text-2xl font-bold tracking-tight">
               Centro de Administración
             </h2>
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 mt-6">
               {visibleAdminTools.map((tool: Tool) => {
                 const isSuggestionsTool = tool.id === "suggestions-viewer";
                 const badgeCount = isSuggestionsTool ? unreadSuggestionsCount : 0;

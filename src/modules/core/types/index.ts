@@ -119,6 +119,8 @@ export type Customer = {
     electronicDocEmail: string;
     isManual?: boolean;
     contacts: CustomerContact[];
+    supportPackageId?: string;
+    monthlyHoursBalance?: number;
 };
 
 /**
@@ -132,11 +134,24 @@ export type Contract = {
     startDate: string;
     endDate: string;
     status: 'active' | 'inactive' | 'expired';
-    includedServices: string[]; // JSON array of service IDs
-    excludedServices: string[]; // JSON array of service IDs
+    includedServices: string[]; 
+    excludedServices: string[]; 
     monthlyHours: number;
     price: number;
     currency: string;
+    notes?: string;
+    createdAt: string;
+};
+
+/**
+ * Represents an external service provider.
+ */
+export type ThirdPartyProvider = {
+    id: number;
+    name: string;
+    email: string;
+    phone: string;
+    specialty: string;
     notes?: string;
     createdAt: string;
 };
@@ -570,6 +585,9 @@ export type Ticket = {
     assigneeId?: number | null;
     helpTopicId?: number | null;
     serviceId?: string | null;
+    contractId?: number | null;
+    isBillable: boolean;
+    providerId?: number | null;
 };
 
 export type TicketThread = {
@@ -596,6 +614,9 @@ export type NewTicketPayload = {
     helpTopicId?: number;
     assigneeId?: number | null;
     dueDate?: string;
+    contractId?: number | null;
+    isBillable: boolean;
+    providerId?: number | null;
 };
 
 export type License = {

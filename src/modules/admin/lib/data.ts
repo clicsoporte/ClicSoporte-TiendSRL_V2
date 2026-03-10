@@ -2,7 +2,7 @@
  * @fileoverview This file contains the configuration data for the admin section tools.
  */
 import type { Tool } from "@/modules/core/types";
-import { Users, ShieldCheck, Briefcase, MessageSquare, DollarSign, FileUp, ServerCog, Network, Factory, Boxes, Ticket, FileTerminal, KeyRound } from "lucide-react";
+import { Users, ShieldCheck, Briefcase, MessageSquare, DollarSign, FileUp, ServerCog, Network, Factory, Boxes, Ticket, FileTerminal, KeyRound, Truck } from "lucide-react";
 
 /**
  * List of tools available in the admin section.
@@ -33,6 +33,15 @@ export const adminTools: Tool[] = [
         href: "/dashboard/admin/general",
         icon: Briefcase,
         bgColor: "bg-orange-500",
+        textColor: "text-white",
+      },
+      {
+        id: "provider-management",
+        name: "Proveedores Terceros",
+        description: "Catálogo de proveedores de servicios externos.",
+        href: "/dashboard/tickets/providers",
+        icon: Truck,
+        bgColor: "bg-amber-700",
         textColor: "text-white",
       },
       {

@@ -6,7 +6,7 @@
 import type { Database } from 'better-sqlite3';
 import { connectDb as baseConnectDb } from '@/modules/core/lib/db-connection';
 import { getCompanySettings } from '../../core/lib/settings-db';
-import type { Ticket, NewTicketPayload, User, TicketThread, HelpTopic, ClientCompany, SupportPackage, Service } from '@/modules/core/types';
+import type { Ticket, NewTicketPayload, User, TicketThread, HelpTopic, ClientCompany, SupportPackage, Service, ThirdPartyProvider } from '@/modules/core/types';
 
 const TICKETS_DB_FILE = 'tickets.db';
 
@@ -49,6 +49,9 @@ export async function initializeTicketsDb(db: Database): Promise<void> {
             assigneeId INTEGER,
             helpTopicId INTEGER,
             serviceId TEXT,
+            contractId INTEGER,
+            isBillable INTEGER DEFAULT 0,
+            providerId INTEGER,
             FOREIGN KEY (companyId) REFERENCES client_companies(id) ON DELETE SET NULL,
             FOREIGN KEY (helpTopicId) REFERENCES help_topics(id)
         );
@@ -67,6 +70,16 @@ export async function initializeTicketsDb(db: Database): Promise<void> {
         CREATE TABLE IF NOT EXISTS ticket_settings (
             key TEXT PRIMARY KEY,
             value TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS third_party_providers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            email TEXT,
+            phone TEXT,
+            specialty TEXT,
+            notes TEXT,
+            createdAt TEXT NOT NULL
         );
     `;
     db.exec(schema);
@@ -90,6 +103,24 @@ export async function runTicketMigrations(db: Database) {
     if (!columns.has('helpTopicId')) db.exec(`ALTER TABLE tickets ADD COLUMN helpTopicId INTEGER;`);
     if (!columns.has('serviceId')) db.exec(`ALTER TABLE tickets ADD COLUMN serviceId TEXT;`);
     if (!columns.has('dueDate')) db.exec(`ALTER TABLE tickets ADD COLUMN dueDate TEXT;`);
+    if (!columns.has('contractId')) db.exec(`ALTER TABLE tickets ADD COLUMN contractId INTEGER;`);
+    if (!columns.has('isBillable')) db.exec(`ALTER TABLE tickets ADD COLUMN isBillable INTEGER DEFAULT 0;`);
+    if (!columns.has('providerId')) db.exec(`ALTER TABLE tickets ADD COLUMN providerId INTEGER;`);
+
+    const hasProvidersTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='third_party_providers'`).get();
+    if (!hasProvidersTable) {
+        db.exec(`
+            CREATE TABLE third_party_providers (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                email TEXT,
+                phone TEXT,
+                specialty TEXT,
+                notes TEXT,
+                createdAt TEXT NOT NULL
+            );
+        `);
+    }
 }
 
 async function getNextTicketNumber(db: Database): Promise<{ prefix: string; number: number }> {
@@ -123,9 +154,9 @@ export async function addTicket(payload: NewTicketPayload, user: User): Promise<
         }
 
         const info = db.prepare(`
-            INSERT INTO tickets (consecutive, subject, status, priority, createdAt, updatedAt, companyId, customerName, companyName, assigneeId, helpTopicId, serviceId, dueDate)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(consecutive, payload.subject, 'open', priority, now, now, payload.companyId, payload.customerName, companyName, assigneeId, payload.helpTopicId, payload.serviceId, payload.dueDate || null);
+            INSERT INTO tickets (consecutive, subject, status, priority, createdAt, updatedAt, companyId, customerName, companyName, assigneeId, helpTopicId, serviceId, dueDate, contractId, isBillable, providerId)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(consecutive, payload.subject, 'open', priority, now, now, payload.companyId, payload.customerName, companyName, assigneeId, payload.helpTopicId, payload.serviceId, payload.dueDate || null, payload.contractId, payload.isBillable ? 1 : 0, payload.providerId);
         
         db.prepare('INSERT INTO ticket_threads (ticketId, userId, userName, type, content, createdAt) VALUES (?, ?, ?, ?, ?, ?)')
           .run(info.lastInsertRowid, user.id, user.name, 'message', payload.content, now);
@@ -134,20 +165,24 @@ export async function addTicket(payload: NewTicketPayload, user: User): Promise<
         return db.prepare('SELECT * FROM tickets WHERE id = ?').get(info.lastInsertRowid) as Ticket;
     });
 
-    return JSON.parse(JSON.stringify(transaction()));
+    const result = transaction() as Ticket;
+    return {
+        ...result,
+        isBillable: !!result.isBillable
+    };
 }
 
 export async function addClientCompany(payload: Omit<ClientCompany, 'id' | 'createdAt'>): Promise<ClientCompany> {
     const db = await connectTicketsDb();
     const now = new Date().toISOString();
     const info = db.prepare(`INSERT INTO client_companies (name, taxId, address, phone, email, createdAt) VALUES (@name, @taxId, @address, @phone, @email, @createdAt)`).run({ ...payload, createdAt: now });
-    return JSON.parse(JSON.stringify({ ...payload, id: info.lastInsertRowid, createdAt: now }));
+    return { ...payload, id: Number(info.lastInsertRowid), createdAt: now };
 }
 
 export async function updateClientCompany(payload: ClientCompany): Promise<ClientCompany> {
     const db = await connectTicketsDb();
     db.prepare(`UPDATE client_companies SET name = @name, taxId = @taxId, address = @address, phone = @phone, email = @email WHERE id = @id`).run(payload);
-    return JSON.parse(JSON.stringify(payload));
+    return payload;
 }
 
 export async function deleteClientCompany(id: number): Promise<void> {
@@ -157,34 +192,35 @@ export async function deleteClientCompany(id: number): Promise<void> {
 
 export async function getClientCompanies(): Promise<ClientCompany[]> {
     const db = await connectTicketsDb();
-    return JSON.parse(JSON.stringify(db.prepare('SELECT * FROM client_companies ORDER BY name ASC').all()));
+    return db.prepare('SELECT * FROM client_companies ORDER BY name ASC').all() as ClientCompany[];
 }
 
 export async function getTickets(): Promise<Ticket[]> {
     const db = await connectTicketsDb();
-    return JSON.parse(JSON.stringify(db.prepare('SELECT * FROM tickets ORDER BY createdAt DESC').all()));
+    const rows = db.prepare('SELECT * FROM tickets ORDER BY createdAt DESC').all() as Ticket[];
+    return rows.map(r => ({ ...r, isBillable: !!r.isBillable }));
 }
 
 export async function getTicketById(id: number): Promise<Ticket | null> {
     const db = await connectTicketsDb();
-    const result = db.prepare('SELECT * FROM tickets WHERE id = ?').get(id);
-    return result ? JSON.parse(JSON.stringify(result)) : null;
+    const result = db.prepare('SELECT * FROM tickets WHERE id = ?').get(id) as Ticket | undefined;
+    return result ? { ...result, isBillable: !!result.isBillable } : null;
 }
 
 export async function getTicketThread(ticketId: number): Promise<TicketThread[]> {
     const db = await connectTicketsDb();
-    return JSON.parse(JSON.stringify(db.prepare('SELECT * FROM ticket_threads WHERE ticketId = ? ORDER BY createdAt ASC').all(ticketId)));
+    return db.prepare('SELECT * FROM ticket_threads WHERE ticketId = ? ORDER BY createdAt ASC').all(ticketId) as TicketThread[];
 }
 
-export async function addThreadEntry(payload: { ticketId: number; userId: number; userName: string; content: string; type: 'message' | 'note' }): Promise<TicketThread> {
+export async function addThreadEntry(payload: { ticketId: number; userId: number; userName: string; content: string; type: 'message' | 'note' | 'status_change' }): Promise<TicketThread> {
     const db = await connectTicketsDb();
     const now = new Date().toISOString();
     const info = db.prepare(`INSERT INTO ticket_threads (ticketId, userId, userName, type, content, createdAt) VALUES (?, ?, ?, ?, ?, ?)`).run(payload.ticketId, payload.userId, payload.userName, payload.type, payload.content, now);
     db.prepare('UPDATE tickets SET updatedAt = ? WHERE id = ?').run(now, payload.ticketId);
-    return JSON.parse(JSON.stringify(db.prepare('SELECT * FROM ticket_threads WHERE id = ?').get(info.lastInsertRowid)));
+    return db.prepare('SELECT * FROM ticket_threads WHERE id = ?').get(info.lastInsertRowid) as TicketThread;
 }
 
-export async function updateTicketDetails(ticketId: number, updates: Partial<Pick<Ticket, 'status' | 'priority' | 'assigneeId'>>, user: User): Promise<Ticket> {
+export async function updateTicketDetails(ticketId: number, updates: Partial<Pick<Ticket, 'status' | 'priority' | 'assigneeId' | 'isBillable' | 'providerId'>>, user: User): Promise<Ticket> {
     const db = await connectTicketsDb();
     const currentTicket = db.prepare('SELECT * FROM tickets WHERE id = ?').get(ticketId) as Ticket;
     if (!currentTicket) throw new Error("Ticket not found.");
@@ -198,6 +234,8 @@ export async function updateTicketDetails(ticketId: number, updates: Partial<Pic
         if (updates.status && updates.status !== currentTicket.status) { query += ', status = ?'; params.push(updates.status); notes.push(`Estado: ${updates.status}`); }
         if (updates.priority && updates.priority !== currentTicket.priority) { query += ', priority = ?'; params.push(updates.priority); notes.push(`Prioridad: ${updates.priority}`); }
         if (updates.assigneeId !== undefined && updates.assigneeId !== currentTicket.assigneeId) { query += ', assigneeId = ?'; params.push(updates.assigneeId); notes.push(`Asignado`); }
+        if (updates.isBillable !== undefined && !!updates.isBillable !== !!currentTicket.isBillable) { query += ', isBillable = ?'; params.push(updates.isBillable ? 1 : 0); notes.push(`Facturación: ${updates.isBillable ? 'Facturable' : 'No facturable'}`); }
+        if (updates.providerId !== undefined && updates.providerId !== currentTicket.providerId) { query += ', providerId = ?'; params.push(updates.providerId); notes.push(`Proveedor externo actualizado`); }
         
         query += ' WHERE id = ?';
         params.push(ticketId);
@@ -210,24 +248,25 @@ export async function updateTicketDetails(ticketId: number, updates: Partial<Pic
         return db.prepare('SELECT * FROM tickets WHERE id = ?').get(ticketId) as Ticket;
     });
 
-    return JSON.parse(JSON.stringify(transaction()));
+    const result = transaction() as Ticket;
+    return { ...result, isBillable: !!result.isBillable };
 }
 
 export async function getHelpTopics(): Promise<HelpTopic[]> {
     const db = await connectTicketsDb();
-    return JSON.parse(JSON.stringify(db.prepare('SELECT * FROM help_topics ORDER BY name ASC').all()));
+    return db.prepare('SELECT * FROM help_topics ORDER BY name ASC').all() as HelpTopic[];
 }
 
 export async function addHelpTopic(topic: Omit<HelpTopic, 'id'>): Promise<HelpTopic> {
     const db = await connectTicketsDb();
     const info = db.prepare('INSERT INTO help_topics (name, defaultPriority, defaultAssigneeId, defaultServiceId) VALUES (?, ?, ?, ?)').run(topic.name, topic.defaultPriority, topic.defaultAssigneeId, topic.defaultServiceId);
-    return JSON.parse(JSON.stringify(db.prepare('SELECT * FROM help_topics WHERE id = ?').get(info.lastInsertRowid)));
+    return db.prepare('SELECT * FROM help_topics WHERE id = ?').get(info.lastInsertRowid) as HelpTopic;
 }
 
 export async function updateHelpTopic(topic: HelpTopic): Promise<HelpTopic> {
     const db = await connectTicketsDb();
     db.prepare('UPDATE help_topics SET name = ?, defaultPriority = ?, defaultAssigneeId = ?, defaultServiceId = ? WHERE id = ?').run(topic.name, topic.defaultPriority, topic.defaultAssigneeId, topic.defaultServiceId, topic.id);
-    return JSON.parse(JSON.stringify(db.prepare('SELECT * FROM help_topics WHERE id = ?').get(topic.id)));
+    return db.prepare('SELECT * FROM help_topics WHERE id = ?').get(topic.id) as HelpTopic;
 }
 
 export async function deleteHelpTopic(id: number): Promise<void> {
@@ -252,6 +291,31 @@ export async function getCustomerSupportInfo(companyId: number | string): Promis
     
     if (!customer) return { customer: null, supportPackage: null, services: [] };
     const settings = await getCompanySettings();
-    const pkg = settings.supportPackages.find(p => p.id === customer.supportPackageId) || null;
-    return JSON.parse(JSON.stringify({ customer, supportPackage: pkg, services: settings.servicesCatalog }));
+    const pkgId = customer.supportPackageId as string | undefined;
+    const pkg = settings.supportPackages.find(p => p.id === pkgId) || null;
+    return { customer, supportPackage: pkg, services: settings.servicesCatalog };
+}
+
+// --- Third Party Providers Actions ---
+export async function getThirdPartyProviders(): Promise<ThirdPartyProvider[]> {
+    const db = await connectTicketsDb();
+    return db.prepare('SELECT * FROM third_party_providers ORDER BY name ASC').all() as ThirdPartyProvider[];
+}
+
+export async function addThirdPartyProvider(payload: Omit<ThirdPartyProvider, 'id' | 'createdAt'>): Promise<ThirdPartyProvider> {
+    const db = await connectTicketsDb();
+    const now = new Date().toISOString();
+    const info = db.prepare(`INSERT INTO third_party_providers (name, email, phone, specialty, notes, createdAt) VALUES (?, ?, ?, ?, ?, ?)`).run(payload.name, payload.email, payload.phone, payload.specialty, payload.notes, now);
+    return { ...payload, id: Number(info.lastInsertRowid), createdAt: now };
+}
+
+export async function updateThirdPartyProvider(payload: ThirdPartyProvider): Promise<ThirdPartyProvider> {
+    const db = await connectTicketsDb();
+    db.prepare(`UPDATE third_party_providers SET name = ?, email = ?, phone = ?, specialty = ?, notes = ? WHERE id = ?`).run(payload.name, payload.email, payload.phone, payload.specialty, payload.notes, payload.id);
+    return payload;
+}
+
+export async function deleteThirdPartyProvider(id: number): Promise<void> {
+    const db = await connectTicketsDb();
+    db.prepare('DELETE FROM third_party_providers WHERE id = ?').run(id);
 }

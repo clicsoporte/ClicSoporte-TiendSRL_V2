@@ -9,14 +9,15 @@ import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError } from '@/modules/core/lib/logger';
 import { useAuth } from '@/modules/core/hooks/useAuth';
-import type { NewTicketPayload, Ticket, TicketPriority, TicketStatus, TicketThread, User, HelpTopic, ClientCompany, Service, Customer, Contract } from '@/modules/core/types';
+import type { NewTicketPayload, Ticket, TicketPriority, TicketStatus, TicketThread, User, HelpTopic, ClientCompany, Customer, Contract, ThirdPartyProvider } from '@/modules/core/types';
 import {
     saveTicket, getTickets, getTicketById as getTicketByIdServer,
     getTicketThread as getTicketThreadServer,
     addThreadEntry as addThreadEntryServer,
     updateTicketDetails as updateTicketDetailsServer,
-    getHelpTopics, addClientCompany,
+    getHelpTopics,
     deleteTicket,
+    getThirdPartyProviders,
 } from '../lib/actions';
 import { getActiveContractForCustomer } from '@/modules/contracts/lib/actions';
 import { useDebounce } from 'use-debounce';
@@ -32,23 +33,16 @@ const emptyTicket: NewTicketPayload = {
     customerEmail: '',
     customerPhone: '',
     companyName: '',
-};
-
-const emptyCustomer: Omit<ClientCompany, 'id' | 'createdAt'> = {
-    name: '',
-    taxId: '',
-    address: '',
-    phone: '',
-    email: '',
+    isBillable: false,
+    contractId: null,
+    providerId: null,
 };
 
 const initialState = {
     isLoading: true,
     isSubmitting: false,
     isNewTicketDialogOpen: false,
-    isNewCustomerDialogOpen: false,
     newTicket: emptyTicket,
-    newCustomer: emptyCustomer,
     customerSearchTerm: '',
     isCustomerSearchOpen: false,
     tickets: [] as Ticket[],
@@ -57,8 +51,8 @@ const initialState = {
     statusFilter: 'all',
     priorityFilter: 'all',
     currentThread: [] as TicketThread[],
-    clientCompanies: [] as ClientCompany[],
-    customerContract: null as Contract | null,
+    activeContract: null as Contract | null,
+    providers: [] as ThirdPartyProvider[],
 };
 
 const priorityConfig: { [key in TicketPriority]: { label: string, variant: 'default' | 'secondary' | 'destructive' | 'outline' } } = {
@@ -93,12 +87,19 @@ export const useTickets = () => {
     const loadInitialData = useCallback(async () => {
         updateState({ isLoading: true });
         try {
-            const fetchedTickets = await getTickets();
-            const fetchedHelpTopics = await getHelpTopics();
-            updateState({ tickets: fetchedTickets, helpTopics: fetchedHelpTopics });
+            const [fetchedTickets, fetchedHelpTopics, fetchedProviders] = await Promise.all([
+                getTickets(),
+                getHelpTopics(),
+                getThirdPartyProviders()
+            ]);
+            updateState({ 
+                tickets: fetchedTickets, 
+                helpTopics: fetchedHelpTopics,
+                providers: fetchedProviders
+            });
         } catch (error) {
             logError("Failed to load tickets", { error: (error as Error).message });
-            toast({ title: "Error", description: "No se pudieron cargar los tickets.", variant: "destructive" });
+            toast({ title: "Error", description: "No se pudieron cargar los datos.", variant: "destructive" });
         } finally {
             updateState({ isLoading: false });
         }
@@ -111,9 +112,21 @@ export const useTickets = () => {
         }
     }, [setTitle, isAuthorized, loadInitialData]);
 
+    const validateCoverage = useCallback((serviceId: string | null, contract: Contract | null) => {
+        if (!serviceId) return { isBillable: false, message: 'Seleccione un servicio' };
+        if (!contract) return { isBillable: true, message: 'El cliente NO TIENE un contrato activo. El servicio será FACTURABLE.' };
+
+        if (contract.includedServices.includes(serviceId)) {
+            return { isBillable: false, message: `Servicio cubierto por el contrato: ${contract.name}` };
+        }
+        if (contract.excludedServices.includes(serviceId)) {
+            return { isBillable: true, message: `Servicio EXCLUIDO del contrato. Será FACTURABLE por separado.` };
+        }
+        return { isBillable: true, message: 'Servicio no especificado en el contrato. Por defecto será FACTURABLE.' };
+    }, []);
+
     const actions = {
         setNewTicketDialogOpen: (isOpen: boolean) => updateState({ isNewTicketDialogOpen: isOpen }),
-        setNewCustomerDialogOpen: (isOpen: boolean) => updateState({ isNewCustomerDialogOpen: isOpen }),
         setCustomerSearchTerm: (term: string) => updateState({ customerSearchTerm: term }),
         setCustomerSearchOpen: (isOpen: boolean) => updateState({ isCustomerSearchOpen: isOpen }),
         setSearchTerm: (term: string) => updateState({ searchTerm: term }),
@@ -122,49 +135,57 @@ export const useTickets = () => {
 
         clearFilters: () => updateState({ searchTerm: '', statusFilter: 'all', priorityFilter: 'all' }),
 
-        handleNewTicketChange: (field: keyof NewTicketPayload, value: string | number | null) => {
+        handleNewTicketChange: (field: keyof NewTicketPayload, value: string | number | boolean | null) => {
+            let updatedTicket = { ...state.newTicket, [field]: value };
+
             if (field === 'helpTopicId' && value) {
                 const topic = state.helpTopics.find(t => t.id === value);
                 if (topic) {
-                    updateState({
-                        newTicket: {
-                            ...state.newTicket,
-                            helpTopicId: topic.id,
-                            priority: topic.defaultPriority || state.newTicket.priority,
-                            assigneeId: topic.defaultAssigneeId !== undefined ? topic.defaultAssigneeId : state.newTicket.assigneeId,
-                            serviceId: topic.defaultServiceId || state.newTicket.serviceId
-                        }
-                    });
-                    return;
+                    updatedTicket = {
+                        ...updatedTicket,
+                        helpTopicId: topic.id,
+                        priority: topic.defaultPriority || updatedTicket.priority,
+                        assigneeId: topic.defaultAssigneeId !== undefined ? topic.defaultAssigneeId : updatedTicket.assigneeId,
+                        serviceId: topic.defaultServiceId || updatedTicket.serviceId
+                    };
                 }
             }
-            updateState({ newTicket: { ...state.newTicket, [field]: value } });
+
+            if (field === 'serviceId' || field === 'helpTopicId') {
+                const { isBillable } = validateCoverage(updatedTicket.serviceId, state.activeContract);
+                updatedTicket.isBillable = isBillable;
+            }
+
+            updateState({ newTicket: updatedTicket });
         },
 
         handleSelectCompany: async (customerId: string) => {
             const customer = customers.find(c => c.id === customerId);
             if (!customer) return;
 
+            const contract = await getActiveContractForCustomer(customer.id);
+            const { isBillable } = validateCoverage(state.newTicket.serviceId, contract);
+
             updateState({
                 newTicket: { 
                     ...state.newTicket, 
-                    companyId: null, // No longer using companyId from old system
+                    companyId: null,
                     companyName: customer.name, 
                     customerName: customer.name, 
-                    customerEmail: customer.email || customer.electronicDocEmail 
+                    customerEmail: customer.email || customer.electronicDocEmail,
+                    contractId: contract?.id || null,
+                    isBillable
                 },
+                activeContract: contract,
                 customerSearchTerm: customer.name,
                 isCustomerSearchOpen: false,
             });
-            
-            const activeContract = await getActiveContractForCustomer(customer.id);
-            updateState({ customerContract: activeContract });
         },
 
         handleCreateTicket: async () => {
-            const user = users[0]; // Temporary surrogate
+            const user = users[0]; 
             if (!user || !state.newTicket.subject || !state.newTicket.content || !state.newTicket.customerName || !state.newTicket.customerEmail || !state.newTicket.serviceId) {
-                toast({ title: "Datos Incompletos", description: "Asunto, descripción, servicio y datos del cliente son requeridos.", variant: "destructive" });
+                toast({ title: "Datos Incompletos", description: "Asunto, descripción, servicio y cliente son obligatorios.", variant: "destructive" });
                 return;
             }
 
@@ -177,13 +198,13 @@ export const useTickets = () => {
                     isNewTicketDialogOpen: false,
                     newTicket: emptyTicket,
                     customerSearchTerm: '',
-                    tickets: [createdTicket, ...state.tickets]
+                    tickets: [createdTicket, ...state.tickets],
+                    activeContract: null
                 });
 
             } catch (error: unknown) {
-                const err = error as Error;
-                logError("Failed to create ticket", { error: err.message });
-                toast({ title: "Error", description: `No se pudo crear el ticket: ${err.message}`, variant: "destructive" });
+                logError("Failed to create ticket", { error: (error as Error).message });
+                toast({ title: "Error", description: "No se pudo crear el ticket.", variant: "destructive" });
             } finally {
                 updateState({ isSubmitting: false });
             }
@@ -194,8 +215,7 @@ export const useTickets = () => {
             try {
                 return await getTicketByIdServer(id);
             } catch (error: unknown) {
-                logError("Failed to get ticket by id", { error: (error as Error).message });
-                toast({ title: "Error", description: "No se pudo cargar el ticket.", variant: "destructive" });
+                logError("Failed to get ticket", { error: (error as Error).message });
                 return null;
             } finally {
                 updateState({ isLoading: false });
@@ -209,33 +229,29 @@ export const useTickets = () => {
                 updateState({ currentThread: thread });
                 return thread;
             } catch (error: unknown) {
-                logError("Failed to get ticket thread", { error: (error as Error).message });
-                toast({ title: "Error", description: "No se pudo cargar la conversación.", variant: "destructive" });
+                logError("Failed to get thread", { error: (error as Error).message });
                 return [];
             } finally {
                 updateState({ isLoading: false });
             }
         },
 
-        addThreadEntry: async (payload: { ticketId: number; userId: number; userName: string; content: string; type: 'message' | 'note' }) => {
+        addThreadEntry: async (payload: { ticketId: number; userId: number; userName: string; content: string; type: 'message' | 'note' | 'status_change' }) => {
             updateState({ isSubmitting: true });
             try {
-                const newEntry = await addThreadEntryServer({ ...payload, type: payload.type || 'message' });
+                const newEntry = await addThreadEntryServer(payload);
                 updateState({ currentThread: [...state.currentThread, newEntry] });
                 return newEntry;
             } catch (error: unknown) {
-                const err = error as Error;
-                logError("Failed to add thread entry", { error: err.message });
-                toast({ title: "Error al Responder", description: err.message, variant: "destructive" });
+                toast({ title: "Error al Responder", description: (error as Error).message, variant: "destructive" });
             } finally {
                 updateState({ isSubmitting: false });
             }
         },
 
-        updateTicketDetails: async (ticketId: number, updates: Partial<Pick<Ticket, 'status' | 'priority' | 'assigneeId'>>, user: User): Promise<Ticket | null> => {
+        updateTicketDetails: async (ticketId: number, updates: Partial<Pick<Ticket, 'status' | 'priority' | 'assigneeId' | 'isBillable' | 'providerId'>>, user: User): Promise<Ticket | null> => {
             try {
                 const updatedTicket = await updateTicketDetailsServer(ticketId, updates, user);
-                // Also update thread immediately
                 const thread = await getTicketThreadServer(ticketId);
                 updateState({
                     tickets: state.tickets.map(t => t.id === ticketId ? updatedTicket : t),
@@ -243,8 +259,7 @@ export const useTickets = () => {
                 });
                 return updatedTicket;
             } catch (error: unknown) {
-                logError("Failed to update ticket details", { error: (error as Error).message });
-                toast({ title: "Error al Actualizar", description: (error as Error).message, variant: "destructive" });
+                logError("Failed to update ticket", { error: (error as Error).message });
                 return null;
             }
         },
@@ -254,22 +269,19 @@ export const useTickets = () => {
         },
 
         resetNewTicketForm: () => {
-            updateState({ newTicket: emptyTicket, customerSearchTerm: '', customerContract: null });
+            updateState({ newTicket: emptyTicket, customerSearchTerm: '', activeContract: null });
         }
     };
 
     const selectors = {
         priorityConfig,
         statusConfig,
-        supportUsers: useMemo(() => {
-            if (!users) return [];
-            return users.filter(u => u.role === 'admin' || u.role === 'support-agent');
-        }, [users]),
+        supportUsers: useMemo(() => users.filter(u => u.role === 'admin' || u.role === 'support-agent'), [users]),
         customerOptions: useMemo(() => {
             if (debouncedCustomerSearch.length < 2) return [];
             return customers.filter(c =>
                 c.name.toLowerCase().includes(debouncedCustomerSearch.toLowerCase()) ||
-                c.taxId.includes(debouncedCustomerSearch)
+                c.id.toLowerCase().includes(debouncedCustomerSearch.toLowerCase())
             ).map(c => ({ value: c.id, label: `${c.name} (${c.id})` }));
         }, [customers, debouncedCustomerSearch]),
         filteredTickets: useMemo(() => {
@@ -281,7 +293,11 @@ export const useTickets = () => {
                 const priorityMatch = state.priorityFilter === 'all' || ticket.priority === state.priorityFilter;
                 return searchMatch && statusMatch && priorityMatch;
             });
-        }, [state.tickets, debouncedSearchTerm, state.statusFilter, state.priorityFilter])
+        }, [state.tickets, debouncedSearchTerm, state.statusFilter, state.priorityFilter]),
+        coverageMessage: useMemo(() => {
+            const { message } = validateCoverage(state.newTicket.serviceId, state.activeContract);
+            return message;
+        }, [state.newTicket.serviceId, state.activeContract, validateCoverage])
     };
 
     return {
