@@ -202,9 +202,10 @@ export const useTickets = () => {
                 const newCompany = await addClientCompany(state.newCustomer);
                 toast({ title: "Empresa Creada", description: "La nueva empresa cliente ha sido añadida." });
                 updateState({ isNewCustomerDialogOpen: false, newCustomer: emptyCustomer, clientCompanies: [...state.clientCompanies, newCompany] });
-            } catch (error: any) {
-                logError("Failed to create ticket customer", { error: (error as Error).message });
-                toast({ title: "Error", description: `No se pudo crear el cliente: ${error.message}`, variant: "destructive" });
+            } catch (error: unknown) {
+                const err = error as Error;
+                logError("Failed to create ticket customer", { error: err.message });
+                toast({ title: "Error", description: `No se pudo crear el cliente: ${err.message}`, variant: "destructive" });
             } finally {
                 updateState({ isSubmitting: false });
             }
@@ -229,9 +230,10 @@ export const useTickets = () => {
                     tickets: [createdTicket, ...state.tickets]
                 });
 
-            } catch (error: any) {
-                logError("Failed to create ticket", { error: (error as Error).message });
-                toast({ title: "Error", description: `No se pudo crear el ticket: ${error.message}`, variant: "destructive" });
+            } catch (error: unknown) {
+                const err = error as Error;
+                logError("Failed to create ticket", { error: err.message });
+                toast({ title: "Error", description: `No se pudo crear el ticket: ${err.message}`, variant: "destructive" });
             } finally {
                 updateState({ isSubmitting: false });
             }
@@ -241,7 +243,7 @@ export const useTickets = () => {
             updateState({ isLoading: true });
             try {
                 return await getTicketByIdServer(id);
-            } catch (error) {
+            } catch (error: unknown) {
                 logError("Failed to get ticket by id", { error: (error as Error).message });
                 toast({ title: "Error", description: "No se pudo cargar el ticket.", variant: "destructive" });
                 return null;
@@ -256,7 +258,7 @@ export const useTickets = () => {
                 const thread = await getTicketThreadServer(ticketId);
                 updateState({ currentThread: thread });
                 return thread;
-            } catch (error) {
+            } catch (error: unknown) {
                 logError("Failed to get ticket thread", { error: (error as Error).message });
                 toast({ title: "Error", description: "No se pudo cargar la conversación.", variant: "destructive" });
                 return [];
@@ -271,9 +273,10 @@ export const useTickets = () => {
                 const newEntry = await addThreadEntryServer({ ...payload, type: payload.type || 'message' });
                 updateState({ currentThread: [...state.currentThread, newEntry] });
                 return newEntry;
-            } catch (error: any) {
-                logError("Failed to add thread entry", { error: (error as Error).message });
-                toast({ title: "Error al Responder", description: error.message, variant: "destructive" });
+            } catch (error: unknown) {
+                const err = error as Error;
+                logError("Failed to add thread entry", { error: err.message });
+                toast({ title: "Error al Responder", description: err.message, variant: "destructive" });
             } finally {
                 updateState({ isSubmitting: false });
             }
@@ -289,9 +292,9 @@ export const useTickets = () => {
                     currentThread: thread
                 });
                 return updatedTicket;
-            } catch (error: any) {
+            } catch (error: unknown) {
                 logError("Failed to update ticket details", { error: (error as Error).message });
-                toast({ title: "Error al Actualizar", description: error.message, variant: "destructive" });
+                toast({ title: "Error al Actualizar", description: (error as Error).message, variant: "destructive" });
                 return null;
             }
         },
@@ -308,8 +311,8 @@ export const useTickets = () => {
             try {
                 const info = await getCustomerSupportInfo(id);
                 updateState({ customerSupportInfo: info as { customer: Customer | ClientCompany | null, supportPackage: SupportPackage | null, services: Service[] } });
-            } catch (error: any) {
-                logError("Failed to load customer support info", { error: error.message });
+            } catch (error: unknown) {
+                logError("Failed to load customer support info", { error: (error as Error).message });
                 updateState({ customerSupportInfo: null });
             }
         }

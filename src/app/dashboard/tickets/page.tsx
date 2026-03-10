@@ -24,7 +24,7 @@ import Link from "next/link";
 import { useAuth } from "@/modules/core/hooks/useAuth";
 import { useDropzone } from 'react-dropzone';
 import { useMemo } from 'react';
-import type { TicketPriority, SupportPackage, Service, Ticket } from '@/modules/core/types';
+import type { TicketPriority, Ticket, Customer } from '@/modules/core/types';
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function TicketsPage() {
@@ -241,7 +241,7 @@ export default function TicketsPage() {
                                                     <CardHeader className="p-3"><CardTitle className="text-base">Plan de Soporte</CardTitle></CardHeader>
                                                     <CardContent className="p-3 pt-0 text-sm space-y-1">
                                                         <p><strong>Paquete:</strong> {customerSupportInfo.supportPackage?.name || 'No Asignado'}</p>
-                                                        <p><strong>Horas Restantes:</strong> {('monthlyHoursBalance' in customerSupportInfo.customer && (customerSupportInfo.customer as any).monthlyHoursBalance?.toFixed(2)) || 'N/A'}</p>
+                                                        <p><strong>Horas Restantes:</strong> {('monthlyHoursBalance' in customerSupportInfo.customer && (customerSupportInfo.customer as Customer).monthlyHoursBalance?.toFixed(2)) || 'N/A'}</p>
                                                     </CardContent>
                                                 </Card>
                                             )}

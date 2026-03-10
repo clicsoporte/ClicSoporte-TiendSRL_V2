@@ -25,16 +25,16 @@ export async function saveQuoteDraft(draft: QuoteDraft): Promise<void> {
 
 export async function getAllQuoteDrafts(userId: number): Promise<QuoteDraft[]> {
     const db = await connectDb(DB_FILE);
-    const results = db.prepare('SELECT * FROM quote_drafts WHERE userId = ? ORDER BY createdAt DESC').all(userId) as any[];
+    const results = db.prepare('SELECT * FROM quote_drafts WHERE userId = ? ORDER BY createdAt DESC').all(userId) as Record<string, unknown>[];
     
     // Ensure all nested JSON is parsed correctly.
     const parsedResults = results.map(draft => ({
         ...draft,
-        lines: JSON.parse(draft.lines || '[]'),
-        totals: JSON.parse(draft.totals || '{}')
+        lines: JSON.parse((draft.lines as string) || '[]'),
+        totals: JSON.parse((draft.totals as string) || '{}')
     }));
 
-    return JSON.parse(JSON.stringify(parsedResults));
+    return JSON.parse(JSON.stringify(parsedResults)) as QuoteDraft[];
 }
 
 export async function deleteQuoteDraft(draftId: string): Promise<void> {

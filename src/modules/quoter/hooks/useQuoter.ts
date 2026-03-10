@@ -222,7 +222,7 @@ export const useQuoter = () => {
         const lastLineRefs = lineInputRefs.current.get(lastLine.id);
         lastLineRefs?.qty?.focus();
     }
-  }, [lines.length]);
+  }, [lines]);
 
   const customerOptions = useMemo(() => {
     if (debouncedCustomerSearch.length < 2) return [];
@@ -560,7 +560,10 @@ export const useQuoter = () => {
           userId: currentUser.id,
           customerId: selectedCustomer ? selectedCustomer.id : null,
           customerDetails: customerDetails,
-          lines: lines.map(({ displayQuantity: _, displayPrice: __, ...rest }) => rest),
+          lines: lines.map((line) => {
+              const { displayQuantity: _dq, displayPrice: _dp, ...rest } = line;
+              return rest;
+          }),
           totals: totals,
           notes: notes,
           currency: currency,
@@ -579,8 +582,8 @@ export const useQuoter = () => {
         toast({ title: "Borrador Guardado", description: `La cotización Nº ${quoteNumber} ha sido guardada.` });
         await logInfo(`Quote draft saved: ${quoteNumber}`);
         await incrementAndSaveQuoteNumber();
-    } catch (error: any) {
-        logError("Failed to save draft", { error: error.message });
+    } catch (error: unknown) {
+        logError("Failed to save draft", { error: (error as Error).message });
         toast({ title: "Error", description: "No se pudo guardar el borrador.", variant: "destructive" });
     } finally {
         setIsProcessing(false);
@@ -661,7 +664,11 @@ export const useQuoter = () => {
     setMobileColumnVisibility(prev => ({ ...prev, [column]: checked }));
   };
 
-  const selectors = { totals, customerOptions, productOptions };
+  const selectors = useMemo(() => ({
+    totals,
+    customerOptions,
+    productOptions
+  }), [totals, customerOptions, productOptions]);
 
   return {
     state: {

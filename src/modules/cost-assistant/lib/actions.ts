@@ -20,8 +20,8 @@ import path from 'path';
 import fs from 'fs';
 import { getUserPreferences, saveUserPreferences } from '@/modules/core/lib/db';
 
-const getValue = <T>(obj: Record<string, any>, path: string[], defaultValue: T): T => {
-    const result = path.reduce((acc, key) => {
+const getValue = <T>(obj: Record<string, unknown>, pathArray: string[], defaultValue: T): T => {
+    const result = pathArray.reduce((acc: any, key) => {
         if (typeof acc === 'object' && acc !== null && key in acc) {
             return acc[key];
         }
@@ -67,15 +67,15 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
         },
     });
 
-    let json: Record<string, any>;
+    let json: Record<string, unknown>;
     try {
-        json = parser.parse(xmlContent);
+        json = parser.parse(xmlContent) as Record<string, unknown>;
     } catch (e: unknown) {
         logError('XML parsing failed', { error: (e as Error).message, content: xmlContent.substring(0, 500) });
         return { error: 'XML malformado o ilegible.', details: {} };
     }
     
-    const rootNode = json.FacturaElectronica || json.TiqueteElectronico;
+    const rootNode = (json.FacturaElectronica || json.TiqueteElectronico) as Record<string, unknown>;
     
     if (!rootNode) {
         const detectedRoot = Object.keys(json)[0] || 'N/A';
@@ -112,12 +112,12 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
 
     const lines: CostAssistantLine[] = [];
     for (const [index, linea] of lineasDetalle.entries()) {
-        const cantidad = parseDecimal(getValue(linea, ['Cantidad'], '0'));
+        const cantidad = parseDecimal(getValue(linea as Record<string, unknown>, ['Cantidad'], '0'));
         if (cantidad === 0) continue;
         
         let supplierCode = 'N/A';
         let supplierCodeType = '04'; // Default to 'Uso Interno'
-        const codigosComerciales = getValue<any[]>(linea, ['CodigoComercial'], []);
+        const codigosComerciales = getValue<any[]>(linea as Record<string, unknown>, ['CodigoComercial'], []);
         
         if (codigosComerciales.length > 0) {
             const preferredCodeNode = codigosComerciales.find((c: any) => c.Tipo === '01');
@@ -130,34 +130,34 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
             }
         }
         
-        const cabysV43 = getValue<string>(linea, ['Codigo'], '');
-        const cabysV44 = getValue<string>(linea, ['CodigoCABYS'], '');
+        const cabysV43 = getValue<string>(linea as Record<string, unknown>, ['Codigo'], '');
+        const cabysV44 = getValue<string>(linea as Record<string, unknown>, ['CodigoCABYS'], '');
         const cabysCode = cabysV44 || cabysV43 || 'N/A';
         
-        const montoTotalLinea = parseDecimal(getValue(linea, ['MontoTotalLinea'], '0'));
+        const montoTotalLinea = parseDecimal(getValue(linea as Record<string, unknown>, ['MontoTotalLinea'], '0'));
         
-        const descuentoNode = getValue<any>(linea, ['Descuento'], null);
-        const discountAmount = descuentoNode ? parseDecimal(getValue(descuentoNode, ['MontoDescuento'], '0')) : 0;
+        const descuentoNode = getValue<any>(linea as Record<string, unknown>, ['Descuento'], null);
+        const discountAmount = descuentoNode ? parseDecimal(getValue(descuentoNode as Record<string, unknown>, ['MontoDescuento'], '0')) : 0;
         
-        const subTotal = parseDecimal(getValue(linea, ['SubTotal'], '0'));
+        const subTotal = parseDecimal(getValue(linea as Record<string, unknown>, ['SubTotal'], '0'));
         
         const subTotalWithDiscount = subTotal - discountAmount;
         
         const unitCostWithTax = cantidad > 0 ? montoTotalLinea / cantidad : 0;
         const unitCostWithoutTax = cantidad > 0 ? subTotalWithDiscount / cantidad : 0;
 
-        const impuestoNode = getValue<any>(linea, ['Impuesto'], null);
+        const impuestoNode = getValue<any>(linea as Record<string, unknown>, ['Impuesto'], null);
         let taxRate = 0.13; // Default
         let taxCode = '08'; // Default
         if (impuestoNode) {
-            taxRate = parseDecimal(getValue(impuestoNode, ['Tarifa'], '13')) / 100;
-            taxCode = getValue(impuestoNode, ['CodigoTarifaIVA'], '08');
+            taxRate = parseDecimal(getValue(impuestoNode as Record<string, unknown>, ['Tarifa'], '13')) / 100;
+            taxCode = getValue(impuestoNode as Record<string, unknown>, ['CodigoTarifaIVA'], '08');
         }
         
         const unitCostWithTaxInColones = moneda === 'USD' ? unitCostWithTax * tipoCambio : unitCostWithTax;
         const unitCostWithoutTaxInColones = moneda === 'USD' ? unitCostWithoutTax * tipoCambio : unitCostWithoutTax;
         
-        const numeroLinea = getValue<number>(linea, ['NumeroLinea'], index + 1);
+        const numeroLinea = getValue<number>(linea as Record<string, unknown>, ['NumeroLinea'], index + 1);
 
         lines.push({
             id: `${numeroConsecutivo}-${numeroLinea}-${supplierCode}-${index}`,
@@ -166,7 +166,7 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
             cabysCode: cabysCode,
             supplierCode: supplierCode,
             supplierCodeType: supplierCodeType,
-            description: getValue<string>(linea, ['Detalle'], ''),
+            description: getValue<string>(linea as Record<string, unknown>, ['Detalle'], ''),
             quantity: cantidad,
             discountAmount,
             unitCostWithTax: unitCostWithTaxInColones,

@@ -173,11 +173,19 @@ export const usePlanner = () => {
         setViewingArchived: (isArchived: boolean) => updateState({ viewingArchived: isArchived, archivedPage: 0 }),
         setArchivedPage: (pageUpdate: (page: number) => number) => updateState({ archivedPage: pageUpdate(state.archivedPage) }),
         setPageSize: (size: number) => updateState({ pageSize: size, archivedPage: 0 }),
-        setNewOrder: (partialOrder: Partial<typeof state.newOrder>) => {
-            updateState({ newOrder: { ...state.newOrder, ...partialOrder } });
+        setNewOrder: (partialOrder: Partial<typeof state.newOrder> | ((prev: typeof state.newOrder) => typeof state.newOrder)) => {
+            if (typeof partialOrder === 'function') {
+                updateState({ newOrder: partialOrder(state.newOrder) });
+            } else {
+                updateState({ newOrder: { ...state.newOrder, ...partialOrder } });
+            }
         },
-        setOrderToEdit: (partialOrder: ProductionOrder | null) => {
-            updateState({ orderToEdit: partialOrder });
+        setOrderToEdit: (partialOrder: ProductionOrder | null | ((prev: ProductionOrder | null) => ProductionOrder | null)) => {
+            if (typeof partialOrder === 'function') {
+                updateState({ orderToEdit: partialOrder(state.orderToEdit) });
+            } else {
+                updateState({ orderToEdit: partialOrder });
+            }
         },
         setOrderToUpdate: (order: ProductionOrder | null) => updateState({ orderToUpdate: order }),
         setSearchTerm: (term: string) => updateState({ searchTerm: term }),
@@ -416,8 +424,8 @@ export const usePlanner = () => {
                     inventoryErp: stock,
                     inventory: stock,
                 };
-                if (state.orderToEdit) actions.setOrderToEdit({ ...state.orderToEdit, ...dataToUpdate } as ProductionOrder);
-                else actions.setNewOrder({ ...state.newOrder, ...dataToUpdate } as any);
+                if (state.orderToEdit) actions.setOrderToEdit((prev: ProductionOrder | null) => prev ? { ...prev, ...dataToUpdate } : null);
+                else actions.setNewOrder((prev: typeof emptyOrder) => ({ ...prev, ...dataToUpdate }));
                 updateState({ productSearchTerm: `[${product.id}] - ${product.description}` });
             }
         },
@@ -427,8 +435,8 @@ export const usePlanner = () => {
             const customer = customers.find(c => c.id === value);
             if (customer) {
                 const dataToUpdate = { customerId: customer.id, customerName: customer.name, customerTaxId: customer.taxId };
-                if (state.orderToEdit) actions.setOrderToEdit({ ...state.orderToEdit, ...dataToUpdate } as ProductionOrder);
-                else actions.setNewOrder({ ...state.newOrder, ...dataToUpdate } as any);
+                if (state.orderToEdit) actions.setOrderToEdit((prev: ProductionOrder | null) => prev ? { ...prev, ...dataToUpdate } : null);
+                else actions.setNewOrder((prev: typeof emptyOrder) => ({ ...prev, ...dataToUpdate }));
                 updateState({ customerSearchTerm: `[${customer.id}] ${customer.name} (${customer.taxId})` });
             }
         },
