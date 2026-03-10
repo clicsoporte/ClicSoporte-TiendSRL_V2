@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Server-side functions for the planner database.
  */
@@ -7,7 +6,6 @@
 import type { Database } from 'better-sqlite3';
 import { connectDb as baseConnectDb } from '@/modules/core/lib/db-connection';
 import type { ProductionOrder, PlannerSettings, UpdateStatusPayload, UpdateOrderDetailsPayload, ProductionOrderHistoryEntry, CustomStatus, AdministrativeActionPayload, UpdateProductionOrderPayload } from '../../core/types';
-import { format, parseISO } from 'date-fns';
 
 const PLANNER_DB_FILE = 'planner.db';
 
@@ -261,8 +259,8 @@ export async function updateOrder(payload: UpdateProductionOrderPayload): Promis
     if (currentOrder.status !== 'pending') {
         Object.keys(dataToUpdate).forEach(field => {
             if (fieldsToTrack.includes(field)) {
-                const newVal = (dataToUpdate as any)[field];
-                const oldVal = (currentOrder as any)[field];
+                const newVal = (dataToUpdate as Record<string, unknown>)[field];
+                const oldVal = (currentOrder as Record<string, unknown>)[field];
                 if (newVal !== undefined && String(oldVal || '') !== String(newVal || '')) {
                     changes.push(`${field}: de '${oldVal || 'N/A'}' a '${newVal || 'N/A'}'`);
                     hasBeenModified = true;
@@ -336,8 +334,8 @@ export async function updateStatus(payload: UpdateStatusPayload): Promise<Produc
             reopened: reopen ? 1 : (currentOrder.reopened ? 1 : 0),
         });
         
-        db.prepare('INSERT INTO production_order_history (orderId, timestamp, status, updatedBy, notes) VALUES (?, ?, ?, ?, ?)')
-          .run(orderId, new Date().toISOString(), status, updatedBy, notes);
+        db.prepare('INSERT INTO ticket_threads (ticketId, userId, userName, type, content, createdAt) VALUES (?, ?, ?, ?, ?, ?)')
+          .run(orderId, 0, updatedBy, 'status_change', notes, new Date().toISOString());
     });
 
     transaction();
@@ -352,7 +350,7 @@ export async function updateDetails(payload: UpdateOrderDetailsPayload): Promise
     if (!currentOrder) throw new Error("Order not found.");
 
     let query = 'UPDATE production_orders SET';
-    const params: any = { orderId };
+    const params: Record<string, string | number | null> = { orderId };
     const updates: string[] = [];
     const historyItems: string[] = [];
 

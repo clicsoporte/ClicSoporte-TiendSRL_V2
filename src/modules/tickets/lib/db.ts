@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Server-side functions for the support tickets database.
  */
@@ -7,7 +6,7 @@
 import type { Database } from 'better-sqlite3';
 import { connectDb as baseConnectDb } from '@/modules/core/lib/db-connection';
 import { getCompanySettings } from '../../core/lib/settings-db';
-import type { Ticket, NewTicketPayload, User, TicketThread, HelpTopic, ClientCompany, SupportPackage, Service, Customer } from '@/modules/core/types';
+import type { Ticket, NewTicketPayload, User, TicketThread, HelpTopic, ClientCompany, SupportPackage, Service } from '@/modules/core/types';
 
 const TICKETS_DB_FILE = 'tickets.db';
 
@@ -193,7 +192,7 @@ export async function updateTicketDetails(ticketId: number, updates: Partial<Pic
     const transaction = db.transaction(() => {
         const now = new Date().toISOString();
         let query = 'UPDATE tickets SET updatedAt = ?';
-        const params: any[] = [now];
+        const params: (string | number | null)[] = [now];
         const notes: string[] = [];
 
         if (updates.status && updates.status !== currentTicket.status) { query += ', status = ?'; params.push(updates.status); notes.push(`Estado: ${updates.status}`); }
@@ -241,14 +240,14 @@ export async function deleteTicket(id: number): Promise<void> {
     db.prepare('DELETE FROM tickets WHERE id = ?').run(id);
 }
 
-export async function getCustomerSupportInfo(companyId: number | string): Promise<{ customer: any; supportPackage: SupportPackage | null, services: Service[] }> {
+export async function getCustomerSupportInfo(companyId: number | string): Promise<{ customer: Record<string, unknown> | null; supportPackage: SupportPackage | null, services: Service[] }> {
     const db = await connectTicketsDb();
-    let customer: any = null;
+    let customer: Record<string, unknown> | null = null;
     if (typeof companyId === 'string') {
         const mainDb = await baseConnectDb('intratool.db');
-        customer = mainDb.prepare('SELECT * FROM customers WHERE id = ?').get(companyId);
+        customer = mainDb.prepare('SELECT * FROM customers WHERE id = ?').get(companyId) as Record<string, unknown> | null;
     } else {
-        customer = db.prepare('SELECT * FROM client_companies WHERE id = ?').get(companyId);
+        customer = db.prepare('SELECT * FROM client_companies WHERE id = ?').get(companyId) as Record<string, unknown> | null;
     }
     
     if (!customer) return { customer: null, supportPackage: null, services: [] };
