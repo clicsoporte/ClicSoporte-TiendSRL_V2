@@ -88,13 +88,15 @@ export default function UsersClient() {
         toast({ title: 'Usuario Actualizado' });
       } else {
         await addUser({
-          name: currentUser.name,
-          email: currentUser.email,
+          name: currentUser.name!,
+          email: currentUser.email!,
           password: currentUser.password!,
           role: currentUser.role!,
           phone: currentUser.phone || '',
           whatsapp: currentUser.whatsapp || '',
           forcePasswordChange: !!currentUser.forcePasswordChange,
+          avatar: '',
+          recentActivity: 'Usuario recién creado.'
         });
         toast({ title: 'Usuario Creado' });
       }

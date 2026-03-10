@@ -12,7 +12,7 @@ import { logInfo, logWarn } from './logger';
 import { SESSION_COOKIE, SALT_ROUNDS, SESSION_DURATION } from './auth-constants';
 import { getAllRoles } from './roles-db';
 import { getCompanySettings } from './settings-db';
-import { getAllCustomers, getAllProducts, getAllStock, getAllExemptions, getCabysCatalog } from './data-access-db';
+import { getAllCustomers, getAllProducts, getAllStock, getAllExemptions } from './data-access-db';
 import { getExchangeRate } from './api-actions';
 import { getUnreadSuggestionsCount } from './suggestions-actions';
 
@@ -84,7 +84,7 @@ export async function logout(): Promise<void> {
 
 export async function getAllUsers(): Promise<User[]> {
     const db = await connectDb();
-    const rows = db.prepare('SELECT id, name, email, phone, whatsapp, role, avatar, forcePasswordChange FROM users ORDER BY name').all() as User[];
+    const rows = db.prepare('SELECT id, name, email, phone, whatsapp, role, avatar, forcePasswordChange, recentActivity FROM users ORDER BY name').all() as User[];
     return JSON.parse(JSON.stringify(rows));
 }
 
@@ -93,9 +93,19 @@ export async function addUser(userData: Omit<User, 'id'> & { password: string })
     const hashedPassword = bcrypt.hashSync(userData.password, SALT_ROUNDS);
     
     const info = db.prepare(`
-        INSERT INTO users (name, email, password, phone, whatsapp, role, forcePasswordChange)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(userData.name, userData.email, hashedPassword, userData.phone, userData.whatsapp, userData.role, userData.forcePasswordChange ? 1 : 0);
+        INSERT INTO users (name, email, password, phone, whatsapp, role, forcePasswordChange, avatar, recentActivity)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+        userData.name, 
+        userData.email, 
+        hashedPassword, 
+        userData.phone || '', 
+        userData.whatsapp || '', 
+        userData.role, 
+        userData.forcePasswordChange ? 1 : 0,
+        userData.avatar || '',
+        userData.recentActivity || 'Usuario recién creado.'
+    );
 
     const newUser = db.prepare('SELECT * FROM users WHERE id = ?').get(info.lastInsertRowid) as User;
     const { password: _, ...safeUser } = newUser;
@@ -104,8 +114,17 @@ export async function addUser(userData: Omit<User, 'id'> & { password: string })
 
 export async function updateUser(user: User): Promise<User> {
     const db = await connectDb();
-    let query = 'UPDATE users SET name = ?, email = ?, phone = ?, whatsapp = ?, role = ?, forcePasswordChange = ?';
-    const params: (string | number | null | boolean)[] = [user.name, user.email, user.phone || null, user.whatsapp || null, user.role, user.forcePasswordChange ? 1 : 0];
+    let query = 'UPDATE users SET name = ?, email = ?, phone = ?, whatsapp = ?, role = ?, forcePasswordChange = ?, avatar = ?, recentActivity = ?';
+    const params: (string | number | null | boolean)[] = [
+        user.name, 
+        user.email, 
+        user.phone || '', 
+        user.whatsapp || '', 
+        user.role, 
+        user.forcePasswordChange ? 1 : 0,
+        user.avatar || '',
+        user.recentActivity || ''
+    ];
 
     if (user.password) {
         query += ', password = ?';
@@ -154,6 +173,6 @@ export async function getInitialAuthData() {
 
     return {
         roles, companySettings, customers, products, stock, exemptions,
-        exchangeRate: rateData, unreadSuggestions, users, exemptionLaws: [] // Laws could be fetched too
+        exchangeRate: rateData, unreadSuggestions, users, exemptionLaws: [] 
     };
 }

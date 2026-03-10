@@ -588,6 +588,18 @@ export type SoftwareProduct = {
     isInternal: boolean;
 };
 
+export type TimeEntry = {
+    id: number;
+    ticketId: number;
+    userId: number;
+    startTime: string;
+    endTime?: string | null;
+    duration: number | null; // in milliseconds
+    notes?: string | null;
+    isBillable: boolean;
+    createdAt: string;
+};
+
 export type ExpectedSchema = {
     [tableName: string]: string[];
 };
