@@ -138,7 +138,7 @@ export default function RolesClient() {
         setRoles(updatedRoles);
         toast({ title: 'Rol Eliminado', variant: 'destructive' });
         await logInfo('Role deleted', { roleId: roleToDelete.id });
-    } catch (e) {
+    } catch {
         toast({ title: 'Error', description: 'No se pudo eliminar el rol.', variant: 'destructive' });
     }
     setRoleToDelete(null);
@@ -147,7 +147,7 @@ export default function RolesClient() {
   const handlePermissionChange = (permission: AppPermission, isChecked: boolean) => {
     if (!currentRole) return;
 
-    let newPermissions = new Set(currentRole.permissions as AppPermission[]);
+    const newPermissions = new Set(currentRole.permissions as AppPermission[]);
 
     const addWithParents = (perm: AppPermission) => {
         newPermissions.add(perm);

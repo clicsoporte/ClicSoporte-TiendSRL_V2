@@ -110,7 +110,7 @@ export async function runMainMigrations(db: Database) {
 export async function getLogs(filters: { type?: string; search?: string; dateRange?: DateRange }): Promise<LogEntry[]> {
     const db = await connectDb();
     let query = 'SELECT * FROM logs';
-    const params: any[] = [];
+    const params: (string | number | null)[] = [];
     const conditions: string[] = [];
 
     if (filters.type && filters.type !== 'all') {
@@ -136,13 +136,13 @@ export async function getLogs(filters: { type?: string; search?: string; dateRan
     if (conditions.length > 0) query += ' WHERE ' + conditions.join(' AND ');
     query += ' ORDER BY timestamp DESC LIMIT 500';
 
-    const rows = db.prepare(query).all(...params) as any[];
-    return rows.map(r => ({ ...r, details: r.details ? JSON.parse(r.details) : undefined }));
+    const rows = db.prepare(query).all(...params) as LogEntry[];
+    return rows.map(r => ({ ...r, details: r.details ? JSON.parse(r.details as unknown as string) : undefined }));
 }
 
-export async function clearLogs(clearedBy: string, type: string, deleteAllTime: boolean) {
+export async function clearLogs(_clearedBy: string, type: string, deleteAllTime: boolean) {
     const db = await connectDb();
-    let query = 'DELETE FROM logs';
+    const query = 'DELETE FROM logs';
     const conditions: string[] = [];
     if (type === 'operational') conditions.push("type = 'INFO'");
     else if (type === 'system') conditions.push("type IN ('WARN', 'ERROR')");
@@ -157,13 +157,13 @@ export async function clearLogs(clearedBy: string, type: string, deleteAllTime: 
     }
 }
 
-export async function getUserPreferences(userId: number, key: string): Promise<any> {
+export async function getUserPreferences(userId: number, key: string): Promise<Record<string, unknown>> {
     const db = await connectDb();
     const row = db.prepare('SELECT value FROM user_preferences WHERE userId = ? AND key = ?').get(userId, key) as { value: string } | undefined;
     return row ? JSON.parse(row.value) : {};
 }
 
-export async function saveUserPreferences(userId: number, key: string, value: any): Promise<void> {
+export async function saveUserPreferences(userId: number, key: string, value: Record<string, unknown>): Promise<void> {
     const db = await connectDb();
     db.prepare('INSERT OR REPLACE INTO user_preferences (userId, key, value) VALUES (?, ?, ?)').run(userId, key, JSON.stringify(value));
 }

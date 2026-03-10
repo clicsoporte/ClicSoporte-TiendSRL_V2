@@ -6,22 +6,19 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Button } from "../../../../components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../../../../components/ui/card";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "../../../../components/ui/card";
 import { useToast } from "../../../../modules/core/hooks/use-toast";
-import { logError, logInfo } from "../../../../modules/core/lib/logger";
 import { Loader2, FileUp, Database, Save } from "lucide-react";
 import type { Company, SqlConfig, ImportQuery } from '../../../../modules/core/types';
 import { usePageTitle } from "../../../../modules/core/hooks/usePageTitle";
 import { getCompanySettings, saveCompanySettings } from '../../../../modules/core/lib/settings-db';
 import { importData, importAllDataFromFiles } from '../../../../modules/core/lib/import-service';
-import { testSqlConnection, saveSqlConfig, saveImportQueries, getImportQueries } from '../../../../modules/core/lib/config-db-client';
+import { saveSqlConfig, saveImportQueries, getImportQueries } from '../../../../modules/core/lib/config-db-client';
 import { getSqlConfig as getSqlConfigServer } from '../../../../modules/core/lib/config-db';
 import { useAuthorization } from '../../../../modules/core/hooks/useAuthorization';
 import { Input } from '../../../../components/ui/input';
 import { Label } from '../../../../components/ui/label';
 import { Switch } from '../../../../components/ui/switch';
-import { Textarea } from '../../../../components/ui/textarea';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 type ImportType = 'customers' | 'products' | 'exemptions' | 'stock' | 'cabys';
 const importTypes: ImportType[] = ['customers', 'products', 'exemptions', 'stock', 'cabys'];
@@ -46,7 +43,6 @@ export default function ImportClient() {
     const { hasPermission } = useAuthorization(['admin:import:files', 'admin:import:sql', 'admin:import:sql-config']);
     const { toast } = useToast();
     const [isProcessing, setIsProcessing] = useState(false);
-    const [processingType, setProcessingType] = useState<string | null>(null);
     const [companyData, setCompanyData] = useState<Company | null>(null);
     const [sqlConfig, setSqlConfig] = useState<SqlConfig>({});
     const [importQueries, setImportQueries] = useState<ImportQuery[]>([]);
@@ -69,7 +65,6 @@ export default function ImportClient() {
     }, [setTitle]);
 
     const handleImport = useCallback(async (type: ImportType) => {
-        setProcessingType(type);
         setIsProcessing(true);
         try {
             const result = await importData(type);
@@ -85,13 +80,11 @@ export default function ImportClient() {
             });
         } finally {
             setIsProcessing(false);
-            setProcessingType(null);
         }
     }, [toast]);
     
     const handleFullSqlImport = async () => {
         setIsProcessing(true);
-        setProcessingType('full-sql-import');
         try {
             await importAllDataFromFiles(); 
             toast({ title: "Sincronización Exitosa", description: `Datos actualizados desde el ERP.` });
@@ -99,7 +92,6 @@ export default function ImportClient() {
              toast({ title: "Error", description: (error as Error).message, variant: "destructive" });
         } finally {
             setIsProcessing(false);
-            setProcessingType(null);
         }
     }
     
@@ -114,18 +106,6 @@ export default function ImportClient() {
             toast({ title: "Configuración Guardada" });
         } catch (error: unknown) {
             toast({ title: "Error", description: (error as Error).message, variant: "destructive" });
-        } finally {
-            setIsSaving(false);
-        }
-    };
-
-    const handleTestConnection = async () => {
-        setIsSaving(true);
-        try {
-            await testSqlConnection();
-            toast({ title: "Conexión Exitosa" });
-        } catch (error: unknown) {
-            toast({ title: "Error de Conexión", description: (error as Error).message, variant: "destructive" });
         } finally {
             setIsSaving(false);
         }

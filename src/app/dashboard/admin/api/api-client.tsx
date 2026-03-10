@@ -34,7 +34,7 @@ export default function ApiSettingsClient() {
         try {
             await saveApiSettings(settings);
             toast({ title: "Configuración Guardada" });
-        } catch (e) {
+        } catch {
             toast({ title: "Error", description: "No se pudo guardar la configuración.", variant: "destructive" });
         } finally {
             setIsSaving(false);

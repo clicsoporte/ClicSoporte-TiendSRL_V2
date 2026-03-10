@@ -12,7 +12,7 @@ import { useToast } from '@/modules/core/hooks/use-toast';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { getContributorInfo, getEnrichedExemptionStatus } from '@/modules/hacienda/lib/actions';
 import { getAllExemptions } from '@/modules/core/lib/data-access-db';
-import type { Exemption, HaciendaContributorInfo, EnrichedExemptionInfo } from '@/modules/core/types';
+import type { Exemption, HaciendaContributorInfo, EnrichedExemptionInfo, Customer } from '@/modules/core/types';
 import { Loader2, Search, ShieldCheck, ShieldX } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { format, parseISO, isValid } from 'date-fns';
@@ -234,8 +234,6 @@ export default function HaciendaClient() {
 
     const [taxpayerId, setTaxpayerId] = useState('');
     const [exemptionAuth, setExemptionAuth] = useState('');
-    const [isTaxpayerLoading, setIsTaxpayerLoading] = useState(false);
-    const [isExemptionLoading, setIsExemptionLoading] = useState(false);
     const [contributorData, setContributorData] = useState<HaciendaContributorInfo | null>(null);
     const [exemptionData, setExemptionData] = useState<EnrichedExemptionInfo | null>(null);
     
@@ -257,8 +255,8 @@ export default function HaciendaClient() {
         if (debouncedUnifiedSearch.length < 2) return [];
         const searchLower = debouncedUnifiedSearch.toLowerCase();
         return (customers || [])
-            .filter(c => c.id.toLowerCase().includes(searchLower) || c.name.toLowerCase().includes(searchLower))
-            .map(c => ({ value: c.id, label: `[${c.id}] - ${c.name}` }));
+            .filter((c: Customer) => c.id.toLowerCase().includes(searchLower) || c.name.toLowerCase().includes(searchLower))
+            .map((c: Customer) => ({ value: c.id, label: `[${c.id}] - ${c.name}` }));
     }, [customers, debouncedUnifiedSearch]);
 
     const performTaxpayerSearch = async (id: string, setData: (data: HaciendaContributorInfo | null) => void) => {
@@ -297,7 +295,7 @@ export default function HaciendaClient() {
         setUnifiedExemptionData(null);
         setUnifiedErpExemption(null);
         
-        const customer = customers.find(c => c.id === customerId);
+        const customer = customers.find((c: Customer) => c.id === customerId);
         if (customer) setUnifiedSearchInput(`[${customer.id}] - ${customer.name}`);
 
         const customerExemption = customer ? exemptions.find(ex => ex.customer === customer.id) : null;
@@ -371,7 +369,7 @@ export default function HaciendaClient() {
                         <CardContent className="space-y-4">
                             <div className="flex items-center gap-2">
                                 <Input placeholder="Identificación" value={taxpayerId} onChange={e => setTaxpayerId(e.target.value)} />
-                                <Button onClick={() => performTaxpayerSearch(taxpayerId, setContributorData)} disabled={isTaxpayerLoading}><Search /></Button>
+                                <Button onClick={() => performTaxpayerSearch(taxpayerId, setContributorData)}><Search /></Button>
                             </div>
                             {contributorData && <ContributorInfoCard data={contributorData} />}
                         </CardContent>
@@ -387,7 +385,7 @@ export default function HaciendaClient() {
                         <CardContent className="space-y-4">
                             <div className="flex items-center gap-2">
                                 <Input placeholder="Autorización" value={exemptionAuth} onChange={e => setExemptionAuth(e.target.value)} />
-                                <Button onClick={() => performExemptionSearch(exemptionAuth, setExemptionData)} disabled={isExemptionLoading}><Search /></Button>
+                                <Button onClick={() => performExemptionSearch(exemptionAuth, setExemptionData)}><Search /></Button>
                             </div>
                             {exemptionData && <HaciendaExemptionCard data={exemptionData} />}
                         </CardContent>

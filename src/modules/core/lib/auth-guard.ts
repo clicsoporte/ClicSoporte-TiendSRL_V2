@@ -4,7 +4,6 @@
 import { redirect } from 'next/navigation';
 import { getCurrentUser } from './auth';
 import { connectDb } from './db';
-import type { Role } from '../types';
 
 /**
  * Validates if the current user has a specific permission at the server level.

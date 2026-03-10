@@ -18,7 +18,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { PlusCircle, Edit, Trash2, Loader2, FileText } from 'lucide-react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { getContracts, saveContract, updateContract, deleteContract } from '@/modules/contracts/lib/actions';
-import type { Contract } from '@/modules/core/types';
+import type { Contract, Customer } from '@/modules/core/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { format, parseISO } from 'date-fns';
@@ -87,8 +87,8 @@ export default function ContractsClient() {
         const otherKey = type === 'included' ? 'excludedServices' : 'includedServices';
         
         setCurrentContract(prev => {
-            const currentTarget = prev[targetKey] || [];
-            const currentOther = prev[otherKey] || [];
+            const currentTarget = (prev as any)[targetKey] || [];
+            const currentOther = (prev as any)[otherKey] || [];
             
             let newTarget = [...currentTarget];
             let newOther = [...currentOther];
@@ -104,7 +104,7 @@ export default function ContractsClient() {
                 ...prev,
                 [targetKey]: newTarget,
                 [otherKey]: newOther
-            } as any;
+            };
         });
     };
 
@@ -183,7 +183,7 @@ export default function ContractsClient() {
                             </TableHeader>
                             <TableBody>
                                 {contracts.map(contract => {
-                                    const customer = customers.find(c => c.id === contract.customerId);
+                                    const customer = customers.find((c: Customer) => c.id === contract.customerId);
                                     return (
                                         <TableRow key={contract.id}>
                                             <TableCell className="font-mono font-bold">{contract.consecutive}</TableCell>

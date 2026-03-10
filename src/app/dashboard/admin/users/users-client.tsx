@@ -14,7 +14,6 @@ import { logError } from '@/modules/core/lib/logger';
 import { getAllUsers, addUser, updateUser, deleteUser } from '@/modules/core/lib/auth-client';
 import { getAllRoles } from '@/modules/core/lib/roles-db';
 import type { User, Role } from '@/modules/core/types';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { PlusCircle, Edit, Trash2, Loader2, UserCog } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';

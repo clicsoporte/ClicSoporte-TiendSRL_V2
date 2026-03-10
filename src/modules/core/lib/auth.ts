@@ -32,7 +32,7 @@ export const getCurrentUser = cache(async (): Promise<User | null> => {
 
         if (!user) return null;
 
-        const { password: _, ...safeUser } = user;
+        const { password: _unused, ...safeUser } = user;
         return JSON.parse(JSON.stringify(safeUser));
     } catch (error) {
         console.error("Error fetching current user:", error);
@@ -60,7 +60,7 @@ export async function login(email: string, passwordProvided: string): Promise<{ 
                     path: '/',
                 });
 
-                const { password: _, ...safeUser } = user;
+                const { password: _unused, ...safeUser } = user;
                 await logInfo(`User '${user.name}' logged in successfully.`);
                 return { 
                     user: JSON.parse(JSON.stringify(safeUser)), 
@@ -108,7 +108,7 @@ export async function addUser(userData: Omit<User, 'id'> & { password: string })
     );
 
     const newUser = db.prepare('SELECT * FROM users WHERE id = ?').get(info.lastInsertRowid) as User;
-    const { password: _, ...safeUser } = newUser;
+    const { password: _unused, ...safeUser } = newUser;
     return JSON.parse(JSON.stringify(safeUser));
 }
 

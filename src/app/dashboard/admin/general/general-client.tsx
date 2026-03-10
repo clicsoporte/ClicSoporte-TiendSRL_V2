@@ -34,7 +34,7 @@ export default function GeneralSettingsClient() {
             await saveCompanySettings(company);
             setAuthCompanyData(company);
             toast({ title: "Configuración General Guardada" });
-        } catch (e) {
+        } catch {
             toast({ title: "Error", description: "No se pudo guardar la configuración.", variant: "destructive" });
         } finally {
             setIsSaving(false);

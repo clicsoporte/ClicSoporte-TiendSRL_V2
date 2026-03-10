@@ -23,7 +23,7 @@ interface AuthFormProps {
   };
 }
 
-export function AuthForm({ clientInfo }: AuthFormProps) {
+export function AuthForm({ }: AuthFormProps) {
   const { toast } = useToast();
   const { refreshAuth } = useAuth();
   
@@ -65,7 +65,7 @@ export function AuthForm({ clientInfo }: AuthFormProps) {
             });
             setIsLoggingIn(false);
         }
-    } catch (error) {
+    } catch {
         toast({ title: "Error", description: "Hubo un problema al conectar con el servidor.", variant: "destructive" });
         setIsLoggingIn(false);
     }
@@ -96,7 +96,7 @@ export function AuthForm({ clientInfo }: AuthFormProps) {
         toast({ title: "Contraseña Actualizada", description: "Ya puedes ingresar al sistema." });
         await refreshAuth();
         window.location.href = '/dashboard';
-    } catch (error) {
+    } catch {
         toast({ title: "Error", description: "No se pudo actualizar la contraseña.", variant: "destructive" });
         setIsLoggingIn(false);
     }
