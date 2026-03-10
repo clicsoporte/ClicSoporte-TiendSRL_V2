@@ -1,10 +1,13 @@
+/**
+ * @fileoverview Support tickets management page.
+ */
 'use client';
 
 import { useTickets } from "@/modules/tickets/hooks/useTickets";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
-import { FilePlus, Loader2, FilterX, UserPlus, Paperclip, Users, AlertCircle } from "lucide-react";
+import { FilePlus, Loader2, FilterX, Users, AlertCircle } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -21,7 +24,7 @@ import Link from "next/link";
 import { useAuth } from "@/modules/core/hooks/useAuth";
 import { useDropzone } from 'react-dropzone';
 import { useMemo } from 'react';
-import type { TicketPriority, Customer, ClientCompany } from '@/modules/core/types';
+import type { TicketPriority } from '@/modules/core/types';
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function TicketsPage() {
@@ -30,16 +33,12 @@ export default function TicketsPage() {
     const router = useRouter();
     const { companyData } = useAuth();
     
-    const { getRootProps, getInputProps, acceptedFiles } = useDropzone({
-        // Placeholder for future file handling logic
-    });
+    const { getRootProps, getInputProps, acceptedFiles } = useDropzone({});
 
     const {
         isLoading,
         isNewTicketDialogOpen,
-        isNewCustomerDialogOpen,
         newTicket,
-        newCustomer,
         isSubmitting,
         customerSearchTerm,
         isCustomerSearchOpen,
@@ -53,7 +52,7 @@ export default function TicketsPage() {
     
     const serviceCoverage = useMemo(() => {
         if (!customerSupportInfo || !newTicket.serviceId) {
-            return { covered: true, message: '' }; // Default to covered if no info
+            return { covered: true, message: '' };
         }
         
         const { supportPackage, services } = customerSupportInfo;
@@ -86,7 +85,7 @@ export default function TicketsPage() {
                     </div>
                 </TableCell>
                 <TableCell>
-                    <Badge variant={priorityConfig[ticket.priority]?.variant as any}>
+                    <Badge variant={priorityConfig[ticket.priority]?.variant as "default" | "secondary" | "destructive" | "outline"}>
                         {priorityConfig[ticket.priority]?.label || ticket.priority}
                     </Badge>
                 </TableCell>
@@ -301,7 +300,7 @@ export default function TicketsPage() {
                             placeholder="Buscar por Nº ticket, asunto o cliente..."
                             value={searchTerm}
                             onChange={(e) => actions.setSearchTerm(e.target.value)}
-                            className="max-w-sm"
+                            className="max-sm"
                         />
                         <Select value={statusFilter} onValueChange={actions.setStatusFilter}>
                             <SelectTrigger className="w-full md:w-[180px]"><SelectValue /></SelectTrigger>

@@ -1,5 +1,6 @@
-
-
+/**
+ * @fileoverview Page for querying Hacienda APIs.
+ */
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -247,7 +248,7 @@ export default function HaciendaQueryPage() {
             try {
                 const exemptionsData = await getAllExemptions();
                 setExemptions(exemptionsData);
-            } catch (error) {
+            } catch {
                 toast({ title: "Error de carga", description: "No se pudieron cargar los datos locales de exoneraciones.", variant: "destructive" });
             }
         };
@@ -296,7 +297,6 @@ export default function HaciendaQueryPage() {
     const executeUnifiedSearch = async (customerId: string) => {
         setUnifiedSearchOpen(false);
         setIsUnifiedLoading(true);
-        // Reset all data states before starting a new search
         setUnifiedContributorData(null);
         setUnifiedExemptionData(null);
         setUnifiedErpExemption(null);
@@ -465,5 +465,3 @@ export default function HaciendaQueryPage() {
         </main>
     );
 }
-
-    

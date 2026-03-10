@@ -1,3 +1,6 @@
+/**
+ * @fileoverview Main page for the Production Planner module.
+ */
 'use client';
 
 import React from 'react';
@@ -12,8 +15,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { FilePlus, Loader2, FilterX, CalendarIcon, ChevronLeft, ChevronRight, RefreshCcw, MoreVertical, History, Undo2, Check, PackageCheck, XCircle, Pencil, AlertTriangle, MessageSquarePlus, FileDown, Play, Pause, Wrench, Hourglass } from 'lucide-react';
-import { format, parseISO, differenceInCalendarDays } from 'date-fns';
+import { FilePlus, Loader2, FilterX, CalendarIcon, ChevronLeft, ChevronRight, RefreshCw, MoreVertical, History, Undo2, Check, PackageCheck, XCircle, Pencil, AlertTriangle, MessageSquarePlus, FileDown, Play, Pause, Wrench, Hourglass } from 'lucide-react';
+import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SearchInput } from '@/components/ui/search-input';
@@ -24,10 +27,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
-/**
- * @fileoverview This is the main UI component for the Production Planner page.
- * It is responsible for rendering the layout, filters, and order cards.
- */
 export default function PlannerPage() {
     const {
         state,
@@ -68,9 +67,9 @@ export default function PlannerPage() {
         const canApprove = selectors.hasPermission('planner:status:approve') && order.status === 'pending';
         const canQueue = selectors.hasPermission('planner:status:in-queue') && order.status === 'approved';
         const canStart = selectors.hasPermission('planner:status:in-progress') && order.status === 'in-queue';
+        const canResumeFromHold = selectors.hasPermission('planner:status:in-progress') && (order.status === 'on-hold' || order.status === 'in-maintenance');
         const canHold = selectors.hasPermission('planner:status:on-hold') && order.status === 'in-progress';
         const canMaintain = selectors.hasPermission('planner:status:on-hold') && order.status === 'in-progress';
-        const canResumeFromHold = selectors.hasPermission('planner:status:in-progress') && (order.status === 'on-hold' || order.status === 'in-maintenance');
         const canComplete = selectors.hasPermission('planner:status:completed') && order.status === 'in-progress';
         
         const canRequestUnapproval = selectors.hasPermission('planner:status:unapprove-request') && ['approved', 'in-queue'].includes(order.status) && order.pendingAction === 'none';
@@ -91,7 +90,7 @@ export default function PlannerPage() {
                             <CardDescription>Cliente: {order.customerName} {state.plannerSettings?.showCustomerTaxId && `(${order.customerTaxId})`}</CardDescription>
                         </div>
                         <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
-                            {!!order.reopened && <Badge variant="destructive"><RefreshCcw className="mr-1 h-3 w-3" /> Reabierta</Badge>}
+                            {!!order.reopened && <Badge variant="destructive"><RefreshCw className="mr-1 h-3 w-3" /> Reabierta</Badge>}
                             {!!order.hasBeenModified && <Badge variant="destructive" className="animate-pulse"><AlertTriangle className="mr-1 h-3 w-3" /> Modificado</Badge>}
                              <Button variant="ghost" size="icon" onClick={() => actions.handleOpenHistory(order)}><History className="h-4 w-4" /></Button>
                              <DropdownMenu>
@@ -409,7 +408,6 @@ export default function PlannerPage() {
                 </div>
             )}
             
-            {/* Dialogs */}
             <Dialog open={state.isEditOrderDialogOpen} onOpenChange={actions.setEditOrderDialogOpen}>
                 <DialogContent className="sm:max-w-3xl">
                     <form onSubmit={actions.handleEditOrder}>

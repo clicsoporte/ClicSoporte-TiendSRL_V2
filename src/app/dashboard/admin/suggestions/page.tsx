@@ -24,7 +24,7 @@ export default function SuggestionsPage() {
     const { isAuthorized } = useAuthorization(['admin:suggestions:read']);
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
-    const { updateUnreadSuggestionsCount } = useAuth(); // To update the badge count
+    const { updateUnreadSuggestionsCount } = useAuth();
 
     const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -41,7 +41,7 @@ export default function SuggestionsPage() {
             const data = await getSuggestions();
             setSuggestions(data);
             await updateUnreadSuggestionsCount();
-        } catch (err: unknown) {
+        } catch {
             toast({ title: "Error", description: "No se pudieron cargar las sugerencias.", variant: "destructive" });
         } finally {
             if (isRefreshAction) {
@@ -57,8 +57,7 @@ export default function SuggestionsPage() {
         if (isAuthorized) {
             fetchSuggestions(false);
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isAuthorized]);
+    }, [isAuthorized, setTitle, fetchSuggestions]);
 
     const handleMarkAsRead = async (id: number) => {
         await markSuggestionAsRead(id);
@@ -93,7 +92,7 @@ export default function SuggestionsPage() {
     }
     
     if (isAuthorized === false) {
-        return null; // Or a dedicated access denied component
+        return null;
     }
 
 

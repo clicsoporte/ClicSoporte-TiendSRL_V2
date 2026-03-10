@@ -17,9 +17,9 @@ import {
 import type { 
     ProductionOrder, ProductionOrderStatus, ProductionOrderPriority, 
     ProductionOrderHistoryEntry, PlannerSettings, DateRange, 
-    NotePayload, UpdateProductionOrderPayload, AdministrativeActionPayload 
+    UpdateProductionOrderPayload, AdministrativeActionPayload 
 } from '../../core/types';
-import { format, parseISO, differenceInCalendarDays } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { useDebounce } from 'use-debounce';
 import { getDaysRemaining as getSimpleDaysRemaining } from '@/modules/core/lib/time-utils';
@@ -165,7 +165,7 @@ export const usePlanner = () => {
     useEffect(() => {
         if (!isAuthorized || state.isLoading) return;
         loadInitialData(state.archivedPage);
-    }, [state.archivedPage, state.pageSize, state.viewingArchived, isAuthorized, loadInitialData]);
+    }, [state.archivedPage, state.pageSize, state.viewingArchived, isAuthorized, loadInitialData, state.isLoading]);
     
     const actions = {
         setNewOrderDialogOpen: (isOpen: boolean) => updateState({ isNewOrderDialogOpen: isOpen }),
@@ -526,8 +526,10 @@ export const usePlanner = () => {
                     rows: tableRows,
                     columnStyles: selectedColumnIds.reduce((acc, id, index) => {
                         const col = allPossibleColumns.find(c => c.id === id);
-                        if (col?.width) { (acc as any)[index] = { cellWidth: col.width }; }
-                        if (id === 'quantity') { (acc as any)[index] = { ...(acc as any)[index], halign: 'right' }; }
+                        const styles: any = {};
+                        if (col?.width) { styles.cellWidth = col.width; }
+                        if (id === 'quantity') { styles.halign = 'right'; }
+                        if (Object.keys(styles).length > 0) (acc as any)[index] = styles;
                         return acc;
                     }, {} as { [key: number]: any })
                 },
@@ -616,11 +618,11 @@ export const usePlanner = () => {
                 const startDate = parseISO(order.scheduledStartDate);
                 const endDate = parseISO(order.scheduledEndDate);
                 
-                const totalDuration = differenceInCalendarDays(endDate, startDate) + 1;
-                const remainingDays = differenceInCalendarDays(endDate, today);
+                const totalDuration = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24) + 1;
+                const remainingDays = (endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24);
 
                 if (remainingDays < 0) {
-                    return { label: `Atrasado ${Math.abs(remainingDays)}d`, color: 'text-red-600' };
+                    return { label: `Atrasado ${Math.abs(Math.floor(remainingDays))}d`, color: 'text-red-600' };
                 }
                 
                 const percentageRemaining = totalDuration > 0 ? (remainingDays / totalDuration) : 0;
@@ -628,8 +630,8 @@ export const usePlanner = () => {
                 if (percentageRemaining <= 0.25) color = 'text-red-600';
                 else if (percentageRemaining <= 0.50) color = 'text-orange-500';
 
-                return { label: `Faltan ${remainingDays} de ${totalDuration}d`, color };
-            } catch (error) {
+                return { label: `Faltan ${Math.floor(remainingDays)} de ${Math.floor(totalDuration)}d`, color };
+            } catch {
                 return { label: 'Fecha inv.', color: 'text-red-600' };
             }
         },

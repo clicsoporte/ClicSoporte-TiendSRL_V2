@@ -1,19 +1,20 @@
+/**
+ * @fileoverview Ticket detail page.
+ */
 'use client';
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useTickets } from '@/modules/tickets/hooks/useTickets';
-import type { Ticket, TicketThread, TicketStatus, TicketPriority, User } from '@/modules/core/types';
+import type { Ticket, TicketThread, TicketStatus, TicketPriority } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { format, parseISO } from 'date-fns';
-import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Paperclip, Send, Loader2, MoreVertical, Pencil, Trash2 } from 'lucide-react';
+import { Paperclip, Send, Loader2, MoreVertical } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -40,14 +41,13 @@ export default function TicketDetailPage() {
     
     const [ticket, setTicket] = useState<Ticket | null>(null);
     const [thread, setThread] = useState<TicketThread[]>([]);
-    const [customerInfo, setCustomerInfo] = useState<any | null>(null); // Simplified customer info
     const [replyContent, setReplyContent] = useState("");
     const [isReplying, setIsReplying] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     
     const supportUsers = useMemo(() => {
         if (!allUsers) return [];
-        return allUsers.filter(u => u.role === 'admin' || u.role === 'support-agent'); // Simplified logic
+        return allUsers.filter(u => u.role === 'admin' || u.role === 'support-agent');
     }, [allUsers]);
 
     const loadData = useCallback(async () => {
@@ -57,7 +57,6 @@ export default function TicketDetailPage() {
             if (ticketData) {
                 const threadData = await actions.getTicketThread(ticketId);
                 setThread(threadData);
-                // Placeholder for customer fetching logic
             }
         }
     }, [ticketId, isAuthorized, actions]);
@@ -102,7 +101,7 @@ export default function TicketDetailPage() {
             await actions.deleteTicket(ticket.id);
             toast({ title: "Ticket Eliminado", description: "El ticket ha sido eliminado exitosamente." });
             router.push('/dashboard/tickets');
-        } catch (error) {
+        } catch {
             toast({ title: "Error", description: "No se pudo eliminar el ticket.", variant: "destructive" });
         } finally {
             setIsDeleting(false);
@@ -286,18 +285,6 @@ export default function TicketDetailPage() {
                                 <span className="text-muted-foreground">Empresa</span>
                                 <span className="font-medium text-right">{ticket.companyName}</span>
                             </div>
-                        )}
-                        {customerInfo && (
-                            <>
-                                <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Teléfono</span>
-                                    <span>{customerInfo.phone}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Correo</span>
-                                    <span className="truncate">{customerInfo.email}</span>
-                                </div>
-                            </>
                         )}
                     </CardContent>
                 </Card>

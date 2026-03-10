@@ -69,12 +69,11 @@ type NewUserForm = Omit<User, 'id' | 'avatar' | 'recentActivity' | 'securityQues
     password: string;
 };
 
-// Initial state for the "Add User" form.
 const emptyUser: NewUserForm = {
     name: "",
     email: "",
     password: "",
-    role: "viewer", // Default role for new users
+    role: "viewer",
     phone: "",
     whatsapp: ""
 }
@@ -84,11 +83,6 @@ const getInitials = (name: string) => {
     return name.split(" ").map((n) => n[0]).join("").substring(0, 2).toUpperCase();
 };
 
-
-/**
- * Renders the user management page.
- * Handles fetching users and roles, and provides UI for all CRUD operations.
- */
 export default function UsersPage() {
     const { isAuthorized } = useAuthorization(['users:create', 'users:read', 'users:update', 'users:delete']);
     const { toast } = useToast();
@@ -98,7 +92,6 @@ export default function UsersPage() {
     const [isLoading, setIsLoading] = useState(true);
     const { setTitle } = usePageTitle();
 
-    // State for dialogs and forms
     const [isAddUserDialogOpen, setAddUserDialogOpen] = useState(false);
     const [isEditDialogOpen, setEditDialogOpen] = useState(false);
     const [isDeleteAlertOpen, setDeleteAlertOpen] = useState(false);
@@ -137,23 +130,16 @@ export default function UsersPage() {
         }
     }, [setTitle, isAuthorized, fetchAllData]);
 
-    /**
-     * Persists the current state of users to the database.
-     * @param updatedUsers - The full list of users to save.
-     */
     const handleSaveToDb = async (updatedUsers: User[]) => {
         try {
             await saveAllUsers(updatedUsers);
-            setUsers(updatedUsers); // Update local state to match DB
+            setUsers(updatedUsers);
         } catch (error: unknown) {
             logError("Failed to save users to DB", { error: (error as Error).message });
             toast({ title: "Error", description: "No se pudieron guardar los cambios en la base de datos.", variant: "destructive" });
         }
     }
     
-    /**
-     * Handles the creation of a new user.
-     */
     const handleAddUser = async () => {
         if(!newUser.name || !newUser.email || !newUser.password) {
             toast({ title: "Campos Requeridos", description: "Nombre, correo y contraseña son obligatorios.", variant: "destructive" });
@@ -183,15 +169,11 @@ export default function UsersPage() {
         }
     }
 
-    /**
-     * Handles the update of an existing user's information.
-     */
     const handleEditUser = async () => {
         if (!currentUserToEdit) return;
 
         const userToUpdate: User = { ...currentUserToEdit };
 
-        // Handle password change if a new one is provided
         if (newPassword) {
             if (newPassword.length < 6) {
                 toast({ title: "Contraseña Débil", description: "La nueva contraseña debe tener al menos 6 caracteres.", variant: "destructive" });
@@ -208,18 +190,14 @@ export default function UsersPage() {
         toast({ title: "Usuario Actualizado", description: `Los datos de ${currentUserToEdit.name} han sido actualizados.` });
         await logInfo("User profile updated", { user: currentUserToEdit.name });
 
-        // Reset form and close dialog
         setEditDialogOpen(false);
         setCurrentUserToEdit(null);
         setNewPassword("");
     }
     
-    /**
-     * Handles the deletion of a user.
-     */
     const handleDeleteUser = async () => {
         if (!userToDelete) return;
-        if (userToDelete.id === 1) { // Assuming user with ID 1 is the primary admin
+        if (userToDelete.id === 1) {
             toast({ title: "Acción no permitida", description: "No se puede eliminar al administrador principal.", variant: "destructive"});
             return;
         }
@@ -233,9 +211,8 @@ export default function UsersPage() {
     }
 
     const openEditDialog = (user: User) => {
-        // Deep copy to avoid modifying state directly while editing
         setCurrentUserToEdit(JSON.parse(JSON.stringify(user))); 
-        setNewPassword(""); // Clear password field on open
+        setNewPassword("");
         setEditDialogOpen(true);
     }
 
@@ -406,7 +383,6 @@ export default function UsersPage() {
         </Card>
       </main>
 
-       {/* Edit User Dialog */}
        <Dialog open={isEditDialogOpen} onOpenChange={setEditDialogOpen}>
             <DialogContent className="sm:max-w-xl">
                 <DialogHeader>
@@ -493,7 +469,6 @@ export default function UsersPage() {
             </DialogContent>
         </Dialog>
         
-        {/* Delete User Alert Dialog */}
         <AlertDialog open={isDeleteAlertOpen} onOpenChange={setDeleteAlertOpen}>
             <AlertDialogContent>
                 <AlertDialogHeader>

@@ -1,8 +1,5 @@
 /**
  * @fileoverview Server-side authentication and user management functions.
- * These functions interact directly with the database to handle user data.
- * This file implements secure password handling using bcryptjs.
- * All functions in this file are server-only.
  */
 "use server";
 
@@ -16,10 +13,6 @@ const SALT_ROUNDS = 10;
 
 /**
  * Attempts to log in a user with the given credentials.
- * It securely compares the provided password with the stored hash.
- * @param {string} email - The user's email.
- * @param {string} passwordProvided - The password provided by the user.
- * @returns {Promise<User | null>} The user object if login is successful, null otherwise.
  */
 export async function login(email: string, passwordProvided: string): Promise<User | null> {
   const db = await connectDb();
@@ -34,8 +27,7 @@ export async function login(email: string, passwordProvided: string): Promise<Us
     if (user && user.password) {
       const isMatch = await bcrypt.compare(passwordProvided, user.password);
       if (isMatch) {
-        // Do not send the password hash back to the client.
-        const { password, ...userWithoutPassword } = user;
+        const { password: _password, ...userWithoutPassword } = user;
         await logInfo(`User '${user.name}' logged in successfully.`, logMeta);
         return JSON.parse(JSON.stringify(userWithoutPassword));
       }
@@ -60,17 +52,14 @@ export async function logout(userId: number): Promise<void> {
 
 /**
  * Retrieves all users from the database.
- * Passwords are removed before sending the data to the client.
- * @returns {Promise<User[]>} A promise that resolves to an array of all users.
  */
 export async function getAllUsers(): Promise<User[]> {
     const db = await connectDb();
     try {
         const stmt = db.prepare('SELECT * FROM users ORDER BY name');
         const users = stmt.all() as User[];
-        // Ensure passwords are never sent to the client.
         const safeUsers = users.map(u => {
-            const { password, ...userWithoutPassword } = u;
+            const { password: _password, ...userWithoutPassword } = u;
             return userWithoutPassword;
         });
         return JSON.parse(JSON.stringify(safeUsers));
@@ -82,8 +71,6 @@ export async function getAllUsers(): Promise<User[]> {
 
 /**
  * Retrieves a single user by their ID.
- * @param {number} id - The ID of the user to fetch.
- * @returns {Promise<User | null>} The user object or null if not found.
  */
 export async function getUserById(id: number): Promise<User | null> {
     const db = await connectDb();
@@ -91,7 +78,7 @@ export async function getUserById(id: number): Promise<User | null> {
         const user = db.prepare('SELECT * FROM users WHERE id = ?').get(id) as User | undefined;
         if (!user) return null;
         
-        const { password, ...userWithoutPassword } = user;
+        const { password: _password, ...userWithoutPassword } = user;
         return JSON.parse(JSON.stringify(userWithoutPassword));
 
     } catch (error) {
@@ -102,8 +89,6 @@ export async function getUserById(id: number): Promise<User | null> {
 
 /**
  * Adds a new user to the database.
- * @param userData - The data for the new user, including a plaintext password.
- * @returns The newly created user object, without the password hash.
  */
 export async function addUser(userData: Omit<User, 'id' | 'avatar' | 'recentActivity' | 'securityQuestion' | 'securityAnswer'> & { password: string }): Promise<User> {
   const db = await connectDb();
@@ -138,17 +123,13 @@ export async function addUser(userData: Omit<User, 'id' | 'avatar' | 'recentActi
     securityAnswer: userToCreate.securityAnswer || null,
   });
 
-  const { password, ...userWithoutPassword } = userToCreate;
+  const { password: _password, ...userWithoutPassword } = userToCreate;
   await logInfo(`Admin added a new user: ${userToCreate.name}`, { role: userToCreate.role });
   return JSON.parse(JSON.stringify(userWithoutPassword));
 }
 
 /**
  * Saves the entire list of users to the database.
- * This is an "all-or-nothing" operation that replaces all existing users.
- * It handles password hashing for new or changed passwords.
- * @param {User[]} users - The full array of users to save.
- * @returns {Promise<void>}
  */
 export async function saveAllUsers(users: User[]): Promise<void> {
    const db = await connectDb();
@@ -178,7 +159,7 @@ export async function saveAllUsers(users: User[]): Promise<void> {
           const existingPassword = existingUsersMap.get(user.id);
           
           if (passwordToSave && passwordToSave !== existingPassword) {
-              if (!passwordToSave.startsWith('$2a$')) { // Basic check if it's not already a hash
+              if (!passwordToSave.startsWith('$2a$')) {
                   passwordToSave = bcrypt.hashSync(passwordToSave, SALT_ROUNDS);
               }
           } else {
@@ -209,10 +190,6 @@ export async function saveAllUsers(users: User[]): Promise<void> {
 
 /**
  * Securely compares a plaintext password with a user's stored bcrypt hash.
- * @param {number} userId - The ID of the user whose password should be checked.
- * @param {string} password - The plaintext password to check.
- * @param {object} [clientInfo] - Optional client IP and host for logging.
- * @returns {Promise<boolean>} True if the password matches the hash.
  */
 export async function comparePasswords(userId: number, password: string, clientInfo?: { ip: string, host: string }): Promise<boolean> {
     const db = await connectDb();

@@ -1,15 +1,12 @@
 /**
  * @fileoverview Custom hook `useQuoter` for managing the state and logic of the QuoterPage component.
- * This hook encapsulates the entire business logic of the quoting tool, including state management for
- * quote lines, customer data, currency, calculations, and actions like generating PDFs and saving drafts.
- * This separation of concerns makes the `QuoterPage` component cleaner and focused only on rendering the UI.
  */
 "use client";
 
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useToast } from "@/modules/core/hooks/use-toast";
 import { usePageTitle } from "@/modules/core/hooks/usePageTitle";
-import type { Customer, Product, Company, User, QuoteDraft, QuoteLine, Exemption, HaciendaExemptionApiResponse, ExemptionLaw, StockInfo } from "@/modules/core/types";
+import type { Customer, Product, Company, QuoteDraft, QuoteLine, Exemption, HaciendaExemptionApiResponse } from "@/modules/core/types";
 import { logError, logInfo, logWarn } from "@/modules/core/lib/logger";
 import {
   saveQuoteDraft,
@@ -17,16 +14,13 @@ import {
   deleteQuoteDraft,
 } from "@/modules/quoter/lib/actions";
 import { saveCompanySettings } from "@/modules/core/lib/settings-db";
-import { format, parseISO, isValid } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { useDebounce } from "use-debounce";
 import { useAuth } from "@/modules/core/hooks/useAuth";
 import { generateDocument } from "@/modules/core/lib/pdf-generator";
 import { getExemptionStatus } from "@/modules/hacienda/lib/actions";
 import type { RowInput } from "jspdf-autotable";
 
-/**
- * Defines the initial state for a new quote.
- */
 const initialQuoteState = {
   lines: [] as QuoteLine[],
   selectedCustomer: null as Customer | null,
@@ -60,17 +54,10 @@ interface LineInputRefs {
 
 type ErrorResponse = { error: boolean; message: string; status?: number };
 
-export function isErrorResponse(data: any): data is ErrorResponse {
-  return (data as ErrorResponse).error !== undefined;
+export function isErrorResponse(data: unknown): data is ErrorResponse {
+  return (data as ErrorResponse)?.error !== undefined;
 }
 
-
-/**
- * Normalizes a string value into a number.
- * It handles both commas and dots as decimal separators and strips invalid characters.
- * @param {string} value - The string to convert.
- * @returns {number} The parsed number, or 0 if invalid.
- */
 const normalizeNumber = (value: string): number => {
     if (typeof value !== 'string' || !value.trim()) return 0;
     const standardizedValue = value.replace(/,/g, '.');
@@ -79,11 +66,6 @@ const normalizeNumber = (value: string): number => {
     return isNaN(parsed) ? 0 : parsed;
 };
 
-
-/**
- * Main hook for the Quoter component.
- * @returns An object containing the quoter's state, actions, refs, and memoized selectors.
- */
 export const useQuoter = () => {
   const { toast } = useToast();
   const { setTitle } = usePageTitle();
@@ -121,7 +103,6 @@ export const useQuoter = () => {
   const [exemptionInfo, setExemptionInfo] = useState<ExemptionInfo | null>(null);
   const [isMounted, setIsMounted] = useState(false);
 
-  // New state for mobile column visibility
   const [mobileColumnVisibility, setMobileColumnVisibility] = useState({
     code: false,
     unit: false,
@@ -241,7 +222,7 @@ export const useQuoter = () => {
         const lastLineRefs = lineInputRefs.current.get(lastLine.id);
         lastLineRefs?.qty?.focus();
     }
-  }, [lines.length]);
+  }, [lines]);
 
   const customerOptions = useMemo(() => {
     if (debouncedCustomerSearch.length < 2) return [];
@@ -276,7 +257,6 @@ export const useQuoter = () => {
   }, [products, showInactiveProducts, debouncedProductSearch, stockLevels]);
 
 
-  // --- ACTIONS ---
   const addLine = (product: Product) => {
     const newLineId = new Date().toISOString();
 
@@ -467,11 +447,11 @@ export const useQuoter = () => {
     const tableRows: RowInput[] = lines.map(line => [
         line.product.id,
         line.product.description,
-        { content: `${line.quantity.toLocaleString('es-CR')}\n${line.product.unit}`, styles: { halign: 'center' } as any },
+        { content: `${line.quantity.toLocaleString('es-CR')}\n${line.product.unit}`, styles: { halign: 'center' } },
         line.product.cabys,
-        { content: formatCurrency(line.price), styles: { halign: 'right' } as any },
-        { content: `${(line.tax * 100).toFixed(0)}%`, styles: { halign: 'center' } as any },
-        { content: formatCurrency(line.quantity * line.price * (1 + line.tax)), styles: { halign: 'right' } as any },
+        { content: formatCurrency(line.price), styles: { halign: 'right' } },
+        { content: `${(line.tax * 100).toFixed(0)}%`, styles: { halign: 'center' } },
+        { content: formatCurrency(line.quantity * line.price * (1 + line.tax)), styles: { halign: 'right' } },
     ]);
     
     const doc = generateDocument({
@@ -508,11 +488,11 @@ export const useQuoter = () => {
             columnStyles: {
                 0: { cellWidth: 40 },
                 1: { cellWidth: 'auto' },
-                2: { cellWidth: 45, halign: 'center' },
+                2: { cellWidth: 45 },
                 3: { cellWidth: 70 },
-                4: { cellWidth: 60, halign: 'right' },
-                5: { cellWidth: 30, halign: 'center' },
-                6: { cellWidth: 70, halign: 'right' },
+                4: { cellWidth: 60 },
+                5: { cellWidth: 30 },
+                6: { cellWidth: 70 },
             }
         },
         notes: notes,
@@ -573,7 +553,7 @@ export const useQuoter = () => {
           userId: currentUser.id,
           customerId: selectedCustomer ? selectedCustomer.id : null,
           customerDetails: customerDetails,
-          lines: lines.map(({ displayQuantity, displayPrice, ...rest }) => rest),
+          lines: lines.map(({ displayQuantity: _dq, displayPrice: _dp, ...rest }) => rest),
           totals: totals,
           notes: notes,
           currency: currency,
@@ -592,8 +572,8 @@ export const useQuoter = () => {
         toast({ title: "Borrador Guardado", description: `La cotización Nº ${quoteNumber} ha sido guardada.` });
         await logInfo(`Quote draft saved: ${quoteNumber}`);
         await incrementAndSaveQuoteNumber();
-    } catch (error: any) {
-        logError("Failed to save draft", { error: error.message });
+    } catch (error: unknown) {
+        logError("Failed to save draft", { error: (error as Error).message });
         toast({ title: "Error", description: "No se pudo guardar el borrador.", variant: "destructive" });
     } finally {
         setIsProcessing(false);
@@ -607,7 +587,7 @@ export const useQuoter = () => {
         ...draft,
         customer: customers.find(c => c.id === draft.customerId) || null
     }));
-    setSavedDrafts(enrichedDrafts.sort((a: QuoteDraft, b: QuoteDraft) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+    setSavedDrafts(enrichedDrafts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
   };
 
   const handleLoadDraft = (draft: QuoteDraft) => {
@@ -633,7 +613,7 @@ export const useQuoter = () => {
       setExemptionInfo(null);
     }
     
-    const draftLines = draft.lines.map((line: Omit<QuoteLine, 'displayQuantity' | 'displayPrice'>) => ({
+    const draftLines = draft.lines.map((line) => ({
       ...line,
       displayQuantity: String(line.quantity),
       displayPrice: String(line.price),
@@ -679,7 +659,7 @@ export const useQuoter = () => {
     const totalTaxes = lines.reduce((acc, line) => acc + (line.quantity * line.price * line.tax), 0);
     const total = subtotal + totalTaxes;
     return { subtotal, totalTaxes, total };
-  }, [lines, decimalPlaces]);
+  }, [lines]);
 
   
   const selectors = { totals, customerOptions, productOptions };

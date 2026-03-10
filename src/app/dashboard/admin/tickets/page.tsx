@@ -1,4 +1,6 @@
-
+/**
+ * @fileoverview Page for managing support ticket settings.
+ */
 'use client';
 
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
@@ -19,10 +21,11 @@ import { useAuth } from '@/modules/core/hooks/useAuth';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
+import type { TicketPriority } from '@/modules/core/types';
 
 export default function TicketSettingsPage() {
     const { setTitle } = usePageTitle();
-    const { companyData, setCompanyData } = useAuth();
+    const { companyData } = useAuth();
     const {
         state,
         actions,
@@ -33,12 +36,10 @@ export default function TicketSettingsPage() {
 
     const supportUsers = useMemo(() => {
         if (!selectors.allUsers) return [];
-        // Find all roles that have ticket read permissions
         const supportRoleIds = (selectors.allRoles || [])
             .filter(r => r.permissions.includes('tickets:read:all'))
             .map(r => r.id);
         
-        // Filter users who have one of those roles
         return selectors.allUsers.filter(u => u.role && supportRoleIds.includes(u.role));
     }, [selectors.allUsers, selectors.allRoles]);
     
@@ -102,7 +103,7 @@ export default function TicketSettingsPage() {
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                 <div className="space-y-2">
                                                     <Label htmlFor="default-priority">Prioridad por Defecto</Label>
-                                                    <Select value={state.currentTopic.defaultPriority || 'medium'} onValueChange={(v) => actions.setCurrentTopic({ ...state.currentTopic, defaultPriority: v as any })}>
+                                                    <Select value={state.currentTopic.defaultPriority || 'medium'} onValueChange={(v) => actions.setCurrentTopic({ ...state.currentTopic, defaultPriority: v as TicketPriority })}>
                                                         <SelectTrigger id="default-priority"><SelectValue/></SelectTrigger>
                                                         <SelectContent>
                                                             {Object.entries(selectors.priorityConfig).map(([key, config]) => (

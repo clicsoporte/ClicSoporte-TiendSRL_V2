@@ -1,9 +1,5 @@
-
 /**
  * @fileoverview System maintenance page for administrators.
- * This page provides critical, high-risk functionalities such as database
- * backup, restore, and factory reset. It is designed to be modular to support
- * future tools with separate databases.
  */
 "use client";
 
@@ -53,19 +49,16 @@ export default function MaintenancePage() {
     const [processingAction, setProcessingAction] = useState<string | null>(null);
     const { setTitle } = usePageTitle();
 
-    // State for update backups
     const [updateBackups, setUpdateBackups] = useState<UpdateBackupInfo[]>([]);
     const [dbModules, setDbModules] = useState<Omit<DatabaseModule, 'initFn' | 'migrationFn'>[]>([]);
     const [isRestoreConfirmOpen, setRestoreConfirmOpen] = useState(false);
     const [isClearBackupsConfirmOpen, setClearBackupsConfirmOpen] = useState(false);
     
-    // State for module reset
     const [isResetConfirmOpen, setResetConfirmOpen] = useState(false);
     const [resetStep, setResetStep] = useState(0);
     const [resetConfirmationText, setResetConfirmationText] = useState('');
     const [moduleToReset, setModuleToReset] = useState<string>('');
 
-    // State for full reset
     const [isFullResetConfirmOpen, setFullResetConfirmOpen] = useState(false);
     const [fullResetStep, setFullResetStep] = useState(0);
     const [fullResetConfirmationText, setFullResetConfirmationText] = useState('');
@@ -87,8 +80,8 @@ export default function MaintenancePage() {
                 const latestTimestamp = backups.reduce((latest: string, current: UpdateBackupInfo) => new Date(current.date) > new Date(latest) ? current.date : latest, backups[0].date);
                 setSelectedRestoreTimestamp(latestTimestamp);
             }
-        } catch(error: any) {
-            logError("Error fetching maintenance data", { error: error.message });
+        } catch(error: unknown) {
+            logError("Error fetching maintenance data", { error: (error as Error).message });
             toast({ title: "Error", description: "No se pudieron cargar los datos de mantenimiento.", variant: "destructive" });
         } finally {
             setIsLoading(false);
@@ -119,10 +112,10 @@ export default function MaintenancePage() {
                 description: `${uploadedCount} archivo(s) de backup se han subido correctamente.`
             });
             await fetchMaintenanceData();
-        } catch (error: any) {
+        } catch (error: unknown) {
              toast({
                 title: "Error al Subir",
-                description: `No se pudieron subir los archivos. Error: ${error.message}`,
+                description: `No se pudieron subir los archivos. Error: ${(error as Error).message}`,
                 variant: "destructive"
             });
         } finally {
@@ -148,10 +141,10 @@ export default function MaintenancePage() {
                 description: `Se creó un nuevo punto de restauración para la actualización.`
             });
             await logInfo(`User ${user?.name} created a new full backup for update.`);
-        } catch (error: any) {
+        } catch (error: unknown) {
              toast({
                 title: "Error de Backup",
-                description: `No se pudo crear el backup completo. ${error.message}`,
+                description: `No se pudo crear el backup completo. ${(error as Error).message}`,
                 variant: "destructive"
             });
         } finally {
@@ -176,10 +169,10 @@ export default function MaintenancePage() {
                 duration: 5000,
             });
             setTimeout(() => window.location.reload(), 5000);
-        } catch (error: any) {
+        } catch (error: unknown) {
              toast({
                 title: "Error de Restauración",
-                description: `No se pudo completar la restauración. ${error.message}`,
+                description: `No se pudo completar la restauración. ${(error as Error).message}`,
                 variant: "destructive"
             });
              setIsProcessing(false);
@@ -188,6 +181,7 @@ export default function MaintenancePage() {
     };
 
     const handleClearOldBackups = async () => {
+        const uniqueTimestamps = [...new Set(updateBackups.map(b => b.date))].sort((a,b) => new Date(b).getTime() - new Date(a).getTime());
         if (uniqueTimestamps.length <= 1) {
             toast({ title: "Acción no necesaria", description: "No hay backups antiguos para eliminar.", variant: "default"});
             return;
@@ -203,10 +197,10 @@ export default function MaintenancePage() {
                 title: "Limpieza Completada",
                 description: `Se han eliminado ${count} puntos de restauración antiguos.`
             });
-        } catch (error: any) {
+        } catch (error: unknown) {
              toast({
                 title: "Error al Limpiar",
-                description: `No se pudieron eliminar los backups. ${error.message}`,
+                description: `No se pudieron eliminar los backups. ${(error as Error).message}`,
                 variant: "destructive"
             });
         } finally {
@@ -229,13 +223,13 @@ export default function MaintenancePage() {
             await logWarn(`MODULE FACTORY RESET initiated by user ${user?.name} for module ${moduleName}. The application will restart.`);
             toast({
                 title: "Módulo Reseteado",
-                description: `Se ha borrado la base de datos de "${moduleName}". La aplicación se recargará en 5 segundos para reinicializarla.`,
+                description: `Se ha borrado la base de datos de &quot;${moduleName}&quot;. La aplicación se recargará en 5 segundos para reinicializarla.`,
                 duration: 5000,
             });
             setTimeout(() => window.location.reload(), 5000);
-        } catch (error: any) {
-            toast({ title: "Error en el Reseteo", description: error.message, variant: "destructive" });
-            logError("Factory reset failed.", { error: error.message, module: moduleToReset });
+        } catch (error: unknown) {
+            toast({ title: "Error en el Reseteo", description: (error as Error).message, variant: "destructive" });
+            logError("Factory reset failed.", { error: (error as Error).message, module: moduleToReset });
             setIsProcessing(false);
             setProcessingAction(null);
         }
@@ -250,7 +244,7 @@ export default function MaintenancePage() {
         setIsProcessing(true);
         setProcessingAction('full-factory-reset');
         try {
-            await factoryReset('__all__'); // Use a special keyword for all modules
+            await factoryReset('__all__');
             await logWarn(`FULL SYSTEM FACTORY RESET initiated by user ${user?.name}. All data will be wiped. The application will restart.`);
             toast({
                 title: "Reseteo de Fábrica Completado",
@@ -258,9 +252,9 @@ export default function MaintenancePage() {
                 duration: 5000,
             });
             setTimeout(() => window.location.reload(), 5000);
-        } catch (error: any) {
-            toast({ title: "Error en el Reseteo Total", description: error.message, variant: "destructive" });
-            logError("Full factory reset failed.", { error: error.message });
+        } catch (error: unknown) {
+            toast({ title: "Error en el Reseteo Total", description: (error as Error).message, variant: "destructive" });
+            logError("Full factory reset failed.", { error: (error as Error).message });
             setIsProcessing(false);
             setProcessingAction(null);
         }
@@ -456,7 +450,7 @@ export default function MaintenancePage() {
                                             <AlertDialogHeader>
                                                 <AlertDialogTitle className="flex items-center gap-2"><AlertTriangle/>Confirmación Final Requerida</AlertDialogTitle>
                                                 <AlertDialogDescription>
-                                                    Esta acción borrará **TODA** la información del módulo seleccionado ("{dbModules.find(m => m.id === moduleToReset)?.name || ''}"). La aplicación lo reinicializará en blanco. La página se recargará. Esta acción no se puede deshacer.
+                                                    Esta acción borrará **TODA** la información del módulo seleccionado (&quot;{dbModules.find(m => m.id === moduleToReset)?.name || ''}&quot;). La aplicación lo reinicializará en blanco. La página se recargará. Esta acción no se puede deshacer.
                                                 </AlertDialogDescription>
                                             </AlertDialogHeader>
                                              <div className="py-4 space-y-4">
@@ -466,7 +460,7 @@ export default function MaintenancePage() {
                                                 </div>
                                                 {resetStep > 0 && (
                                                     <div className="space-y-2">
-                                                        <Label htmlFor="reset-confirmation-text">Para confirmar, escribe "RESETEAR" en el campo:</Label>
+                                                        <Label htmlFor="reset-confirmation-text">Para confirmar, escribe &quot;RESETEAR&quot; en el campo:</Label>
                                                         <Input id="reset-confirmation-text" value={resetConfirmationText} onChange={(e) => { setResetConfirmationText(e.target.value.toUpperCase()); if (e.target.value.toUpperCase() === 'RESETEAR') {setResetStep(2);} else {setResetStep(1);}}} className="border-destructive focus-visible:ring-destructive" />
                                                     </div>
                                                 )}
@@ -504,7 +498,7 @@ export default function MaintenancePage() {
                                             </div>
                                             {fullResetStep > 0 && (
                                                 <div className="space-y-2">
-                                                    <Label htmlFor="full-reset-confirmation-text">Para confirmar, escribe "RESETEAR TODO" en el campo:</Label>
+                                                    <Label htmlFor="full-reset-confirmation-text">Para confirmar, escribe &quot;RESETEAR TODO&quot; en el campo:</Label>
                                                     <Input id="full-reset-confirmation-text" value={fullResetConfirmationText} onChange={(e) => { setFullResetConfirmationText(e.target.value.toUpperCase()); if (e.target.value.toUpperCase() === 'RESETEAR TODO') {setFullResetStep(2);} else {setFullResetStep(1);}}} className="border-destructive focus-visible:ring-destructive" />
                                                 </div>
                                             )}

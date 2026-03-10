@@ -1,3 +1,6 @@
+/**
+ * @fileoverview Help Center page.
+ */
 "use client";
 
 import { useEffect } from "react";
@@ -15,7 +18,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "../../../components/ui/accordion";
-import { DollarSign, ShieldQuestion, LifeBuoy, Rocket, CalendarCheck, CheckCircle, Search, Wrench, Save, Copy, AlertTriangle, Play, Pause, History, Undo2, BadgeInfo, CreditCard, MessageSquare, Trash2, Download, Briefcase, ListChecks, Hourglass, Ticket, KeyRound, AreaChart, FileScan, UploadCloud, Network } from "lucide-react";
+import { DollarSign, ShieldQuestion, LifeBuoy, Rocket, CalendarCheck, CheckCircle, Wrench, Save, Copy, AlertTriangle, Play, Pause, History, Undo2, BadgeInfo, CreditCard, MessageSquare, Trash2, Download, Briefcase, ListChecks, Hourglass, Ticket, KeyRound, AreaChart, FileScan, UploadCloud, Network } from "lucide-react";
 import { Skeleton } from "../../../components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAuth } from "@/modules/core/hooks/useAuth";
@@ -150,9 +153,6 @@ export default function HelpPage() {
                         <ol className="list-decimal space-y-4 pl-6">
                             <li>
                                 <strong>Paso 1: Cargar Facturas.</strong> Arrastra y suelta uno o varios archivos XML de facturas electrónicas de tus proveedores en el área designada (<UploadCloud className="inline h-4 w-4"/>). El sistema leerá automáticamente cada factura y extraerá todos los productos con sus costos y cantidades.
-                            </li>
-                            <li>
-                                <strong>Paso 2: Añadir Costos Adicionales.</strong> En la tarjeta &quot;Costos Adicionales&quot;, ingresa el costo total del transporte, aduanas u otros gastos asociados a la importación o compra. El sistema prorrateará estos costos de manera inteligente entre todos los artículos cargados, dándote un costo unitario real.
                             </li>
                             <li>
                                 <strong>Paso 2: Añadir Costos Adicionales.</strong> En la tarjeta &quot;Costos Adicionales&quot;, ingresa el costo total del transporte, aduanas u otros gastos asociados a la importación o compra. El sistema prorrateará estos costos de manera inteligente entre todos los artículos cargados, dándote un costo unitario real.
