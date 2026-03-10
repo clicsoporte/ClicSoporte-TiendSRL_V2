@@ -7,10 +7,11 @@ import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { PlusCircle, Loader2, MoreVertical, Edit, Trash2, Truck } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
@@ -19,6 +20,7 @@ import { getThirdPartyProviders, addThirdPartyProvider, updateThirdPartyProvider
 import type { ThirdPartyProvider } from '@/modules/core/types';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Badge } from '@/components/ui/badge';
 
 const emptyProvider: Omit<ThirdPartyProvider, 'id' | 'createdAt'> = {
     name: '',
@@ -74,8 +76,9 @@ export default function ProvidersPage() {
             setFormOpen(false);
             setCurrentProvider(emptyProvider);
             setIsEditing(false);
-        } catch (error: any) {
-            toast({ title: "Error", description: error.message, variant: "destructive" });
+        } catch (error: unknown) {
+            const err = error as Error;
+            toast({ title: "Error", description: err.message, variant: "destructive" });
         } finally {
             setIsSubmitting(false);
         }
@@ -165,7 +168,7 @@ export default function ProvidersPage() {
                         </div>
                         <div className="space-y-2">
                             <Label>Notas Internas</Label>
-                            <Textarea value={currentProvider.notes} onChange={e => setCurrentProvider({...currentProvider, notes: e.target.value})} />
+                            <Textarea value={currentProvider.notes} onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCurrentProvider({...currentProvider, notes: e.target.value})} />
                         </div>
                     </div>
                     <DialogFooter>

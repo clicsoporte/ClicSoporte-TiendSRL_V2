@@ -14,16 +14,17 @@ import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Paperclip, Send, Loader2, MoreVertical, CreditCard, ShieldCheck, ShieldAlert, Truck } from 'lucide-react';
+import { Send, Loader2, MoreVertical, CreditCard, ShieldCheck, ShieldAlert, Truck } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
 
 const getInitials = (name: string) => {
     if (!name) return "??";
@@ -200,7 +201,7 @@ export default function TicketDetailPage() {
                     <CardContent className="p-4 pt-0 space-y-4">
                          <div className="space-y-1.5">
                             <Label className="text-xs">Prioridad</Label>
-                            <Select value={ticket.priority} onValueChange={(v) => handleDetailUpdate({ priority: v as TicketPriority })} disabled={!hasPermission('tickets:update')}>
+                            <Select value={ticket.priority} onValueChange={(v: TicketPriority) => handleDetailUpdate({ priority: v })} disabled={!hasPermission('tickets:update')}>
                                 <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                     {Object.entries(selectors.priorityConfig).map(([key, config]) => (
@@ -211,7 +212,7 @@ export default function TicketDetailPage() {
                         </div>
                         <div className="space-y-1.5">
                             <Label className="text-xs">Estado</Label>
-                             <Select value={ticket.status} onValueChange={(v) => handleDetailUpdate({ status: v as TicketStatus })} disabled={!hasPermission('tickets:update')}>
+                             <Select value={ticket.status} onValueChange={(v: TicketStatus) => handleDetailUpdate({ status: v })} disabled={!hasPermission('tickets:update')}>
                                 <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                      {Object.entries(selectors.statusConfig).map(([key, config]) => (

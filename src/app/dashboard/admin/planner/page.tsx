@@ -83,6 +83,9 @@ export default function PlannerSettingsPage() {
             if (currentSettings.showCustomerTaxId === undefined) {
                 currentSettings.showCustomerTaxId = true;
             }
+            if (!currentSettings.assignments) {
+                currentSettings.assignments = [];
+            }
             setSettings(currentSettings);
             setIsLoading(false);
         };
@@ -96,7 +99,7 @@ export default function PlannerSettingsPage() {
             toast({ title: "Datos incompletos", description: "El ID y el Nombre de la asignación son requeridos.", variant: "destructive" });
             return;
         }
-        if (settings.assignments.some(m => m.id === newAssignment.id)) {
+        if (settings.assignments.some((m: { id: string }) => m.id === newAssignment.id)) {
             toast({ title: "ID Duplicado", description: "Ya existe una asignación con ese ID.", variant: "destructive" });
             return;
         }
@@ -106,7 +109,7 @@ export default function PlannerSettingsPage() {
 
     const handleDeleteAssignment = (id: string) => {
         if (!settings) return;
-        setSettings(prev => prev ? { ...prev, assignments: prev.assignments.filter(m => m.id !== id) } : null);
+        setSettings(prev => prev ? { ...prev, assignments: prev.assignments.filter((m: { id: string }) => m.id !== id) } : null);
         toast({ title: "Asignación Eliminada", description: "La asignación ha sido eliminada. Guarda los cambios para confirmar.", variant: "destructive"});
     };
 
@@ -114,7 +117,7 @@ export default function PlannerSettingsPage() {
         if (!settings) return;
         setSettings(prev => {
             if (!prev) return null;
-            const updatedStatuses = prev.customStatuses.map(cs => 
+            const updatedStatuses = prev.customStatuses.map((cs: CustomStatus) => 
                 cs.id === id ? { ...cs, [field]: value } : cs
             );
             return { ...prev, customStatuses: updatedStatuses };
@@ -128,7 +131,7 @@ export default function PlannerSettingsPage() {
             const currentColumns = prev.pdfExportColumns || [];
             const newColumns = checked 
                 ? [...currentColumns, columnId]
-                : currentColumns.filter(id => id !== columnId);
+                : currentColumns.filter((id: string) => id !== columnId);
             return { ...prev, pdfExportColumns: newColumns };
         });
     };
@@ -140,7 +143,7 @@ export default function PlannerSettingsPage() {
             const currentFields = prev.fieldsToTrackChanges || [];
             const newFields = checked
                 ? [...currentFields, fieldId]
-                : currentFields.filter(id => id !== fieldId);
+                : currentFields.filter((id: string) => id !== fieldId);
             return { ...prev, fieldsToTrackChanges: newFields };
         });
     }
@@ -187,7 +190,7 @@ export default function PlannerSettingsPage() {
                                 <Label htmlFor="orderPrefix">Prefijo de Proyecto</Label>
                                 <Input
                                     id="orderPrefix"
-                                    value={settings.orderPrefix || 'PROJ-'}
+                                    value={settings.orderPrefix || settings.projectPrefix || 'PROJ-'}
                                     onChange={(e) => setSettings(prev => prev ? { ...prev, orderPrefix: e.target.value } : null)}
                                 />
                             </div>
@@ -196,7 +199,7 @@ export default function PlannerSettingsPage() {
                                 <Input
                                     id="nextOrderNumber"
                                     type="number"
-                                    value={settings.nextOrderNumber || 1}
+                                    value={settings.nextOrderNumber || settings.nextProjectNumber || 1}
                                     onChange={(e) => setSettings(prev => prev ? { ...prev, nextOrderNumber: Number(e.target.value) } : null)}
                                 />
                             </div>
@@ -247,7 +250,7 @@ export default function PlannerSettingsPage() {
                                 <CardDescription className="mb-4">Añade o elimina las opciones de asignación disponibles (técnicos, recursos, etc.).</CardDescription>
                                 <div className="space-y-4">
                                     <div className="max-h-60 overflow-y-auto pr-2 space-y-2">
-                                        {settings.assignments.map(assignment => (
+                                        {settings.assignments.map((assignment: { id: string; name: string }) => (
                                             <div key={assignment.id} className="flex items-center justify-between rounded-lg border p-3">
                                                 <div>
                                                     <p className="font-medium">{assignment.name}</p>
@@ -286,7 +289,7 @@ export default function PlannerSettingsPage() {
                             <AccordionContent className="p-6 pt-0">
                                 <CardDescription className="mb-4">Define hasta 4 estados adicionales para tu flujo de trabajo. Solo se mostrarán si están activos y tienen un nombre.</CardDescription>
                                 <div className="space-y-6">
-                                    {settings.customStatuses.map((status, index) => (
+                                    {settings.customStatuses.map((status: CustomStatus, index: number) => (
                                         <div key={status.id} className="space-y-4 rounded-lg border p-4">
                                             <div className="flex items-center justify-between">
                                                 <h4 className="font-semibold">Estado Personalizado {index + 1}</h4>

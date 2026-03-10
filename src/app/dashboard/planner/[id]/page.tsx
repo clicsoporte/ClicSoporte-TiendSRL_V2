@@ -6,7 +6,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/modules/core/hooks/useAuth';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,6 +15,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
     getProjectById, getProjectAdvances, addProjectAdvance, 
     getProjectAttachments, addProjectAttachment, getProjectItems, 
@@ -22,8 +23,7 @@ import {
 } from '@/modules/planner/lib/actions';
 import type { TIProject, ProjectAdvance, ProjectAttachment, ProjectItem, ProjectStatus } from '@/modules/core/types';
 import { format, parseISO } from 'date-fns';
-import { es } from 'date-fns/locale';
-import { Loader2, Send, Paperclip, Plus, Trash2, FileDown, ArrowLeft, CheckCircle2, History, Truck, UserCircle, Briefcase, Package } from 'lucide-react';
+import { Loader2, Send, Paperclip, Plus, Trash2, FileDown, ArrowLeft, History, Truck, UserCircle, Briefcase, Package, FileText } from 'lucide-react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { generateDocument } from '@/modules/core/lib/pdf-generator';
 
@@ -134,8 +134,6 @@ export default function ProjectDetailsPage() {
     const handleGenerateDeliveryPDF = async () => {
         if (!project || !companyData) return;
         
-        const materials = items.filter(i => i.type === 'material');
-        const services = items.filter(i => i.type === 'service');
         const total = items.reduce((acc, i) => acc + (i.quantity * i.unitPrice), 0);
 
         const tableRows = items.map(item => [
@@ -182,7 +180,7 @@ export default function ProjectDetailsPage() {
                 <Button variant="ghost" onClick={() => router.back()}><ArrowLeft className="mr-2 h-4 w-4" /> Volver</Button>
                 <div className="flex gap-2">
                     <Button variant="outline" onClick={handleGenerateDeliveryPDF}><FileDown className="mr-2 h-4 w-4" /> Generar Acta de Entrega</Button>
-                    <Select value={project.status} onValueChange={(v) => handleStatusChange(v as ProjectStatus)}>
+                    <Select value={project.status} onValueChange={(v: ProjectStatus) => handleStatusChange(v)}>
                         <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
                         <SelectContent>
                             <SelectItem value="planning">Planeación</SelectItem>
@@ -245,7 +243,7 @@ export default function ProjectDetailsPage() {
                                 <div className="md:col-span-2 space-y-1"><Label>Descripción</Label><Input value={newItem.description} onChange={e => setNewItem({...newItem, description: e.target.value})} placeholder="Material o Servicio..." /></div>
                                 <div className="space-y-1"><Label>Cant.</Label><Input type="number" value={newItem.quantity} onChange={e => setNewItem({...newItem, quantity: Number(e.target.value)})} /></div>
                                 <div className="space-y-1"><Label>Tipo</Label>
-                                    <Select value={newItem.type} onValueChange={v => setNewItem({...newItem, type: v as any})}>
+                                    <Select value={newItem.type} onValueChange={(v: 'material' | 'service') => setNewItem({...newItem, type: v})}>
                                         <SelectTrigger><SelectValue /></SelectTrigger>
                                         <SelectContent><SelectItem value="material">Material</SelectItem><SelectItem value="service">Servicio/Mano Obra</SelectItem></SelectContent>
                                     </Select>

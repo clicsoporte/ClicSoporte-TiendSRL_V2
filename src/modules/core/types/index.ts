@@ -21,6 +21,8 @@ export type User = {
   recentActivity: string;
   securityQuestion?: string;
   securityAnswer?: string;
+  supportPackageId?: string;
+  monthlyHoursBalance?: number;
 };
 
 /**
@@ -318,10 +320,28 @@ export type ProjectItem = {
     type: 'material' | 'service';
 };
 
+export type CustomStatus = {
+  id: string;
+  label: string;
+  color: string;
+  isActive: boolean;
+};
+
 export type PlannerSettings = {
     projectPrefix?: string;
     nextProjectNumber?: number;
+    orderPrefix?: string;
+    nextOrderNumber?: number;
     pdfTopLegend?: string;
+    assignmentLabel: string;
+    customStatuses: CustomStatus[];
+    pdfPaperSize: 'letter' | 'legal';
+    pdfOrientation: 'portrait' | 'landscape';
+    pdfExportColumns: string[];
+    fieldsToTrackChanges: string[];
+    showCustomerTaxId: boolean;
+    assignments: { id: string; name: string }[];
+    requireAssignmentForStart: boolean;
 };
 
 export type { DateRange };

@@ -4,7 +4,7 @@
 'use server';
 
 import { connectDb } from "@/modules/core/lib/db";
-import type { Ticket, ProductionOrder, TimeEntry, User } from "@/modules/core/types";
+import type { Ticket, TIProject, TimeEntry, User } from "@/modules/core/types";
 import { DateRange } from 'react-day-picker';
 
 type Kpi = {
@@ -62,8 +62,8 @@ async function getTicketKpis(range?: DateRange): Promise<Kpi> {
 
 async function getProjectKpis(range?: DateRange): Promise<Kpi> {
     const db = await connectDb('planner.db');
-    const { filteredQuery, params } = applyDateFilter('SELECT status FROM production_orders {{WHERE}}', range, 'requestDate');
-    const projects = db.prepare(filteredQuery).all(...params) as Pick<ProductionOrder, 'status'>[];
+    const { filteredQuery, params } = applyDateFilter('SELECT status FROM projects {{WHERE}}', range, 'createdAt');
+    const projects = db.prepare(filteredQuery).all(...params) as Pick<TIProject, 'status'>[];
 
     const result = projects.reduce((acc, project) => {
         acc.total++;

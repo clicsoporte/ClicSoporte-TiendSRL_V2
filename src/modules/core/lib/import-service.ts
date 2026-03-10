@@ -38,12 +38,12 @@ async function parseCsv(filePath: string): Promise<Record<string, string>[]> {
 async function processCustomers(data: Record<string, string>[]): Promise<number> {
     const db = await connectDb();
     const upsert = db.prepare(`
-        INSERT INTO customers (id, name, address, phone, taxId, currency, creditLimit, paymentCondition, salesperson, active, email, electronicDocEmail)
-        VALUES (@id, @name, @address, @phone, @taxId, @currency, @creditLimit, @paymentCondition, @salesperson, @active, @email, @electronicDocEmail)
+        INSERT INTO customers (id, name, address, phone, taxId, currency, creditLimit, paymentCondition, salesperson, active, email, electronicDocEmail, contacts)
+        VALUES (@id, @name, @address, @phone, @taxId, @currency, @creditLimit, @paymentCondition, @salesperson, @active, @email, @electronicDocEmail, @contacts)
         ON CONFLICT(id) DO UPDATE SET
             name = excluded.name, address = excluded.address, phone = excluded.phone, taxId = excluded.taxId, currency = excluded.currency,
             creditLimit = excluded.creditLimit, paymentCondition = excluded.paymentCondition, salesperson = excluded.salesperson, active = excluded.active,
-            email = excluded.email, electronicDocEmail = excluded.electronicDocEmail;
+            email = excluded.email, electronicDocEmail = excluded.electronicDocEmail, contacts = excluded.contacts;
     `);
     const transaction = db.transaction((records: Customer[]) => {
         for (const record of records) {
@@ -60,11 +60,12 @@ async function processCustomers(data: Record<string, string>[]): Promise<number>
                 active: record.active,
                 email: record.email,
                 electronicDocEmail: record.electronicDocEmail,
+                contacts: JSON.stringify([])
             });
         }
     });
 
-    const mappedData = data.map(d => ({
+    const mappedData: Customer[] = data.map(d => ({
         id: d.CLIENTE,
         name: d.NOMBRE,
         address: d.DIRECCION,
@@ -77,6 +78,7 @@ async function processCustomers(data: Record<string, string>[]): Promise<number>
         active: d.ACTIVO as 'S' | 'N',
         email: d.E_MAIL,
         electronicDocEmail: d.EMAIL_DOC_ELECTRONICO,
+        contacts: []
     }));
     
     transaction(mappedData);
