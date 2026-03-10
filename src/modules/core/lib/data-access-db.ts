@@ -15,8 +15,13 @@ import { logInfo } from './logger';
 export async function getAllCustomers(): Promise<Customer[]> {
     const db = await connectDb();
     try {
-        const results = db.prepare('SELECT * FROM customers ORDER BY name ASC').all() as Customer[];
-        return JSON.parse(JSON.stringify(results));
+        const results = db.prepare('SELECT * FROM customers ORDER BY name ASC').all() as any[];
+        const enrichedResults = results.map(c => ({
+            ...c,
+            contacts: JSON.parse(c.contacts || '[]'),
+            isManual: !!c.isManual
+        }));
+        return JSON.parse(JSON.stringify(enrichedResults));
     } catch (error) {
         console.error("Failed to get all customers:", error);
         return [];
@@ -29,15 +34,18 @@ export async function getAllCustomers(): Promise<Customer[]> {
 export async function upsertCustomer(customer: Customer): Promise<Customer> {
     const db = await connectDb();
     const stmt = db.prepare(`
-        INSERT INTO customers (id, name, address, phone, taxId, currency, creditLimit, paymentCondition, salesperson, active, email, electronicDocEmail, isManual)
-        VALUES (@id, @name, @address, @phone, @taxId, @currency, @creditLimit, @paymentCondition, @salesperson, @active, @email, @electronicDocEmail, 1)
+        INSERT INTO customers (id, name, address, phone, taxId, currency, creditLimit, paymentCondition, salesperson, active, email, electronicDocEmail, isManual, contacts)
+        VALUES (@id, @name, @address, @phone, @taxId, @currency, @creditLimit, @paymentCondition, @salesperson, @active, @email, @electronicDocEmail, 1, @contacts)
         ON CONFLICT(id) DO UPDATE SET
             name = excluded.name, address = excluded.address, phone = excluded.phone, taxId = excluded.taxId, currency = excluded.currency,
             creditLimit = excluded.creditLimit, paymentCondition = excluded.paymentCondition, salesperson = excluded.salesperson, active = excluded.active,
-            email = excluded.email, electronicDocEmail = excluded.electronicDocEmail
+            email = excluded.email, electronicDocEmail = excluded.electronicDocEmail, contacts = excluded.contacts
     `);
     
-    stmt.run(customer);
+    stmt.run({
+        ...customer,
+        contacts: JSON.stringify(customer.contacts || [])
+    });
     await logInfo(`Cliente gestionado manualmente: ${customer.name} (${customer.id})`);
     return customer;
 }

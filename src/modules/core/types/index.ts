@@ -88,6 +88,20 @@ export type Role = {
 };
 
 /**
+ * Represents a contact person within a customer company.
+ */
+export type CustomerContact = {
+    id: string;
+    name: string;
+    email: string;
+    department: string;
+    position: string;
+    officePhone: string;
+    whatsapp: string;
+    branch: string;
+};
+
+/**
  * Represents a customer. Can be imported or created manually.
  */
 export type Customer = {
@@ -104,6 +118,7 @@ export type Customer = {
     email: string;
     electronicDocEmail: string;
     isManual?: boolean;
+    contacts: CustomerContact[];
 };
 
 /**

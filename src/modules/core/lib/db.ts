@@ -18,7 +18,7 @@ const SALT_ROUNDS = 10;
  */
 export async function connectDb(dbFile: string = DB_FILE): Promise<Database> {
     if (dbFile === DB_FILE) {
-        return baseConnectDb(DB_FILE, initializeMainDatabase);
+        return baseConnectDb(DB_FILE, initializeMainDatabase, runMainMigrations);
     }
     // Fallback for other modules that still call this with a custom filename
     return baseConnectDb(dbFile);
@@ -82,7 +82,8 @@ export async function initializeMainDatabase(db: Database) {
         CREATE TABLE IF NOT EXISTS customers (
             id TEXT PRIMARY KEY, name TEXT, address TEXT, phone TEXT, taxId TEXT, currency TEXT,
             creditLimit REAL, paymentCondition TEXT, salesperson TEXT, active TEXT, email TEXT, electronicDocEmail TEXT,
-            supportPackageId TEXT, monthlyHoursBalance REAL, isManual BOOLEAN DEFAULT FALSE
+            supportPackageId TEXT, monthlyHoursBalance REAL, isManual BOOLEAN DEFAULT FALSE,
+            contacts TEXT
         );
 
         CREATE TABLE IF NOT EXISTS products (
@@ -152,6 +153,17 @@ export async function initializeMainDatabase(db: Database) {
 
     const roleInsert = db.prepare('INSERT OR IGNORE INTO roles (id, name, permissions) VALUES (@id, @name, @permissions)');
     initialRoles.forEach(role => roleInsert.run({ ...role, permissions: JSON.stringify(role.permissions) }));
+}
+
+export async function runMainMigrations(db: Database) {
+    // Check if contacts column exists in customers table
+    const customersTableInfo = db.prepare(`PRAGMA table_info(customers)`).all() as { name: string }[];
+    const customerColumns = new Set(customersTableInfo.map(c => c.name));
+
+    if (!customerColumns.has('contacts')) {
+        console.log("MIGRATION (intratool.db): Adding 'contacts' column to 'customers' table.");
+        db.exec(`ALTER TABLE customers ADD COLUMN contacts TEXT;`);
+    }
 }
 
 export async function getUserPreferences(userId: number, settingName: string): Promise<Record<string, unknown>> {
