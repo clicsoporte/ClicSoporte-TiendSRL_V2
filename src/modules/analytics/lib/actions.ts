@@ -1,11 +1,13 @@
+
 /**
  * @fileoverview Server-side functions for aggregating analytics data.
  */
 'use server';
 
 import { connectDb } from "@/modules/core/lib/db";
-import type { Ticket, TIProject, TimeEntry, User } from "@/modules/core/types";
+import type { Ticket, TIProject, TimeEntry, User, Contract } from "@/modules/core/types";
 import { DateRange } from 'react-day-picker';
+import { differenceInDays, parseISO } from 'date-fns';
 
 type Kpi = {
     total: number;
@@ -23,6 +25,13 @@ export type AnalyticsData = {
     tickets: Kpi;
     projects: Kpi;
     timeTracking: TimeTrackingKpi;
+};
+
+export type DashboardStats = {
+    activeTickets: number;
+    activeProjects: number;
+    expiringContracts: number;
+    urgentTickets: number;
 };
 
 function applyDateFilter(query: string, range?: DateRange, dateColumn: string = 'createdAt'): { filteredQuery: string, params: string[] } {
@@ -93,9 +102,8 @@ async function getTimeTrackingKpis(range?: DateRange): Promise<TimeTrackingKpi> 
     const byUserMap = new Map<number, { userId: number; userName: string; billable: number; nonBillable: number }>();
 
     timeEntries.forEach(entry => {
-        // Safe check for duration. Timers currently running have duration = null.
         const durationMs = entry.duration || 0;
-        const durationHours = durationMs / 3600000; // ms to hours
+        const durationHours = durationMs / 3600000;
         result.totalHours += durationHours;
 
         if (!byUserMap.has(entry.userId)) {
@@ -138,4 +146,33 @@ export async function getAnalyticsData(range?: DateRange): Promise<AnalyticsData
         projects,
         timeTracking,
     };
+}
+
+/**
+ * Lightweight function for main dashboard stats.
+ */
+export async function getDashboardStats(): Promise<DashboardStats> {
+    try {
+        const tDb = await connectDb('tickets.db');
+        const pDb = await connectDb('planner.db');
+        const cDb = await connectDb('contracts.db');
+
+        const activeTickets = tDb.prepare("SELECT COUNT(*) as count FROM tickets WHERE status != 'closed'").get() as { count: number };
+        const urgentTickets = tDb.prepare("SELECT COUNT(*) as count FROM tickets WHERE status != 'closed' AND priority = 'urgent'").get() as { count: number };
+        const activeProjects = pDb.prepare("SELECT COUNT(*) as count FROM projects WHERE status NOT IN ('completed', 'canceled')").get() as { count: number };
+        
+        const now = new Date();
+        const contracts = cDb.prepare("SELECT endDate FROM contracts WHERE status = 'active'").all() as { endDate: string }[];
+        const expiringContracts = contracts.filter(c => differenceInDays(parseISO(c.endDate), now) <= 30).length;
+
+        return {
+            activeTickets: activeTickets.count,
+            urgentTickets: urgentTickets.count,
+            activeProjects: activeProjects.count,
+            expiringContracts
+        };
+    } catch (e) {
+        console.error("Dashboard stats failed", e);
+        return { activeTickets: 0, urgentTickets: 0, activeProjects: 0, expiringContracts: 0 };
+    }
 }

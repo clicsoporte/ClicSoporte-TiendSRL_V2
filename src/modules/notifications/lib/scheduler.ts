@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -11,6 +12,7 @@ import { importAllDataFromFiles } from '@/modules/core/lib/import-service';
 import { logInfo, logError } from '@/modules/core/lib/logger';
 import { triggerNotificationEvent } from './notifications-engine';
 import { connectDb } from '@/modules/core/lib/db';
+import { backupAllForUpdate } from '@/modules/core/lib/maintenance-db';
 import type { Contract, License } from '@/modules/core/types';
 import { differenceInDays, parseISO } from 'date-fns';
 
@@ -28,6 +30,21 @@ async function executeErpSync() {
     } catch (error: unknown) {
         const err = error as Error;
         await logError('Auto-Sincronización ERP falló.', { error: err.message });
+    }
+}
+
+/**
+ * Task: System Backup.
+ * Creates a restore point for all databases.
+ */
+async function executeBackup() {
+    try {
+        await logInfo('Copia de seguridad programada iniciada.');
+        await backupAllForUpdate();
+        await logInfo('Copia de seguridad programada completada con éxito.');
+    } catch (error: unknown) {
+        const err = error as Error;
+        await logError('Copia de seguridad programada falló.', { error: err.message });
     }
 }
 
@@ -72,6 +89,7 @@ async function executeExpirationCheck() {
  */
 const taskCatalog: Record<string, () => Promise<void>> = {
     'erp-sync': executeErpSync,
+    'backup-system': executeBackup,
     'check-expirations': executeExpirationCheck,
 };
 
