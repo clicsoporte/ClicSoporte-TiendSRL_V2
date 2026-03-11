@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Client-side functions for interacting with the ticket module's server-side DB functions.
  */
@@ -27,6 +28,7 @@ import {
     updateThirdPartyProvider as updateThirdPartyProviderServer,
     deleteThirdPartyProvider as deleteThirdPartyProviderServer,
 } from './db';
+import { triggerNotificationEvent } from '@/modules/notifications/lib/notifications-engine';
 
 /**
  * Saves a new ticket to the database.
@@ -34,10 +36,20 @@ import {
 export async function saveTicket(payload: NewTicketPayload, user: User): Promise<Ticket> {
     try {
         const createdTicket = await addTicketServer(payload, user);
+        
+        // --- Integration with Notification Engine ---
+        // Trigger real-time alerts based on admin rules
+        await triggerNotificationEvent('onTicketCreated', createdTicket);
+        
+        if (createdTicket.priority === 'urgent') {
+            await triggerNotificationEvent('onTicketPriorityUrgent', createdTicket);
+        }
+
         await logInfo(`New ticket #${createdTicket.consecutive} created by ${user.name}`, { 
             ticketId: createdTicket.id, 
             customer: payload.customerName 
         });
+        
         return JSON.parse(JSON.stringify(createdTicket));
     } catch (error: unknown) {
         logError("Error saving ticket", { error: (error as Error).message });
@@ -86,6 +98,12 @@ export async function addThreadEntry(payload: { ticketId: number; userId: number
 
 export async function updateTicketDetails(ticketId: number, updates: Partial<Pick<Ticket, 'status' | 'priority' | 'assigneeId' | 'isBillable' | 'providerId'>>, user: User): Promise<Ticket> {
     const updatedTicket = await updateTicketDetailsServer(ticketId, updates, user);
+    
+    // Trigger urgent alert if priority changed to urgent
+    if (updates.priority === 'urgent') {
+        await triggerNotificationEvent('onTicketPriorityUrgent', updatedTicket);
+    }
+    
     return JSON.parse(JSON.stringify(updatedTicket));
 }
 
