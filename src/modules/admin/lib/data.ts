@@ -2,7 +2,7 @@
  * @fileoverview This file contains the configuration data for the admin section tools.
  */
 import type { Tool } from "@/modules/core/types";
-import { Users, ShieldCheck, Briefcase, MessageSquare, DollarSign, FileUp, ServerCog, Network, Factory, Boxes, Ticket, FileTerminal, KeyRound, Truck } from "lucide-react";
+import { Users, ShieldCheck, Briefcase, MessageSquare, DollarSign, FileUp, ServerCog, Network, Factory, Boxes, Ticket, FileTerminal, KeyRound, Truck, Zap } from "lucide-react";
 
 /**
  * List of tools available in the admin section.
@@ -33,6 +33,15 @@ export const adminTools: Tool[] = [
         href: "/dashboard/admin/general",
         icon: Briefcase,
         bgColor: "bg-orange-500",
+        textColor: "text-white",
+      },
+      {
+        id: "automation-manager",
+        name: "Automatizaciones",
+        description: "Configurar reglas de alerta, Telegram y tareas Cron.",
+        href: "/dashboard/admin/notifications",
+        icon: Zap,
+        bgColor: "bg-yellow-600",
         textColor: "text-white",
       },
       {

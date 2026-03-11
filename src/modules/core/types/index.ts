@@ -603,3 +603,38 @@ export type TimeEntry = {
 export type ExpectedSchema = {
     [tableName: string]: string[];
 };
+
+/**
+ * Notifications Engine Types
+ */
+export type NotificationRule = {
+    id: number;
+    name: string;
+    event: string; // e.g., 'onTicketCreated'
+    action: 'sendEmail' | 'sendTelegram';
+    recipients: string[]; // List of emails or Telegram chat IDs
+    subject?: string;
+    enabled: boolean;
+};
+
+export type ScheduledTask = {
+    id: number;
+    name: string;
+    schedule: string; // Cron expression
+    taskId: string; // e.g., 'erp-sync'
+    enabled: boolean;
+};
+
+export type NotificationServiceConfig = {
+    telegram?: {
+        botToken: string;
+        chatId: string;
+    };
+};
+
+export type NotificationEventId = 
+    | 'onTicketCreated' 
+    | 'onTicketPriorityUrgent' 
+    | 'onProjectCompleted' 
+    | 'onBackupCompleted'
+    | 'onNewSuggestion';

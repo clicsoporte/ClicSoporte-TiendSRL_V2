@@ -18,4 +18,5 @@ export const DB_MODULES_METADATA: DatabaseModuleMetadata[] = [
     { id: 'licenses', name: 'Gestión de Licencias', dbFile: 'licenses.db' },
     { id: 'timesheet', name: 'Hoja de Tiempos', dbFile: 'timesheet.db' },
     { id: 'contracts', name: 'Gestión de Contratos', dbFile: 'contracts.db' },
+    { id: 'notifications', name: 'Gestor de Notificaciones', dbFile: 'notifications.db' },
 ];
