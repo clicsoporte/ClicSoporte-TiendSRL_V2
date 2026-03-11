@@ -1,4 +1,3 @@
-
 'use server';
 
 /**
@@ -13,7 +12,6 @@ import { logInfo, logError } from '@/modules/core/lib/logger';
 
 /**
  * Basic templates for different events. 
- * In a future phase, these can be moved to dedicated files.
  */
 const eventTemplates: Record<string, (p: any) => { subject: string, body: string, telegram: string }> = {
     'onTicketCreated': (p) => {
@@ -29,25 +27,37 @@ const eventTemplates: Record<string, (p: any) => { subject: string, body: string
                 <p><b>Prioridad:</b> ${p.priority.toUpperCase()}</p>
                 <br>
                 <a href="${process.env.NEXT_PUBLIC_APP_URL || ''}/dashboard/tickets/${p.id}" 
-                   style="background: #2563eb; color: white; padding: 10px 20px; text-decoration: none; rounded: 5px;">
+                   style="background: #2563eb; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">
                    Ver Detalles del Ticket
                 </a>
             </div>
         `;
-        const telegram = `<b>🆕 NUEVO TICKET</b>\n\n<b>ID:</b> ${p.consecutive}\n<b>Cliente:</b> ${p.customerName}\n<b>Asunto:</b> ${p.subject}\n<b>Prioridad:</b> ${p.priority.toUpperCase()}`;
+        const telegram = `🆕 <b>NUEVO TICKET</b>\n\n<b>ID:</b> ${p.consecutive}\n<b>Cliente:</b> ${p.customerName}\n<b>Asunto:</b> ${p.subject}\n<b>Prioridad:</b> ${p.priority.toUpperCase()}`;
         return { subject, body, telegram };
     },
     'onTicketPriorityUrgent': (p) => {
         const subject = `⚠️ ALERTA: Ticket Urgente - ${p.consecutive}`;
-        const body = `<h2 style="color: #dc2626;">Atención Requerida: Prioridad Urgente</h2><p>El ticket <b>${p.consecutive}</b> ha sido marcado como URGENTE.</p>`;
+        const body = `<h2 style="color: #dc2626;">Atención Requerida: Prioridad Urgente</h2><p>El ticket <b>${p.consecutive}</b> ha sido marcado como URGENTE.</p><p>Asunto: ${p.subject}</p>`;
         const telegram = `⚠️ <b>TICKET URGENTE</b>\n\nEl caso <b>${p.consecutive}</b> requiere atención inmediata.\n\nAsunto: ${p.subject}`;
+        return { subject, body, telegram };
+    },
+    'onContractExpiring': (p) => {
+        const subject = `📅 AVISO: Contrato por Vencer - ${p.consecutive}`;
+        const body = `<h2>Contrato de Soporte Próximo a Vencer</h2><p>El contrato <b>${p.name}</b> para el cliente <b>${p.customerId}</b> vence en <b>${p.daysLeft} días</b> (${p.endDate}).</p>`;
+        const telegram = `📅 <b>CONTRATO POR VENCER</b>\n\nContrato: ${p.name}\nQuedan: ${p.daysLeft} días\nVence: ${p.endDate}`;
+        return { subject, body, telegram };
+    },
+    'onLicenseExpiring': (p) => {
+        const subject = `🔑 ALERTA: Licencia por Vencer`;
+        const body = `<h2>Expiración de Licencia Offline</h2><p>La licencia para el cliente con Hardware ID <b>${p.hardwareId}</b> vence en <b>${p.daysLeft} días</b>.</p>`;
+        const telegram = `🔑 <b>LICENCIA POR VENCER</b>\n\nHardware ID: ${p.hardwareId}\nQuedan: ${p.daysLeft} días`;
         return { subject, body, telegram };
     }
 };
 
 /**
  * Main entry point to trigger a notification flow.
- * @param eventId - The ID of the event defined in types (e.g., 'onTicketCreated')
+ * @param eventId - The ID of the event (e.g., 'onTicketCreated')
  * @param payload - The data object associated with the event.
  */
 export async function triggerNotificationEvent(eventId: string, payload: any) {

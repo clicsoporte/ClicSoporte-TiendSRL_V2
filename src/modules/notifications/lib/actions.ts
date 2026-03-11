@@ -16,6 +16,7 @@ import {
 } from './db';
 import type { NotificationRule, ScheduledTask, NotificationServiceConfig } from '@/modules/core/types';
 import { logInfo } from '@/modules/core/lib/logger';
+import { initScheduler } from './scheduler';
 
 export async function getAllNotificationRules(): Promise<NotificationRule[]> {
     return await getAllRulesServer();
@@ -39,12 +40,16 @@ export async function getAllScheduledTasks(): Promise<ScheduledTask[]> {
 export async function saveScheduledTask(task: Omit<ScheduledTask, 'id'> | ScheduledTask): Promise<ScheduledTask> {
     const result = await saveTaskServer(task);
     await logInfo(`Scheduled task saved: ${result.name}`, { enabled: result.enabled });
+    // Re-initialize scheduler to apply changes immediately
+    await initScheduler();
     return result;
 }
 
 export async function deleteScheduledTask(id: number): Promise<void> {
     await deleteTaskServer(id);
     await logInfo(`Scheduled task deleted: ${id}`);
+    // Refresh schedule
+    await initScheduler();
 }
 
 export async function getNotificationServiceSettings(service: 'telegram'): Promise<NotificationServiceConfig> {
