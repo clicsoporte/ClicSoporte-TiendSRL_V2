@@ -20,6 +20,7 @@ import {
     getSettings as getSettingsDb,
     saveSettings as saveSettingsDb
 } from './db';
+import { triggerNotificationEvent } from '@/modules/notifications/lib/notifications-engine';
 
 export async function getProjects(): Promise<TIProject[]> {
     const results = await getProjectsDb();
@@ -45,6 +46,12 @@ export async function createProject(project: Omit<TIProject, 'id' | 'consecutive
 
 export async function updateProject(project: TIProject): Promise<TIProject> {
     const result = await updateProjectDb(project);
+    
+    // Notification Trigger
+    if (project.status === 'completed') {
+        await triggerNotificationEvent('onProjectCompleted', result);
+    }
+
     await logInfo(`Proyecto TI ${result.consecutive} actualizado`);
     return JSON.parse(JSON.stringify(result));
 }

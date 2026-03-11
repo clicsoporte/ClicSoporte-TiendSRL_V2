@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Server-side functions for maintenance operations (backup, restore, reset).
  */
@@ -6,8 +5,9 @@
 
 import fs from 'fs';
 import path from 'path';
-import { DB_MODULES_METADATA, type DatabaseModuleMetadata } from './db-registry';
+import { DB_MODULES_METADATA } from './db-registry';
 import type { UpdateBackupInfo } from '../types';
+import { triggerNotificationEvent } from '@/modules/notifications/lib/notifications-engine';
 
 const dbDirectory = path.join(process.cwd(), 'dbs');
 const UPDATE_BACKUP_DIR = 'update_backups';
@@ -31,6 +31,9 @@ export async function backupAllForUpdate(): Promise<void> {
             fs.copyFileSync(sourcePath, backupPath);
         }
     }
+
+    // Notification Trigger
+    await triggerNotificationEvent('onBackupCompleted', { timestamp: new Date().toLocaleString() });
 }
 
 /**
@@ -147,6 +150,6 @@ export async function factoryReset(moduleId: string): Promise<void> {
 /**
  * Retrieves the list of configurable database modules metadata.
  */
-export async function getDbModules(): Promise<DatabaseModuleMetadata[]> {
+export async function getDbModules() {
     return DB_MODULES_METADATA.map(({ id, name, dbFile }) => ({ id, name, dbFile }));
 }

@@ -4,9 +4,10 @@
 'use client';
 
 import React, { createContext, useState, useContext, ReactNode, FC, useEffect, useCallback } from "react";
-import type { User, Role, Company, Product, Customer, StockInfo, Exemption, ExemptionLaw } from "../types";
+import type { User, Role, Company, Product, Customer, StockInfo, Exemption, ExemptionLaw, Notification } from "../types";
 import { getCurrentUser, logout as logoutServer } from '../lib/auth-client';
 import { getInitialAuthData } from '../lib/auth';
+import { getNotifications, markNotificationsAsRead } from "@/modules/notifications/lib/db";
 import { useRouter, usePathname } from "next/navigation";
 import { Loader2 } from "lucide-react";
 
@@ -20,6 +21,7 @@ interface AuthContextType {
   stockLevels: StockInfo[];
   allExemptions: Exemption[];
   exemptionLaws: ExemptionLaw[];
+  notifications: Notification[];
   isAuthReady: boolean;
   isLoading: boolean;
   unreadSuggestionsCount: number;
@@ -30,6 +32,7 @@ interface AuthContextType {
   updateUnreadSuggestionsCount: () => Promise<void>;
   refreshExchangeRate: () => Promise<void>;
   hasPermission: (permission: string) => boolean;
+  markAsRead: (ids: (number|string)[]) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -44,6 +47,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
   const [stockLevels, setStockLevels] = useState<StockInfo[]>([]);
   const [allExemptions, setAllExemptions] = useState<Exemption[]>([]);
   const [exemptionLaws, setExemptionLaws] = useState<ExemptionLaw[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [unreadSuggestionsCount, setUnreadSuggestionsCount] = useState(0);
   const [exchangeRateData, setExchangeRateData] = useState<{ rate: number | null; date: string | null }>({ rate: null, date: null });
@@ -61,7 +65,11 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
         return;
       }
 
-      const data = await getInitialAuthData();
+      const [data, notifs] = await Promise.all([
+          getInitialAuthData(),
+          getNotifications(currentUser.id)
+      ]);
+
       setUser(currentUser);
       setCompanyData(data.companySettings);
       setCustomers(data.customers);
@@ -72,6 +80,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
       setExemptionLaws(data.exemptionLaws);
       setUnreadSuggestionsCount(data.unreadSuggestions);
       setExchangeRateData(data.exchangeRate);
+      setNotifications(notifs);
       
       const role = data.roles.find((r: Role) => r.id === currentUser.role);
       setUserRole(role || null);
@@ -86,6 +95,16 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     loadAuthData();
   }, [loadAuthData]);
 
+  // Periodic Refresh for notifications
+  useEffect(() => {
+      if (user && isAuthReady) {
+          const interval = setInterval(() => {
+              getNotifications(user.id).then(setNotifications);
+          }, 30000);
+          return () => clearInterval(interval);
+      }
+  }, [user, isAuthReady]);
+
   const handleLogout = async () => {
     await logoutServer();
     setUser(null);
@@ -99,6 +118,16 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     return userRole.permissions.includes(permission) || userRole.permissions.includes('admin:all');
   }, [userRole]);
 
+  const markAsRead = async (ids: (number|string)[]) => {
+      if (!user) return;
+      const numericIds = ids.filter(id => typeof id === 'number') as number[];
+      if (numericIds.length > 0) {
+          await markNotificationsAsRead(numericIds, user.id);
+      }
+      // Optimistic UI update
+      setNotifications(prev => prev.map(n => ids.includes(n.id) ? { ...n, isRead: 1 as const } : n));
+  };
+
   const contextValue: AuthContextType = {
     user,
     userRole,
@@ -109,6 +138,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     stockLevels,
     allExemptions,
     exemptionLaws,
+    notifications,
     isAuthReady,
     isLoading: !isAuthReady,
     unreadSuggestionsCount,
@@ -118,7 +148,8 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     setCompanyData,
     updateUnreadSuggestionsCount: async () => { /* count updates automatically on refreshAuth */ },
     refreshExchangeRate: async () => { /* rate updates automatically on refreshAuth */ },
-    hasPermission
+    hasPermission,
+    markAsRead
   };
 
   if (!isAuthReady && pathname.startsWith('/dashboard')) {

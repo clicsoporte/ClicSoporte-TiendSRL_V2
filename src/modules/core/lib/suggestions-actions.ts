@@ -8,6 +8,7 @@ import { connectDb } from './db';
 import type { Suggestion } from '../types';
 import { revalidatePath } from 'next/cache';
 import { addLog } from './logger-db';
+import { triggerNotificationEvent } from '@/modules/notifications/lib/notifications-engine';
 
 /**
  * Inserts a new suggestion into the database.
@@ -17,8 +18,16 @@ import { addLog } from './logger-db';
  */
 export async function addSuggestion(content: string, userId: number, userName: string): Promise<void> {
     const db = await connectDb();
-    db.prepare('INSERT INTO suggestions (content, userId, userName, isRead, timestamp) VALUES (?, ?, ?, 0, ?)')
+    const info = db.prepare('INSERT INTO suggestions (content, userId, userName, isRead, timestamp) VALUES (?, ?, ?, 0, ?)')
       .run(content, userId, userName, new Date().toISOString());
+    
+    // Notification Trigger
+    await triggerNotificationEvent('onNewSuggestion', { 
+        id: Number(info.lastInsertRowid),
+        userName, 
+        content 
+    });
+
     await addLog({ type: "INFO", message: 'New suggestion submitted', details: { user: userName } });
     revalidatePath('/dashboard/admin/suggestions');
 }

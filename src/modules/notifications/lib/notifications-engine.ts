@@ -5,15 +5,17 @@
  * Orchestrates events, templates, and delivery services.
  */
 
-import { getAllNotificationRules } from './db';
+import { getAllNotificationRules, createNotification as dbCreateNotification } from './db';
 import { sendEmail } from '@/modules/core/lib/email-service';
 import { sendTelegramMessage } from './telegram-service';
 import { logInfo, logError } from '@/modules/core/lib/logger';
+import { getAllUsers } from '@/modules/core/lib/auth';
+import type { User, NotificationEventId } from '@/modules/core/types';
 
 /**
  * Basic templates for different events. 
  */
-const eventTemplates: Record<string, (p: any) => { subject: string, body: string, telegram: string }> = {
+const eventTemplates: Record<string, (p: any) => { subject: string, body: string, telegram: string, internal: string }> = {
     'onTicketCreated': (p) => {
         const subject = `[NUEVO TICKET] ${p.consecutive} - ${p.subject}`;
         const body = `
@@ -33,47 +35,85 @@ const eventTemplates: Record<string, (p: any) => { subject: string, body: string
             </div>
         `;
         const telegram = `🆕 <b>NUEVO TICKET</b>\n\n<b>ID:</b> ${p.consecutive}\n<b>Cliente:</b> ${p.customerName}\n<b>Asunto:</b> ${p.subject}\n<b>Prioridad:</b> ${p.priority.toUpperCase()}`;
-        return { subject, body, telegram };
+        const internal = `Nuevo ticket ${p.consecutive} creado por ${p.customerName}`;
+        return { subject, body, telegram, internal };
     },
     'onTicketPriorityUrgent': (p) => {
         const subject = `⚠️ ALERTA: Ticket Urgente - ${p.consecutive}`;
         const body = `<h2 style="color: #dc2626;">Atención Requerida: Prioridad Urgente</h2><p>El ticket <b>${p.consecutive}</b> ha sido marcado como URGENTE.</p><p>Asunto: ${p.subject}</p>`;
         const telegram = `⚠️ <b>TICKET URGENTE</b>\n\nEl caso <b>${p.consecutive}</b> requiere atención inmediata.\n\nAsunto: ${p.subject}`;
-        return { subject, body, telegram };
+        const internal = `ATENCIÓN: El ticket ${p.consecutive} es URGENTE.`;
+        return { subject, body, telegram, internal };
     },
     'onContractExpiring': (p) => {
         const subject = `📅 AVISO: Contrato por Vencer - ${p.consecutive}`;
         const body = `<h2>Contrato de Soporte Próximo a Vencer</h2><p>El contrato <b>${p.name}</b> para el cliente <b>${p.customerId}</b> vence en <b>${p.daysLeft} días</b> (${p.endDate}).</p>`;
         const telegram = `📅 <b>CONTRATO POR VENCER</b>\n\nContrato: ${p.name}\nQuedan: ${p.daysLeft} días\nVence: ${p.endDate}`;
-        return { subject, body, telegram };
+        const internal = `El contrato ${p.consecutive} de ${p.customerId} vence pronto.`;
+        return { subject, body, telegram, internal };
     },
     'onLicenseExpiring': (p) => {
         const subject = `🔑 ALERTA: Licencia por Vencer`;
         const body = `<h2>Expiración de Licencia Offline</h2><p>La licencia para el cliente con Hardware ID <b>${p.hardwareId}</b> vence en <b>${p.daysLeft} días</b>.</p>`;
         const telegram = `🔑 <b>LICENCIA POR VENCER</b>\n\nHardware ID: ${p.hardwareId}\nQuedan: ${p.daysLeft} días`;
-        return { subject, body, telegram };
+        const internal = `Licencia offline (${p.hardwareId}) está por vencer.`;
+        return { subject, body, telegram, internal };
+    },
+    'onProjectCompleted': (p) => {
+        const subject = `✅ PROYECTO FINALIZADO: ${p.consecutive}`;
+        const body = `<h2>Hito Alcanzado: Proyecto Completado</h2><p>El proyecto TI <b>${p.name}</b> para <b>${p.customerName}</b> ha sido marcado como FINALIZADO.</p>`;
+        const telegram = `✅ <b>PROYECTO FINALIZADO</b>\n\nProyecto: ${p.name}\nCliente: ${p.customerName}`;
+        const internal = `El proyecto ${p.consecutive} ha sido finalizado exitosamente.`;
+        return { subject, body, telegram, internal };
+    },
+    'onNewSuggestion': (p) => {
+        const subject = `💡 NUEVA SUGERENCIA RECIBIDA`;
+        const body = `<h2>Buzón de Sugerencias</h2><p>El usuario <b>${p.userName}</b> ha enviado una nueva sugerencia:</p><blockquote style="font-style: italic;">"${p.content}"</blockquote>`;
+        const telegram = `💡 <b>NUEVA SUGERENCIA</b>\n\n<b>De:</b> ${p.userName}\n<b>Contenido:</b> ${p.content}`;
+        const internal = `Nueva sugerencia recibida de ${p.userName}.`;
+        return { subject, body, telegram, internal };
+    },
+    'onBackupCompleted': (p) => {
+        const subject = `🛡️ RESPALDO DEL SISTEMA EXITOSO`;
+        const body = `<p>Se ha completado una copia de seguridad de todas las bases de datos a las ${p.timestamp}.</p>`;
+        const telegram = `🛡️ <b>BACKUP EXITOSO</b>\n\nSe ha creado un punto de restauración del sistema.`;
+        const internal = `Copia de seguridad completa realizada correctamente.`;
+        return { subject, body, telegram, internal };
     }
 };
 
 /**
  * Main entry point to trigger a notification flow.
- * @param eventId - The ID of the event (e.g., 'onTicketCreated')
+ * @param eventId - The ID of the event
  * @param payload - The data object associated with the event.
  */
-export async function triggerNotificationEvent(eventId: string, payload: any) {
+export async function triggerNotificationEvent(eventId: NotificationEventId, payload: any) {
     try {
         const allRules = await getAllNotificationRules();
         const matchingRules = allRules.filter(rule => rule.event === eventId && rule.enabled);
 
-        if (matchingRules.length === 0) return;
-
         const templateFn = eventTemplates[eventId];
-        if (!templateFn) {
-            console.warn(`No template found for event: ${eventId}`);
-            return;
+        if (!templateFn) return;
+
+        const { subject, body, telegram, internal } = templateFn(payload);
+
+        // --- Internal App Notifications ---
+        // For events like tickets or suggestions, notify relevant users (admins/support)
+        const allUsers = await getAllUsers();
+        const targetUsers = allUsers.filter(u => u.role === 'admin' || u.role === 'support-agent');
+        
+        for (const targetUser of targetUsers) {
+            await dbCreateNotification({
+                userId: targetUser.id,
+                message: internal,
+                href: getHrefForEvent(eventId, payload),
+                entityId: payload.id,
+                entityType: getEntityTypeForEvent(eventId)
+            });
         }
 
-        const { subject, body, telegram } = templateFn(payload);
+        // --- External Notifications (Rules Based) ---
+        if (matchingRules.length === 0) return;
 
         for (const rule of matchingRules) {
             const finalSubject = rule.subject || subject;
@@ -91,9 +131,28 @@ export async function triggerNotificationEvent(eventId: string, payload: any) {
             }
         }
 
-        await logInfo(`Event '${eventId}' processed. ${matchingRules.length} rule(s) executed.`);
+        await logInfo(`Event '${eventId}' processed. Internal alerts and ${matchingRules.length} rule(s) executed.`);
     } catch (error: unknown) {
         const err = error as Error;
         await logError('Notification Engine failed to process event', { event: eventId, error: err.message });
     }
+}
+
+function getHrefForEvent(eventId: string, p: any): string {
+    switch (eventId) {
+        case 'onTicketCreated':
+        case 'onTicketPriorityUrgent': return `/dashboard/tickets/${p.id}`;
+        case 'onProjectCompleted': return `/dashboard/planner/${p.id}`;
+        case 'onNewSuggestion': return '/dashboard/admin/suggestions';
+        case 'onContractExpiring': return '/dashboard/contracts';
+        case 'onLicenseExpiring': return '/dashboard/licenses';
+        default: return '/dashboard';
+    }
+}
+
+function getEntityTypeForEvent(eventId: string): string {
+    if (eventId.startsWith('onTicket')) return 'ticket';
+    if (eventId.startsWith('onProject')) return 'project';
+    if (eventId === 'onNewSuggestion') return 'suggestion';
+    return 'system';
 }

@@ -7,7 +7,7 @@ import type { Database } from 'better-sqlite3';
 import { connectDb as baseConnectDb } from './db-connection';
 import { initialUsers, initialRoles } from './db-constants';
 import bcrypt from 'bcryptjs';
-import type { LogEntry, DateRange } from '../types';
+import type { LogEntry, DateRange, Notification, Suggestion } from '../types';
 
 const DB_FILE = 'intratool.db';
 const SALT_ROUNDS = 10;
@@ -77,6 +77,19 @@ export async function initializeMainDatabase(db: Database) {
             timestamp TEXT NOT NULL
         );
 
+        CREATE TABLE IF NOT EXISTS notifications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            userId INTEGER NOT NULL,
+            message TEXT NOT NULL,
+            href TEXT,
+            isRead INTEGER DEFAULT 0,
+            timestamp TEXT NOT NULL,
+            entityId INTEGER,
+            entityType TEXT,
+            entityStatus TEXT,
+            taskType TEXT
+        );
+
         CREATE TABLE IF NOT EXISTS user_preferences (
             userId INTEGER NOT NULL,
             key TEXT NOT NULL,
@@ -104,6 +117,24 @@ export async function runMainMigrations(db: Database) {
 
     if (!userColumns.has('forcePasswordChange')) {
         db.exec(`ALTER TABLE users ADD COLUMN forcePasswordChange INTEGER DEFAULT 0;`);
+    }
+
+    const hasNotifications = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='notifications'`).get();
+    if (!hasNotifications) {
+        db.exec(`
+            CREATE TABLE notifications (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                userId INTEGER NOT NULL,
+                message TEXT NOT NULL,
+                href TEXT,
+                isRead INTEGER DEFAULT 0,
+                timestamp TEXT NOT NULL,
+                entityId INTEGER,
+                entityType TEXT,
+                entityStatus TEXT,
+                taskType TEXT
+            );
+        `);
     }
 }
 
@@ -137,7 +168,7 @@ export async function getLogs(filters: { type?: string; search?: string; dateRan
     query += ' ORDER BY timestamp DESC LIMIT 500';
 
     const rows = db.prepare(query).all(...params) as LogEntry[];
-    return rows.map(r => ({ ...r, details: r.details ? JSON.parse(r.details as unknown as string) : undefined }));
+    return rows.map(r => ({ ...r, details: r.details ? JSON.parse(String(r.details)) : undefined }));
 }
 
 export async function clearLogs(_clearedBy: string, type: string, deleteAllTime: boolean) {
@@ -166,4 +197,9 @@ export async function getUserPreferences(userId: number, key: string): Promise<R
 export async function saveUserPreferences(userId: number, key: string, value: Record<string, unknown>): Promise<void> {
     const db = await connectDb();
     db.prepare('INSERT OR REPLACE INTO user_preferences (userId, key, value) VALUES (?, ?, ?)').run(userId, key, JSON.stringify(value));
+}
+
+export async function getUnreadSuggestions(): Promise<Suggestion[]> {
+    const db = await connectDb();
+    return db.prepare('SELECT * FROM suggestions WHERE isRead = 0 ORDER BY timestamp DESC').all() as Suggestion[];
 }

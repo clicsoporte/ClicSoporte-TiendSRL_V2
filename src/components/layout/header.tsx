@@ -1,7 +1,5 @@
 /**
  * @fileoverview The main header component for the application's authenticated layout.
- * It displays the current page title, global actions (sync, suggestions, exchange rate),
- * and the user navigation menu.
  */
 "use client";
 
@@ -20,20 +18,17 @@ import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "../ui/dialog";
 import { Label } from "../ui/label";
 import { Textarea } from "../ui/textarea";
-import { Loader2, RefreshCw, Clock, DollarSign, Send, MessageSquare } from "lucide-react";
+import { Loader2, RefreshCw, Clock, DollarSign, Send, MessageSquare, Bell } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { ScrollArea } from "../ui/scroll-area";
+import Link from "next/link";
 
 interface HeaderProps {
   title: string;
 }
 
-/**
- * Renders the main application header.
- * @param {HeaderProps} props - The properties for the component.
- * @param {string} props.title - The title to be displayed in the header, typically controlled by the current page.
- * @returns {JSX.Element} The header component.
- */
 export function Header({ title }: HeaderProps) {
-  const { user, companyData, setCompanyData, exchangeRateData, refreshExchangeRate, updateUnreadSuggestionsCount } = useAuth();
+  const { user, companyData, setCompanyData, exchangeRateData, refreshExchangeRate, updateUnreadSuggestionsCount, notifications, markAsRead } = useAuth();
   const { hasPermission } = useAuthorization(['admin:import:run']);
   const { toast } = useToast();
 
@@ -42,6 +37,8 @@ export function Header({ title }: HeaderProps) {
   const [suggestion, setSuggestion] = useState("");
   const [isSubmittingSuggestion, setIsSubmittingSuggestion] = useState(false);
   const [isSuggestionDialogOpen, setSuggestionDialogOpen] = useState(false);
+
+  const unreadNotifications = notifications.filter(n => !n.isRead);
 
   const isSyncOld = companyData?.lastSyncTimestamp && companyData?.syncWarningHours 
     ? (new Date().getTime() - parseISO(companyData.lastSyncTimestamp).getTime()) > (companyData.syncWarningHours * 60 * 60 * 1000) 
@@ -53,30 +50,15 @@ export function Header({ title }: HeaderProps) {
       return;
     }
     setIsSyncing(true);
-    toast({ title: "Iniciando Sincronización Completa", description: "Importando todos los datos desde el ERP..." });
     try {
         const results = await importAllDataFromFiles();
-        toast({
-            title: "Sincronización Completa Exitosa",
-            description: `Se han procesado ${results.length} tipos de datos desde el ERP. Los datos se reflejarán automáticamente.`,
-        });
-        await logInfo("Full ERP data synchronization completed via header button.", { results });
-        if (companyData) {
-            setCompanyData({ ...companyData, lastSyncTimestamp: new Date().toISOString() });
-        }
+        toast({ title: "Sincronización Exitosa", description: `Se han procesado ${results.length} tipos de datos.` });
+        if (companyData) setCompanyData({ ...companyData, lastSyncTimestamp: new Date().toISOString() });
     } catch (error: unknown) {
          toast({ title: "Error en Sincronización", description: (error as Error).message, variant: "destructive" });
-         await logError(`Error durante la sincronización completa desde el header`, { error: (error as Error).message });
     } finally {
         setIsSyncing(false);
     }
-  };
-
-  const handleRateRefresh = async () => {
-      setIsRateRefreshing(true);
-      await refreshExchangeRate();
-      toast({ title: "Tipo de Cambio Actualizado", description: "Se ha obtenido el valor más reciente de la API." });
-      setIsRateRefreshing(false);
   };
 
   const handleSuggestionSubmit = async () => {
@@ -84,12 +66,11 @@ export function Header({ title }: HeaderProps) {
       setIsSubmittingSuggestion(true);
       try {
           await addSuggestion(suggestion, user.id, user.name);
-          toast({ title: "¡Gracias por tu Sugerencia!", description: "Hemos recibido tu idea y la revisaremos pronto." });
+          toast({ title: "¡Gracias!", description: "Sugerencia enviada." });
           setSuggestion("");
           setSuggestionDialogOpen(false);
-          await updateUnreadSuggestionsCount();
       } catch (error: unknown) {
-          toast({ title: "Error al Enviar", description: `No se pudo enviar tu sugerencia: ${(error as Error).message}`, variant: "destructive" });
+          toast({ title: "Error", description: (error as Error).message, variant: "destructive" });
       } finally {
           setIsSubmittingSuggestion(false);
       }
@@ -106,34 +87,58 @@ export function Header({ title }: HeaderProps) {
             <div className="hidden items-center gap-2 text-sm text-muted-foreground p-2 border rounded-lg md:flex">
                 <DollarSign className="h-4 w-4"/>
                 <span>TC Venta: <strong>{exchangeRateData.rate.toLocaleString('es-CR')}</strong></span>
-                <span className="text-xs hidden md:inline">({exchangeRateData.date})</span>
-                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleRateRefresh} disabled={isRateRefreshing}>
-                    {isRateRefreshing ? <Loader2 className="h-4 w-4 animate-spin"/> : <RefreshCw className="h-4 w-4"/>}
-                </Button>
             </div>
         )}
-        {companyData?.lastSyncTimestamp && (
-            <>
-                {/* Desktop View */}
-                <div className={cn(
-                    "hidden items-center gap-2 text-sm text-muted-foreground p-2 border rounded-lg md:flex", 
-                    isSyncOld && "text-red-500 font-medium border-red-500/50 bg-red-50"
-                )}>
-                    <Clock className="h-4 w-4" />
-                    <span>Última Sinc: <strong>{format(parseISO(companyData.lastSyncTimestamp), 'dd/MM/yy HH:mm')}</strong></span>
+        
+        <Popover>
+            <PopoverTrigger asChild>
+                <Button variant="ghost" size="icon" className="relative">
+                    <Bell className="h-5 w-5" />
+                    {unreadNotifications.length > 0 && (
+                        <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white">
+                            {unreadNotifications.length}
+                        </span>
+                    )}
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80 p-0" align="end">
+                <div className="flex items-center justify-between p-4 border-b">
+                    <h3 className="font-semibold text-sm">Notificaciones</h3>
+                    {unreadNotifications.length > 0 && (
+                        <Button variant="ghost" size="sm" className="text-[10px] h-6" onClick={() => markAsRead(unreadNotifications.map(n => n.id))}>
+                            Marcar todas leídas
+                        </Button>
+                    )}
                 </div>
-                <Button onClick={handleFullSync} disabled={isSyncing || !hasPermission('admin:import:run')} size="sm" variant="outline" className="hidden md:inline-flex">
-                    {isSyncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-                    <span>Sincronizar ERP</span>
-                </Button>
+                <ScrollArea className="h-[300px]">
+                    {notifications.length > 0 ? (
+                        <div className="divide-y">
+                            {notifications.map((n) => (
+                                <Link 
+                                    key={n.id} 
+                                    href={n.href} 
+                                    onClick={() => markAsRead([n.id])}
+                                    className={cn("block p-4 hover:bg-muted transition-colors", !n.isRead && "bg-primary/5")}
+                                >
+                                    <p className={cn("text-xs leading-relaxed", !n.isRead && "font-semibold")}>{n.message}</p>
+                                    <p className="text-[10px] text-muted-foreground mt-1">{format(parseISO(n.timestamp), 'dd/MM HH:mm')}</p>
+                                </Link>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="p-10 text-center text-xs text-muted-foreground italic">No hay notificaciones.</div>
+                    )}
+                </ScrollArea>
+            </PopoverContent>
+        </Popover>
 
-                {/* Mobile View */}
-                 <Button onClick={handleFullSync} disabled={isSyncing || !hasPermission('admin:import:run')} size="sm" variant="outline" className={cn("md:hidden", isSyncOld && "border-red-500/50 bg-red-50 text-red-500")}>
-                    {isSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                    <span>{format(parseISO(companyData.lastSyncTimestamp), 'dd/MM/yy HH:mm')}</span>
-                </Button>
-            </>
+        {companyData?.lastSyncTimestamp && (
+            <Button onClick={handleFullSync} disabled={isSyncing || !hasPermission('admin:import:run')} size="sm" variant="outline" className={cn("hidden md:inline-flex", isSyncOld && "border-red-500/50 bg-red-50 text-red-500")}>
+                {isSyncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                <span>Sincronizar ERP</span>
+            </Button>
         )}
+
         <Dialog open={isSuggestionDialogOpen} onOpenChange={setSuggestionDialogOpen}>
             <DialogTrigger asChild>
                 <Button size="sm" variant="default" className="bg-green-600 hover:bg-green-700">
@@ -143,37 +148,22 @@ export function Header({ title }: HeaderProps) {
             </DialogTrigger>
             <DialogContent>
                  <DialogHeader>
-                    <DialogTitle>Buzón de Sugerencias y Mejoras</DialogTitle>
-                    <DialogDescription>
-                        ¿Tienes una idea para mejorar la aplicación? ¿Encontraste algo que no funciona como esperabas? Déjanos tu sugerencia aquí.
-                    </DialogDescription>
+                    <DialogTitle>Buzón de Sugerencias</DialogTitle>
+                    <DialogDescription>¿Cómo podemos mejorar la plataforma?</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-2 py-4">
-                    <Label htmlFor="suggestion-box" className="sr-only">Tu sugerencia</Label>
-                    <Textarea
-                        id="suggestion-box"
-                        placeholder="Describe tu idea o el problema que encontraste..."
-                        rows={4}
-                        value={suggestion}
-                        onChange={(e) => setSuggestion(e.target.value)}
-                    />
+                    <Textarea placeholder="Describe tu idea..." rows={4} value={suggestion} onChange={(e) => setSuggestion(e.target.value)} />
                 </div>
                 <DialogFooter>
                     <Button onClick={handleSuggestionSubmit} disabled={isSubmittingSuggestion || !suggestion.trim()}>
                         {isSubmittingSuggestion ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-                        Enviar Sugerencia
+                        Enviar
                     </Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
         <UserNav />
       </div>
-       {(isSyncing || isRateRefreshing) && (
-            <div className="fixed bottom-4 right-4 flex items-center gap-2 rounded-lg bg-primary p-3 text-primary-foreground shadow-lg">
-                <Loader2 className="h-5 w-5 animate-spin" />
-                <span>Procesando...</span>
-            </div>
-        )}
     </header>
   );
 }

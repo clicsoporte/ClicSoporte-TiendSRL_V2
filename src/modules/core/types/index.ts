@@ -637,4 +637,21 @@ export type NotificationEventId =
     | 'onTicketPriorityUrgent' 
     | 'onProjectCompleted' 
     | 'onBackupCompleted'
-    | 'onNewSuggestion';
+    | 'onNewSuggestion'
+    | 'onContractExpiring'
+    | 'onLicenseExpiring';
+
+export type Notification = {
+    id: number | string;
+    userId: number;
+    message: string;
+    href: string;
+    isRead: 0 | 1;
+    timestamp: string;
+    entityId?: number;
+    entityType?: string;
+    entityStatus?: string;
+    taskType?: string;
+    isSuggestion?: boolean;
+    suggestionId?: number;
+};
