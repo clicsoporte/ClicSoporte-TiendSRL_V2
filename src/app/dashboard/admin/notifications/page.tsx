@@ -16,7 +16,8 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
-import { PlusCircle, Trash2, Save, BellRing, Clock, Send, ShieldAlert, Loader2 } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { PlusCircle, Trash2, Save, BellRing, Clock, Send, Loader2 } from 'lucide-react';
 import type { NotificationRule, ScheduledTask, NotificationServiceConfig } from '@/modules/core/types';
 import { 
     getAllNotificationRules, saveNotificationRule, deleteNotificationRule,
@@ -291,7 +292,7 @@ export default function AutomationManagerPage() {
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label>Evento</Label>
-                                <Select value={currentRule.event} onValueChange={v => setCurrentRule({...currentRule, event: v})}>
+                                <Select value={currentRule.event} onValueChange={(v: string) => setCurrentRule({...currentRule, event: v})}>
                                     <SelectTrigger><SelectValue /></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="onTicketCreated">Nuevo Ticket</SelectItem>
@@ -303,7 +304,7 @@ export default function AutomationManagerPage() {
                             </div>
                             <div className="space-y-2">
                                 <Label>Medio</Label>
-                                <Select value={currentRule.action} onValueChange={v => setCurrentRule({...currentRule, action: v as any})}>
+                                <Select value={currentRule.action} onValueChange={(v: string) => setCurrentRule({...currentRule, action: v as any})}>
                                     <SelectTrigger><SelectValue /></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="sendEmail">Correo Electrónico</SelectItem>
@@ -343,7 +344,7 @@ export default function AutomationManagerPage() {
                         </div>
                         <div className="space-y-2">
                             <Label>Acción del Sistema</Label>
-                            <Select value={currentTask.taskId} onValueChange={v => setCurrentTask({...currentTask, taskId: v})}>
+                            <Select value={currentTask.taskId} onValueChange={(v: string) => setCurrentTask({...currentTask, taskId: v})}>
                                 <SelectTrigger><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="erp-sync">Sincronización Completa ERP</SelectItem>

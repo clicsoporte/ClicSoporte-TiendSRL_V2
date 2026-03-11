@@ -3,11 +3,11 @@
 /**
  * @fileoverview Server-side functions for the notifications database.
  * This file handles all direct interactions with the `notifications.db` SQLite database,
- * including schema initialization, migrations, and CRUD operations for rules and settings.
+ * including schema initialization, migrations, and CRUD operations for rules, settings, and user notifications.
  */
 
 import { connectDb } from '@/modules/core/lib/db-connection';
-import type { NotificationRule, NotificationServiceConfig, ScheduledTask } from '@/modules/core/types';
+import type { NotificationRule, NotificationServiceConfig, ScheduledTask, Notification } from '@/modules/core/types';
 
 const NOTIFICATIONS_DB_FILE = 'notifications.db';
 
@@ -35,6 +35,17 @@ export async function initializeNotificationsDb(db: import('better-sqlite3').Dat
             taskId TEXT NOT NULL,
             enabled INTEGER DEFAULT 1
         );
+
+        CREATE TABLE IF NOT EXISTS notifications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            userId INTEGER NOT NULL,
+            message TEXT NOT NULL,
+            href TEXT,
+            isRead INTEGER DEFAULT 0,
+            timestamp TEXT NOT NULL,
+            entityId INTEGER,
+            entityType TEXT
+        );
     `;
     db.exec(schema);
     
@@ -48,7 +59,7 @@ export async function initializeNotificationsDb(db: import('better-sqlite3').Dat
 }
 
 export async function runNotificationsMigrations(db: import('better-sqlite3').Database) {
-    // Standard migration logic
+    // Migration logic can be added here
 }
 
 export async function connectNotificationsDb() {
@@ -141,4 +152,30 @@ export async function getNotificationServiceSettings(service: 'telegram'): Promi
 export async function saveNotificationServiceSettings(service: 'telegram', config: any): Promise<void> {
     const db = await connectNotificationsDb();
     db.prepare('INSERT OR REPLACE INTO notification_settings (service, config) VALUES (?, ?)').run(service, JSON.stringify(config));
+}
+
+// --- User Notifications (The Bell Alerts) ---
+
+export async function getNotifications(userId: number): Promise<Notification[]> {
+    const db = await connectNotificationsDb();
+    const rows = db.prepare('SELECT * FROM notifications WHERE userId = ? ORDER BY timestamp DESC LIMIT 50').all(userId) as any[];
+    return rows.map(r => ({ 
+        ...r, 
+        isRead: r.isRead === 1 ? 1 : 0 
+    }));
+}
+
+export async function markNotificationsAsRead(notificationIds: number[], userId: number): Promise<void> {
+    const db = await connectNotificationsDb();
+    if (notificationIds.length === 0) return;
+    const placeholders = notificationIds.map(() => '?').join(',');
+    db.prepare(`UPDATE notifications SET isRead = 1 WHERE id IN (${placeholders}) AND userId = ?`).run(...notificationIds, userId);
+}
+
+export async function createNotification(notification: Omit<Notification, 'id' | 'timestamp' | 'isRead'>): Promise<void> {
+    const db = await connectNotificationsDb();
+    db.prepare(`
+        INSERT INTO notifications (userId, message, href, isRead, timestamp, entityId, entityType)
+        VALUES (@userId, @message, @href, 0, datetime('now'), @entityId, @entityType)
+    `).run(notification);
 }

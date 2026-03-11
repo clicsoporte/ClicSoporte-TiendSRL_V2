@@ -5,12 +5,12 @@
  * Orchestrates events, templates, and delivery services.
  */
 
-import { getAllNotificationRules, createNotification as dbCreateNotification } from './db';
+import { getAllNotificationRules, createNotification } from './db';
 import { sendEmail } from '@/modules/core/lib/email-service';
 import { sendTelegramMessage } from './telegram-service';
 import { logInfo, logError } from '@/modules/core/lib/logger';
 import { getAllUsers } from '@/modules/core/lib/auth';
-import type { User, NotificationEventId } from '@/modules/core/types';
+import type { NotificationEventId } from '@/modules/core/types';
 
 /**
  * Basic templates for different events. 
@@ -103,7 +103,7 @@ export async function triggerNotificationEvent(eventId: NotificationEventId, pay
         const targetUsers = allUsers.filter(u => u.role === 'admin' || u.role === 'support-agent');
         
         for (const targetUser of targetUsers) {
-            await dbCreateNotification({
+            await createNotification({
                 userId: targetUser.id,
                 message: internal,
                 href: getHrefForEvent(eventId, payload),
