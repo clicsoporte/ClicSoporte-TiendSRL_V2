@@ -58,7 +58,7 @@ export async function initializeNotificationsDb(db: import('better-sqlite3').Dat
     console.log(`Database ${NOTIFICATIONS_DB_FILE} initialized for Notifications Engine.`);
 }
 
-export async function runNotificationsMigrations(db: import('better-sqlite3').Database) {
+export async function runNotificationsMigrations() {
     // Migration logic can be added here
 }
 
@@ -69,7 +69,7 @@ export async function connectNotificationsDb() {
 // --- Rules ---
 export async function getAllNotificationRules(): Promise<NotificationRule[]> {
     const db = await connectNotificationsDb();
-    const rows = db.prepare('SELECT * FROM notification_rules ORDER BY name ASC').all() as any[];
+    const rows = db.prepare('SELECT * FROM notification_rules ORDER BY name ASC').all() as (Omit<NotificationRule, 'enabled' | 'recipients'> & { enabled: number, recipients: string })[];
     return rows.map(row => ({
         ...row,
         enabled: Boolean(row.enabled),
@@ -102,7 +102,7 @@ export async function saveNotificationRule(rule: Omit<NotificationRule, 'id'> | 
             INSERT INTO notification_rules (name, event, action, recipients, subject, enabled)
             VALUES (@name, @event, @action, @recipients, @subject, @enabled)
         `).run(dataToSave);
-        return { ...rule, id: Number(info.lastInsertRowid) };
+        return { ...rule, id: Number(info.lastInsertRowid) } as NotificationRule;
     }
 }
 
@@ -114,7 +114,7 @@ export async function deleteNotificationRule(id: number): Promise<void> {
 // --- Scheduled Tasks ---
 export async function getAllScheduledTasks(): Promise<ScheduledTask[]> {
     const db = await connectNotificationsDb();
-    const rows = db.prepare('SELECT * FROM scheduled_tasks ORDER BY name ASC').all() as any[];
+    const rows = db.prepare('SELECT * FROM scheduled_tasks ORDER BY name ASC').all() as (Omit<ScheduledTask, 'enabled'> & { enabled: number })[];
     return rows.map(row => ({
         ...row,
         enabled: Boolean(row.enabled),
@@ -130,7 +130,7 @@ export async function saveScheduledTask(task: Omit<ScheduledTask, 'id'> | Schedu
         return task as ScheduledTask;
     } else {
         const info = db.prepare('INSERT INTO scheduled_tasks (name, schedule, taskId, enabled) VALUES (@name, @schedule, @taskId, @enabled)').run(dataToSave);
-        return { ...task, id: Number(info.lastInsertRowid) };
+        return { ...task, id: Number(info.lastInsertRowid) } as ScheduledTask;
     }
 }
 
@@ -149,7 +149,7 @@ export async function getNotificationServiceSettings(service: 'telegram'): Promi
     return {};
 }
 
-export async function saveNotificationServiceSettings(service: 'telegram', config: any): Promise<void> {
+export async function saveNotificationServiceSettings(service: 'telegram', config: NotificationServiceConfig): Promise<void> {
     const db = await connectNotificationsDb();
     db.prepare('INSERT OR REPLACE INTO notification_settings (service, config) VALUES (?, ?)').run(service, JSON.stringify(config));
 }
@@ -158,10 +158,10 @@ export async function saveNotificationServiceSettings(service: 'telegram', confi
 
 export async function getNotifications(userId: number): Promise<Notification[]> {
     const db = await connectNotificationsDb();
-    const rows = db.prepare('SELECT * FROM notifications WHERE userId = ? ORDER BY timestamp DESC LIMIT 50').all(userId) as any[];
+    const rows = db.prepare('SELECT * FROM notifications WHERE userId = ? ORDER BY timestamp DESC LIMIT 50').all(userId) as (Omit<Notification, 'isRead'> & { isRead: number })[];
     return rows.map(r => ({ 
         ...r, 
-        isRead: r.isRead === 1 ? 1 : 0 
+        isRead: (r.isRead === 1 ? 1 : 0) as 0 | 1 
     }));
 }
 

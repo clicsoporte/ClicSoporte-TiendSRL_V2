@@ -1,4 +1,3 @@
-
 'use server';
 
 /**
@@ -16,7 +15,7 @@ import { backupAllForUpdate } from '@/modules/core/lib/maintenance-db';
 import type { Contract, License } from '@/modules/core/types';
 import { differenceInDays, parseISO } from 'date-fns';
 
-let runningJobs: Map<number, cron.ScheduledTask> = new Map();
+const runningJobs: Map<number, cron.ScheduledTask> = new Map();
 
 /**
  * Task: Full ERP Synchronization.

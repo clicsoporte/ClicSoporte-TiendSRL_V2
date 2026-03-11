@@ -1,7 +1,8 @@
+'use client';
+
 /**
  * @fileoverview The main header component for the application's authenticated layout.
  */
-"use client";
 
 import { useState } from "react";
 import { SidebarTrigger } from "../ui/sidebar";
@@ -9,16 +10,14 @@ import { UserNav } from "./user-nav";
 import { useAuth } from "@/modules/core/hooks/useAuth";
 import { useAuthorization } from "@/modules/core/hooks/useAuthorization";
 import { useToast } from "@/modules/core/hooks/use-toast";
-import { logError, logInfo } from "@/modules/core/lib/logger";
 import { importAllDataFromFiles } from "@/modules/core/lib/import-service";
 import { addSuggestion } from "@/modules/core/lib/suggestions-actions";
 import { format, parseISO } from 'date-fns';
 import { cn } from "@/lib/utils";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "../ui/dialog";
-import { Label } from "../ui/label";
 import { Textarea } from "../ui/textarea";
-import { Loader2, RefreshCw, Clock, DollarSign, Send, MessageSquare, Bell } from "lucide-react";
+import { Loader2, RefreshCw, DollarSign, Send, MessageSquare, Bell } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { ScrollArea } from "../ui/scroll-area";
 import Link from "next/link";
@@ -28,12 +27,11 @@ interface HeaderProps {
 }
 
 export function Header({ title }: HeaderProps) {
-  const { user, companyData, setCompanyData, exchangeRateData, refreshExchangeRate, updateUnreadSuggestionsCount, notifications, markAsRead } = useAuth();
+  const { user, companyData, setCompanyData, exchangeRateData, notifications, markAsRead } = useAuth();
   const { hasPermission } = useAuthorization(['admin:import:run']);
   const { toast } = useToast();
 
   const [isSyncing, setIsSyncing] = useState(false);
-  const [isRateRefreshing, setIsRateRefreshing] = useState(false);
   const [suggestion, setSuggestion] = useState("");
   const [isSubmittingSuggestion, setIsSubmittingSuggestion] = useState(false);
   const [isSuggestionDialogOpen, setSuggestionDialogOpen] = useState(false);

@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PlusCircle, Trash2, Save, BellRing, Clock, Send, Loader2 } from 'lucide-react';
 import type { NotificationRule, ScheduledTask, NotificationServiceConfig } from '@/modules/core/types';
@@ -60,6 +60,7 @@ export default function AutomationManagerPage() {
             setTasks(tasksData);
             if (settings.telegram) setTelegramSettings(settings.telegram);
         } catch (error) {
+            console.error(error);
             toast({ title: 'Error', description: 'No se pudieron cargar las automatizaciones.', variant: 'destructive' });
         } finally {
             setIsLoading(false);
@@ -80,6 +81,7 @@ export default function AutomationManagerPage() {
             fetchData();
             setRuleDialogOpen(false);
         } catch (error) {
+            console.error(error);
             toast({ title: 'Error', variant: 'destructive' });
         } finally {
             setIsSaving(false);
@@ -95,6 +97,7 @@ export default function AutomationManagerPage() {
             fetchData();
             setTaskDialogOpen(false);
         } catch (error) {
+            console.error(error);
             toast({ title: 'Error', variant: 'destructive' });
         } finally {
             setIsSaving(false);
@@ -107,6 +110,7 @@ export default function AutomationManagerPage() {
             await saveNotificationServiceSettings('telegram', { telegram: telegramSettings });
             toast({ title: 'Configuración de Telegram Guardada' });
         } catch (error) {
+            console.error(error);
             toast({ title: 'Error', variant: 'destructive' });
         } finally {
             setIsSaving(false);
@@ -304,7 +308,7 @@ export default function AutomationManagerPage() {
                             </div>
                             <div className="space-y-2">
                                 <Label>Medio</Label>
-                                <Select value={currentRule.action} onValueChange={(v: string) => setCurrentRule({...currentRule, action: v as any})}>
+                                <Select value={currentRule.action} onValueChange={(v: string) => setCurrentRule({...currentRule, action: v as 'sendEmail' | 'sendTelegram'})}>
                                     <SelectTrigger><SelectValue /></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="sendEmail">Correo Electrónico</SelectItem>
@@ -340,7 +344,7 @@ export default function AutomationManagerPage() {
                         <div className="space-y-2">
                             <Label>Frecuencia Cron</Label>
                             <Input value={currentTask.schedule} onChange={e => setCurrentTask({...currentTask, schedule: e.target.value})} />
-                            <p className="text-[10px] text-muted-foreground">Ej: "0 0 * * *" para medianoche diaria.</p>
+                            <p className="text-[10px] text-muted-foreground">Ej: &quot;0 0 * * *&quot; para medianoche diaria.</p>
                         </div>
                         <div className="space-y-2">
                             <Label>Acción del Sistema</Label>

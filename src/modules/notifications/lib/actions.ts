@@ -56,7 +56,7 @@ export async function getNotificationServiceSettings(service: 'telegram'): Promi
     return await getSettingsServer(service);
 }
 
-export async function saveNotificationServiceSettings(service: 'telegram', config: any): Promise<void> {
+export async function saveNotificationServiceSettings(service: 'telegram', config: NotificationServiceConfig): Promise<void> {
     await saveSettingsServer(service, config);
     await logInfo('Notification service settings updated', { service });
 }

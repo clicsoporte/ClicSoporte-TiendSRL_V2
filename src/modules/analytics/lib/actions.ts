@@ -1,11 +1,11 @@
+'use server';
 
 /**
  * @fileoverview Server-side functions for aggregating analytics data.
  */
-'use server';
 
 import { connectDb } from "@/modules/core/lib/db";
-import type { Ticket, TIProject, TimeEntry, User, Contract } from "@/modules/core/types";
+import type { Ticket, TIProject, TimeEntry, User } from "@/modules/core/types";
 import { DateRange } from 'react-day-picker';
 import { differenceInDays, parseISO } from 'date-fns';
 

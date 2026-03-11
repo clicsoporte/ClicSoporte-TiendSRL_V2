@@ -1,6 +1,3 @@
-/**
- * @fileoverview The main dashboard page, providing an operational snapshot and tool access.
- */
 'use client';
 
 import { mainTools } from "../../modules/core/lib/data";
@@ -17,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
-const StatWidget = ({ title, value, subValue, icon: Icon, colorClass, href }: { title: string, value: number, subValue?: string, icon: any, colorClass: string, href: string }) => (
+const StatWidget = ({ title, value, subValue, icon: Icon, colorClass, href }: { title: string, value: number, subValue?: string, icon: React.ElementType, colorClass: string, href: string }) => (
     <Link href={href} className="block transition-transform hover:scale-[1.02]">
         <Card className="overflow-hidden border-none shadow-md bg-white">
             <div className={cn("h-1 w-full", colorClass)}></div>

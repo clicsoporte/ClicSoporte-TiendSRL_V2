@@ -7,7 +7,7 @@ import type { Database } from 'better-sqlite3';
 import { connectDb as baseConnectDb } from './db-connection';
 import { initialUsers, initialRoles } from './db-constants';
 import bcrypt from 'bcryptjs';
-import type { LogEntry, DateRange, Notification, Suggestion } from '../types';
+import type { LogEntry, DateRange, Suggestion } from '../types';
 
 const DB_FILE = 'intratool.db';
 const SALT_ROUNDS = 10;
@@ -82,19 +82,6 @@ export async function initializeMainDatabase(db: Database) {
             timestamp TEXT NOT NULL
         );
 
-        CREATE TABLE IF NOT EXISTS notifications (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            userId INTEGER NOT NULL,
-            message TEXT NOT NULL,
-            href TEXT,
-            isRead INTEGER DEFAULT 0,
-            timestamp TEXT NOT NULL,
-            entityId INTEGER,
-            entityType TEXT,
-            entityStatus TEXT,
-            taskType TEXT
-        );
-
         CREATE TABLE IF NOT EXISTS user_preferences (
             userId INTEGER NOT NULL,
             key TEXT NOT NULL,
@@ -122,24 +109,6 @@ export async function runMainMigrations(db: Database) {
 
     if (!userColumns.has('forcePasswordChange')) {
         db.exec(`ALTER TABLE users ADD COLUMN forcePasswordChange INTEGER DEFAULT 0;`);
-    }
-
-    const hasNotifications = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='notifications'`).get();
-    if (!hasNotifications) {
-        db.exec(`
-            CREATE TABLE notifications (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                userId INTEGER NOT NULL,
-                message TEXT NOT NULL,
-                href TEXT,
-                isRead INTEGER DEFAULT 0,
-                timestamp TEXT NOT NULL,
-                entityId INTEGER,
-                entityType TEXT,
-                entityStatus TEXT,
-                taskType TEXT
-            );
-        `);
     }
 
     const hasEmailSettings = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='email_settings'`).get();

@@ -6,7 +6,7 @@
  */
 
 import { getAllNotificationRules, createNotification } from './db';
-import { sendEmail } from '@/modules/core/lib/email-service';
+import { sendEmail } from '../../core/lib/email-service';
 import { sendTelegramMessage } from './telegram-service';
 import { logInfo, logError } from '../../core/lib/logger';
 import { getAllUsers } from '../../core/lib/auth';
@@ -15,7 +15,7 @@ import type { NotificationEventId } from '../../core/types';
 /**
  * Basic templates for different events. 
  */
-const eventTemplates: Record<string, (p: any) => { subject: string, body: string, telegram: string, internal: string }> = {
+const eventTemplates: Record<string, (p: Record<string, any>) => { subject: string, body: string, telegram: string, internal: string }> = {
     'onTicketCreated': (p) => {
         const subject = `[NUEVO TICKET] ${p.consecutive} - ${p.subject}`;
         const body = `
@@ -87,7 +87,7 @@ const eventTemplates: Record<string, (p: any) => { subject: string, body: string
  * @param eventId - The ID of the event
  * @param payload - The data object associated with the event.
  */
-export async function triggerNotificationEvent(eventId: NotificationEventId, payload: any) {
+export async function triggerNotificationEvent(eventId: NotificationEventId, payload: Record<string, any>) {
     try {
         const allRules = await getAllNotificationRules();
         const matchingRules = allRules.filter(rule => rule.event === eventId && rule.enabled);
@@ -137,7 +137,7 @@ export async function triggerNotificationEvent(eventId: NotificationEventId, pay
     }
 }
 
-function getHrefForEvent(eventId: string, p: any): string {
+function getHrefForEvent(eventId: string, p: Record<string, any>): string {
     switch (eventId) {
         case 'onTicketCreated':
         case 'onTicketPriorityUrgent': return `/dashboard/tickets/${p.id}`;
