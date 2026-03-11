@@ -235,6 +235,16 @@ export type ApiSettings = {
     haciendaTributariaApi: string;
 };
 
+export type EmailSettings = {
+    smtpHost: string;
+    smtpPort: number;
+    smtpSecure: boolean;
+    smtpUser: string;
+    smtpPass: string;
+    recoveryEmailSubject?: string;
+    recoveryEmailBody?: string;
+};
+
 export type DatabaseModule = {
     id: string;
     name: string;

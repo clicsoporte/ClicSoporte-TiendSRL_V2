@@ -60,6 +60,11 @@ export async function initializeMainDatabase(db: Database) {
             haciendaTributariaApi TEXT
         );
 
+        CREATE TABLE IF NOT EXISTS email_settings (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        );
+
         CREATE TABLE IF NOT EXISTS logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             timestamp TEXT NOT NULL,
@@ -133,6 +138,16 @@ export async function runMainMigrations(db: Database) {
                 entityType TEXT,
                 entityStatus TEXT,
                 taskType TEXT
+            );
+        `);
+    }
+
+    const hasEmailSettings = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='email_settings'`).get();
+    if (!hasEmailSettings) {
+        db.exec(`
+            CREATE TABLE email_settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
             );
         `);
     }

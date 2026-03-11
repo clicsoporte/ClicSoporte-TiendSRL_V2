@@ -6,7 +6,7 @@
  */
 
 import { getAllNotificationRules, createNotification } from './db';
-import { sendEmail } from '../../core/lib/email-service';
+import { sendEmail } from '@/modules/core/lib/email-service';
 import { sendTelegramMessage } from './telegram-service';
 import { logInfo, logError } from '../../core/lib/logger';
 import { getAllUsers } from '../../core/lib/auth';
@@ -98,7 +98,6 @@ export async function triggerNotificationEvent(eventId: NotificationEventId, pay
         const { subject, body, telegram, internal } = templateFn(payload);
 
         // --- Internal App Notifications ---
-        // For events like tickets or suggestions, notify relevant users (admins/support)
         const allUsers = await getAllUsers();
         const targetUsers = allUsers.filter(u => u.role === 'admin' || u.role === 'support-agent');
         
