@@ -262,6 +262,27 @@ export type ExemptionLaw = {
   authNumber: string | null;
 };
 
+// --- Dashboard & Analytics Types ---
+
+export type DashboardStats = {
+    activeTickets: number;
+    activeProjects: number;
+    expiringContracts: number;
+    urgentTickets: number;
+};
+
+export type TimeEntry = {
+    id: number;
+    ticketId: number;
+    userId: number;
+    startTime: string;
+    endTime?: string | null;
+    duration: number | null; // in milliseconds
+    notes?: string | null;
+    isBillable: boolean;
+    createdAt: string;
+};
+
 // --- TI Project Management Types ---
 
 export type ProjectStatus = 'planning' | 'execution' | 'testing' | 'completed' | 'canceled';
@@ -586,18 +607,6 @@ export type SoftwareProduct = {
     id: number;
     name: string;
     isInternal: boolean;
-};
-
-export type TimeEntry = {
-    id: number;
-    ticketId: number;
-    userId: number;
-    startTime: string;
-    endTime?: string | null;
-    duration: number | null; // in milliseconds
-    notes?: string | null;
-    isBillable: boolean;
-    createdAt: string;
 };
 
 export type ExpectedSchema = {

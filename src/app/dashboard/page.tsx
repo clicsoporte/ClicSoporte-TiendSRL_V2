@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview The main dashboard page, providing an operational snapshot and tool access.
  */

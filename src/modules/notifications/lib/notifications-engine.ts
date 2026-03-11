@@ -6,11 +6,11 @@
  */
 
 import { getAllNotificationRules, createNotification } from './db';
-import { sendEmail } from '@/modules/core/lib/email-service';
+import { sendEmail } from '../../core/lib/email-service';
 import { sendTelegramMessage } from './telegram-service';
-import { logInfo, logError } from '@/modules/core/lib/logger';
-import { getAllUsers } from '@/modules/core/lib/auth';
-import type { NotificationEventId } from '@/modules/core/types';
+import { logInfo, logError } from '../../core/lib/logger';
+import { getAllUsers } from '../../core/lib/auth';
+import type { NotificationEventId } from '../../core/types';
 
 /**
  * Basic templates for different events. 
