@@ -4,7 +4,7 @@
 "use server";
 
 import { cache } from 'react';
-import { cookies, headers } from 'next/headers';
+import { cookies } from 'next/headers';
 import { connectDb } from './db';
 import type { User, ExchangeRateApiResponse } from '../types';
 import bcrypt from 'bcryptjs';
@@ -203,8 +203,9 @@ export async function sendPasswordRecoveryEmail(email: string): Promise<void> {
         });
 
         await logInfo(`Recovery email sent to ${user.name} (${email})`);
-    } catch (error: any) {
-        await logError(`Failed to process password recovery for ${email}`, { error: error.message });
+    } catch (error: unknown) {
+        const err = error as Error;
+        await logError(`Failed to process password recovery for ${email}`, { error: err.message });
         throw new Error("No se pudo procesar la recuperación. Contacte al administrador.");
     }
 }

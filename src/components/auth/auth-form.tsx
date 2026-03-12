@@ -130,10 +130,11 @@ export function AuthForm({ }: AuthFormProps) {
         });
         setIsRecoveryOpen(false);
         setRecoveryEmail("");
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const err = error as Error;
         toast({
             title: "Error de Recuperación",
-            description: error.message || "No se pudo procesar la solicitud.",
+            description: err.message || "No se pudo procesar la solicitud.",
             variant: "destructive"
         });
     } finally {
