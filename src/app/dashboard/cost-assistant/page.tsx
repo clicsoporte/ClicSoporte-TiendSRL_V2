@@ -77,88 +77,90 @@ export default function CostAssistantPage() {
                     multiple
                 />
                 <Card>
-                    <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                        <div>
-                            <CardTitle>Asistente de Costos y Precios</CardTitle>
-                            <CardDescription>Carga facturas XML para extraer artículos, añadir costos y calcular precios de venta.</CardDescription>
-                        </div>
-                         <div className="flex items-center gap-2 flex-wrap">
-                             <Dialog>
-                                <DialogTrigger asChild>
-                                    <Button variant="outline"><FilePlus className="mr-2 h-4 w-4"/>Nueva Operación</Button>
-                                </DialogTrigger>
-                                <DialogContent>
-                                    <DialogHeader>
-                                        <DialogTitle>¿Iniciar una nueva operación?</DialogTitle>
-                                        <DialogDescription>
-                                            Esta acción limpiará todos los artículos, costos y facturas cargadas. ¿Deseas continuar?
-                                        </DialogDescription>
-                                    </DialogHeader>
-                                    <DialogFooter>
-                                        <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
-                                        <DialogClose asChild><Button onClick={actions.handleClear}>Sí, limpiar todo</Button></DialogClose>
-                                    </DialogFooter>
-                                </DialogContent>
-                            </Dialog>
-                            <Button variant="outline" onClick={actions.openFileDialog} disabled={state.isProcessing}>
-                                {state.isProcessing ? (
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                ) : (
-                                    <UploadCloud className="mr-2 h-4 w-4" />
-                                )}
-                                Cargar Facturas XML
-                            </Button>
-                            <Sheet onOpenChange={(open) => open && actions.loadDrafts()}>
-                                <SheetTrigger asChild>
-                                    <Button variant="outline"><FolderClock className="mr-2 h-4 w-4"/>Cargar Borradores</Button>
-                                </SheetTrigger>
-                                <SheetContent className="sm:max-w-2xl">
-                                    <SheetHeader>
-                                        <SheetTitle>Borradores Guardados</SheetTitle>
-                                        <SheetDescription>Selecciona un análisis guardado para continuar trabajando en él.</SheetDescription>
-                                    </SheetHeader>
-                                    <div className="py-4">
-                                        <ScrollArea className="h-[80vh]">
-                                            {state.drafts && state.drafts.length > 0 ? (
-                                                <div className="space-y-3 pr-4">
-                                                    {state.drafts.map((draft) => (
-                                                        <Card key={draft.id}>
-                                                            <CardHeader>
-                                                                <CardTitle className="text-lg flex items-center gap-2">
-                                                                    <span className="font-mono text-base bg-muted px-2 py-1 rounded">{draft.id}</span>
-                                                                    <span>{draft.name}</span>
-                                                                </CardTitle>
-                                                                <CardDescription>Guardado el {isValid(parseISO(draft.createdAt)) ? format(parseISO(draft.createdAt), 'dd/MM/yyyy HH:mm') : 'Fecha inválida'}</CardDescription>
-                                                            </CardHeader>
-                                                            <CardFooter className="flex justify-end gap-2">
-                                                                <AlertDialog>
-                                                                    <AlertDialogTrigger asChild><Button variant="destructive" size="sm">Eliminar</Button></AlertDialogTrigger>
-                                                                    <AlertDialogContent>
-                                                                        <AlertDialogHeader>
-                                                                            <AlertDialogTitle>¿Eliminar Borrador?</AlertDialogTitle>
-                                                                            <AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription>
-                                                                        </AlertDialogHeader>
-                                                                        <AlertDialogFooter>
-                                                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                                            <AlertDialogAction onClick={() => actions.deleteDraft(draft.id)}>Sí, eliminar</AlertDialogAction>
-                                                                        </AlertDialogFooter>
-                                                                    </AlertDialogContent>
-                                                                </AlertDialog>
-                                                                <SheetClose asChild>
-                                                                    <Button size="sm" onClick={() => actions.loadDraft(draft)}>Cargar</Button>
-                                                                </SheetClose>
-                                                            </CardFooter>
-                                                        </Card>
-                                                    ))}
-                                                </div>
-                                            ) : (
-                                                <p className="text-center text-muted-foreground py-8">No hay borradores guardados.</p>
-                                            )}
-                                        </ScrollArea>
-                                    </div>
-                                </SheetContent>
-                            </Sheet>
-                            <Button onClick={actions.saveDraft}><Save className="mr-2 h-4 w-4"/>Guardar Borrador</Button>
+                    <CardHeader>
+                        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                            <div>
+                                <CardTitle>Asistente de Costos y Precios</CardTitle>
+                                <CardDescription>Carga facturas XML para extraer artículos, añadir costos y calcular precios de venta.</CardDescription>
+                            </div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <Dialog>
+                                    <DialogTrigger asChild>
+                                        <Button variant="outline"><FilePlus className="mr-2 h-4 w-4"/>Nueva Operación</Button>
+                                    </DialogTrigger>
+                                    <DialogContent>
+                                        <DialogHeader>
+                                            <DialogTitle>¿Iniciar una nueva operación?</DialogTitle>
+                                            <DialogDescription>
+                                                Esta acción limpiará todos los artículos, costos y facturas cargadas. ¿Deseas continuar?
+                                            </DialogDescription>
+                                        </DialogHeader>
+                                        <DialogFooter>
+                                            <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
+                                            <DialogClose asChild><Button onClick={actions.handleClear}>Sí, limpiar todo</Button></DialogClose>
+                                        </DialogFooter>
+                                    </DialogContent>
+                                </Dialog>
+                                <Button variant="outline" onClick={actions.openFileDialog} disabled={state.isProcessing}>
+                                    {state.isProcessing ? (
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <UploadCloud className="mr-2 h-4 w-4" />
+                                    )}
+                                    Cargar Facturas XML
+                                </Button>
+                                <Sheet onOpenChange={(open) => open && actions.loadDrafts()}>
+                                    <SheetTrigger asChild>
+                                        <Button variant="outline"><FolderClock className="mr-2 h-4 w-4"/>Cargar Borradores</Button>
+                                    </SheetTrigger>
+                                    <SheetContent className="sm:max-w-2xl">
+                                        <SheetHeader>
+                                            <SheetTitle>Borradores Guardados</SheetTitle>
+                                            <SheetDescription>Selecciona un análisis guardado para continuar trabajando en él.</SheetDescription>
+                                        </SheetHeader>
+                                        <div className="py-4">
+                                            <ScrollArea className="h-[80vh]">
+                                                {state.drafts && state.drafts.length > 0 ? (
+                                                    <div className="space-y-3 pr-4">
+                                                        {state.drafts.map((draft) => (
+                                                            <Card key={draft.id}>
+                                                                <CardHeader>
+                                                                    <CardTitle className="text-lg flex items-center gap-2">
+                                                                        <span className="font-mono text-base bg-muted px-2 py-1 rounded">{draft.id}</span>
+                                                                        <span>{draft.name}</span>
+                                                                    </CardTitle>
+                                                                    <CardDescription>Guardado el {isValid(parseISO(draft.createdAt)) ? format(parseISO(draft.createdAt), 'dd/MM/yyyy HH:mm') : 'Fecha inválida'}</CardDescription>
+                                                                </CardHeader>
+                                                                <CardFooter className="flex justify-end gap-2">
+                                                                    <AlertDialog>
+                                                                        <AlertDialogTrigger asChild><Button variant="destructive" size="sm">Eliminar</Button></AlertDialogTrigger>
+                                                                        <AlertDialogContent>
+                                                                            <AlertDialogHeader>
+                                                                                <AlertDialogTitle>¿Eliminar Borrador?</AlertDialogTitle>
+                                                                                <AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription>
+                                                                            </AlertDialogHeader>
+                                                                            <AlertDialogFooter>
+                                                                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                                                <AlertDialogAction onClick={() => actions.deleteDraft(draft.id)}>Sí, eliminar</AlertDialogAction>
+                                                                            </AlertDialogFooter>
+                                                                        </AlertDialogContent>
+                                                                    </AlertDialog>
+                                                                    <SheetClose asChild>
+                                                                        <Button size="sm" onClick={() => actions.loadDraft(draft)}>Cargar</Button>
+                                                                    </SheetClose>
+                                                                </CardFooter>
+                                                            </Card>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <p className="text-center text-muted-foreground py-8">No hay borradores guardados.</p>
+                                                )}
+                                            </ScrollArea>
+                                        </div>
+                                    </SheetContent>
+                                </Sheet>
+                                <Button onClick={actions.saveDraft}><Save className="mr-2 h-4 w-4"/>Guardar Borrador</Button>
+                            </div>
                         </div>
                     </CardHeader>
                     <CardContent>
@@ -298,7 +300,7 @@ export default function CostAssistantPage() {
                                 )}
                                 {state.exportStatus === 'ready' && state.exportFileName && (
                                     <div className="flex gap-2">
-                                        <a href={`/api/temp-exports?file=${state.exportFileName}`} download={state.exportFileName}>
+                                        <a href={`/routes/temp-exports?file=${state.exportFileName}`} download={state.exportFileName}>
                                             <Button>
                                                 <Download className="mr-2 h-4 w-4" />
                                                 Descargar Archivo

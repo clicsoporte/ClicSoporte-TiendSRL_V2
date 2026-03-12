@@ -320,7 +320,7 @@ export default function MaintenancePage() {
                                                 <SelectItem key={ts} value={ts}>{format(parseISO(ts), "dd/MM/yyyy 'a las' HH:mm:ss", { locale: es })}</SelectItem>
                                             ))}
                                         </SelectContent>
-                                    </Select>
+                                     </Select>
                                     <div className="flex items-center space-x-2 pt-1">
                                         <Checkbox id="show-all-restore-points" checked={showAllRestorePoints} onCheckedChange={(checked) => setShowAllRestorePoints(checked as boolean)} />
                                         <Label htmlFor="show-all-restore-points" className="text-sm font-normal">Mostrar todos los puntos de restauración</Label>
@@ -372,7 +372,7 @@ export default function MaintenancePage() {
                                                             {format(parseISO(b.date), "dd/MM/yyyy HH:mm:ss", { locale: es })}
                                                         </p>
                                                     </div>
-                                                    <a href={`/api/temp-backups?file=${encodeURIComponent(b.fileName)}`} download={b.fileName}>
+                                                    <a href={`/routes/temp-backups?file=${encodeURIComponent(b.fileName)}`} download={b.fileName}>
                                                         <Button variant="ghost" size="icon"><Download className="h-4 w-4"/></Button>
                                                     </a>
                                                 </div>

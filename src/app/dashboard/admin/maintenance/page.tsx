@@ -225,7 +225,7 @@ export default function MaintenancePage() {
         try {
             await factoryReset(moduleToReset);
             const moduleName = dbModules.find(m => m.id === moduleToReset)?.name || moduleToReset;
-            await logWarn(`MODULE FACTORY RESET initiated by user ${user?.name} for module ${moduleName}. The application will restart.`);
+            await logWarn(`MODULE FACTORY RESET initiated by user ${user?.name} for module ${moduleName}. El sistema se reiniciará.`);
             toast({
                 title: "Módulo Reseteado",
                 description: `Se ha borrado la base de datos de "${moduleName}". La aplicación se recargará en 5 segundos para reinicializarla.`,
@@ -377,7 +377,7 @@ export default function MaintenancePage() {
                                                             {format(parseISO(b.date), "dd/MM/yyyy HH:mm:ss", { locale: es })}
                                                         </p>
                                                     </div>
-                                                    <a href={`/api/temp-backups?file=${encodeURIComponent(b.fileName)}`} download={b.fileName}>
+                                                    <a href={`/routes/temp-backups?file=${encodeURIComponent(b.fileName)}`} download={b.fileName}>
                                                         <Button variant="ghost" size="icon"><Download className="h-4 w-4"/></Button>
                                                     </a>
                                                 </div>
