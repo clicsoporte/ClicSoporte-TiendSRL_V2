@@ -43,7 +43,8 @@ function CompanyInfoSkeleton() {
  * to the client component responsible for handling user interaction.
  */
 export default async function LoginPage() {
-  const requestHeaders = headers();
+  // En Next.js 15+, headers() devuelve una Promesa y debe ser esperada con await.
+  const requestHeaders = await headers();
   const clientIp = requestHeaders.get('x-forwarded-for') ?? 'Unknown IP';
   const clientHost = requestHeaders.get('host') ?? 'Unknown Host';
   const clientInfo = { ip: clientIp, host: clientHost };
