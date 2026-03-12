@@ -1,6 +1,6 @@
 /**
  * @fileoverview Client component for handling the authentication form,
- * including login and forced password change.
+ * including login, forced password change, and password recovery.
  */
 "use client";
 
@@ -8,13 +8,23 @@ import { Button } from "../ui/button";
 import { CardFooter } from "../ui/card";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
-import { Loader2, AlertCircle } from "lucide-react";
+import { Loader2, AlertCircle, Mail, Key } from "lucide-react";
 import React, { useState } from "react";
 import type { User } from "@/modules/core/types";
 import { useToast } from "@/modules/core/hooks/use-toast";
-import { login, updateUser } from "@/modules/core/lib/auth-client";
+import { login, updateUser, sendRecoveryEmail } from "@/modules/core/lib/auth-client";
 import { useAuth } from "@/modules/core/hooks/useAuth";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogClose,
+} from "@/components/ui/dialog";
 
 interface AuthFormProps {
   clientInfo: {
@@ -36,6 +46,11 @@ export function AuthForm({ }: AuthFormProps) {
   const [userToUpdate, setUserToUpdate] = useState<User | null>(null);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+
+  // State for recovery dialog
+  const [isRecoveryOpen, setIsRecoveryOpen] = useState(false);
+  const [recoveryEmail, setRecoveryEmail] = useState("");
+  const [isSendingRecovery, setIsSendingRecovery] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,13 +117,37 @@ export function AuthForm({ }: AuthFormProps) {
     }
   };
 
+  const handleRecoverySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!recoveryEmail) return;
+
+    setIsSendingRecovery(true);
+    try {
+        await sendRecoveryEmail(recoveryEmail);
+        toast({
+            title: "Correo Enviado",
+            description: "Si el correo está registrado, recibirás una clave temporal en unos minutos."
+        });
+        setIsRecoveryOpen(false);
+        setRecoveryEmail("");
+    } catch (error: any) {
+        toast({
+            title: "Error de Recuperación",
+            description: error.message || "No se pudo procesar la solicitud.",
+            variant: "destructive"
+        });
+    } finally {
+        setIsSendingRecovery(false);
+    }
+  };
+
   if (mustChangePassword) {
       return (
         <form onSubmit={handlePasswordChange} className="space-y-4">
             <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
                 <AlertTitle>Seguridad</AlertTitle>
-                <AlertDescription>Debes establecer una nueva contraseña.</AlertDescription>
+                <AlertDescription>Debes establecer una nueva contraseña personal.</AlertDescription>
             </Alert>
             <div className="space-y-2">
                 <Label htmlFor="new-password">Nueva Contraseña</Label>
@@ -119,34 +158,78 @@ export function AuthForm({ }: AuthFormProps) {
                 <Input id="confirm-password" type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required />
             </div>
             <Button type="submit" className="w-full" disabled={isLoggingIn}>
-                {isLoggingIn ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Actualizar e Ingresar"}
+                {isLoggingIn ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Key className="mr-2 h-4 w-4" />}
+                Actualizar e Ingresar
             </Button>
         </form>
       );
   }
 
   return (
-    <form onSubmit={handleLogin} className="space-y-4">
-        <div className="space-y-2">
-            <Label htmlFor="email">Correo Electrónico</Label>
-            <Input
-                id="email"
-                type="email"
-                placeholder="usuario@ejemplo.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-            />
-        </div>
-        <div className="space-y-2">
-            <Label htmlFor="password">Contraseña</Label>
-            <Input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} required />
-        </div>
-        <CardFooter className="p-0 pt-4">
-            <Button type="submit" className="w-full" disabled={isLoggingIn}>
-                {isLoggingIn ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Iniciar Sesión"}
-            </Button>
-        </CardFooter>
-    </form>
+    <div className="space-y-4">
+        <form onSubmit={handleLogin} className="space-y-4">
+            <div className="space-y-2">
+                <Label htmlFor="email">Correo Electrónico</Label>
+                <Input
+                    id="email"
+                    type="email"
+                    placeholder="usuario@ejemplo.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                />
+            </div>
+            <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                    <Label htmlFor="password">Contraseña</Label>
+                    <Dialog open={isRecoveryOpen} onOpenChange={setIsRecoveryOpen}>
+                        <DialogTrigger asChild>
+                            <button type="button" className="text-xs font-medium text-primary hover:underline underline-offset-4">
+                                ¿Olvidaste tu contraseña?
+                            </button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-md">
+                            <form onSubmit={handleRecoverySubmit}>
+                                <DialogHeader>
+                                    <DialogTitle>Recuperación de Acceso</DialogTitle>
+                                    <DialogDescription>
+                                        Ingresa tu correo institucional para recibir una contraseña temporal.
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <div className="py-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="recovery-email">Correo Electrónico</Label>
+                                        <Input 
+                                            id="recovery-email" 
+                                            type="email" 
+                                            placeholder="tu@correo.com" 
+                                            value={recoveryEmail}
+                                            onChange={e => setRecoveryEmail(e.target.value)}
+                                            required
+                                        />
+                                    </div>
+                                </div>
+                                <DialogFooter className="sm:justify-between">
+                                    <DialogClose asChild>
+                                        <Button type="button" variant="secondary">Cancelar</Button>
+                                    </DialogClose>
+                                    <Button type="submit" disabled={isSendingRecovery}>
+                                        {isSendingRecovery ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
+                                        Enviar Clave Temporal
+                                    </Button>
+                                </DialogFooter>
+                            </form>
+                        </DialogContent>
+                    </Dialog>
+                </div>
+                <Input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} required />
+            </div>
+            <CardFooter className="p-0 pt-4">
+                <Button type="submit" className="w-full" disabled={isLoggingIn}>
+                    {isLoggingIn ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Iniciar Sesión"}
+                </Button>
+            </CardFooter>
+        </form>
+    </div>
   );
 }

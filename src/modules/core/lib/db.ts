@@ -101,6 +101,24 @@ export async function initializeMainDatabase(db: Database) {
 
     const roleInsert = db.prepare('INSERT OR IGNORE INTO roles (id, name, permissions) VALUES (?, ?, ?)');
     initialRoles.forEach(role => roleInsert.run(role.id, role.name, JSON.stringify(role.permissions)));
+
+    // Seed default recovery email templates
+    const emailInsert = db.prepare('INSERT OR IGNORE INTO email_settings (key, value) VALUES (?, ?)');
+    emailInsert.run('recoveryEmailSubject', 'Recuperación de Contraseña - Clic-Soporte');
+    emailInsert.run('recoveryEmailBody', `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #eee; padding: 20px; border-radius: 10px;">
+            <h2 style="color: #2563eb; text-align: center;">Recuperación de Acceso</h2>
+            <p>Hola <strong>[NOMBRE_USUARIO]</strong>,</p>
+            <p>Has solicitado restablecer tu contraseña en la plataforma interna de Clic-Soporte.</p>
+            <div style="background-color: #f8fafc; border: 1px dashed #cbd5e1; padding: 15px; text-align: center; margin: 20px 0;">
+                <span style="font-size: 14px; color: #64748b; display: block; margin-bottom: 5px;">Tu clave temporal es:</span>
+                <span style="font-size: 24px; font-weight: bold; color: #1e293b; letter-spacing: 2px;">[CLAVE_TEMPORAL]</span>
+            </div>
+            <p style="font-size: 14px; color: #475569;">Por motivos de seguridad, el sistema te solicitará establecer una nueva contraseña personal inmediatamente después de ingresar con esta clave.</p>
+            <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+            <p style="font-size: 11px; color: #94a3b8; text-align: center;">Este es un mensaje automático, por favor no respondas a este correo.</p>
+        </div>
+    `);
 }
 
 export async function runMainMigrations(db: Database) {

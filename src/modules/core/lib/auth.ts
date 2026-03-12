@@ -4,17 +4,18 @@
 "use server";
 
 import { cache } from 'react';
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { connectDb } from './db';
 import type { User, ExchangeRateApiResponse } from '../types';
 import bcrypt from 'bcryptjs';
-import { logInfo, logWarn } from './logger';
+import { logInfo, logWarn, logError } from './logger';
 import { SESSION_COOKIE, SALT_ROUNDS, SESSION_DURATION } from './auth-constants';
 import { getAllRoles } from './roles-db';
 import { getCompanySettings } from './settings-db';
 import { getAllCustomers, getAllProducts, getAllStock, getAllExemptions } from './data-access-db';
 import { getExchangeRate } from './api-actions';
 import { getUnreadSuggestionsCount } from './suggestions-actions';
+import { getEmailSettings, sendEmail } from './email-service';
 
 /**
  * Retrieves the currently authenticated user based on the session cookie.
@@ -152,6 +153,60 @@ export async function comparePasswords(userId: number, password: string): Promis
     const user = db.prepare('SELECT password FROM users WHERE id = ?').get(userId) as { password?: string };
     if (!user?.password) return false;
     return await bcrypt.compare(password, user.password);
+}
+
+/**
+ * Handles the password recovery process by generating a temporary password and emailing it.
+ */
+export async function sendPasswordRecoveryEmail(email: string): Promise<void> {
+    const db = await connectDb();
+    const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email) as User | undefined;
+    
+    if (!user) {
+        await logWarn(`Password recovery requested for non-existent email: ${email}`);
+        return; // Silent return for security to prevent email enumeration
+    }
+
+    try {
+        const tempPassword = Math.random().toString(36).slice(-8);
+        const hashedTempPassword = await bcrypt.hash(tempPassword, SALT_ROUNDS);
+
+        db.prepare('UPDATE users SET password = ?, forcePasswordChange = 1 WHERE id = ?')
+          .run(hashedTempPassword, user.id);
+
+        const emailSettings = await getEmailSettings();
+        const companySettings = await getCompanySettings();
+
+        if (!emailSettings.smtpHost) {
+            throw new Error("SMTP service is not configured. Cannot send recovery email.");
+        }
+
+        let body = (emailSettings.recoveryEmailBody || `
+            <div style="font-family: sans-serif;">
+                <h2>Hola [NOMBRE_USUARIO]</h2>
+                <p>Has solicitado restablecer tu contraseña en Clic-Soporte.</p>
+                <p>Tu clave temporal es: <b style="font-size: 18px; color: #2563eb;">[CLAVE_TEMPORAL]</b></p>
+                <p>Por seguridad, el sistema te pedirá cambiar esta clave al ingresar.</p>
+            </div>
+        `)
+        .replace('[NOMBRE_USUARIO]', user.name)
+        .replace('[CLAVE_TEMPORAL]', tempPassword);
+
+        if (companySettings.name) {
+            body += `<p style="margin-top: 20px; font-size: 12px; color: #666;">Enviado por: ${companySettings.name}</p>`;
+        }
+
+        await sendEmail({
+            to: user.email,
+            subject: emailSettings.recoveryEmailSubject || 'Recuperación de Contraseña - Clic-Soporte',
+            html: body
+        });
+
+        await logInfo(`Recovery email sent to ${user.name} (${email})`);
+    } catch (error: any) {
+        await logError(`Failed to process password recovery for ${email}`, { error: error.message });
+        throw new Error("No se pudo procesar la recuperación. Contacte al administrador.");
+    }
 }
 
 /**

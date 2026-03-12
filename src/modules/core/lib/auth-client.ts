@@ -12,7 +12,8 @@ import {
     comparePasswords as comparePasswordsServer, 
     addUser as addUserServer, 
     logout as logoutServer,
-    getCurrentUser as getCurrentUserServer
+    getCurrentUser as getCurrentUserServer,
+    sendPasswordRecoveryEmail as sendRecoveryEmailServer
 } from './auth';
 
 /**
@@ -78,4 +79,11 @@ export async function saveAllUsers(users: User[]): Promise<void> {
  */
 export async function comparePasswords(userId: number, password: string): Promise<boolean> {
     return await comparePasswordsServer(userId, password);
+}
+
+/**
+ * Triggers the password recovery email process.
+ */
+export async function sendRecoveryEmail(email: string): Promise<void> {
+    return await sendRecoveryEmailServer(email);
 }
