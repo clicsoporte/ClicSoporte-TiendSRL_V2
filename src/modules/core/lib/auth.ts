@@ -6,7 +6,7 @@
 import { cache } from 'react';
 import { cookies } from 'next/headers';
 import { connectDb } from './db';
-import type { User, ExchangeRateApiResponse } from '../types';
+import type { User, ExchangeRateApiResponse, Company } from '../types';
 import bcrypt from 'bcryptjs';
 import { logInfo, logWarn, logError } from './logger';
 import { SESSION_COOKIE, SALT_ROUNDS, SESSION_DURATION } from './auth-constants';
@@ -220,7 +220,7 @@ export async function getInitialAuthData() {
             exchangeRate, unreadSuggestions, users
         ] = await Promise.all([
             getAllRoles().catch(() => []),
-            getCompanySettings().catch(() => ({}) as any),
+            getCompanySettings().catch(() => ({} as Company)),
             getAllCustomers().catch(() => []),
             getAllProducts().catch(() => []),
             getAllStock().catch(() => []),
@@ -246,7 +246,7 @@ export async function getInitialAuthData() {
         console.error("Critical error in getInitialAuthData:", err.message);
         // Return minimal defaults to prevent complete app crash
         return {
-            roles: [], companySettings: {} as any, customers: [], products: [], stock: [], exemptions: [],
+            roles: [], companySettings: {} as Company, customers: [], products: [], stock: [], exemptions: [],
             exchangeRate: { rate: null, date: null }, unreadSuggestions: 0, users: [], exemptionLaws: []
         };
     }
