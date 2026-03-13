@@ -139,6 +139,7 @@ export type Contract = {
     price: number;
     currency: string;
     notes?: string;
+    autoRenew: boolean;
     createdAt: string;
 };
 
@@ -658,7 +659,8 @@ export type NotificationEventId =
     | 'onBackupCompleted'
     | 'onNewSuggestion'
     | 'onContractExpiring'
-    | 'onLicenseExpiring';
+    | 'onLicenseExpiring'
+    | 'onContractAutoRenewed';
 
 export type Notification = {
     id: number | string;

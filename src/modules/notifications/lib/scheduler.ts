@@ -13,7 +13,8 @@ import { triggerNotificationEvent } from './notifications-engine';
 import { connectDb } from '@/modules/core/lib/db';
 import { backupAllForUpdate } from '@/modules/core/lib/maintenance-db';
 import type { Contract, License } from '@/modules/core/types';
-import { differenceInDays, parseISO } from 'date-fns';
+import { differenceInDays, parseISO, isSameDay } from 'date-fns';
+import { autoRenewContract } from '@/modules/contracts/lib/db';
 
 const runningJobs: Map<number, cron.ScheduledTask> = new Map();
 
@@ -84,12 +85,48 @@ async function executeExpirationCheck() {
 }
 
 /**
+ * Task: Automatic Contract Renewal.
+ * Identifies contracts set for auto-renewal that expire today and extends them.
+ */
+async function executeAutoRenewals() {
+    try {
+        const contractsDb = await connectDb('contracts.db');
+        const today = new Date();
+        
+        // Find contracts that expire today and have autoRenew enabled
+        const toRenew = contractsDb.prepare(`
+            SELECT * FROM contracts 
+            WHERE status = 'active' 
+            AND autoRenew = 1 
+        `).all() as (Omit<Contract, 'autoRenew'> & { autoRenew: number })[];
+
+        let renewalCount = 0;
+        for (const contract of toRenew) {
+            const expiryDate = parseISO(contract.endDate);
+            if (isSameDay(expiryDate, today)) {
+                const renewed = await autoRenewContract(contract.id);
+                await triggerNotificationEvent('onContractAutoRenewed', renewed);
+                renewalCount++;
+            }
+        }
+
+        if (renewalCount > 0) {
+            await logInfo(`Renovación Automática: Se han renovado ${renewalCount} contrato(s).`);
+        }
+    } catch (error: unknown) {
+        const err = error as Error;
+        await logError('Tarea de Renovación Automática falló.', { error: err.message });
+    }
+}
+
+/**
  * Catalog of available background tasks.
  */
 const taskCatalog: Record<string, () => Promise<void>> = {
     'erp-sync': executeErpSync,
     'backup-system': executeBackup,
     'check-expirations': executeExpirationCheck,
+    'auto-renew-contracts': executeAutoRenewals,
 };
 
 /**

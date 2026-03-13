@@ -6,6 +6,7 @@
 import type { Database } from 'better-sqlite3';
 import { connectDb as baseConnectDb } from '@/modules/core/lib/db-connection';
 import type { Contract } from '@/modules/core/types';
+import { addDays, parseISO, differenceInCalendarDays, format } from 'date-fns';
 
 const CONTRACTS_DB_FILE = 'contracts.db';
 
@@ -29,6 +30,7 @@ export async function initializeContractsDb(db: Database): Promise<void> {
             price REAL DEFAULT 0,
             currency TEXT DEFAULT 'CRC',
             notes TEXT,
+            autoRenew INTEGER DEFAULT 0,
             createdAt TEXT NOT NULL
         );
         CREATE TABLE IF NOT EXISTS contract_settings (
@@ -42,8 +44,14 @@ export async function initializeContractsDb(db: Database): Promise<void> {
     console.log(`Database ${CONTRACTS_DB_FILE} initialized for Contract Management.`);
 }
 
-export async function runContractsMigrations() {
-    // Migrations for contracts module can be added here
+export async function runContractsMigrations(db: Database) {
+    const tableInfo = db.prepare(`PRAGMA table_info(contracts)`).all() as { name: string }[];
+    const columns = new Set(tableInfo.map(c => c.name));
+    
+    if (!columns.has('autoRenew')) {
+        console.log("MIGRATION (contracts.db): Adding 'autoRenew' column to 'contracts' table.");
+        db.exec(`ALTER TABLE contracts ADD COLUMN autoRenew INTEGER DEFAULT 0;`);
+    }
 }
 
 export async function getContracts(customerId?: string): Promise<Contract[]> {
@@ -58,6 +66,7 @@ export async function getContracts(customerId?: string): Promise<Contract[]> {
     const rows = db.prepare(query).all(...params) as Record<string, unknown>[];
     return rows.map(row => ({
         ...row,
+        autoRenew: row.autoRenew === 1,
         includedServices: JSON.parse((row.includedServices as string) || '[]'),
         excludedServices: JSON.parse((row.excludedServices as string) || '[]')
     })) as unknown as Contract[];
@@ -77,13 +86,13 @@ export async function addContract(contractData: Omit<Contract, 'id' | 'consecuti
         const info = db.prepare(`
             INSERT INTO contracts (
                 consecutive, name, customerId, startDate, endDate, status, 
-                includedServices, excludedServices, monthlyHours, price, currency, notes, createdAt
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                includedServices, excludedServices, monthlyHours, price, currency, notes, autoRenew, createdAt
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `).run(
             consecutive, contractData.name, contractData.customerId, contractData.startDate, 
             contractData.endDate, contractData.status, JSON.stringify(contractData.includedServices), 
             JSON.stringify(contractData.excludedServices), contractData.monthlyHours, 
-            contractData.price, contractData.currency, contractData.notes, now
+            contractData.price, contractData.currency, contractData.notes, contractData.autoRenew ? 1 : 0, now
         );
 
         db.prepare("UPDATE contract_settings SET value = ? WHERE key = 'nextContractNumber'").run(String(nextNumber + 1));
@@ -94,6 +103,7 @@ export async function addContract(contractData: Omit<Contract, 'id' | 'consecuti
     const result = transaction() as Record<string, unknown>;
     return {
         ...result,
+        autoRenew: result.autoRenew === 1,
         includedServices: JSON.parse((result.includedServices as string) || '[]'),
         excludedServices: JSON.parse((result.excludedServices as string) || '[]')
     } as unknown as Contract;
@@ -105,12 +115,12 @@ export async function updateContract(contract: Contract): Promise<Contract> {
         UPDATE contracts SET
             name = ?, customerId = ?, startDate = ?, endDate = ?, status = ?,
             includedServices = ?, excludedServices = ?, monthlyHours = ?, 
-            price = ?, currency = ?, notes = ?
+            price = ?, currency = ?, notes = ?, autoRenew = ?
         WHERE id = ?
     `).run(
         contract.name, contract.customerId, contract.startDate, contract.endDate, contract.status,
         JSON.stringify(contract.includedServices), JSON.stringify(contract.excludedServices),
-        contract.monthlyHours, contract.price, contract.currency, contract.notes, contract.id
+        contract.monthlyHours, contract.price, contract.currency, contract.notes, contract.autoRenew ? 1 : 0, contract.id
     );
     return contract;
 }
@@ -133,7 +143,46 @@ export async function getActiveContractForCustomer(customerId: string): Promise<
     
     return {
         ...row,
+        autoRenew: row.autoRenew === 1,
         includedServices: JSON.parse((row.includedServices as string) || '[]'),
         excludedServices: JSON.parse((row.excludedServices as string) || '[]')
     } as unknown as Contract;
+}
+
+/**
+ * Logic for automatically renewing a contract.
+ * Creates a new contract period based on the previous one.
+ */
+export async function autoRenewContract(contractId: number): Promise<Contract> {
+    const db = await connectContractsDb();
+    const old = db.prepare('SELECT * FROM contracts WHERE id = ?').get(contractId) as Record<string, any>;
+    
+    if (!old) throw new Error("Contract not found");
+
+    const start = parseISO(old.startDate);
+    const end = parseISO(old.endDate);
+    const durationDays = differenceInCalendarDays(end, start);
+
+    const nextStart = addDays(end, 1);
+    const nextEnd = addDays(nextStart, durationDays);
+
+    const renewalData: Omit<Contract, 'id' | 'consecutive' | 'createdAt'> = {
+        name: `${old.name} (Renovación)`,
+        customerId: old.customerId,
+        startDate: format(nextStart, 'yyyy-MM-dd'),
+        endDate: format(nextEnd, 'yyyy-MM-dd'),
+        status: 'active',
+        includedServices: JSON.parse(old.includedServices),
+        excludedServices: JSON.parse(old.excludedServices),
+        monthlyHours: old.monthlyHours,
+        price: old.price,
+        currency: old.currency,
+        notes: `Renovación automática del contrato ${old.consecutive}`,
+        autoRenew: true
+    };
+
+    // Mark old as expired if it hasn't already
+    db.prepare("UPDATE contracts SET status = 'expired', autoRenew = 0 WHERE id = ?").run(contractId);
+
+    return await addContract(renewalData);
 }

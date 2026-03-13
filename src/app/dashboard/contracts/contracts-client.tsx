@@ -15,7 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
-import { PlusCircle, Edit, Trash2, Loader2, FileText } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Loader2, FileText, RefreshCw } from 'lucide-react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { getContracts, saveContract, updateContract, deleteContract } from '@/modules/contracts/lib/actions';
 import type { Contract, Customer } from '@/modules/core/types';
@@ -24,6 +24,7 @@ import { Badge } from '@/components/ui/badge';
 import { format, parseISO } from 'date-fns';
 import { SearchInput } from '@/components/ui/search-input';
 import { useDebounce } from 'use-debounce';
+import { Switch } from '@/components/ui/switch';
 
 type NewContract = Omit<Contract, 'id' | 'consecutive' | 'createdAt'>;
 
@@ -38,7 +39,8 @@ const emptyContract: NewContract = {
     monthlyHours: 0,
     price: 0,
     currency: 'CRC',
-    notes: ''
+    notes: '',
+    autoRenew: false
 };
 
 export default function ContractsClient() {
@@ -180,6 +182,7 @@ export default function ContractsClient() {
                                     <TableHead>Cliente</TableHead>
                                     <TableHead>Vigencia</TableHead>
                                     <TableHead>Estado</TableHead>
+                                    <TableHead>Renov.</TableHead>
                                     <TableHead className="text-right">Acciones</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -196,8 +199,11 @@ export default function ContractsClient() {
                                             </TableCell>
                                             <TableCell>
                                                 <Badge variant={contract.status === 'active' ? 'default' : 'secondary'}>
-                                                    {contract.status === 'active' ? 'Vigente' : 'Inactivo'}
+                                                    {contract.status === 'active' ? 'Vigente' : contract.status === 'expired' ? 'Vencido' : 'Inactivo'}
                                                 </Badge>
+                                            </TableCell>
+                                            <TableCell>
+                                                {contract.autoRenew && <RefreshCw className="h-3 w-3 text-green-600 animate-spin-slow" />}
                                             </TableCell>
                                             <TableCell className="text-right space-x-2">
                                                 <Button variant="ghost" size="icon" onClick={() => handleEdit(contract)}><Edit className="h-4 w-4" /></Button>
@@ -206,7 +212,7 @@ export default function ContractsClient() {
                                         </TableRow>
                                     );
                                 })}
-                                {contracts.length === 0 && <TableRow><TableCell colSpan={6} className="text-center py-10">No hay contratos registrados.</TableCell></TableRow>}
+                                {contracts.length === 0 && <TableRow><TableCell colSpan={7} className="text-center py-10">No hay contratos registrados.</TableCell></TableRow>}
                             </TableBody>
                         </Table>
                     </div>
@@ -214,87 +220,102 @@ export default function ContractsClient() {
             </Card>
 
             <Dialog open={isFormOpen} onOpenChange={setFormOpen}>
-                <DialogContent className="sm:max-w-4xl">
-                    <DialogHeader>
+                <DialogContent className="sm:max-w-5xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
+                    <DialogHeader className="p-6 pb-0">
                         <DialogTitle>{isEditing ? "Editar Contrato" : "Crear Nuevo Contrato"}</DialogTitle>
                         <DialogDescription>Define los términos, fechas y servicios cubiertos.</DialogDescription>
                     </DialogHeader>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
-                        <div className="space-y-4">
-                            <div className="space-y-2">
-                                <Label>Cliente</Label>
-                                <SearchInput 
-                                    options={customerOptions}
-                                    onSelect={handleSelectCustomer}
-                                    value={customerSearchTerm}
-                                    onValueChange={setCustomerSearchTerm}
-                                    open={isCustomerSearchOpen}
-                                    onOpenChange={setIsCustomerSearchOpen}
-                                    placeholder="Buscar cliente..."
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Nombre del Contrato</Label>
-                                <Input value={currentContract.name} onChange={e => setCurrentContract({...currentContract, name: e.target.value})} placeholder="Ej: Contrato Soporte Oro 2024" />
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
+                    
+                    <div className="flex-1 overflow-y-auto p-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pr-2">
+                            <div className="space-y-6">
                                 <div className="space-y-2">
-                                    <Label>Fecha Inicio</Label>
-                                    <Input type="date" value={currentContract.startDate} onChange={e => setCurrentContract({...currentContract, startDate: e.target.value})} />
+                                    <Label>Cliente</Label>
+                                    <SearchInput 
+                                        options={customerOptions}
+                                        onSelect={handleSelectCustomer}
+                                        value={customerSearchTerm}
+                                        onValueChange={setCustomerSearchTerm}
+                                        open={isCustomerSearchOpen}
+                                        onOpenChange={setIsCustomerSearchOpen}
+                                        placeholder="Buscar cliente..."
+                                    />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label>Fecha Vencimiento</Label>
-                                    <Input type="date" value={currentContract.endDate} onChange={e => setCurrentContract({...currentContract, endDate: e.target.value})} />
+                                    <Label>Nombre del Contrato</Label>
+                                    <Input value={currentContract.name} onChange={e => setCurrentContract({...currentContract, name: e.target.value})} placeholder="Ej: Contrato Soporte Oro 2024" />
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label>Fecha Inicio</Label>
+                                        <Input type="date" value={currentContract.startDate} onChange={e => setCurrentContract({...currentContract, startDate: e.target.value})} />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Fecha Vencimiento</Label>
+                                        <Input type="date" value={currentContract.endDate} onChange={e => setCurrentContract({...currentContract, endDate: e.target.value})} />
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label>Horas Mensuales</Label>
+                                        <Input type="number" value={currentContract.monthlyHours} onChange={e => setCurrentContract({...currentContract, monthlyHours: Number(e.target.value)})} />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Precio Mensual</Label>
+                                        <Input type="number" value={currentContract.price} onChange={e => setCurrentContract({...currentContract, price: Number(e.target.value)})} />
+                                    </div>
+                                </div>
+                                
+                                <div className="p-4 bg-muted/30 rounded-lg border flex items-center justify-between">
+                                    <div className="space-y-0.5">
+                                        <Label className="text-base">Renovación Automática</Label>
+                                        <p className="text-xs text-muted-foreground">Generar prórroga automáticamente al vencer.</p>
+                                    </div>
+                                    <Switch 
+                                        checked={currentContract.autoRenew}
+                                        onCheckedChange={(checked) => setCurrentContract({...currentContract, autoRenew: checked})}
+                                    />
                                 </div>
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label>Horas Mensuales</Label>
-                                    <Input type="number" value={currentContract.monthlyHours} onChange={e => setCurrentContract({...currentContract, monthlyHours: Number(e.target.value)})} />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Precio Mensual</Label>
-                                    <Input type="number" value={currentContract.price} onChange={e => setCurrentContract({...currentContract, price: Number(e.target.value)})} />
-                                </div>
-                            </div>
-                        </div>
 
-                        <div className="space-y-4">
-                            <Label className="text-lg font-bold">Cobertura de Servicios</Label>
-                            <ScrollArea className="h-[300px] rounded-md border p-4">
-                                <div className="space-y-4">
-                                    {companyData?.servicesCatalog.map(service => (
-                                        <div key={service.id} className="flex items-center justify-between p-2 border-b last:border-0">
-                                            <span className="text-sm font-medium">{service.name}</span>
-                                            <div className="flex gap-4">
-                                                <div className="flex items-center gap-1">
-                                                    <Checkbox 
-                                                        id={`inc-${service.id}`} 
-                                                        checked={currentContract.includedServices.includes(service.id)}
-                                                        onCheckedChange={() => toggleService(service.id, 'included')}
-                                                    />
-                                                    <Label htmlFor={`inc-${service.id}`} className="text-[10px] text-green-600">Incluido</Label>
-                                                </div>
-                                                <div className="flex items-center gap-1">
-                                                    <Checkbox 
-                                                        id={`exc-${service.id}`}
-                                                        checked={currentContract.excludedServices.includes(service.id)}
-                                                        onCheckedChange={() => toggleService(service.id, 'excluded')}
-                                                    />
-                                                    <Label htmlFor={`exc-${service.id}`} className="text-[10px] text-red-600">Facturable</Label>
+                            <div className="space-y-4">
+                                <Label className="text-lg font-bold">Cobertura de Servicios</Label>
+                                <div className="rounded-md border p-4 h-[400px] overflow-y-auto bg-card">
+                                    <div className="space-y-4">
+                                        {companyData?.servicesCatalog.map(service => (
+                                            <div key={service.id} className="flex items-center justify-between p-2 border-b last:border-0 hover:bg-muted/20 transition-colors">
+                                                <span className="text-sm font-medium">{service.name}</span>
+                                                <div className="flex gap-4">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <Checkbox 
+                                                            id={`inc-${service.id}`} 
+                                                            checked={currentContract.includedServices.includes(service.id)}
+                                                            onCheckedChange={() => toggleService(service.id, 'included')}
+                                                        />
+                                                        <Label htmlFor={`inc-${service.id}`} className="text-[10px] text-green-600 font-bold uppercase">Incluido</Label>
+                                                    </div>
+                                                    <div className="flex items-center gap-1.5">
+                                                        <Checkbox 
+                                                            id={`exc-${service.id}`}
+                                                            checked={currentContract.excludedServices.includes(service.id)}
+                                                            onCheckedChange={() => toggleService(service.id, 'excluded')}
+                                                        />
+                                                        <Label htmlFor={`exc-${service.id}`} className="text-[10px] text-red-600 font-bold uppercase">Extra</Label>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    ))}
+                                        ))}
+                                    </div>
                                 </div>
-                            </ScrollArea>
+                            </div>
                         </div>
                     </div>
-                    <DialogFooter>
+
+                    <DialogFooter className="p-6 border-t bg-muted/10">
                         <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
                         <Button onClick={handleSave} disabled={isSubmitting}>
                             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Guardar Contrato
+                            {isEditing ? 'Guardar Cambios' : 'Crear Contrato'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
