@@ -162,14 +162,14 @@ export default function CustomersClient() {
                     <DialogTrigger asChild>
                         <Button><PlusCircle className="mr-2 h-4 w-4" /> Nuevo Cliente</Button>
                     </DialogTrigger>
-                    <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col p-0">
+                    <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
                         <DialogHeader className="p-6 pb-0">
                             <DialogTitle>{isEditing ? "Editar Cliente" : "Registrar Nuevo Cliente"}</DialogTitle>
                             <DialogDescription>Completa los datos fiscales y los contactos de la empresa.</DialogDescription>
                         </DialogHeader>
                         
                         <ScrollArea className="flex-1 p-6">
-                            <div className="space-y-8">
+                            <div className="space-y-8 pr-4">
                                 <section>
                                     <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                                         <Building2 className="h-5 w-5 text-primary" /> Datos de la Empresa

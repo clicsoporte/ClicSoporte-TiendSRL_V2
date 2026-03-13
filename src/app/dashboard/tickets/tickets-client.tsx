@@ -24,6 +24,7 @@ import { useAuth } from "@/modules/core/hooks/useAuth";
 import type { Ticket } from '@/modules/core/types';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 export default function TicketsClient() {
     const { state, actions, selectors } = useTickets();
@@ -94,101 +95,103 @@ export default function TicketsClient() {
                         <DialogTrigger asChild>
                             <Button size="sm"><FilePlus className="mr-2 h-4 w-4" /> Nuevo Ticket</Button>
                         </DialogTrigger>
-                        <DialogContent className="sm:max-w-5xl" onPointerDownOutside={(e) => e.preventDefault()}>
-                            <form onSubmit={(e) => { e.preventDefault(); actions.handleCreateTicket(); }}>
-                                <DialogHeader>
+                        <DialogContent className="sm:max-w-5xl max-h-[90vh] flex flex-col p-0 overflow-hidden" onPointerDownOutside={(e) => e.preventDefault()}>
+                            <form onSubmit={(e) => { e.preventDefault(); actions.handleCreateTicket(); }} className="flex flex-col flex-1">
+                                <DialogHeader className="p-6 pb-0">
                                     <DialogTitle>Abrir Nuevo Caso de Soporte</DialogTitle>
                                     <DialogDescription>Valida la cobertura del contrato antes de proceder.</DialogDescription>
                                 </DialogHeader>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 py-4">
-                                    <div className="md:col-span-2 space-y-4">
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                            <div className="space-y-2">
-                                                <Label className="text-xs">Tema de Ayuda</Label>
-                                                <Select value={String(newTicket.helpTopicId || '')} onValueChange={(v) => actions.handleNewTicketChange('helpTopicId', Number(v))} required>
-                                                    <SelectTrigger className="h-8"><SelectValue placeholder="Seleccione un tema..."/></SelectTrigger>
-                                                    <SelectContent>{helpTopics.map(topic => (<SelectItem key={topic.id} value={String(topic.id)}>{topic.name}</SelectItem>))}</SelectContent>
-                                                </Select>
-                                            </div>
+                                <ScrollArea className="flex-1 p-6">
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 py-4 pr-4">
+                                        <div className="md:col-span-2 space-y-4">
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                                 <div className="space-y-2">
-                                                <Label className="text-xs">Servicio Requerido</Label>
-                                                <Select value={newTicket.serviceId || "none"} onValueChange={(v) => actions.handleNewTicketChange('serviceId', v === 'none' ? null : v)} required>
-                                                    <SelectTrigger className="h-8"><SelectValue placeholder="Seleccione un servicio..."/></SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="none">Ninguno</SelectItem>
-                                                        {companyData?.servicesCatalog.map(service => (<SelectItem key={service.id} value={service.id}>{service.name}</SelectItem>))}
-                                                    </SelectContent>
-                                                </Select>
+                                                    <Label className="text-xs">Tema de Ayuda</Label>
+                                                    <Select value={String(newTicket.helpTopicId || '')} onValueChange={(v) => actions.handleNewTicketChange('helpTopicId', Number(v))} required>
+                                                        <SelectTrigger className="h-8"><SelectValue placeholder="Seleccione un tema..."/></SelectTrigger>
+                                                        <SelectContent>{helpTopics.map(topic => (<SelectItem key={topic.id} value={String(topic.id)}>{topic.name}</SelectItem>))}</SelectContent>
+                                                    </Select>
+                                                </div>
+                                                    <div className="space-y-2">
+                                                    <Label className="text-xs">Servicio Requerido</Label>
+                                                    <Select value={newTicket.serviceId || "none"} onValueChange={(v) => actions.handleNewTicketChange('serviceId', v === 'none' ? null : v)} required>
+                                                        <SelectTrigger className="h-8"><SelectValue placeholder="Seleccione un servicio..."/></SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="none">Ninguno</SelectItem>
+                                                            {companyData?.servicesCatalog.map(service => (<SelectItem key={service.id} value={service.id}>{service.name}</SelectItem>))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                            </div>
+
+                                            {selectors.coverageMessage && (
+                                                <Alert variant={newTicket.isBillable ? 'destructive' : 'default'} className="py-2">
+                                                    {newTicket.isBillable ? <ShieldAlert className="h-4 w-4" /> : <ShieldCheck className="h-4 w-4" />}
+                                                    <AlertTitle className="text-xs font-bold">{newTicket.isBillable ? 'FUERA DE CONTRATO' : 'INCLUIDO EN CONTRATO'}</AlertTitle>
+                                                    <AlertDescription className="text-[10px]">{selectors.coverageMessage}</AlertDescription>
+                                                </Alert>
+                                            )}
+
+                                            <div className="space-y-2">
+                                                <Label className="text-xs">Asunto</Label>
+                                                <Input id="new-ticket-subject" value={newTicket.subject} onChange={(e) => actions.handleNewTicketChange('subject', e.target.value)} required className="h-8" />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label className="text-xs">Descripción Detallada</Label>
+                                                <Textarea id="new-ticket-content" rows={6} value={newTicket.content} onChange={(e) => actions.handleNewTicketChange('content', e.target.value)} required />
                                             </div>
                                         </div>
-
-                                        {selectors.coverageMessage && (
-                                            <Alert variant={newTicket.isBillable ? 'destructive' : 'default'} className="py-2">
-                                                {newTicket.isBillable ? <ShieldAlert className="h-4 w-4" /> : <ShieldCheck className="h-4 w-4" />}
-                                                <AlertTitle className="text-xs font-bold">{newTicket.isBillable ? 'FUERA DE CONTRATO' : 'INCLUIDO EN CONTRATO'}</AlertTitle>
-                                                <AlertDescription className="text-[10px]">{selectors.coverageMessage}</AlertDescription>
-                                            </Alert>
-                                        )}
-
-                                        <div className="space-y-2">
-                                            <Label className="text-xs">Asunto</Label>
-                                            <Input id="new-ticket-subject" value={newTicket.subject} onChange={(e) => actions.handleNewTicketChange('subject', e.target.value)} required className="h-8" />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label className="text-xs">Descripción Detallada</Label>
-                                            <Textarea id="new-ticket-content" rows={6} value={newTicket.content} onChange={(e) => actions.handleNewTicketChange('content', e.target.value)} required />
-                                        </div>
-                                    </div>
-                                    <div className="md:col-span-1 space-y-4 border-l pl-6">
-                                        <div className="space-y-2">
-                                            <Label className="text-xs">Empresa Cliente</Label>
-                                            <SearchInput
-                                                options={selectors.customerOptions}
-                                                onSelect={actions.handleSelectCompany}
-                                                value={customerSearchTerm}
-                                                onValueChange={actions.setCustomerSearchTerm}
-                                                placeholder="Buscar cliente..."
-                                                open={isCustomerSearchOpen}
-                                                onOpenChange={actions.setCustomerSearchOpen}
-                                            />
-                                        </div>
-                                        
-                                        {activeContract && (
-                                            <div className="bg-primary/5 p-3 rounded-lg border border-primary/20 space-y-1">
-                                                <p className="text-[10px] font-bold text-primary uppercase">Contrato Activo</p>
-                                                <p className="text-xs font-bold">{activeContract.name}</p>
-                                                <p className="text-[10px] text-muted-foreground">Vence: {format(parseISO(activeContract.endDate), 'dd/MM/yyyy')}</p>
-                                            </div>
-                                        )}
-
-                                        <div className="space-y-4 pt-2">
-                                            <div className="flex items-center justify-between">
-                                                <Label className="text-xs">¿Facturable aparte?</Label>
-                                                <Switch 
-                                                    checked={newTicket.isBillable} 
-                                                    onCheckedChange={(checked) => actions.handleNewTicketChange('isBillable', checked)} 
+                                        <div className="md:col-span-1 space-y-4 md:border-l md:pl-6">
+                                            <div className="space-y-2">
+                                                <Label className="text-xs">Empresa Cliente</Label>
+                                                <SearchInput
+                                                    options={selectors.customerOptions}
+                                                    onSelect={actions.handleSelectCompany}
+                                                    value={customerSearchTerm}
+                                                    onValueChange={actions.setCustomerSearchTerm}
+                                                    placeholder="Buscar cliente..."
+                                                    open={isCustomerSearchOpen}
+                                                    onOpenChange={actions.setCustomerSearchOpen}
                                                 />
                                             </div>
-                                            <div className="space-y-2">
-                                                <Label className="text-xs">Proveedor Externo (Opcional)</Label>
-                                                <Select value={String(newTicket.providerId || 'null')} onValueChange={(v) => actions.handleNewTicketChange('providerId', v === 'null' ? null : Number(v))}>
-                                                    <SelectTrigger className="h-8"><SelectValue placeholder="Servicio Interno"/></SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="null">Ninguno</SelectItem>
-                                                        {providers.map(p => (<SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>))}
-                                                    </SelectContent>
-                                                </Select>
+                                            
+                                            {activeContract && (
+                                                <div className="bg-primary/5 p-3 rounded-lg border border-primary/20 space-y-1">
+                                                    <p className="text-[10px] font-bold text-primary uppercase">Contrato Activo</p>
+                                                    <p className="text-xs font-bold">{activeContract.name}</p>
+                                                    <p className="text-[10px] text-muted-foreground">Vence: {format(parseISO(activeContract.endDate), 'dd/MM/yyyy')}</p>
+                                                </div>
+                                            )}
+
+                                            <div className="space-y-4 pt-2">
+                                                <div className="flex items-center justify-between">
+                                                    <Label className="text-xs">¿Facturable aparte?</Label>
+                                                    <Switch 
+                                                        checked={newTicket.isBillable} 
+                                                        onCheckedChange={(checked) => actions.handleNewTicketChange('isBillable', checked)} 
+                                                    />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label className="text-xs">Proveedor Externo (Opcional)</Label>
+                                                    <Select value={String(newTicket.providerId || 'null')} onValueChange={(v) => actions.handleNewTicketChange('providerId', v === 'null' ? null : Number(v))}>
+                                                        <SelectTrigger className="h-8"><SelectValue placeholder="Servicio Interno"/></SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="null">Ninguno</SelectItem>
+                                                            {providers.map(p => (<SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                            </div>
+
+                                            <div className="pt-4 space-y-2 border-t mt-4">
+                                                <Label className="text-xs">Contacto del Cliente</Label>
+                                                <Input id="new-ticket-customer-name" value={newTicket.customerName} onChange={(e) => actions.handleNewTicketChange('customerName', e.target.value)} required placeholder="Nombre" className="h-8 text-xs" />
+                                                <Input id="new-ticket-customer-email" type="email" value={newTicket.customerEmail} onChange={(e) => actions.handleNewTicketChange('customerEmail', e.target.value)} required placeholder="Email" className="h-8 text-xs" />
                                             </div>
                                         </div>
-
-                                        <div className="pt-4 space-y-2 border-t mt-4">
-                                            <Label className="text-xs">Contacto del Cliente</Label>
-                                            <Input id="new-ticket-customer-name" value={newTicket.customerName} onChange={(e) => actions.handleNewTicketChange('customerName', e.target.value)} required placeholder="Nombre" className="h-8 text-xs" />
-                                            <Input id="new-ticket-customer-email" type="email" value={newTicket.customerEmail} onChange={(e) => actions.handleNewTicketChange('customerEmail', e.target.value)} required placeholder="Email" className="h-8 text-xs" />
-                                        </div>
                                     </div>
-                                </div>
-                                <DialogFooter className="border-t pt-4">
+                                </ScrollArea>
+                                <DialogFooter className="p-6 border-t bg-muted/10">
                                     <DialogClose asChild><Button type="button" variant="ghost" size="sm">Cancelar</Button></DialogClose>
                                     <Button type="submit" disabled={isSubmitting} size="sm">
                                         {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}

@@ -20,6 +20,7 @@ import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const getInitials = (name: string) => name.split(" ").map((n) => n[0]).join("").substring(0, 2).toUpperCase();
 
@@ -176,31 +177,35 @@ export default function UsersClient() {
       </Card>
 
       <Dialog open={isDialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-xl">
-          <DialogHeader><DialogTitle>{isEditing ? 'Editar Usuario' : 'Nuevo Usuario'}</DialogTitle></DialogHeader>
-          <div className="py-4 space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2"><Label>Nombre Completo</Label><Input value={currentUser.name} onChange={e => setCurrentUser({...currentUser, name: e.target.value})}/></div>
-              <div className="space-y-2"><Label>Email</Label><Input type="email" value={currentUser.email} onChange={e => setCurrentUser({...currentUser, email: e.target.value})}/></div>
-            </div>
-            <div className="space-y-2">
-              <Label>{isEditing ? 'Nueva Contraseña (dejar en blanco para no cambiar)' : 'Contraseña'}</Label>
-              <Input type="password" value={currentUser.password || ''} onChange={e => setCurrentUser({...currentUser, password: e.target.value})}/>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2"><Label>Rol</Label>
-                <Select value={currentUser.role} onValueChange={v => setCurrentUser({...currentUser, role: v})}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{roles.map(r => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}</SelectContent>
-                </Select>
+        <DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
+          <DialogHeader className="p-6 pb-0">
+            <DialogTitle>{isEditing ? 'Editar Usuario' : 'Nuevo Usuario'}</DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="flex-1 p-6">
+            <div className="space-y-4 pr-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2"><Label>Nombre Completo</Label><Input value={currentUser.name} onChange={e => setCurrentUser({...currentUser, name: e.target.value})}/></div>
+                <div className="space-y-2"><Label>Email</Label><Input type="email" value={currentUser.email} onChange={e => setCurrentUser({...currentUser, email: e.target.value})}/></div>
               </div>
-              <div className="flex items-center space-x-2 pt-8">
-                <Checkbox id="force-pass" checked={!!currentUser.forcePasswordChange} onCheckedChange={checked => setCurrentUser({...currentUser, forcePasswordChange: !!checked})}/>
-                <Label htmlFor="force-pass" className="text-xs">Obligar cambio de clave</Label>
+              <div className="space-y-2">
+                <Label>{isEditing ? 'Nueva Contraseña (dejar en blanco para no cambiar)' : 'Contraseña'}</Label>
+                <Input type="password" value={currentUser.password || ''} onChange={e => setCurrentUser({...currentUser, password: e.target.value})}/>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2"><Label>Rol</Label>
+                  <Select value={currentUser.role} onValueChange={v => setCurrentUser({...currentUser, role: v})}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>{roles.map(r => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center space-x-2 pt-8">
+                  <Checkbox id="force-pass" checked={!!currentUser.forcePasswordChange} onCheckedChange={checked => setCurrentUser({...currentUser, forcePasswordChange: !!checked})}/>
+                  <Label htmlFor="force-pass" className="text-xs">Obligar cambio de clave</Label>
+                </div>
               </div>
             </div>
-          </div>
-          <DialogFooter>
+          </ScrollArea>
+          <DialogFooter className="p-6 border-t bg-muted/10">
             <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
             <Button onClick={handleSaveUser} disabled={isSubmitting}>{isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}{isEditing ? 'Guardar' : 'Crear'}</Button>
           </DialogFooter>

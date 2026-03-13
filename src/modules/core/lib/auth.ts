@@ -214,24 +214,39 @@ export async function sendPasswordRecoveryEmail(email: string): Promise<void> {
  * Fetches all initial data for the AuthProvider in one go.
  */
 export async function getInitialAuthData() {
-    const [
-        roles, companySettings, customers, products, stock, exemptions, 
-        exchangeRate, unreadSuggestions, users
-    ] = await Promise.all([
-        getAllRoles(), getCompanySettings(), getAllCustomers(), getAllProducts(),
-        getAllStock(), getAllExemptions(), getExchangeRate(),
-        getUnreadSuggestionsCount(), getAllUsers()
-    ]);
+    try {
+        const [
+            roles, companySettings, customers, products, stock, exemptions, 
+            exchangeRate, unreadSuggestions, users
+        ] = await Promise.all([
+            getAllRoles().catch(() => []),
+            getCompanySettings().catch(() => ({}) as any),
+            getAllCustomers().catch(() => []),
+            getAllProducts().catch(() => []),
+            getAllStock().catch(() => []),
+            getAllExemptions().catch(() => []),
+            getExchangeRate().catch(() => null),
+            getUnreadSuggestionsCount().catch(() => 0),
+            getAllUsers().catch(() => [])
+        ]);
 
-    const rateData: { rate: number | null; date: string | null } = { rate: null, date: null };
-    const erRes = exchangeRate as ExchangeRateApiResponse;
-    if (erRes?.venta?.valor) {
-        rateData.rate = erRes.venta.valor;
-        rateData.date = erRes.venta.fecha;
+        const rateData: { rate: number | null; date: string | null } = { rate: null, date: null };
+        const erRes = exchangeRate as any;
+        if (erRes?.venta?.valor) {
+            rateData.rate = erRes.venta.valor;
+            rateData.date = erRes.venta.fecha;
+        }
+
+        return {
+            roles, companySettings, customers, products, stock, exemptions,
+            exchangeRate: rateData, unreadSuggestions, users, exemptionLaws: [] 
+        };
+    } catch (error) {
+        console.error("Critical error in getInitialAuthData:", error);
+        // Return minimal defaults to prevent complete app crash
+        return {
+            roles: [], companySettings: {} as any, customers: [], products: [], stock: [], exemptions: [],
+            exchangeRate: { rate: null, date: null }, unreadSuggestions: 0, users: [], exemptionLaws: []
+        };
     }
-
-    return {
-        roles, companySettings, customers, products, stock, exemptions,
-        exchangeRate: rateData, unreadSuggestions, users, exemptionLaws: [] 
-    };
 }
