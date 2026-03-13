@@ -231,7 +231,7 @@ export async function getInitialAuthData() {
         ]);
 
         const rateData: { rate: number | null; date: string | null } = { rate: null, date: null };
-        const erRes = exchangeRate as any;
+        const erRes = exchangeRate as ExchangeRateApiResponse | null;
         if (erRes?.venta?.valor) {
             rateData.rate = erRes.venta.valor;
             rateData.date = erRes.venta.fecha;
@@ -241,8 +241,9 @@ export async function getInitialAuthData() {
             roles, companySettings, customers, products, stock, exemptions,
             exchangeRate: rateData, unreadSuggestions, users, exemptionLaws: [] 
         };
-    } catch (error) {
-        console.error("Critical error in getInitialAuthData:", error);
+    } catch (error: unknown) {
+        const err = error as Error;
+        console.error("Critical error in getInitialAuthData:", err.message);
         // Return minimal defaults to prevent complete app crash
         return {
             roles: [], companySettings: {} as any, customers: [], products: [], stock: [], exemptions: [],
