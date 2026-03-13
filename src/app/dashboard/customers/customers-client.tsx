@@ -14,13 +14,12 @@ import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { PlusCircle, Search, Edit, Trash2, Loader2, UserPlus, Users, Building2, Briefcase, Mail, Phone } from 'lucide-react';
+import { PlusCircle, Search, Edit, Trash2, Loader2, UserPlus, Users, Building2, Mail, Phone } from 'lucide-react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { upsertCustomer, deleteCustomer } from '@/modules/core/lib/data-access-db';
 import type { Customer, CustomerContact } from '@/modules/core/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 
 const emptyContact: CustomerContact = {
@@ -162,14 +161,14 @@ export default function CustomersClient() {
                     <DialogTrigger asChild>
                         <Button><PlusCircle className="mr-2 h-4 w-4" /> Nuevo Cliente</Button>
                     </DialogTrigger>
-                    <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
+                    <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col p-0 overflow-hidden" onPointerDownOutside={(e) => e.preventDefault()}>
                         <DialogHeader className="p-6 pb-0">
                             <DialogTitle>{isEditing ? "Editar Cliente" : "Registrar Nuevo Cliente"}</DialogTitle>
                             <DialogDescription>Completa los datos fiscales y los contactos de la empresa.</DialogDescription>
                         </DialogHeader>
                         
-                        <ScrollArea className="flex-1 p-6">
-                            <div className="space-y-8 pr-4">
+                        <div className="flex-1 overflow-y-auto p-6">
+                            <div className="space-y-8 pr-2">
                                 <section>
                                     <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                                         <Building2 className="h-5 w-5 text-primary" /> Datos de la Empresa
@@ -281,7 +280,7 @@ export default function CustomersClient() {
                                     </div>
                                 </section>
                             </div>
-                        </ScrollArea>
+                        </div>
 
                         <DialogFooter className="p-6 border-t bg-muted/10">
                             <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>

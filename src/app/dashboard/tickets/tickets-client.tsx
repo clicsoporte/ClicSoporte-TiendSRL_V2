@@ -24,7 +24,6 @@ import { useAuth } from "@/modules/core/hooks/useAuth";
 import type { Ticket } from '@/modules/core/types';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 export default function TicketsClient() {
     const { state, actions, selectors } = useTickets();
@@ -96,13 +95,13 @@ export default function TicketsClient() {
                             <Button size="sm"><FilePlus className="mr-2 h-4 w-4" /> Nuevo Ticket</Button>
                         </DialogTrigger>
                         <DialogContent className="sm:max-w-5xl max-h-[90vh] flex flex-col p-0 overflow-hidden" onPointerDownOutside={(e) => e.preventDefault()}>
-                            <form onSubmit={(e) => { e.preventDefault(); actions.handleCreateTicket(); }} className="flex flex-col flex-1">
+                            <form onSubmit={(e) => { e.preventDefault(); actions.handleCreateTicket(); }} className="flex flex-col flex-1 h-full">
                                 <DialogHeader className="p-6 pb-0">
                                     <DialogTitle>Abrir Nuevo Caso de Soporte</DialogTitle>
                                     <DialogDescription>Valida la cobertura del contrato antes de proceder.</DialogDescription>
                                 </DialogHeader>
-                                <ScrollArea className="flex-1 p-6">
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 py-4 pr-4">
+                                <div className="flex-1 overflow-y-auto p-6">
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 py-4 pr-2">
                                         <div className="md:col-span-2 space-y-4">
                                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                                 <div className="space-y-2">
@@ -190,7 +189,7 @@ export default function TicketsClient() {
                                             </div>
                                         </div>
                                     </div>
-                                </ScrollArea>
+                                </div>
                                 <DialogFooter className="p-6 border-t bg-muted/10">
                                     <DialogClose asChild><Button type="button" variant="ghost" size="sm">Cancelar</Button></DialogClose>
                                     <Button type="submit" disabled={isSubmitting} size="sm">

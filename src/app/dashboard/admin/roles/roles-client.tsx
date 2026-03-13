@@ -41,7 +41,6 @@ import {
 } from '@/modules/core/lib/permissions';
 import { getAllRoles, saveAllRoles, resetDefaultRoles } from '@/modules/core/lib/roles-db';
 import type { Role } from '@/modules/core/types';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { PlusCircle, Save, Trash2, ShieldQuestion, Copy, Loader2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
@@ -151,7 +150,6 @@ export default function RolesClient() {
 
     const addWithParents = (perm: AppPermission) => {
         newPermissions.add(perm);
-        // Find if this permission is a child of any other permission in the tree
         for (const parent in permissionTree) {
             if (permissionTree[parent]?.includes(perm)) {
                 addWithParents(parent as AppPermission);
@@ -232,50 +230,52 @@ export default function RolesClient() {
       </div>
 
       <Dialog open={isDialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
-          <DialogHeader>
+        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 overflow-hidden" onPointerDownOutside={(e) => e.preventDefault()}>
+          <DialogHeader className="p-6 pb-0">
             <DialogTitle>{currentRole?.id ? 'Editar Permisos' : 'Nuevo Rol'}</DialogTitle>
             <DialogDescription>Asigna permisos por módulo utilizando el árbol jerárquico.</DialogDescription>
           </DialogHeader>
-          {currentRole && (
-            <div className="flex-1 overflow-hidden space-y-4 py-4 flex flex-col">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Nombre del Rol</Label>
-                  <Input value={currentRole.name} onChange={(e) => setCurrentRole({ ...currentRole, name: e.target.value })} disabled={currentRole.id === 'admin'} />
+          <div className="flex-1 overflow-y-auto p-6">
+            {currentRole && (
+              <div className="space-y-4 pr-2">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Nombre del Rol</Label>
+                    <Input value={currentRole.name} onChange={(e) => setCurrentRole({ ...currentRole, name: e.target.value })} disabled={currentRole.id === 'admin'} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>ID Identificador</Label>
+                    <Input value={currentRole.id} readOnly className="bg-muted" />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label>ID Identificador</Label>
-                  <Input value={currentRole.id} readOnly className="bg-muted" />
+                <div className="border rounded-md p-4 bg-muted/30">
+                  <Accordion type="multiple" className="space-y-4">
+                    {Object.entries(permissionGroups).map(([groupName, perms]) => (
+                      <AccordionItem key={groupName} value={groupName}>
+                        <AccordionTrigger className="text-sm font-bold uppercase">{groupName}</AccordionTrigger>
+                        <AccordionContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-2">
+                          {perms.map((p) => (
+                            <div key={p} className="flex items-center space-x-2">
+                              <Checkbox 
+                                  id={`perm-${p}`} 
+                                  checked={currentRole.permissions.includes(p)} 
+                                  onCheckedChange={(checked) => handlePermissionChange(p, !!checked)}
+                                  disabled={currentRole.id === 'admin'}
+                              />
+                              <Label htmlFor={`perm-${p}`} className="text-xs font-normal cursor-pointer leading-none">
+                                  {permissionTranslations[p] || p}
+                              </Label>
+                            </div>
+                          ))}
+                        </AccordionContent>
+                      </AccordionItem>
+                    ))}
+                  </Accordion>
                 </div>
               </div>
-              <ScrollArea className="flex-1 border rounded-md p-4 bg-muted/30">
-                <Accordion type="multiple" className="space-y-4">
-                  {Object.entries(permissionGroups).map(([groupName, perms]) => (
-                    <AccordionItem key={groupName} value={groupName}>
-                      <AccordionTrigger className="text-sm font-bold uppercase">{groupName}</AccordionTrigger>
-                      <AccordionContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-2">
-                        {perms.map((p) => (
-                          <div key={p} className="flex items-center space-x-2">
-                            <Checkbox 
-                                id={`perm-${p}`} 
-                                checked={currentRole.permissions.includes(p)} 
-                                onCheckedChange={(checked) => handlePermissionChange(p, !!checked)}
-                                disabled={currentRole.id === 'admin'}
-                            />
-                            <Label htmlFor={`perm-${p}`} className="text-xs font-normal cursor-pointer leading-none">
-                                {permissionTranslations[p] || p}
-                            </Label>
-                          </div>
-                        ))}
-                      </AccordionContent>
-                    </AccordionItem>
-                  ))}
-                </Accordion>
-              </ScrollArea>
-            </div>
-          )}
-          <DialogFooter className="border-t pt-4">
+            )}
+          </div>
+          <DialogFooter className="p-6 border-t bg-muted/10">
             <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
             <Button onClick={handleSaveRole} disabled={isSubmitting || currentRole?.id === 'admin'}>
               {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4" />}
