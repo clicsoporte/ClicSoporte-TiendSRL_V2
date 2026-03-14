@@ -83,13 +83,13 @@ export const useQuoter = () => {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(initialQuoteState.selectedCustomer);
   const [customerDetails, setCustomerDetails] = useState(initialQuoteState.customerDetails);
   const [deliveryAddress, setDeliveryAddress] = useState(initialQuoteState.deliveryAddress);
-  const [exchangeRate, setExchangeRate] = useState<number | null>(exchangeRateData.rate);
-  const [apiExchangeRate, setApiExchangeRate] = useState<number | null>(exchangeRateData.rate);
+  const [exchangeRate, setExchangeRate] = useState<number | null>(null);
+  const [apiExchangeRate, setApiExchangeRate] = useState<number | null>(null);
   const [purchaseOrderNumber, setPurchaseOrderNumber] = useState(initialQuoteState.purchaseOrderNumber);
   const [deliveryDate, setDeliveryDate] = useState(initialQuoteState.deliveryDate);
   const [sellerName, setSellerName] = useState(initialQuoteState.sellerName);
   const [quoteDate, setQuoteDate] = useState(initialQuoteState.quoteDate);
-  const [companyData, setCompanyData] = useState<Company | null>(authCompanyData);
+  const [companyData, setCompanyData] = useState<Company | null>(null);
   const [sellerType, setSellerType] = useState("user");
   const [paymentTerms, setPaymentTerms] = useState(initialQuoteState.paymentTerms);
   const [creditDays, setCreditDays] = useState(initialQuoteState.creditDays);
@@ -116,72 +116,24 @@ export const useQuoter = () => {
   const [isProductSearchOpen, setProductSearchOpen] = useState(false);
   const [isCustomerSearchOpen, setCustomerSearchOpen] = useState(false);
 
-  const [debouncedCustomerSearch] = useDebounce(customerSearchTerm, companyData?.searchDebounceTime ?? 500);
-  const [debouncedProductSearch] = useDebounce(productSearchTerm, companyData?.searchDebounceTime ?? 500);
-
+  const [debouncedCustomerSearch] = useDebounce(customerSearchTerm, 500);
+  const [debouncedProductSearch] = useDebounce(productSearchTerm, 500);
 
   const productInputRef = useRef<HTMLInputElement>(null);
   const customerInputRef = useRef<HTMLInputElement>(null);
   const lineInputRefs = useRef<Map<string, LineInputRefs>>(new Map());
-  
+
   useEffect(() => {
     if (authCompanyData) {
-        setQuoteNumber(`${authCompanyData.quotePrefix ?? "COT-"}${(authCompanyData.nextQuoteNumber ?? 1).toString().padStart(4, "0")}`);
+        setCompanyData(authCompanyData);
+        setQuoteNumber(`${authCompanyData.quotePrefix || "COT-"}${(authCompanyData.nextQuoteNumber || 1).toString().padStart(4, "0")}`);
+        setDecimalPlaces(authCompanyData.decimalPlaces ?? 2);
     }
-  }, [authCompanyData]);
-
-  const checkExemptionStatus = useCallback(async (authNumber?: string) => {
-    if (!authNumber) return;
-
-    setExemptionInfo(prev => {
-        if (!prev) return null;
-        return { ...prev, isLoading: true, apiError: false };
-    });
-
-    const data = await getExemptionStatus(authNumber);
-        
-    if (isErrorResponse(data)) {
-        logError("Error verifying exemption status", { message: data.message, authNumber });
-        setExemptionInfo(prev => {
-            if (!prev) return null;
-            return {
-                ...prev,
-                haciendaExemption: data,
-                isHaciendaValid: false,
-                isLoading: false,
-                apiError: true,
-            };
-        });
-        
-        if (data.status === 404) {
-            toast({ title: "Exoneración No Encontrada", description: `Hacienda no encontró la autorización ${authNumber}.`, variant: "destructive" });
-        } else {
-            toast({ title: "Error de API", description: `No se pudo consultar la exoneración. ${data.message}`, variant: "destructive" });
-        }
-        return;
+    if (exchangeRateData.rate) {
+        setExchangeRate(exchangeRateData.rate);
+        setApiExchangeRate(exchangeRateData.rate);
     }
-    
-    setExemptionInfo(prev => {
-         if (!prev) return null;
-         return {
-            ...prev,
-            haciendaExemption: data,
-            isHaciendaValid: new Date(data.fechaVencimiento) > new Date(),
-            isLoading: false,
-            apiError: false,
-         }
-    });
-  }, [toast]);
-  
-
-  const loadInitialData = useCallback(async (isRefresh = false) => {
-    if (isRefresh) {
-        setIsRefreshing(true);
-        await refreshAuth();
-        setIsRefreshing(false);
-        toast({ title: "Datos Refrescados", description: "Los clientes, productos y exoneraciones han sido actualizados." });
-    }
-  }, [toast, refreshAuth]);
+  }, [authCompanyData, exchangeRateData]);
 
   useEffect(() => {
     setTitle("Cotizador");
@@ -204,64 +156,75 @@ export const useQuoter = () => {
     }
   }, [sellerType, currentUser]);
 
-  useEffect(() => {
-      setCompanyData(authCompanyData);
-      if (exchangeRateData.rate) {
-          setExchangeRate(exchangeRateData.rate);
-          setApiExchangeRate(exchangeRateData.rate);
-      }
-      if (authCompanyData) {
-          setDecimalPlaces(authCompanyData.decimalPlaces ?? 2);
-      }
-  }, [authCompanyData, exchangeRateData]);
-
-
-  useEffect(() => {
-    if (lines.length > 0) {
-        const lastLine = lines[lines.length - 1];
-        const lastLineRefs = lineInputRefs.current.get(lastLine.id);
-        lastLineRefs?.qty?.focus();
+  const checkExemptionStatus = useCallback(async (authNumber: string) => {
+    setExemptionInfo(prev => prev ? { ...prev, isLoading: true, apiError: false } : null);
+    const data = await getExemptionStatus(authNumber);
+    if (isErrorResponse(data)) {
+        setExemptionInfo(prev => prev ? { ...prev, haciendaExemption: data, isHaciendaValid: false, isLoading: false, apiError: true } : null);
+        return;
     }
+    setExemptionInfo(prev => prev ? { ...prev, haciendaExemption: data, isHaciendaValid: new Date(data.fechaVencimiento) > new Date(), isLoading: false, apiError: false } : null);
+  }, []);
+
+  const handleSelectCustomer = useCallback((customerId: string) => {
+    setCustomerSearchOpen(false);
+    if (!customerId) {
+        setSelectedCustomer(null);
+        setCustomerDetails("");
+        setExemptionInfo(null);
+        return;
+    }
+    const customer = customers.find(c => c.id === customerId);
+    if (customer) {
+        setSelectedCustomer(customer);
+        setCustomerDetails(`ID: ${customer.id}\nNombre: ${customer.name}\nCédula: ${customer.taxId}\nTel: ${customer.phone}`);
+        setCustomerSearchTerm(`[${customer.id}] ${customer.name}`);
+        setDeliveryAddress(customer.address);
+        const days = parseInt(customer.paymentCondition, 10);
+        if (!isNaN(days) && days > 1) { setPaymentTerms("credito"); setCreditDays(days); }
+        else { setPaymentTerms("contado"); setCreditDays(0); }
+        const ex = allExemptions.find(e => e.customer?.trim() === customer.id.trim());
+        if (ex) {
+            setExemptionInfo({ erpExemption: ex, haciendaExemption: null, isLoading: true, isErpValid: new Date(ex.endDate) > new Date(), isHaciendaValid: false, isSpecialLaw: false, apiError: false });
+            checkExemptionStatus(ex.authNumber);
+        } else { setExemptionInfo(null); }
+    }
+  }, [customers, allExemptions, checkExemptionStatus]);
+
+  const handleSelectProduct = useCallback((productId: string) => {
+    setProductSearchOpen(false);
+    if (!productId) return;
+    const product = products.find(p => p.id === productId);
+    if (product) {
+        const newLineId = new Date().toISOString();
+        let tax = 0.13;
+        if (product.isBasicGood === 'S') tax = 0.01;
+        setLines(prev => [...prev, { id: newLineId, product, quantity: 0, price: 0, tax, displayQuantity: "", displayPrice: "" }]);
+        setProductSearchTerm("");
+    }
+  }, [products]);
+
+  const totals = useMemo(() => {
+    const subtotal = lines.reduce((acc, l) => acc + (l.quantity * l.price), 0);
+    const tax = lines.reduce((acc, l) => acc + (l.quantity * l.price * l.tax), 0);
+    return { subtotal, totalTaxes: tax, total: subtotal + tax };
   }, [lines]);
 
   const customerOptions = useMemo(() => {
     if (debouncedCustomerSearch.length < 2) return [];
-    const searchTerms = debouncedCustomerSearch.toLowerCase().split(' ').filter(Boolean);
-    return (customers || [])
-      .filter((c) => {
-        if (!showInactiveCustomers && c.active !== "S") return false;
-        const targetText = `${c.id} ${c.name} ${c.taxId}`.toLowerCase();
-        return searchTerms.every(term => targetText.includes(term));
-      })
-      .map((c) => ({ value: c.id, label: `[${c.id}] - ${c.name} (${c.taxId})` }));
+    return customers.filter(c => (showInactiveCustomers || c.active === "S") && `${c.id} ${c.name} ${c.taxId}`.toLowerCase().includes(debouncedCustomerSearch.toLowerCase()))
+        .map(c => ({ value: c.id, label: `[${c.id}] - ${c.name} (${c.taxId})` }));
   }, [customers, showInactiveCustomers, debouncedCustomerSearch]);
 
   const productOptions = useMemo(() => {
     if (debouncedProductSearch.length < 2) return [];
-    const searchTerms = debouncedProductSearch.toLowerCase().split(' ').filter(Boolean);
-    return (products || [])
-      .filter((p) => {
-        if (!showInactiveProducts && p.active !== "S") return false;
-        const targetText = `${p.id} ${p.description}`.toLowerCase();
-        return searchTerms.every(term => targetText.includes(term));
-      })
-      .map((p) => {
-        const stockInfo = stockLevels.find(s => s.itemId === p.id);
-        const stockLabel = stockInfo ? ` (ERP: ${stockInfo.totalStock.toLocaleString()})` : '';
-        return {
-            value: p.id,
-            label: `${p.id} - ${p.description}${stockLabel}`,
-            className: p.active === "N" ? "text-red-500" : "",
-        }
-      });
-  }, [products, showInactiveProducts, debouncedProductSearch, stockLevels]);
+    return products.filter(p => (showInactiveProducts || p.active === "S") && `${p.id} ${p.description}`.toLowerCase().includes(debouncedProductSearch.toLowerCase()))
+        .map(p => ({ value: p.id, label: `${p.id} - ${p.description}` }));
+  }, [products, showInactiveProducts, debouncedProductSearch]);
 
-  const totals = useMemo(() => {
-    const subtotal = lines.reduce((acc, line) => acc + (line.quantity * line.price), 0);
-    const totalTaxes = lines.reduce((acc, line) => acc + (line.quantity * line.price * line.tax), 0);
-    const total = subtotal + totalTaxes;
-    return { subtotal, totalTaxes, total };
-  }, [lines]);
+  const selectors = useMemo(() => ({
+    totals, customerOptions, productOptions
+  }), [totals, customerOptions, productOptions]);
 
   const actions = useMemo(() => ({
     setCurrency, setLines, setSelectedCustomer, setCustomerDetails, setDeliveryAddress, setExchangeRate,
@@ -269,112 +232,37 @@ export const useQuoter = () => {
     setCreditDays, setValidUntilDate, setNotes, setShowInactiveCustomers,
     setShowInactiveProducts, setSelectedLineForInfo, setDecimalPlaces, setQuoteNumber,
     setProductSearchTerm, setCustomerSearchTerm, setProductSearchOpen, setCustomerSearchOpen,
-    
-    addLine: (product: Product) => {
-        const newLineId = new Date().toISOString();
-        let taxRate = 0.13;
-        if (product.isBasicGood === 'S') taxRate = 0.01;
-        setLines((prev) => [...prev, { id: newLineId, product, quantity: 0, price: 0, tax: taxRate, displayQuantity: "", displayPrice: "" }]);
-    },
-    removeLine: (id: string) => {
-        setLines((prev) => prev.filter((line) => line.id !== id));
-        lineInputRefs.current.delete(id);
-    },
-    updateLine: (id: string, updatedField: Partial<QuoteLine>) => {
-        setLines((prev) => prev.map((line) => (line.id === id ? { ...line, ...updatedField } : line)));
-    },
-    updateLineProductDetail: (id: string, updatedField: Partial<Product>) => {
-        setLines((prev) => prev.map((line) =>
-          line.id === id ? { ...line, product: { ...line.product, ...updatedField } } : line
-        ));
-    },
-    handleCurrencyToggle: async () => {
-        setCurrency(curr => {
-            const newCurrency = curr === "CRC" ? "USD" : "CRC";
-            if (!exchangeRate) return curr;
-            setLines(prevLines => prevLines.map((line) => {
-                const newPrice = newCurrency === "USD" ? line.price / exchangeRate : line.price * exchangeRate;
-                return { ...line, price: newPrice, displayPrice: String(newPrice) };
-            }));
-            return newCurrency;
-        });
+    handleSelectCustomer, handleSelectProduct,
+    removeLine: (id: string) => setLines(prev => prev.filter(l => l.id !== id)),
+    updateLine: (id: string, f: Partial<QuoteLine>) => setLines(prev => prev.map(l => l.id === id ? { ...l, ...f } : l)),
+    updateLineProductDetail: (id: string, f: Partial<Product>) => setLines(prev => prev.map(l => l.id === id ? { ...l, product: { ...l.product, ...f } } : l)),
+    handleCurrencyToggle: () => {
+        if (!exchangeRate) return;
+        const newCurrency = currency === "CRC" ? "USD" : "CRC";
+        setLines(prev => prev.map(l => {
+            const p = newCurrency === "USD" ? l.price / exchangeRate : l.price * exchangeRate;
+            return { ...l, price: p, displayPrice: String(p) };
+        }));
+        setCurrency(newCurrency);
     },
     formatCurrency: (amount: number) => {
-        const prefix = currency === "CRC" ? "CRC " : "$ ";
-        return `${prefix}${amount.toLocaleString("es-CR", {
-          minimumFractionDigits: decimalPlaces,
-          maximumFractionDigits: decimalPlaces,
-        })}`;
-    },
-    handleSelectCustomer: (customerId: string) => {
-        setCustomerSearchOpen(false);
-        if (!customerId) { setSelectedCustomer(null); setCustomerDetails(""); setExemptionInfo(null); return; }
-        const customer = customers.find((c) => c.id === customerId);
-        if (customer) {
-          setSelectedCustomer(customer);
-          setCustomerDetails(`ID: ${customer.id}\nNombre: ${customer.name}\nCédula: ${customer.taxId}\nTel: ${customer.phone}`);
-          setCustomerSearchTerm(`[${customer.id}] ${customer.name}`);
-          setDeliveryAddress(customer.address);
-          const paymentConditionDays = parseInt(customer.paymentCondition, 10);
-          if (!isNaN(paymentConditionDays) && paymentConditionDays > 1) { setPaymentTerms("credito"); setCreditDays(paymentConditionDays); }
-          else { setPaymentTerms("contado"); setCreditDays(0); }
-          const customerExemption = allExemptions.find(ex => ex.customer?.trim() === customer.id.trim());
-          if (customerExemption) {
-              const isErpValid = new Date(customerExemption.endDate) > new Date();
-              setExemptionInfo({ erpExemption: customerExemption, haciendaExemption: null, isLoading: true, isErpValid, isHaciendaValid: false, isSpecialLaw: false, apiError: false });
-              checkExemptionStatus(customerExemption.authNumber);
-          } else { setExemptionInfo(null); }
-        }
-    },
-    handleSelectProduct: (productId: string) => {
-        setProductSearchOpen(false);
-        if (!productId) return;
-        const product = products.find((p) => p.id === productId);
-        if (product) {
-          const newLineId = new Date().toISOString();
-          let taxRate = 0.13;
-          if (product.isBasicGood === 'S') taxRate = 0.01;
-          setLines((prev) => [...prev, { id: newLineId, product, quantity: 0, price: 0, tax: taxRate, displayQuantity: "", displayPrice: "" }]);
-          setProductSearchTerm("");
-        }
-    },
-    incrementAndSaveQuoteNumber: async () => {
-        if (!companyData) return;
-        const newNextNumber = (companyData.nextQuoteNumber || 0) + 1;
-        const newCompanyData = { ...companyData, nextQuoteNumber: newNextNumber };
-        await saveCompanySettings(newCompanyData);
-        setCompanyData(newCompanyData);
-        setQuoteNumber(`${newCompanyData.quotePrefix || "COT-"}${newNextNumber.toString().padStart(4, "0")}`);
-    },
-    handleSaveDecimalPlaces: async () => {
-        if (!companyData) return;
-        const newCompanyData = { ...companyData, decimalPlaces };
-        await saveCompanySettings(newCompanyData);
-        setCompanyData(newCompanyData);
-        toast({ title: "Precisión Guardada" });
+        const p = currency === "CRC" ? "CRC " : "$ ";
+        return `${p}${amount.toLocaleString("es-CR", { minimumFractionDigits: decimalPlaces, maximumFractionDigits: decimalPlaces })}`;
     },
     generatePDF: async () => {
         if (!companyData) return;
         setIsProcessing(true);
-        const tableRows: RowInput[] = lines.map(line => [
-            line.product.id, line.product.description,
-            { content: `${line.quantity}\n${line.product.unit}`, styles: { halign: 'center' } },
-            line.product.cabys, { content: String(line.price), styles: { halign: 'right' } },
-            { content: `${(line.tax * 100).toFixed(0)}%`, styles: { halign: 'center' } },
-            { content: String(line.quantity * line.price * (1 + line.tax)), styles: { halign: 'right' } },
-        ]);
+        const rows: RowInput[] = lines.map(l => [l.product.id, l.product.description, `${l.quantity} ${l.product.unit}`, l.product.cabys, String(l.price), `${(l.tax * 100).toFixed(0)}%`, String(l.quantity * l.price * (1 + l.tax))]);
         const doc = generateDocument({
             docTitle: "COTIZACIÓN", docId: quoteNumber, meta: [{ label: 'Fecha', value: quoteDate }],
             companyData, blocks: [{ title: 'Cliente', content: customerDetails }],
-            table: { columns: ["Código", "Descripción", "Cant.", "Cabys", "Precio", "Imp.", "Total"], rows: tableRows },
+            table: { columns: ["Código", "Descripción", "Cant.", "Cabys", "Precio", "Imp.", "Total"], rows },
             totals: [{ label: 'Total:', value: String(totals.total) }]
         });
         doc.save(`${quoteNumber}.pdf`);
         setIsProcessing(false);
     },
-    resetQuote: async () => {
-        setLines([]); setSelectedCustomer(null); setCustomerDetails(""); setCustomerSearchTerm(""); setExemptionInfo(null);
-    },
+    resetQuote: () => { setLines([]); setSelectedCustomer(null); setCustomerDetails(""); setCustomerSearchTerm(""); setExemptionInfo(null); },
     saveDraft: async () => {
         if (!currentUser) return;
         setIsProcessing(true);
@@ -393,38 +281,40 @@ export const useQuoter = () => {
         const drafts = await getAllQuoteDrafts(currentUser.id);
         setSavedDrafts(drafts.map(d => ({ ...d, customer: customers.find(c => c.id === d.customerId) || null })));
     },
-    handleLoadDraft: (draft: QuoteDraft) => {
-        setQuoteNumber(draft.id); setLines(draft.lines.map(l => ({ ...l, displayQuantity: String(l.quantity), displayPrice: String(l.price) })));
-        setCurrency(draft.currency); setExchangeRate(draft.exchangeRate); setSelectedCustomer(draft.customer || null);
+    handleLoadDraft: (d: QuoteDraft) => {
+        setQuoteNumber(d.id); setLines(d.lines.map(l => ({ ...l, displayQuantity: String(l.quantity), displayPrice: String(l.price) })));
+        setCurrency(d.currency); setExchangeRate(d.exchangeRate); setSelectedCustomer(d.customer || null);
     },
-    handleDeleteDraft: async (draftId: string) => {
-        await deleteQuoteDraft(draftId);
-        setSavedDrafts(prev => prev.filter(d => d.id !== draftId));
+    handleDeleteDraft: async (id: string) => {
+        await deleteQuoteDraft(id);
+        setSavedDrafts(prev => prev.filter(d => d.id !== id));
     },
-    handleNumericInputBlur: (lineId: string, field: 'quantity' | 'price', displayValue: string) => {
-        const numericValue = normalizeNumber(displayValue);
-        setLines(prev => prev.map(l => l.id === lineId ? { ...l, [field]: numericValue, [field === 'quantity' ? 'displayQuantity' : 'displayPrice']: String(numericValue) } : l));
+    handleNumericInputBlur: (id: string, field: 'quantity' | 'price', v: string) => {
+        const num = normalizeNumber(v);
+        setLines(prev => prev.map(l => l.id === id ? { ...l, [field]: num, [field === 'quantity' ? 'displayQuantity' : 'displayPrice']: String(num) } : l));
     },
-    handleCustomerDetailsChange: (value: string) => { setCustomerDetails(value); setSelectedCustomer(null); },
-    loadInitialData,
-    handleLineInputKeyDown: (e: React.KeyboardEvent<HTMLInputElement>, lineId: string, field: 'qty' | 'price') => {
+    handleLineInputKeyDown: (e: React.KeyboardEvent<HTMLInputElement>, id: string, f: 'qty' | 'price') => {
         if (e.key === 'Enter') {
-            const lineRefs = lineInputRefs.current.get(lineId);
-            if (field === 'qty' && lineRefs?.price) lineRefs.price.focus();
-            else if (field === 'price' && productInputRef.current) productInputRef.current.focus();
+            const refs = lineInputRefs.current.get(id);
+            if (f === 'qty' && refs?.price) refs.price.focus();
+            else if (f === 'price' && productInputRef.current) productInputRef.current.focus();
         }
     },
-    checkExemptionStatus,
     handleProductInputKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === 'Enter' && productOptions.length > 0) handleSelectProduct(productOptions[0].value);
     },
     handleCustomerInputKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === 'Enter' && customerOptions.length > 0) handleSelectCustomer(customerOptions[0].value);
     },
-    handleColumnVisibilityChange: (column: keyof typeof mobileColumnVisibility, checked: boolean) => {
-        setMobileColumnVisibility(prev => ({ ...prev, [column]: checked }));
-    }
-  }), [toast, customers, products, allExemptions, checkExemptionStatus, loadInitialData, exchangeRate, currentUser, currency, decimalPlaces, companyData, lines, quoteNumber, quoteDate, customerDetails, notes, totals, purchaseOrderNumber, deliveryAddress, deliveryDate, sellerName, sellerType, validUntilDate, paymentTerms, creditDays, productOptions, customerOptions, mobileColumnVisibility]);
+    handleColumnVisibilityChange: (col: keyof typeof mobileColumnVisibility, checked: boolean) => setMobileColumnVisibility(prev => ({ ...prev, [col]: checked })),
+    loadInitialData: async (isR = false) => { if (isR) { setIsRefreshing(true); await refreshAuth(); setIsRefreshing(false); } },
+    handleSaveDecimalPlaces: async () => {
+        if (!companyData) return;
+        await saveCompanySettings({ ...companyData, decimalPlaces });
+        toast({ title: "Precisión Guardada" });
+    },
+    checkExemptionStatus: (auth?: string) => { if (auth) checkExemptionStatus(auth); }
+  }), [toast, customers, products, exchangeRate, currentUser, currency, decimalPlaces, companyData, lines, quoteNumber, quoteDate, customerDetails, notes, totals, purchaseOrderNumber, deliveryAddress, deliveryDate, sellerName, sellerType, validUntilDate, paymentTerms, creditDays, productOptions, customerOptions, mobileColumnVisibility, refreshAuth, checkExemptionStatus, handleSelectCustomer, handleSelectProduct]);
 
   return {
     state: {
