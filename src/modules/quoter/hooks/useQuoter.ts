@@ -156,7 +156,7 @@ export const useQuoter = () => {
     }
   }, [sellerType, currentUser]);
 
-  const checkExemptionStatus = useCallback(async (authNumber: string) => {
+  const checkExemptionStatusInternal = useCallback(async (authNumber: string) => {
     setExemptionInfo(prev => prev ? { ...prev, isLoading: true, apiError: false } : null);
     const data = await getExemptionStatus(authNumber);
     if (isErrorResponse(data)) {
@@ -186,23 +186,27 @@ export const useQuoter = () => {
         const ex = allExemptions.find(e => e.customer?.trim() === customer.id.trim());
         if (ex) {
             setExemptionInfo({ erpExemption: ex, haciendaExemption: null, isLoading: true, isErpValid: new Date(ex.endDate) > new Date(), isHaciendaValid: false, isSpecialLaw: false, apiError: false });
-            checkExemptionStatus(ex.authNumber);
+            checkExemptionStatusInternal(ex.authNumber);
         } else { setExemptionInfo(null); }
     }
-  }, [customers, allExemptions, checkExemptionStatus]);
+  }, [customers, allExemptions, checkExemptionStatusInternal]);
+
+  const addLineInternal = useCallback((product: Product) => {
+    const newLineId = new Date().toISOString();
+    let tax = 0.13;
+    if (product.isBasicGood === 'S') tax = 0.01;
+    setLines(prev => [...prev, { id: newLineId, product, quantity: 0, price: 0, tax, displayQuantity: "", displayPrice: "" }]);
+  }, []);
 
   const handleSelectProduct = useCallback((productId: string) => {
     setProductSearchOpen(false);
     if (!productId) return;
     const product = products.find(p => p.id === productId);
     if (product) {
-        const newLineId = new Date().toISOString();
-        let tax = 0.13;
-        if (product.isBasicGood === 'S') tax = 0.01;
-        setLines(prev => [...prev, { id: newLineId, product, quantity: 0, price: 0, tax, displayQuantity: "", displayPrice: "" }]);
+        addLineInternal(product);
         setProductSearchTerm("");
     }
-  }, [products]);
+  }, [products, addLineInternal]);
 
   const totals = useMemo(() => {
     const subtotal = lines.reduce((acc, l) => acc + (l.quantity * l.price), 0);
@@ -233,6 +237,14 @@ export const useQuoter = () => {
     setShowInactiveProducts, setSelectedLineForInfo, setDecimalPlaces, setQuoteNumber,
     setProductSearchTerm, setCustomerSearchTerm, setProductSearchOpen, setCustomerSearchOpen,
     handleSelectCustomer, handleSelectProduct,
+    addLine: addLineInternal,
+    handleCustomerDetailsChange: (value: string) => {
+        setCustomerDetails(value);
+        if (selectedCustomer) {
+            setSelectedCustomer(null);
+            setExemptionInfo(null);
+        }
+    },
     removeLine: (id: string) => setLines(prev => prev.filter(l => l.id !== id)),
     updateLine: (id: string, f: Partial<QuoteLine>) => setLines(prev => prev.map(l => l.id === id ? { ...l, ...f } : l)),
     updateLineProductDetail: (id: string, f: Partial<Product>) => setLines(prev => prev.map(l => l.id === id ? { ...l, product: { ...l.product, ...f } } : l)),
@@ -313,8 +325,8 @@ export const useQuoter = () => {
         await saveCompanySettings({ ...companyData, decimalPlaces });
         toast({ title: "Precisión Guardada" });
     },
-    checkExemptionStatus: (auth?: string) => { if (auth) checkExemptionStatus(auth); }
-  }), [toast, customers, products, exchangeRate, currentUser, currency, decimalPlaces, companyData, lines, quoteNumber, quoteDate, customerDetails, notes, totals, purchaseOrderNumber, deliveryAddress, deliveryDate, sellerName, sellerType, validUntilDate, paymentTerms, creditDays, productOptions, customerOptions, mobileColumnVisibility, refreshAuth, checkExemptionStatus, handleSelectCustomer, handleSelectProduct]);
+    checkExemptionStatus: (auth?: string) => { if (auth) checkExemptionStatusInternal(auth); }
+  }), [toast, customers, products, exchangeRate, currentUser, currency, decimalPlaces, companyData, lines, quoteNumber, quoteDate, customerDetails, notes, totals, purchaseOrderNumber, deliveryAddress, deliveryDate, sellerName, sellerType, validUntilDate, paymentTerms, creditDays, productOptions, customerOptions, mobileColumnVisibility, refreshAuth, checkExemptionStatusInternal, handleSelectCustomer, handleSelectProduct, addLineInternal, selectedCustomer]);
 
   return {
     state: {
