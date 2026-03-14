@@ -321,7 +321,7 @@ export const useQuoter = () => {
         toast({ title: "Precisión Guardada" });
     },
     checkExemptionStatus: (auth?: string) => { if (auth) checkExemptionStatusInternal(auth); }
-  }), [toast, customers, exchangeRate, currentUser, currency, decimalPlaces, companyData, lines, quoteNumber, quoteDate, customerDetails, notes, totals, purchaseOrderNumber, deliveryAddress, deliveryDate, sellerName, sellerType, validUntilDate, paymentTerms, creditDays, productOptions, customerOptions, mobileColumnVisibility, refreshAuth, checkExemptionStatusInternal, handleSelectCustomer, handleSelectProduct, addLineInternal, selectedCustomer]);
+  }), [toast, customers, exchangeRate, currentUser, currency, decimalPlaces, companyData, lines, quoteNumber, quoteDate, customerDetails, notes, totals, purchaseOrderNumber, deliveryAddress, deliveryDate, sellerName, sellerType, validUntilDate, paymentTerms, creditDays, productOptions, customerOptions, refreshAuth, checkExemptionStatusInternal, handleSelectCustomer, handleSelectProduct, addLineInternal, selectedCustomer]);
 
   return {
     state: {
