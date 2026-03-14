@@ -7,14 +7,12 @@ import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useToast } from "@/modules/core/hooks/use-toast";
 import { usePageTitle } from "@/modules/core/hooks/usePageTitle";
 import type { Customer, Product, Company, QuoteDraft, QuoteLine, Exemption, HaciendaExemptionApiResponse } from "@/modules/core/types";
-import { logError, logInfo, logWarn } from "@/modules/core/lib/logger";
 import {
   saveQuoteDraft,
   getAllQuoteDrafts,
   deleteQuoteDraft,
 } from "@/modules/quoter/lib/actions";
 import { saveCompanySettings } from "@/modules/core/lib/settings-db";
-import { format, parseISO, isValid } from 'date-fns';
 import { useDebounce } from "use-debounce";
 import { useAuth } from "@/modules/core/hooks/useAuth";
 import { generateDocument } from "@/modules/core/lib/pdf-generator";
@@ -71,8 +69,7 @@ export const useQuoter = () => {
   const { setTitle } = usePageTitle();
   const { 
     user: currentUser, customers, products, companyData: authCompanyData, 
-    stockLevels, exchangeRateData, allExemptions, exemptionLaws,
-    refreshAuth, isLoading: isAuthLoading 
+    exchangeRateData, allExemptions, refreshAuth 
   } = useAuth();
   
   const [quoteNumber, setQuoteNumber] = useState("");
@@ -84,7 +81,6 @@ export const useQuoter = () => {
   const [customerDetails, setCustomerDetails] = useState(initialQuoteState.customerDetails);
   const [deliveryAddress, setDeliveryAddress] = useState(initialQuoteState.deliveryAddress);
   const [exchangeRate, setExchangeRate] = useState<number | null>(null);
-  const [apiExchangeRate, setApiExchangeRate] = useState<number | null>(null);
   const [purchaseOrderNumber, setPurchaseOrderNumber] = useState(initialQuoteState.purchaseOrderNumber);
   const [deliveryDate, setDeliveryDate] = useState(initialQuoteState.deliveryDate);
   const [sellerName, setSellerName] = useState(initialQuoteState.sellerName);
@@ -131,7 +127,6 @@ export const useQuoter = () => {
     }
     if (exchangeRateData.rate) {
         setExchangeRate(exchangeRateData.rate);
-        setApiExchangeRate(exchangeRateData.rate);
     }
   }, [authCompanyData, exchangeRateData]);
 
@@ -326,7 +321,7 @@ export const useQuoter = () => {
         toast({ title: "Precisión Guardada" });
     },
     checkExemptionStatus: (auth?: string) => { if (auth) checkExemptionStatusInternal(auth); }
-  }), [toast, customers, products, exchangeRate, currentUser, currency, decimalPlaces, companyData, lines, quoteNumber, quoteDate, customerDetails, notes, totals, purchaseOrderNumber, deliveryAddress, deliveryDate, sellerName, sellerType, validUntilDate, paymentTerms, creditDays, productOptions, customerOptions, mobileColumnVisibility, refreshAuth, checkExemptionStatusInternal, handleSelectCustomer, handleSelectProduct, addLineInternal, selectedCustomer]);
+  }), [toast, customers, exchangeRate, currentUser, currency, decimalPlaces, companyData, lines, quoteNumber, quoteDate, customerDetails, notes, totals, purchaseOrderNumber, deliveryAddress, deliveryDate, sellerName, sellerType, validUntilDate, paymentTerms, creditDays, productOptions, customerOptions, mobileColumnVisibility, refreshAuth, checkExemptionStatusInternal, handleSelectCustomer, handleSelectProduct, addLineInternal, selectedCustomer]);
 
   return {
     state: {
