@@ -161,13 +161,13 @@ export default function CustomersClient() {
                     <DialogTrigger asChild>
                         <Button><PlusCircle className="mr-2 h-4 w-4" /> Nuevo Cliente</Button>
                     </DialogTrigger>
-                    <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col p-0 overflow-hidden" onPointerDownOutside={(e) => e.preventDefault()}>
-                        <DialogHeader className="p-6 pb-0">
+                    <DialogContent className="sm:max-w-4xl h-[90vh] flex flex-col p-0 overflow-hidden" onPointerDownOutside={(e) => e.preventDefault()}>
+                        <DialogHeader className="p-6 pb-4 border-b">
                             <DialogTitle>{isEditing ? "Editar Cliente" : "Registrar Nuevo Cliente"}</DialogTitle>
                             <DialogDescription>Completa los datos fiscales y los contactos de la empresa.</DialogDescription>
                         </DialogHeader>
                         
-                        <div className="flex-1 overflow-y-auto p-6">
+                        <div className="flex-1 overflow-y-auto p-6 scrollbar-thin">
                             <div className="space-y-8 pr-2">
                                 <section>
                                     <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">

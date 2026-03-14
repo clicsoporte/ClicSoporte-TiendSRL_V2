@@ -84,7 +84,7 @@ export default function UsersClient() {
     try {
       if (isEditing) {
         await updateUser(currentUser as User);
-        toast({ title: 'Usuario Actualizado' });
+        toast({ title: "Usuario Actualizado" });
       } else {
         await addUser({
           name: currentUser.name!,
@@ -97,12 +97,12 @@ export default function UsersClient() {
           avatar: '',
           recentActivity: 'Usuario recién creado.'
         });
-        toast({ title: 'Usuario Creado' });
+        toast({ title: "Usuario Creado" });
       }
       await fetchData();
       setDialogOpen(false);
     } catch (error: unknown) {
-      toast({ title: 'Error', description: (error as Error).message, variant: "destructive" });
+      toast({ title: "Error", description: (error as Error).message, variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -176,11 +176,11 @@ export default function UsersClient() {
       </Card>
 
       <Dialog open={isDialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
-          <DialogHeader className="p-6 pb-0">
+        <DialogContent className="sm:max-w-xl h-[90vh] flex flex-col p-0 overflow-hidden" onPointerDownOutside={(e) => e.preventDefault()}>
+          <DialogHeader className="p-6 pb-4 border-b">
             <DialogTitle>{isEditing ? 'Editar Usuario' : 'Nuevo Usuario'}</DialogTitle>
           </DialogHeader>
-          <div className="flex-1 overflow-y-auto p-6">
+          <div className="flex-1 overflow-y-auto p-6 scrollbar-thin">
             <div className="space-y-4 pr-2">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2"><Label>Nombre Completo</Label><Input value={currentUser.name} onChange={e => setCurrentUser({...currentUser, name: e.target.value})}/></div>

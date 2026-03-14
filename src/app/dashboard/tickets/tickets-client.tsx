@@ -94,13 +94,13 @@ export default function TicketsClient() {
                         <DialogTrigger asChild>
                             <Button size="sm"><FilePlus className="mr-2 h-4 w-4" /> Nuevo Ticket</Button>
                         </DialogTrigger>
-                        <DialogContent className="sm:max-w-5xl max-h-[90vh] flex flex-col p-0 overflow-hidden" onPointerDownOutside={(e) => e.preventDefault()}>
+                        <DialogContent className="sm:max-w-5xl h-[90vh] flex flex-col p-0 overflow-hidden" onPointerDownOutside={(e) => e.preventDefault()}>
                             <form onSubmit={(e) => { e.preventDefault(); actions.handleCreateTicket(); }} className="flex flex-col flex-1 h-full">
-                                <DialogHeader className="p-6 pb-0">
+                                <DialogHeader className="p-6 pb-4 border-b">
                                     <DialogTitle>Abrir Nuevo Caso de Soporte</DialogTitle>
                                     <DialogDescription>Valida la cobertura del contrato antes de proceder.</DialogDescription>
                                 </DialogHeader>
-                                <div className="flex-1 overflow-y-auto p-6">
+                                <div className="flex-1 overflow-y-auto p-6 scrollbar-thin">
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 py-4 pr-2">
                                         <div className="md:col-span-2 space-y-4">
                                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
