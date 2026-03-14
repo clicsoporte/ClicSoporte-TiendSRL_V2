@@ -36,7 +36,7 @@ export default function TicketDetailPage() {
     const router = useRouter();
     const ticketId = Number(params.id);
     const { isAuthorized, hasPermission } = useAuthorization(['tickets:read:all']);
-    const { state, actions, selectors } = useTickets();
+    const { actions, selectors } = useTickets();
     const { user: currentUser, companyData } = useAuth();
     const { toast } = useToast();
     
@@ -45,19 +45,23 @@ export default function TicketDetailPage() {
     const [replyContent, setReplyContent] = useState("");
     const [isReplying, setIsReplying] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [isInitialLoading, setIsInitialLoading] = useState(true);
     
     const supportUsers = useMemo(() => selectors.supportUsers, [selectors.supportUsers]);
 
+    const { getTicketById, getTicketThread } = actions;
+
     const loadData = useCallback(async () => {
         if (ticketId && isAuthorized) {
-            const ticketData = await actions.getTicketById(ticketId);
-            setTicket(ticketData);
+            const ticketData = await getTicketById(ticketId);
             if (ticketData) {
-                const threadData = await actions.getTicketThread(ticketId);
+                setTicket(ticketData);
+                const threadData = await getTicketThread(ticketId);
                 setThread(threadData);
             }
+            setIsInitialLoading(false);
         }
-    }, [ticketId, isAuthorized, actions]);
+    }, [ticketId, isAuthorized, getTicketById, getTicketThread]);
 
     useEffect(() => {
         loadData();
@@ -88,7 +92,8 @@ export default function TicketDetailPage() {
         const updatedTicket = await actions.updateTicketDetails(ticketId, updates, currentUser);
         if (updatedTicket) {
             setTicket(updatedTicket);
-            await loadData();
+            const threadData = await getTicketThread(ticketId);
+            setThread(threadData);
         }
     };
 
@@ -101,17 +106,27 @@ export default function TicketDetailPage() {
             router.push('/dashboard/tickets');
         } catch {
             toast({ title: "Error", variant: "destructive" });
-        } finally {
             setIsDeleting(false);
         }
     }
     
     if (!isAuthorized) return null;
 
-    if (!ticket) {
+    if (isInitialLoading) {
         return (
              <div className="flex h-[calc(100vh-4rem)]">
                 <div className="w-full flex flex-col p-4"><Skeleton className="h-full w-full"/></div>
+            </div>
+        );
+    }
+
+    if (!ticket) {
+        return (
+            <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
+                <Card className="p-10 text-center">
+                    <CardTitle>Ticket no encontrado</CardTitle>
+                    <Button className="mt-4" onClick={() => router.push('/dashboard/tickets')}>Volver a la lista</Button>
+                </Card>
             </div>
         );
     }
@@ -277,7 +292,7 @@ export default function TicketDetailPage() {
                             <SelectTrigger className="h-8"><SelectValue placeholder="Sin proveedor externo"/></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="null">Ninguno (Soporte Interno)</SelectItem>
-                                {state.providers.map(p => (<SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>))}
+                                {selectors.providers.map(p => (<SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>))}
                             </SelectContent>
                         </Select>
                         <p className="text-[10px] text-muted-foreground">Usa esta opción si el caso requiere derivarse a una marca o soporte de tercero.</p>
