@@ -155,7 +155,18 @@ export async function getActiveContractForCustomer(customerId: string): Promise<
  */
 export async function autoRenewContract(contractId: number): Promise<Contract> {
     const db = await connectContractsDb();
-    const old = db.prepare('SELECT * FROM contracts WHERE id = ?').get(contractId) as Record<string, any>;
+    const old = db.prepare('SELECT * FROM contracts WHERE id = ?').get(contractId) as {
+        name: string;
+        customerId: string;
+        startDate: string;
+        endDate: string;
+        includedServices: string;
+        excludedServices: string;
+        monthlyHours: number;
+        price: number;
+        currency: string;
+        consecutive: string;
+    } | undefined;
     
     if (!old) throw new Error("Contract not found");
 
