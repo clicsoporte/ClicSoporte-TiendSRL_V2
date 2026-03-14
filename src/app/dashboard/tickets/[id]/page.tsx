@@ -6,7 +6,7 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useTickets } from '@/modules/tickets/hooks/useTickets';
-import type { Ticket, TicketThread, TicketStatus, TicketPriority } from '@/modules/core/types';
+import type { Ticket, TicketThread, TicketStatus, TicketPriority, ThirdPartyProvider } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -204,7 +204,7 @@ export default function TicketDetailPage() {
                         />
                         <div className="absolute top-2 right-2 flex gap-1">
                              <Button type="button" size="icon" onClick={handleAddReply} disabled={isReplying || !hasPermission('tickets:update')}>
-                                {isReplying ? <Loader2 className="h-4 w-4 animate-spin"/> : <Send className="h-4 w-4" />}
+                                {isReplying ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Send className="h-4 w-4" />}
                             </Button>
                         </div>
                     </div>
@@ -292,7 +292,7 @@ export default function TicketDetailPage() {
                             <SelectTrigger className="h-8"><SelectValue placeholder="Sin proveedor externo"/></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="null">Ninguno (Soporte Interno)</SelectItem>
-                                {selectors.providers.map(p => (<SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>))}
+                                {selectors.providers.map((p: ThirdPartyProvider) => (<SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>))}
                             </SelectContent>
                         </Select>
                         <p className="text-[10px] text-muted-foreground">Usa esta opción si el caso requiere derivarse a una marca o soporte de tercero.</p>

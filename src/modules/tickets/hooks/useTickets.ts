@@ -294,8 +294,9 @@ export const useTickets = () => {
             const priorityMatch = state.priorityFilter === 'all' || ticket.priority === state.priorityFilter;
             return searchMatch && statusMatch && priorityMatch;
         }),
-        coverageMessage: validateCoverage(state.newTicket.serviceId, state.activeContract).message
-    }), [users, customers, debouncedCustomerSearch, debouncedSearchTerm, state.tickets, state.statusFilter, state.priorityFilter, state.newTicket.serviceId, state.activeContract, validateCoverage]);
+        coverageMessage: validateCoverage(state.newTicket.serviceId, state.activeContract).message,
+        providers: state.providers
+    }), [users, customers, debouncedCustomerSearch, debouncedSearchTerm, state.tickets, state.statusFilter, state.priorityFilter, state.newTicket.serviceId, state.activeContract, state.providers, validateCoverage]);
 
     return {
         state,

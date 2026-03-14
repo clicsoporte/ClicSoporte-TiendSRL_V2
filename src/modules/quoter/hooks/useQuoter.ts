@@ -14,7 +14,7 @@ import {
   deleteQuoteDraft,
 } from "@/modules/quoter/lib/actions";
 import { saveCompanySettings } from "@/modules/core/lib/settings-db";
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, isValid } from 'date-fns';
 import { useDebounce } from "use-debounce";
 import { useAuth } from "@/modules/core/hooks/useAuth";
 import { generateDocument } from "@/modules/core/lib/pdf-generator";
@@ -256,6 +256,12 @@ export const useQuoter = () => {
       });
   }, [products, showInactiveProducts, debouncedProductSearch, stockLevels]);
 
+  const totals = useMemo(() => {
+    const subtotal = lines.reduce((acc, line) => acc + (line.quantity * line.price), 0);
+    const totalTaxes = lines.reduce((acc, line) => acc + (line.quantity * line.price * line.tax), 0);
+    const total = subtotal + totalTaxes;
+    return { subtotal, totalTaxes, total };
+  }, [lines]);
 
   const actions = useMemo(() => ({
     setCurrency, setLines, setSelectedCustomer, setCustomerDetails, setDeliveryAddress, setExchangeRate,
@@ -267,20 +273,8 @@ export const useQuoter = () => {
     addLine: (product: Product) => {
         const newLineId = new Date().toISOString();
         let taxRate = 0.13;
-        if (product.isBasicGood === 'S') {
-            taxRate = 0.01;
-        }
-        
-        const newLine: QuoteLine = {
-          id: newLineId,
-          product,
-          quantity: 0,
-          price: 0,
-          tax: taxRate,
-          displayQuantity: "",
-          displayPrice: "",
-        };
-        setLines((prev) => [...prev, newLine]);
+        if (product.isBasicGood === 'S') taxRate = 0.01;
+        setLines((prev) => [...prev, { id: newLineId, product, quantity: 0, price: 0, tax: taxRate, displayQuantity: "", displayPrice: "" }]);
     },
     removeLine: (id: string) => {
         setLines((prev) => prev.filter((line) => line.id !== id));
@@ -295,41 +289,26 @@ export const useQuoter = () => {
         ));
     },
     handleCurrencyToggle: async () => {
-        let currentExchangeRate: number | null = null;
-        setExchangeRate(r => { currentExchangeRate = r; return r; });
-        if (!currentExchangeRate) {
-          toast({ title: "Tipo de cambio no disponible", variant: "destructive" });
-          return;
-        }
         setCurrency(curr => {
             const newCurrency = curr === "CRC" ? "USD" : "CRC";
+            if (!exchangeRate) return curr;
             setLines(prevLines => prevLines.map((line) => {
-                const newPrice = newCurrency === "USD" ? line.price / (currentExchangeRate as number) : line.price * (currentExchangeRate as number);
-                return { ...line, price: newPrice, displayPrice: newPrice.toString() };
+                const newPrice = newCurrency === "USD" ? line.price / exchangeRate : line.price * exchangeRate;
+                return { ...line, price: newPrice, displayPrice: String(newPrice) };
             }));
             return newCurrency;
         });
     },
     formatCurrency: (amount: number) => {
-        let currentCurrency = "CRC";
-        setCurrency(c => { currentCurrency = c; return c; });
-        let currentDecimalPlaces = 2;
-        setDecimalPlaces(d => { currentDecimalPlaces = d; return d; });
-        const prefix = currentCurrency === "CRC" ? "CRC " : "$ ";
+        const prefix = currency === "CRC" ? "CRC " : "$ ";
         return `${prefix}${amount.toLocaleString("es-CR", {
-          minimumFractionDigits: currentDecimalPlaces,
-          maximumFractionDigits: currentDecimalPlaces,
+          minimumFractionDigits: decimalPlaces,
+          maximumFractionDigits: decimalPlaces,
         })}`;
     },
     handleSelectCustomer: (customerId: string) => {
         setCustomerSearchOpen(false);
-        if (!customerId) {
-            setSelectedCustomer(null);
-            setCustomerDetails("");
-            setCustomerSearchTerm("");
-            setExemptionInfo(null);
-            return;
-        }
+        if (!customerId) { setSelectedCustomer(null); setCustomerDetails(""); setExemptionInfo(null); return; }
         const customer = customers.find((c) => c.id === customerId);
         if (customer) {
           setSelectedCustomer(customer);
@@ -337,26 +316,19 @@ export const useQuoter = () => {
           setCustomerSearchTerm(`[${customer.id}] ${customer.name}`);
           setDeliveryAddress(customer.address);
           const paymentConditionDays = parseInt(customer.paymentCondition, 10);
-          if (!isNaN(paymentConditionDays) && paymentConditionDays > 1) {
-            setPaymentTerms("credito");
-            setCreditDays(paymentConditionDays);
-          } else {
-            setPaymentTerms("contado");
-            setCreditDays(0);
-          }
+          if (!isNaN(paymentConditionDays) && paymentConditionDays > 1) { setPaymentTerms("credito"); setCreditDays(paymentConditionDays); }
+          else { setPaymentTerms("contado"); setCreditDays(0); }
           const customerExemption = allExemptions.find(ex => ex.customer?.trim() === customer.id.trim());
           if (customerExemption) {
               const isErpValid = new Date(customerExemption.endDate) > new Date();
               setExemptionInfo({ erpExemption: customerExemption, haciendaExemption: null, isLoading: true, isErpValid, isHaciendaValid: false, isSpecialLaw: false, apiError: false });
               checkExemptionStatus(customerExemption.authNumber);
-          } else {
-              setExemptionInfo(null);
-          }
+          } else { setExemptionInfo(null); }
         }
     },
     handleSelectProduct: (productId: string) => {
         setProductSearchOpen(false);
-        if (!productId) { setProductSearchTerm(""); return; }
+        if (!productId) return;
         const product = products.find((p) => p.id === productId);
         if (product) {
           const newLineId = new Date().toISOString();
@@ -366,41 +338,77 @@ export const useQuoter = () => {
           setProductSearchTerm("");
         }
     },
+    incrementAndSaveQuoteNumber: async () => {
+        if (!companyData) return;
+        const newNextNumber = (companyData.nextQuoteNumber || 0) + 1;
+        const newCompanyData = { ...companyData, nextQuoteNumber: newNextNumber };
+        await saveCompanySettings(newCompanyData);
+        setCompanyData(newCompanyData);
+        setQuoteNumber(`${newCompanyData.quotePrefix || "COT-"}${newNextNumber.toString().padStart(4, "0")}`);
+    },
+    handleSaveDecimalPlaces: async () => {
+        if (!companyData) return;
+        const newCompanyData = { ...companyData, decimalPlaces };
+        await saveCompanySettings(newCompanyData);
+        setCompanyData(newCompanyData);
+        toast({ title: "Precisión Guardada" });
+    },
     generatePDF: async () => {
+        if (!companyData) return;
         setIsProcessing(true);
-        // ... PDF generation logic (remains similar but needs stable access to state via refs or closure variables)
-        // Note: For brevity, I'm ensuring the actions return stable references.
+        const tableRows: RowInput[] = lines.map(line => [
+            line.product.id, line.product.description,
+            { content: `${line.quantity}\n${line.product.unit}`, styles: { halign: 'center' } },
+            line.product.cabys, { content: String(line.price), styles: { halign: 'right' } },
+            { content: `${(line.tax * 100).toFixed(0)}%`, styles: { halign: 'center' } },
+            { content: String(line.quantity * line.price * (1 + line.tax)), styles: { halign: 'right' } },
+        ]);
+        const doc = generateDocument({
+            docTitle: "COTIZACIÓN", docId: quoteNumber, meta: [{ label: 'Fecha', value: quoteDate }],
+            companyData, blocks: [{ title: 'Cliente', content: customerDetails }],
+            table: { columns: ["Código", "Descripción", "Cant.", "Cabys", "Precio", "Imp.", "Total"], rows: tableRows },
+            totals: [{ label: 'Total:', value: String(totals.total) }]
+        });
+        doc.save(`${quoteNumber}.pdf`);
         setIsProcessing(false);
     },
     resetQuote: async () => {
-        // ... Reset logic
+        setLines([]); setSelectedCustomer(null); setCustomerDetails(""); setCustomerSearchTerm(""); setExemptionInfo(null);
     },
     saveDraft: async () => {
-        // ... Save logic
+        if (!currentUser) return;
+        setIsProcessing(true);
+        try {
+            await saveQuoteDraft({
+                id: quoteNumber, createdAt: new Date().toISOString(), userId: currentUser.id,
+                customerId: selectedCustomer?.id || null, customerDetails, lines, totals,
+                notes, currency, exchangeRate, purchaseOrderNumber, deliveryAddress,
+                deliveryDate, sellerName, sellerType, quoteDate, validUntilDate, paymentTerms, creditDays
+            });
+            toast({ title: "Borrador Guardado" });
+        } finally { setIsProcessing(false); }
     },
     loadDrafts: async () => {
-        // ... Load logic
+        if (!currentUser) return;
+        const drafts = await getAllQuoteDrafts(currentUser.id);
+        setSavedDrafts(drafts.map(d => ({ ...d, customer: customers.find(c => c.id === d.customerId) || null })));
     },
     handleLoadDraft: (draft: QuoteDraft) => {
-        // ... Load draft logic
+        setQuoteNumber(draft.id); setLines(draft.lines.map(l => ({ ...l, displayQuantity: String(l.quantity), displayPrice: String(l.price) })));
+        setCurrency(draft.currency); setExchangeRate(draft.exchangeRate); setSelectedCustomer(draft.customer || null);
     },
     handleDeleteDraft: async (draftId: string) => {
         await deleteQuoteDraft(draftId);
-        toast({ title: "Borrador Eliminado" });
+        setSavedDrafts(prev => prev.filter(d => d.id !== draftId));
     },
     handleNumericInputBlur: (lineId: string, field: 'quantity' | 'price', displayValue: string) => {
         const numericValue = normalizeNumber(displayValue);
-        setLines((prev) => prev.map((line) => (line.id === lineId ? { ...line, [field]: numericValue, [field === 'quantity' ? 'displayQuantity' : 'displayPrice']: String(numericValue) } : line)));
+        setLines(prev => prev.map(l => l.id === lineId ? { ...l, [field]: numericValue, [field === 'quantity' ? 'displayQuantity' : 'displayPrice']: String(numericValue) } : l));
     },
-    handleCustomerDetailsChange: (value: string) => {
-        setCustomerDetails(value);
-        setSelectedCustomer(null);
-        setExemptionInfo(null);
-    },
+    handleCustomerDetailsChange: (value: string) => { setCustomerDetails(value); setSelectedCustomer(null); },
     loadInitialData,
     handleLineInputKeyDown: (e: React.KeyboardEvent<HTMLInputElement>, lineId: string, field: 'qty' | 'price') => {
         if (e.key === 'Enter') {
-            e.preventDefault();
             const lineRefs = lineInputRefs.current.get(lineId);
             if (field === 'qty' && lineRefs?.price) lineRefs.price.focus();
             else if (field === 'price' && productInputRef.current) productInputRef.current.focus();
@@ -408,28 +416,15 @@ export const useQuoter = () => {
     },
     checkExemptionStatus,
     handleProductInputKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
-        // ...
+        if (e.key === 'Enter' && productOptions.length > 0) handleSelectProduct(productOptions[0].value);
     },
     handleCustomerInputKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
-        // ...
+        if (e.key === 'Enter' && customerOptions.length > 0) handleSelectCustomer(customerOptions[0].value);
     },
     handleColumnVisibilityChange: (column: keyof typeof mobileColumnVisibility, checked: boolean) => {
         setMobileColumnVisibility(prev => ({ ...prev, [column]: checked }));
     }
-  }), [toast, customers, products, allExemptions, checkExemptionStatus, loadInitialData]);
-
-  const totals = useMemo(() => {
-    const subtotal = lines.reduce((acc, line) => acc + (line.quantity * line.price), 0);
-    const totalTaxes = lines.reduce((acc, line) => acc + (line.quantity * line.price * line.tax), 0);
-    const total = subtotal + totalTaxes;
-    return { subtotal, totalTaxes, total };
-  }, [lines]);
-
-  const selectors = useMemo(() => ({
-    totals,
-    customerOptions,
-    productOptions
-  }), [totals, customerOptions, productOptions]);
+  }), [toast, customers, products, allExemptions, checkExemptionStatus, loadInitialData, exchangeRate, currentUser, currency, decimalPlaces, companyData, lines, quoteNumber, quoteDate, customerDetails, notes, totals, purchaseOrderNumber, deliveryAddress, deliveryDate, sellerName, sellerType, validUntilDate, paymentTerms, creditDays, productOptions, customerOptions, mobileColumnVisibility]);
 
   return {
     state: {
