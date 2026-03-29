@@ -88,6 +88,29 @@ export async function initializeMainDatabase(db: Database) {
             value TEXT NOT NULL,
             PRIMARY KEY (userId, key)
         );
+
+        CREATE TABLE IF NOT EXISTS customers (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            address TEXT,
+            phone TEXT,
+            taxId TEXT NOT NULL,
+            currency TEXT DEFAULT 'CRC',
+            creditLimit REAL DEFAULT 0,
+            paymentCondition TEXT DEFAULT '0',
+            salesperson TEXT,
+            active TEXT DEFAULT 'S',
+            email TEXT,
+            electronicDocEmail TEXT,
+            isManual INTEGER DEFAULT 0,
+            contacts TEXT,
+            taxRegime TEXT,
+            taxStatus TEXT,
+            isTaxMoroso INTEGER DEFAULT 0,
+            isTaxOmiso INTEGER DEFAULT 0,
+            taxAdministration TEXT,
+            taxActivities TEXT
+        );
     `;
 
     db.exec(mainSchema);
@@ -138,6 +161,26 @@ export async function runMainMigrations(db: Database) {
             );
         `);
     }
+
+    // Customer Hacienda Fields Migration
+    const customerTableInfo = db.prepare(`PRAGMA table_info(customers)`).all() as { name: string }[];
+    const customerColumns = new Set(customerTableInfo.map(c => c.name));
+    
+    const haciendaFields = [
+        ['taxRegime', 'TEXT'],
+        ['taxStatus', 'TEXT'],
+        ['isTaxMoroso', 'INTEGER DEFAULT 0'],
+        ['isTaxOmiso', 'INTEGER DEFAULT 0'],
+        ['taxAdministration', 'TEXT'],
+        ['taxActivities', 'TEXT']
+    ];
+
+    haciendaFields.forEach(([field, type]) => {
+        if (!customerColumns.has(field)) {
+            console.log(`MIGRATION (intratool.db): Adding '${field}' column to 'customers' table.`);
+            db.exec(`ALTER TABLE customers ADD COLUMN ${field} ${type};`);
+        }
+    });
 }
 
 export async function getLogs(filters: { type?: string; search?: string; dateRange?: DateRange }): Promise<LogEntry[]> {

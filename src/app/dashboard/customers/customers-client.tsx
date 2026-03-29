@@ -1,26 +1,27 @@
 /**
- * @fileoverview Client Component for managing customers manually.
- * Extracted from the main page to support server-side guarding.
+ * @fileoverview Client Component for managing customers with Hacienda API integration.
  */
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { PlusCircle, Search, Edit, Trash2, Loader2, UserPlus, Users, Building2, Mail, Phone, Briefcase } from 'lucide-react';
+import { PlusCircle, Search, Edit, Trash2, Loader2, UserPlus, Users, Building2, Mail, Phone, Briefcase, SearchIcon, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { upsertCustomer, deleteCustomer } from '@/modules/core/lib/data-access-db';
-import type { Customer, CustomerContact } from '@/modules/core/types';
+import { getContributorInfo } from '@/modules/hacienda/lib/actions';
+import type { Customer, CustomerContact, HaciendaContributorInfo } from '@/modules/core/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
 
 const emptyContact: CustomerContact = {
     id: '',
@@ -47,7 +48,8 @@ const emptyCustomer: Customer = {
     email: '',
     electronicDocEmail: '',
     isManual: true,
-    contacts: []
+    contacts: [],
+    taxActivities: '[]'
 };
 
 export default function CustomersClient() {
@@ -58,6 +60,7 @@ export default function CustomersClient() {
     const [searchTerm, setSearchTerm] = useState('');
     const [isFormOpen, setFormOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isHaciendaLoading, setIsHaciendaLoading] = useState(false);
     const [currentCustomer, setCurrentCustomer] = useState<Customer>(emptyCustomer);
     const [isEditing, setIsEditing] = useState(false);
     const [newContact, setNewContact] = useState<CustomerContact>(emptyContact);
@@ -65,6 +68,40 @@ export default function CustomersClient() {
     useEffect(() => {
         setTitle("Gestión de Clientes");
     }, [setTitle]);
+
+    // Effect to auto-search Hacienda when taxId is entered
+    useEffect(() => {
+        if (isEditing || currentCustomer.taxId.length < 9 || currentCustomer.taxId.length > 12) return;
+
+        const timer = setTimeout(async () => {
+            setIsHaciendaLoading(true);
+            try {
+                const info = await getContributorInfo(currentCustomer.taxId);
+                if ('error' in info) {
+                    // Not found or API error, just silent or show subtle warning
+                } else {
+                    const data = info as HaciendaContributorInfo;
+                    setCurrentCustomer(prev => ({
+                        ...prev,
+                        name: prev.name || data.nombre,
+                        taxRegime: data.regimen.descripcion,
+                        taxStatus: data.situacion.estado,
+                        isTaxMoroso: data.situacion.moroso === 'SI',
+                        isTaxOmiso: data.situacion.omiso === 'SI',
+                        taxAdministration: data.administracionTributaria,
+                        taxActivities: JSON.stringify(data.actividades)
+                    }));
+                    toast({ title: "Datos de Hacienda obtenidos", description: data.nombre });
+                }
+            } catch (err) {
+                console.error(err);
+            } finally {
+                setIsHaciendaLoading(false);
+            }
+        }, 800);
+
+        return () => clearTimeout(timer);
+    }, [currentCustomer.taxId, isEditing, toast]);
 
     const filteredCustomers = useMemo(() => {
         if (!searchTerm) return customers;
@@ -78,7 +115,7 @@ export default function CustomersClient() {
 
     const handleSave = async () => {
         if (!currentCustomer.id || !currentCustomer.name || !currentCustomer.taxId) {
-            toast({ title: "Datos incompletos", description: "Código, Nombre y Cédula son obligatorios.", variant: "destructive" });
+            toast({ title: "Datos incompletos", description: "Identificación, Código y Nombre son obligatorios.", variant: "destructive" });
             return;
         }
         setIsSubmitting(true);
@@ -99,7 +136,8 @@ export default function CustomersClient() {
     const handleEdit = (customer: Customer) => {
         setCurrentCustomer({
             ...customer,
-            contacts: Array.isArray(customer.contacts) ? customer.contacts : []
+            contacts: Array.isArray(customer.contacts) ? customer.contacts : [],
+            taxActivities: customer.taxActivities || '[]'
         });
         setIsEditing(true);
         setFormOpen(true);
@@ -138,6 +176,14 @@ export default function CustomersClient() {
         }));
     };
 
+    const taxActivities = useMemo(() => {
+        try {
+            return JSON.parse(currentCustomer.taxActivities || '[]');
+        } catch {
+            return [];
+        }
+    }, [currentCustomer.taxActivities]);
+
     if (!isAuthReady) {
         return (
             <main className="flex-1 p-4 md:p-6 lg:p-8">
@@ -161,7 +207,7 @@ export default function CustomersClient() {
                     <DialogTrigger asChild>
                         <Button><PlusCircle className="mr-2 h-4 w-4" /> Nuevo Cliente</Button>
                     </DialogTrigger>
-                    <DialogContent className="sm:max-w-4xl h-[90vh] flex flex-col p-0 overflow-hidden" onPointerDownOutside={(e) => e.preventDefault()}>
+                    <DialogContent className="sm:max-w-5xl h-[90vh] flex flex-col p-0 overflow-hidden" onPointerDownOutside={(e) => e.preventDefault()}>
                         <DialogHeader className="p-6 pb-4 border-b">
                             <DialogTitle>{isEditing ? "Editar Cliente" : "Registrar Nuevo Cliente"}</DialogTitle>
                             <DialogDescription>Completa los datos fiscales y los contactos de la empresa.</DialogDescription>
@@ -171,21 +217,81 @@ export default function CustomersClient() {
                             <div className="space-y-8 pr-2">
                                 <section>
                                     <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                                        <Building2 className="h-5 w-5 text-primary" /> Datos de la Empresa
+                                        <Building2 className="h-5 w-5 text-primary" /> Datos Principales
                                     </h3>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="space-y-2 relative">
+                                            <Label htmlFor="cust-taxid">Identificación / Cédula</Label>
+                                            <div className="relative">
+                                                <Input 
+                                                    id="cust-taxid" 
+                                                    value={currentCustomer.taxId} 
+                                                    onChange={e => setCurrentCustomer({...currentCustomer, taxId: e.target.value})} 
+                                                    placeholder="Cédula jurídica o física"
+                                                    className={cn(isHaciendaLoading && "pr-10")}
+                                                />
+                                                {isHaciendaLoading && (
+                                                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <p className="text-[10px] text-muted-foreground">Consulta automática a Hacienda habilitada.</p>
+                                        </div>
                                         <div className="space-y-2">
                                             <Label htmlFor="cust-id">Código de Cliente (Único)</Label>
                                             <Input id="cust-id" value={currentCustomer.id} onChange={e => setCurrentCustomer({...currentCustomer, id: e.target.value})} disabled={isEditing} placeholder="Ej: C001" />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="cust-taxid">Identificación / Cédula</Label>
-                                            <Input id="cust-taxid" value={currentCustomer.taxId} onChange={e => setCurrentCustomer({...currentCustomer, taxId: e.target.value})} placeholder="Cédula jurídica o física" />
                                         </div>
                                         <div className="space-y-2 md:col-span-2">
                                             <Label htmlFor="cust-name">Nombre Completo o Razón Social</Label>
                                             <Input id="cust-name" value={currentCustomer.name} onChange={e => setCurrentCustomer({...currentCustomer, name: e.target.value})} placeholder="Nombre legal del cliente" />
                                         </div>
+                                        
+                                        {currentCustomer.taxRegime && (
+                                            <div className="md:col-span-2 bg-muted/30 p-4 rounded-lg border border-primary/20 space-y-3">
+                                                <div className="flex items-center justify-between">
+                                                    <h4 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-2">
+                                                        <SearchIcon className="h-3 w-3" /> Datos Tributarios (Hacienda)
+                                                    </h4>
+                                                    <Badge variant={currentCustomer.taxStatus?.toLowerCase().includes('inscrito') ? 'default' : 'destructive'} className="text-[10px] h-5">
+                                                        {currentCustomer.taxStatus}
+                                                    </Badge>
+                                                </div>
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                                                    <div>
+                                                        <span className="text-muted-foreground">Régimen:</span>
+                                                        <p className="font-semibold">{currentCustomer.taxRegime}</p>
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-muted-foreground">Administración:</span>
+                                                        <p className="font-semibold">{currentCustomer.taxAdministration}</p>
+                                                    </div>
+                                                    <div className="flex gap-4">
+                                                        <div className="flex items-center gap-1.5">
+                                                            {currentCustomer.isTaxMoroso ? <AlertCircle className="h-3 w-3 text-destructive"/> : <CheckCircle2 className="h-3 w-3 text-green-600"/>}
+                                                            <span>Moroso: <strong>{currentCustomer.isTaxMoroso ? 'SÍ' : 'NO'}</strong></span>
+                                                        </div>
+                                                        <div className="flex items-center gap-1.5">
+                                                            {currentCustomer.isTaxOmiso ? <AlertCircle className="h-3 w-3 text-destructive"/> : <CheckCircle2 className="h-3 w-3 text-green-600"/>}
+                                                            <span>Omiso: <strong>{currentCustomer.isTaxOmiso ? 'SÍ' : 'NO'}</strong></span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                {taxActivities.length > 0 && (
+                                                    <div className="space-y-1">
+                                                        <span className="text-muted-foreground text-[10px]">Actividades Económicas:</span>
+                                                        <div className="space-y-1 max-h-24 overflow-y-auto pr-2 scrollbar-thin">
+                                                            {taxActivities.map((act: any) => (
+                                                                <div key={act.codigo} className="p-1.5 bg-background border rounded text-[9px] leading-tight">
+                                                                    <strong>{act.codigo}</strong> - {act.descripcion}
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+
                                         <div className="space-y-2 md:col-span-2">
                                             <Label htmlFor="cust-address">Dirección de Entrega</Label>
                                             <Input id="cust-address" value={currentCustomer.address} onChange={e => setCurrentCustomer({...currentCustomer, address: e.target.value})} />

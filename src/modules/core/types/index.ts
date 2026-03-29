@@ -120,6 +120,13 @@ export type Customer = {
     electronicDocEmail: string;
     isManual?: boolean;
     contacts: CustomerContact[];
+    // Hacienda data
+    taxRegime?: string;
+    taxStatus?: string;
+    isTaxMoroso?: boolean;
+    isTaxOmiso?: boolean;
+    taxAdministration?: string;
+    taxActivities?: string; // JSON array of activities
 };
 
 /**

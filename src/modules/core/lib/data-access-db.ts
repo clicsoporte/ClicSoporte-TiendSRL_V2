@@ -19,7 +19,9 @@ export async function getAllCustomers(): Promise<Customer[]> {
         const enrichedResults = results.map(c => ({
             ...c,
             contacts: JSON.parse((c.contacts as string) || '[]'),
-            isManual: !!c.isManual
+            isManual: !!c.isManual,
+            isTaxMoroso: !!c.isTaxMoroso,
+            isTaxOmiso: !!c.isTaxOmiso
         }));
         return JSON.parse(JSON.stringify(enrichedResults));
     } catch (error) {
@@ -34,17 +36,27 @@ export async function getAllCustomers(): Promise<Customer[]> {
 export async function upsertCustomer(customer: Customer): Promise<Customer> {
     const db = await connectDb();
     const stmt = db.prepare(`
-        INSERT INTO customers (id, name, address, phone, taxId, currency, creditLimit, paymentCondition, salesperson, active, email, electronicDocEmail, isManual, contacts)
-        VALUES (@id, @name, @address, @phone, @taxId, @currency, @creditLimit, @paymentCondition, @salesperson, @active, @email, @electronicDocEmail, 1, @contacts)
+        INSERT INTO customers (
+            id, name, address, phone, taxId, currency, creditLimit, paymentCondition, salesperson, active, email, electronicDocEmail, isManual, contacts,
+            taxRegime, taxStatus, isTaxMoroso, isTaxOmiso, taxAdministration, taxActivities
+        )
+        VALUES (
+            @id, @name, @address, @phone, @taxId, @currency, @creditLimit, @paymentCondition, @salesperson, @active, @email, @electronicDocEmail, 1, @contacts,
+            @taxRegime, @taxStatus, @isTaxMoroso, @isTaxOmiso, @taxAdministration, @taxActivities
+        )
         ON CONFLICT(id) DO UPDATE SET
             name = excluded.name, address = excluded.address, phone = excluded.phone, taxId = excluded.taxId, currency = excluded.currency,
             creditLimit = excluded.creditLimit, paymentCondition = excluded.paymentCondition, salesperson = excluded.salesperson, active = excluded.active,
-            email = excluded.email, electronicDocEmail = excluded.electronicDocEmail, contacts = excluded.contacts
+            email = excluded.email, electronicDocEmail = excluded.electronicDocEmail, contacts = excluded.contacts,
+            taxRegime = excluded.taxRegime, taxStatus = excluded.taxStatus, isTaxMoroso = excluded.isTaxMoroso, isTaxOmiso = excluded.isTaxOmiso,
+            taxAdministration = excluded.taxAdministration, taxActivities = excluded.taxActivities
     `);
     
     stmt.run({
         ...customer,
-        contacts: JSON.stringify(customer.contacts || [])
+        contacts: JSON.stringify(customer.contacts || []),
+        isTaxMoroso: customer.isTaxMoroso ? 1 : 0,
+        isTaxOmiso: customer.isTaxOmiso ? 1 : 0
     });
     await logInfo(`Cliente gestionado manualmente: ${customer.name} (${customer.id})`);
     return customer;
