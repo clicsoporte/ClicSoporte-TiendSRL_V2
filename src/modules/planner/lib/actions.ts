@@ -63,6 +63,18 @@ export async function getProjectAdvances(projectId: number): Promise<ProjectAdva
 
 export async function addProjectAdvance(advance: Omit<ProjectAdvance, 'id' | 'timestamp'>): Promise<ProjectAdvance> {
     const result = await addProjectAdvanceDb(advance);
+    
+    // Trigger notification for project log update
+    const project = await getProjectByIdDb(advance.projectId);
+    if (project) {
+        await triggerNotificationEvent('onProjectAdvanceAdded', {
+            ...result,
+            consecutive: project.consecutive,
+            name: project.name,
+            customerName: project.customerName
+        });
+    }
+    
     return JSON.parse(JSON.stringify(result));
 }
 

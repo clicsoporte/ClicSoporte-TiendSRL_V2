@@ -18,7 +18,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { PlusCircle, Trash2, Save, BellRing, Clock, Send, Loader2, Mail, ShieldCheck, MailCheck } from 'lucide-react';
+import { PlusCircle, Trash2, Save, BellRing, Clock, Send, Loader2, Mail, MailCheck } from 'lucide-react';
 import type { NotificationRule, ScheduledTask, NotificationServiceConfig, EmailSettings } from '@/modules/core/types';
 import { 
     getAllNotificationRules, saveNotificationRule, deleteNotificationRule,
@@ -74,7 +74,7 @@ export default function AutomationManagerPage() {
             setRules(rulesData);
             setTasks(tasksData);
             if (settings.telegram) setTelegramSettings(settings.telegram);
-            if (savedEmail) setEmailSettings(prev => ({ ...prev, ...savedEmail }));
+            if (savedEmail) setEmailSettings(prev => ({ ...prev, ...savedEmail as EmailSettings }));
         } catch (error) {
             console.error(error);
             toast({ title: 'Error', description: 'No se pudieron cargar las automatizaciones.', variant: 'destructive' });
@@ -422,9 +422,13 @@ export default function AutomationManagerPage() {
                                 <Select value={currentRule.event} onValueChange={(v: string) => setCurrentRule({...currentRule, event: v})}>
                                     <SelectTrigger><SelectValue /></SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="onTicketCreated">Nuevo Ticket</SelectItem>
+                                        <SelectItem value="onTicketCreated">Nuevo Ticket (Recibido)</SelectItem>
+                                        <SelectItem value="onTicketStatusChanged">Cambio de Estado Ticket</SelectItem>
+                                        <SelectItem value="onTicketClosed">Ticket Resuelto (Cerrado)</SelectItem>
+                                        <SelectItem value="onTicketReplyAdded">Nueva Respuesta en Ticket</SelectItem>
                                         <SelectItem value="onTicketPriorityUrgent">Prioridad Urgente</SelectItem>
-                                        <SelectItem value="onProjectCompleted">Proyecto Terminado</SelectItem>
+                                        <SelectItem value="onProjectCompleted">Proyecto TI Terminado</SelectItem>
+                                        <SelectItem value="onProjectAdvanceAdded">Nuevo Avance en Proyecto</SelectItem>
                                         <SelectItem value="onNewSuggestion">Nueva Sugerencia</SelectItem>
                                         <SelectItem value="onBackupCompleted">Backup Exitoso</SelectItem>
                                     </SelectContent>
@@ -443,6 +447,7 @@ export default function AutomationManagerPage() {
                         </div>
                         <div className="space-y-2">
                             <Label>Destinatarios (uno por línea)</Label>
+                            <p className="text-[10px] text-muted-foreground mb-1">Usa <b>[CORREO_CLIENTE]</b> para enviar al contacto del ticket.</p>
                             <textarea 
                                 className="w-full min-h-[100px] border rounded-md p-2 text-sm" 
                                 value={currentRule.recipients?.join('\n')}

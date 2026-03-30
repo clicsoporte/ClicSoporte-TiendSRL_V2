@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Client-side functions for interacting with the ticket module's server-side DB functions.
  */
@@ -38,8 +37,10 @@ export async function saveTicket(payload: NewTicketPayload, user: User): Promise
         const createdTicket = await addTicketServer(payload, user);
         
         // --- Integration with Notification Engine ---
-        // Trigger real-time alerts based on admin rules
-        await triggerNotificationEvent('onTicketCreated', createdTicket);
+        await triggerNotificationEvent('onTicketCreated', {
+            ...createdTicket,
+            customerEmail: payload.customerEmail
+        });
         
         if (createdTicket.priority === 'urgent') {
             await triggerNotificationEvent('onTicketPriorityUrgent', createdTicket);
@@ -93,13 +94,42 @@ export async function getTicketThread(ticketId: number): Promise<TicketThread[]>
 
 export async function addThreadEntry(payload: { ticketId: number; userId: number; userName: string; content: string; type: 'message' | 'note' | 'status_change' }): Promise<TicketThread> {
     const newEntry = await addThreadEntryServer(payload);
+    
+    // Trigger notification for new message
+    if (payload.type === 'message') {
+        const ticket = await getTicketByIdServer(payload.ticketId);
+        if (ticket) {
+            await triggerNotificationEvent('onTicketReplyAdded', {
+                ...newEntry,
+                consecutive: ticket.consecutive,
+                customerEmail: ticket.customerEmail
+            });
+        }
+    }
+    
     return JSON.parse(JSON.stringify(newEntry));
 }
 
 export async function updateTicketDetails(ticketId: number, updates: Partial<Pick<Ticket, 'status' | 'priority' | 'assigneeId' | 'isBillable' | 'providerId'>>, user: User): Promise<Ticket> {
     const updatedTicket = await updateTicketDetailsServer(ticketId, updates, user);
     
-    // Trigger urgent alert if priority changed to urgent
+    // Trigger notification for status change
+    if (updates.status) {
+        if (updates.status === 'closed') {
+            // Fetch last message content to serve as "solution"
+            const thread = await getTicketThreadServer(ticketId);
+            const lastMessage = thread.filter(t => t.type === 'message').pop();
+            
+            await triggerNotificationEvent('onTicketClosed', {
+                ...updatedTicket,
+                content: lastMessage?.content || 'El caso fue resuelto satisfactoriamente.',
+                userName: user.name
+            });
+        } else {
+            await triggerNotificationEvent('onTicketStatusChanged', updatedTicket);
+        }
+    }
+
     if (updates.priority === 'urgent') {
         await triggerNotificationEvent('onTicketPriorityUrgent', updatedTicket);
     }

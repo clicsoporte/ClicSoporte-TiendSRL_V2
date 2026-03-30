@@ -22,21 +22,70 @@ const eventTemplates: Record<string, (p: Record<string, unknown>) => { subject: 
         const body = `
             <div style="font-family: sans-serif; color: #333;">
                 <h2 style="color: #2563eb;">Nuevo Ticket Registrado</h2>
-                <p>Se ha abierto un nuevo caso de soporte en la plataforma.</p>
+                <p>Hola <b>${v.customerName}</b>, hemos recibido tu solicitud de soporte.</p>
                 <hr>
-                <p><b>ID:</b> ${v.consecutive}</p>
-                <p><b>Cliente:</b> ${v.customerName}</p>
+                <p><b>ID del Caso:</b> ${v.consecutive}</p>
                 <p><b>Asunto:</b> ${v.subject}</p>
-                <p><b>Prioridad:</b> ${String(v.priority).toUpperCase()}</p>
+                <p><b>Estado:</b> Abierto</p>
                 <br>
-                <a href="${process.env.NEXT_PUBLIC_APP_URL || ''}/dashboard/tickets/${v.id}" 
-                   style="background: #2563eb; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">
-                   Ver Detalles del Ticket
-                </a>
+                <p>Un técnico revisará tu caso a la brevedad.</p>
             </div>
         `;
-        const telegram = `🆕 <b>NUEVO TICKET</b>\n\n<b>ID:</b> ${v.consecutive}\n<b>Cliente:</b> ${v.customerName}\n<b>Asunto:</b> ${v.subject}\n<b>Prioridad:</b> ${String(v.priority).toUpperCase()}`;
+        const telegram = `🆕 <b>NUEVO TICKET</b>\n\n<b>ID:</b> ${v.consecutive}\n<b>Cliente:</b> ${v.customerName}\n<b>Asunto:</b> ${v.subject}`;
         const internal = `Nuevo ticket ${v.consecutive} creado por ${v.customerName}`;
+        return { subject, body, telegram, internal };
+    },
+    'onTicketStatusChanged': (p) => {
+        const v = p as Record<string, string | number>;
+        const subject = `[ACTUALIZACIÓN] Ticket ${v.consecutive} - ${v.subject}`;
+        const body = `
+            <div style="font-family: sans-serif; color: #333;">
+                <h2 style="color: #2563eb;">Cambio de Estado en tu Caso</h2>
+                <p>Tu ticket <b>${v.consecutive}</b> ha cambiado de estado.</p>
+                <hr>
+                <p><b>Nuevo Estado:</b> <span style="text-transform: uppercase; font-weight: bold;">${v.status}</span></p>
+                <p><b>Actualizado el:</b> ${new Date().toLocaleString()}</p>
+            </div>
+        `;
+        const telegram = `🔄 <b>TICKET ACTUALIZADO</b>\n\n<b>ID:</b> ${v.consecutive}\n<b>Nuevo Estado:</b> ${String(v.status).toUpperCase()}`;
+        const internal = `Ticket ${v.consecutive} cambió a ${v.status}`;
+        return { subject, body, telegram, internal };
+    },
+    'onTicketClosed': (p) => {
+        const v = p as Record<string, string | number>;
+        const subject = `[CASO CERRADO] Ticket ${v.consecutive} - ${v.subject}`;
+        const body = `
+            <div style="font-family: sans-serif; color: #333;">
+                <h2 style="color: #16a34a;">Caso de Soporte Finalizado</h2>
+                <p>Tu solicitud <b>${v.consecutive}</b> ha sido resuelta y marcada como cerrada.</p>
+                <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                    <h4 style="margin-top: 0; color: #166534;">Solución Técnica:</h4>
+                    <p style="font-size: 14px; line-height: 1.6;">${v.content || 'El caso fue resuelto satisfactoriamente.'}</p>
+                </div>
+                <p>Si consideras que el problema persiste, puedes responder a este correo para reabrir el caso.</p>
+                <p>Gracias por confiar en <b>Clic-Soporte</b>.</p>
+            </div>
+        `;
+        const telegram = `✅ <b>TICKET CERRADO</b>\n\n<b>ID:</b> ${v.consecutive}\n<b>Cliente:</b> ${v.customerName}\n<b>Resuelto por:</b> ${v.userName}`;
+        const internal = `Ticket ${v.consecutive} cerrado con solución.`;
+        return { subject, body, telegram, internal };
+    },
+    'onTicketReplyAdded': (p) => {
+        const v = p as Record<string, string | number>;
+        const subject = `[NUEVO MENSAJE] Ticket ${v.consecutive}`;
+        const body = `
+            <div style="font-family: sans-serif; color: #333;">
+                <h3 style="color: #2563eb;">Hay una nueva respuesta en tu ticket</h3>
+                <p><b>${v.userName}</b> ha escrito:</p>
+                <blockquote style="border-left: 4px solid #e2e8f0; padding-left: 15px; font-style: italic; color: #4b5563;">
+                    ${v.content}
+                </blockquote>
+                <hr>
+                <p style="font-size: 12px; color: #666;">Puedes ver la conversación completa en el portal de soporte.</p>
+            </div>
+        `;
+        const telegram = `💬 <b>NUEVA RESPUESTA</b>\n\n<b>Ticket:</b> ${v.consecutive}\n<b>De:</b> ${v.userName}\n\n${v.content}`;
+        const internal = `Nueva respuesta en ticket ${v.consecutive} por ${v.userName}`;
         return { subject, body, telegram, internal };
     },
     'onTicketPriorityUrgent': (p) => {
@@ -45,6 +94,23 @@ const eventTemplates: Record<string, (p: Record<string, unknown>) => { subject: 
         const body = `<h2 style="color: #dc2626;">Atención Requerida: Prioridad Urgente</h2><p>El ticket <b>${v.consecutive}</b> ha sido marcado como URGENTE.</p><p>Asunto: ${v.subject}</p>`;
         const telegram = `⚠️ <b>TICKET URGENTE</b>\n\nEl caso <b>${v.consecutive}</b> requiere atención inmediata.\n\nAsunto: ${v.subject}`;
         const internal = `ATENCIÓN: El ticket ${v.consecutive} es URGENTE.`;
+        return { subject, body, telegram, internal };
+    },
+    'onProjectAdvanceAdded': (p) => {
+        const v = p as Record<string, string | number>;
+        const subject = `[AVANCE DE PROYECTO] ${v.consecutive} - ${v.name}`;
+        const body = `
+            <div style="font-family: sans-serif; color: #333;">
+                <h3 style="color: #7c3aed;">Actualización en la Bitácora del Proyecto</h3>
+                <p>Se ha registrado un nuevo avance en el proyecto <b>${v.name}</b>:</p>
+                <div style="background-color: #f5f3ff; border-left: 4px solid #7c3aed; padding: 15px; margin: 20px 0;">
+                    <p style="margin: 0; font-size: 14px;">${v.content}</p>
+                </div>
+                <p style="font-size: 12px; color: #666;">Registrado por: ${v.userName}</p>
+            </div>
+        `;
+        const telegram = `🏗️ <b>AVANCE DE PROYECTO</b>\n\n<b>ID:</b> ${v.consecutive}\n<b>Avance:</b> ${v.content}`;
+        const internal = `Nuevo avance en proyecto ${v.consecutive}`;
         return { subject, body, telegram, internal };
     },
     'onContractExpiring': (p) => {
@@ -124,14 +190,22 @@ export async function triggerNotificationEvent(eventId: NotificationEventId, pay
         for (const rule of matchingRules) {
             const finalSubject = rule.subject || subject;
 
-            if (rule.action === 'sendEmail' && rule.recipients.length > 0) {
+            // Handle special recipient placeholders
+            const processedRecipients = rule.recipients.map(r => {
+                if (r === '[CORREO_CLIENTE]' && payload.customerEmail) {
+                    return String(payload.customerEmail);
+                }
+                return r;
+            });
+
+            if (rule.action === 'sendEmail' && processedRecipients.length > 0) {
                 await sendEmail({
-                    to: rule.recipients,
+                    to: processedRecipients,
                     subject: finalSubject,
                     html: body
                 });
-            } else if (rule.action === 'sendTelegram' && rule.recipients.length > 0) {
-                for (const chatId of rule.recipients) {
+            } else if (rule.action === 'sendTelegram' && processedRecipients.length > 0) {
+                for (const chatId of processedRecipients) {
                     await sendTelegramMessage(telegram, chatId);
                 }
             }
@@ -148,8 +222,12 @@ function getHrefForEvent(eventId: string, p: Record<string, unknown>): string {
     const v = p as Record<string, string | number>;
     switch (eventId) {
         case 'onTicketCreated':
-        case 'onTicketPriorityUrgent': return `/dashboard/tickets/${v.id}`;
-        case 'onProjectCompleted': return `/dashboard/planner/${v.id}`;
+        case 'onTicketStatusChanged':
+        case 'onTicketClosed':
+        case 'onTicketReplyAdded':
+        case 'onTicketPriorityUrgent': return `/dashboard/tickets/${v.id || v.ticketId}`;
+        case 'onProjectCompleted': 
+        case 'onProjectAdvanceAdded': return `/dashboard/planner/${v.id || v.projectId}`;
         case 'onNewSuggestion': return '/dashboard/admin/suggestions';
         case 'onContractExpiring': return '/dashboard/contracts';
         case 'onLicenseExpiring': return '/dashboard/licenses';

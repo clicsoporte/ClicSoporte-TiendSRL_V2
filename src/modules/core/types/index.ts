@@ -573,6 +573,7 @@ export type Ticket = {
     dueDate?: string;
     companyId: number | null;
     customerName: string; 
+    customerEmail: string;
     companyName?: string;
     assigneeId?: number | null;
     helpTopicId?: number | null;
@@ -663,8 +664,12 @@ export type NotificationServiceConfig = {
 
 export type NotificationEventId = 
     | 'onTicketCreated' 
+    | 'onTicketStatusChanged'
+    | 'onTicketClosed'
+    | 'onTicketReplyAdded'
     | 'onTicketPriorityUrgent' 
     | 'onProjectCompleted' 
+    | 'onProjectAdvanceAdded'
     | 'onBackupCompleted'
     | 'onNewSuggestion'
     | 'onContractExpiring'
