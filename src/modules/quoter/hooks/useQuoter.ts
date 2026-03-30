@@ -299,8 +299,9 @@ export const useQuoter = () => {
             });
             toast({ title: "Cotización Enviada", description: `Se envió la propuesta a ${selectedEmailRecipients.length} contacto(s).` });
             setIsEmailDialogOpen(false);
-        } catch (error: any) {
-            toast({ title: "Error al enviar", description: error.message, variant: "destructive" });
+        } catch (error: unknown) {
+            const err = error as Error;
+            toast({ title: "Error al enviar", description: err.message, variant: "destructive" });
         } finally {
             setIsProcessing(false);
         }

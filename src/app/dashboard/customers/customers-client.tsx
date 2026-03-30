@@ -1,12 +1,9 @@
-/**
- * @fileoverview Client Component for managing customers with Hacienda API integration.
- */
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -77,9 +74,7 @@ export default function CustomersClient() {
             setIsHaciendaLoading(true);
             try {
                 const info = await getContributorInfo(currentCustomer.taxId);
-                if ('error' in info) {
-                    // Not found or API error, just silent or show subtle warning
-                } else {
+                if (!('error' in info)) {
                     const data = info as HaciendaContributorInfo;
                     setCurrentCustomer(prev => ({
                         ...prev,
@@ -127,7 +122,8 @@ export default function CustomersClient() {
             setCurrentCustomer(emptyCustomer);
             setIsEditing(false);
         } catch (error: unknown) {
-            toast({ title: "Error", description: (error as Error).message, variant: "destructive" });
+            const err = error as Error;
+            toast({ title: "Error", description: err.message, variant: "destructive" });
         } finally {
             setIsSubmitting(false);
         }
@@ -150,7 +146,8 @@ export default function CustomersClient() {
             toast({ title: "Cliente Eliminado", variant: "destructive" });
             await refreshAuth();
         } catch (error: unknown) {
-            toast({ title: "Error", description: (error as Error).message, variant: "destructive" });
+            const err = error as Error;
+            toast({ title: "Error", description: err.message, variant: "destructive" });
         } finally {
             setIsSubmitting(false);
         }
@@ -281,7 +278,7 @@ export default function CustomersClient() {
                                                     <div className="space-y-1">
                                                         <span className="text-muted-foreground text-[10px]">Actividades Económicas:</span>
                                                         <div className="space-y-1 max-h-24 overflow-y-auto pr-2 scrollbar-thin">
-                                                            {taxActivities.map((act: any) => (
+                                                            {taxActivities.map((act: { codigo: string; descripcion: string }) => (
                                                                 <div key={act.codigo} className="p-1.5 bg-background border rounded text-[9px] leading-tight">
                                                                     <strong>{act.codigo}</strong> - {act.descripcion}
                                                                 </div>

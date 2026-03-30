@@ -155,8 +155,9 @@ export default function AutomationManagerPage() {
         try {
             await testEmailSettings(emailSettings, [user.email]);
             toast({ title: "Correo Enviado", description: `Se envió un mensaje de prueba a ${user.email}.` });
-        } catch (error: any) {
-            toast({ title: "Error en Prueba", description: error.message, variant: "destructive" });
+        } catch (error: unknown) {
+            const err = error as Error;
+            toast({ title: "Error en Prueba", description: err.message, variant: "destructive" });
         } finally {
             setIsTestingEmail(false);
         }

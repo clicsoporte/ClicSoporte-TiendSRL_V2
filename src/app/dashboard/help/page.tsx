@@ -7,11 +7,10 @@ import { useEffect, useState, useMemo } from "react";
 import { usePageTitle } from "@/modules/core/hooks/usePageTitle";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Search, LifeBuoy, Rocket, MessageSquare, DollarSign, FileScan, CalendarCheck, Ticket, KeyRound, AreaChart, Briefcase, Wrench, ListChecks, History, CreditCard, ShieldQuestion, BadgeInfo, Save, Download, Lock, Radio, Zap, Network, AlertTriangle } from "lucide-react";
+import { Search, LifeBuoy, Rocket, MessageSquare, DollarSign, CalendarCheck, Ticket, Wrench, AlertTriangle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/modules/core/hooks/useAuth";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 // --- Helper Functions ---
@@ -127,7 +126,7 @@ export default function HelpPage() {
             <div className="space-y-4">
                 <p>Herramienta de comunicación directa para mejorar la aplicación. Todos los usuarios pueden participar.</p>
                 <ul className="list-disc space-y-2 pl-6">
-                    <li><strong>Enviar una Sugerencia:</strong> Haz clic en el botón verde "Sugerencias" en la parte superior derecha de cualquier página.</li>
+                    <li><strong>Enviar una Sugerencia:</strong> Haz clic en el botón verde &quot;Sugerencias&quot; en la parte superior derecha de cualquier página.</li>
                     <li><strong>Gestión para Administradores:</strong> Accede a Administración &gt; Buzón de Sugerencias para revisar y marcar como leídas las ideas del equipo.</li>
                 </ul>
             </div>
@@ -152,7 +151,7 @@ export default function HelpPage() {
         icon: <CalendarCheck className="mr-4 h-6 w-6 text-purple-500" />,
         content: (
             <div className="space-y-4">
-                <p>Organiza proyectos integrales (CCTV, Alarmas, Redes) bajo la modalidad "Llave en Mano".</p>
+                <p>Organiza proyectos integrales (CCTV, Alarmas, Redes) bajo la modalidad &quot;Llave en Mano&quot;.</p>
                 <ul className="list-disc space-y-2 pl-6">
                     <li><strong>Bitácora:</strong> Registro histórico de cada avance técnico por usuario.</li>
                     <li><strong>Materiales:</strong> Listado de equipos instalados para el acta de entrega.</li>
@@ -184,7 +183,7 @@ export default function HelpPage() {
                 <Alert variant="destructive">
                     <AlertTriangle className="h-4 w-4" />
                     <AlertTitle>¡Importante!</AlertTitle>
-                    <AlertDescription>Nunca borres la carpeta "dbs" del servidor, ya que contiene toda la información viva del sistema.</AlertDescription>
+                    <AlertDescription>Nunca borres la carpeta &quot;dbs&quot; del servidor, ya que contiene toda la información viva del sistema.</AlertDescription>
                 </Alert>
             </div>
         )

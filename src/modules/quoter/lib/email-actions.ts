@@ -120,8 +120,9 @@ export async function sendQuoteByEmail(params: SendQuoteEmailParams) {
         });
         await logInfo(`Quote ${quoteNumber} sent by email to ${recipients.join(', ')}`);
         return { success: true };
-    } catch (error: any) {
-        await logError(`Failed to send quote ${quoteNumber} via email`, { error: error.message });
-        throw error;
+    } catch (error: unknown) {
+        const err = error as Error;
+        await logError(`Failed to send quote ${quoteNumber} via email`, { error: err.message });
+        throw err;
     }
 }
