@@ -33,6 +33,15 @@ import {
   SheetClose,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogClose,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -68,6 +77,8 @@ import {
   ShieldX,
   AlertTriangle,
   Info,
+  Mail,
+  UserCheck
 } from "lucide-react";
 import { SearchInput } from "@/components/ui/search-input";
 import { format, parseISO, isValid } from "date-fns";
@@ -89,6 +100,15 @@ export default function QuoterClient() {
     refs,
     selectors,
   } = useQuoter();
+
+  const toggleRecipient = (email: string) => {
+      const current = state.selectedEmailRecipients;
+      if (current.includes(email)) {
+          actions.setSelectedEmailRecipients(current.filter(e => e !== email));
+      } else {
+          actions.setSelectedEmailRecipients([...current, email]);
+      }
+  };
 
   return (
     <main className="flex-1 p-4 md:p-6 lg:p-8">
@@ -845,6 +865,12 @@ export default function QuoterClient() {
                 {state.isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
               Guardar Borrador
             </Button>
+            
+            <Button variant="outline" onClick={() => actions.setIsEmailDialogOpen(true)} disabled={state.lines.length === 0 || !state.selectedCustomer}>
+                <Mail className="mr-2 h-4 w-4" />
+                Enviar por Correo
+            </Button>
+
             <Button onClick={actions.generatePDF} disabled={state.isProcessing}>
                 {state.isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
               <FileDown className="mr-2 h-4 w-4" />
@@ -853,6 +879,68 @@ export default function QuoterClient() {
           </CardFooter>
         </Card>
       </div>
+
+      <Dialog open={state.isEmailDialogOpen} onOpenChange={actions.setIsEmailDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                      <Mail className="h-5 w-5 text-primary" />
+                      Enviar Propuesta por Correo
+                  </DialogTitle>
+                  <DialogDescription>
+                      Seleccione los contactos de <strong>{state.selectedCustomer?.name}</strong> que deben recibir esta propuesta.
+                  </DialogDescription>
+              </DialogHeader>
+              <div className="py-4 space-y-4">
+                  <div className="space-y-2 max-h-60 overflow-y-auto pr-2 scrollbar-thin">
+                      {state.selectedCustomer?.contacts && state.selectedCustomer.contacts.length > 0 ? (
+                          state.selectedCustomer.contacts.map((contact) => (
+                              <div key={contact.id} className="flex items-center space-x-3 p-3 rounded-md border hover:bg-muted/50 cursor-pointer transition-colors" onClick={() => toggleRecipient(contact.email)}>
+                                  <Checkbox 
+                                      id={`contact-${contact.id}`} 
+                                      checked={state.selectedEmailRecipients.includes(contact.email)}
+                                      onCheckedChange={() => toggleRecipient(contact.email)}
+                                  />
+                                  <div className="flex-1 min-w-0">
+                                      <p className="text-sm font-bold truncate">{contact.name}</p>
+                                      <p className="text-xs text-muted-foreground truncate">{contact.email}</p>
+                                  </div>
+                                  <Badge variant="outline" className="text-[10px] uppercase font-bold">{contact.department || 'Gral'}</Badge>
+                              </div>
+                          ))
+                      ) : (
+                          <div className="text-center py-6 border-2 border-dashed rounded-lg">
+                              <UserCheck className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                              <p className="text-xs text-muted-foreground">Este cliente no tiene contactos registrados.</p>
+                              <p className="text-[10px] text-muted-foreground">Agregue contactos en el módulo de Clientes.</p>
+                          </div>
+                      )}
+                  </div>
+                  
+                  {state.selectedCustomer?.email && (
+                      <div className="flex items-center space-x-3 p-3 rounded-md border border-primary/20 bg-primary/5 cursor-pointer" onClick={() => toggleRecipient(state.selectedCustomer!.email)}>
+                          <Checkbox 
+                              id="main-email" 
+                              checked={state.selectedEmailRecipients.includes(state.selectedCustomer.email)}
+                              onCheckedChange={() => toggleRecipient(state.selectedCustomer!.email)}
+                          />
+                          <div className="flex-1">
+                              <p className="text-sm font-bold">Correo Principal de Empresa</p>
+                              <p className="text-xs">{state.selectedCustomer.email}</p>
+                          </div>
+                      </div>
+                  )}
+              </div>
+              <DialogFooter>
+                  <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
+                  <Button onClick={actions.handleSendEmail} disabled={state.isProcessing || state.selectedEmailRecipients.length === 0}>
+                      {state.isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
+                      Enviar Ahora
+                  </Button>
+              </DialogFooter>
+          </DialogContent>
+      </Dialog>
+
        {(state.isProcessing || state.isRefreshing) && (
             <div className="fixed bottom-4 right-4 flex items-center gap-2 rounded-lg bg-primary p-3 text-primary-foreground shadow-lg">
                 <Loader2 className="h-5 w-5 animate-spin" />

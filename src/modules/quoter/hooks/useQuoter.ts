@@ -17,6 +17,7 @@ import { useDebounce } from "use-debounce";
 import { useAuth } from "@/modules/core/hooks/useAuth";
 import { generateDocument } from "@/modules/core/lib/pdf-generator";
 import { getExemptionStatus } from "@/modules/hacienda/lib/actions";
+import { sendQuoteByEmail } from "@/modules/quoter/lib/email-actions";
 import type { RowInput } from "jspdf-autotable";
 
 const initialQuoteState = {
@@ -98,6 +99,10 @@ export const useQuoter = () => {
   const [decimalPlaces, setDecimalPlaces] = useState(initialQuoteState.decimalPlaces);
   const [exemptionInfo, setExemptionInfo] = useState<ExemptionInfo | null>(null);
   const [isMounted, setIsMounted] = useState(false);
+
+  // Email Dialog State
+  const [isEmailDialogOpen, setIsEmailDialogOpen] = useState(false);
+  const [selectedEmailRecipients, setSelectedEmailRecipients] = useState<string[]>([]);
 
   const [mobileColumnVisibility, setMobileColumnVisibility] = useState({
     code: false,
@@ -232,6 +237,8 @@ export const useQuoter = () => {
     setShowInactiveProducts, setSelectedLineForInfo, setDecimalPlaces, setQuoteNumber,
     setProductSearchTerm, setCustomerSearchTerm, setProductSearchOpen, setCustomerSearchOpen,
     handleSelectCustomer, handleSelectProduct,
+    setIsEmailDialogOpen,
+    setSelectedEmailRecipients,
     addLine: addLineInternal,
     handleCustomerDetailsChange: (value: string) => {
         setCustomerDetails(value);
@@ -268,6 +275,35 @@ export const useQuoter = () => {
         });
         doc.save(`${quoteNumber}.pdf`);
         setIsProcessing(false);
+    },
+    handleSendEmail: async () => {
+        if (selectedEmailRecipients.length === 0) {
+            toast({ title: "Faltan destinatarios", variant: "destructive" });
+            return;
+        }
+        if (!companyData || !currentUser) return;
+        
+        setIsProcessing(true);
+        try {
+            await sendQuoteByEmail({
+                recipients: selectedEmailRecipients,
+                quoteNumber,
+                companyData,
+                customerName: selectedCustomer?.name || 'Cliente',
+                customerDetails,
+                lines,
+                totals,
+                currency,
+                notes,
+                sender: currentUser
+            });
+            toast({ title: "Cotización Enviada", description: `Se envió la propuesta a ${selectedEmailRecipients.length} contacto(s).` });
+            setIsEmailDialogOpen(false);
+        } catch (error: any) {
+            toast({ title: "Error al enviar", description: error.message, variant: "destructive" });
+        } finally {
+            setIsProcessing(false);
+        }
     },
     resetQuote: () => { setLines([]); setSelectedCustomer(null); setCustomerDetails(""); setCustomerSearchTerm(""); setExemptionInfo(null); },
     saveDraft: async () => {
@@ -321,7 +357,7 @@ export const useQuoter = () => {
         toast({ title: "Precisión Guardada" });
     },
     checkExemptionStatus: (auth?: string) => { if (auth) checkExemptionStatusInternal(auth); }
-  }), [toast, customers, exchangeRate, currentUser, currency, decimalPlaces, companyData, lines, quoteNumber, quoteDate, customerDetails, notes, totals, purchaseOrderNumber, deliveryAddress, deliveryDate, sellerName, sellerType, validUntilDate, paymentTerms, creditDays, productOptions, customerOptions, refreshAuth, checkExemptionStatusInternal, handleSelectCustomer, handleSelectProduct, addLineInternal, selectedCustomer]);
+  }), [toast, customers, exchangeRate, currentUser, currency, decimalPlaces, companyData, lines, quoteNumber, quoteDate, customerDetails, notes, totals, purchaseOrderNumber, deliveryAddress, deliveryDate, sellerName, sellerType, validUntilDate, paymentTerms, creditDays, productOptions, customerOptions, refreshAuth, checkExemptionStatusInternal, handleSelectCustomer, handleSelectProduct, addLineInternal, selectedCustomer, selectedEmailRecipients]);
 
   return {
     state: {
@@ -330,7 +366,7 @@ export const useQuoter = () => {
       paymentTerms, creditDays, validUntilDate, notes, products, customers, showInactiveCustomers,
       showInactiveProducts, selectedLineForInfo, savedDrafts, decimalPlaces, productSearchTerm, purchaseOrderNumber,
       exemptionInfo, isRefreshing, customerSearchTerm, isProductSearchOpen, isCustomerSearchOpen, isProcessing,
-      mobileColumnVisibility
+      mobileColumnVisibility, isEmailDialogOpen, selectedEmailRecipients
     },
     actions,
     refs: { productInputRef, customerInputRef, lineInputRefs },

@@ -124,9 +124,17 @@ const eventTemplates: Record<string, (p: Record<string, unknown>) => { subject: 
     'onLicenseExpiring': (p) => {
         const v = p as Record<string, string | number>;
         const subject = `🔑 ALERTA: Licencia por Vencer`;
-        const body = `<h2>Expiración de Licencia Offline</h2><p>La licencia para el cliente con Hardware ID <b>${v.hardwareId}</b> vence en <b>${v.daysLeft} días</b>.</p>`;
-        const telegram = `🔑 <b>LICENCIA POR VENCER</b>\n\nHardware ID: ${v.hardwareId}\nQuedan: ${v.daysLeft} días`;
-        const internal = `Licencia offline (${v.hardwareId}) está por vencer.`;
+        const body = `
+            <div style="font-family: sans-serif; color: #333;">
+                <h2 style="color: #eab308;">Expiración de Licencia Offline</h2>
+                <p>La licencia para el cliente con Hardware ID <b>${v.hardwareId}</b> vence en <b>${v.daysLeft} días</b>.</p>
+                <p><b>Fecha de Vencimiento:</b> ${v.expirationDate}</p>
+                <hr>
+                <p style="font-size: 12px; color: #666;">Por favor, contacte al cliente para gestionar la renovación.</p>
+            </div>
+        `;
+        const telegram = `🔑 <b>LICENCIA POR VENCER</b>\n\nHardware ID: ${v.hardwareId}\nQuedan: ${v.daysLeft} días\nVence: ${v.expirationDate}`;
+        const internal = `Licencia offline (${v.hardwareId}) vence en ${v.daysLeft} días.`;
         return { subject, body, telegram, internal };
     },
     'onProjectCompleted': (p) => {
