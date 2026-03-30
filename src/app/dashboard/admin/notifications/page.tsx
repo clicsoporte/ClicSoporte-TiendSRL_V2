@@ -17,29 +17,43 @@ import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { PlusCircle, Trash2, Save, BellRing, Clock, Send, Loader2 } from 'lucide-react';
-import type { NotificationRule, ScheduledTask, NotificationServiceConfig } from '@/modules/core/types';
+import { Textarea } from '@/components/ui/textarea';
+import { PlusCircle, Trash2, Save, BellRing, Clock, Send, Loader2, Mail, ShieldCheck, MailCheck } from 'lucide-react';
+import type { NotificationRule, ScheduledTask, NotificationServiceConfig, EmailSettings } from '@/modules/core/types';
 import { 
     getAllNotificationRules, saveNotificationRule, deleteNotificationRule,
     getAllScheduledTasks, saveScheduledTask, deleteScheduledTask,
     getNotificationServiceSettings, saveNotificationServiceSettings 
 } from '@/modules/notifications/lib/actions';
+import { getEmailSettings, saveEmailSettings, testEmailSettings } from '@/modules/core/lib/email-service';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useAuth } from '@/modules/core/hooks/useAuth';
 
 export default function AutomationManagerPage() {
     const { isAuthorized } = useAuthorization(['admin:settings:general']);
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
+    const { user } = useAuth();
 
     const [isLoading, setIsLoading] = useState(true);
     const [rules, setRules] = useState<NotificationRule[]>([]);
     const [tasks, setTasks] = useState<ScheduledTask[]>([]);
     const [telegramSettings, setTelegramSettings] = useState<NotificationServiceConfig['telegram']>({ botToken: '', chatId: '' });
+    const [emailSettings, setEmailSettings] = useState<EmailSettings>({
+        smtpHost: '',
+        smtpPort: 587,
+        smtpUser: '',
+        smtpPass: '',
+        smtpSecure: true,
+        recoveryEmailSubject: 'Recuperación de Contraseña',
+        recoveryEmailBody: '',
+    });
     
     const [isRuleDialogOpen, setRuleDialogOpen] = useState(false);
     const [isTaskDialogOpen, setTaskDialogOpen] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const [isTestingEmail, setIsTestingEmail] = useState(false);
 
     const [currentRule, setCurrentRule] = useState<Partial<NotificationRule>>({
         name: '', event: 'onTicketCreated', action: 'sendEmail', recipients: [], enabled: true
@@ -51,14 +65,16 @@ export default function AutomationManagerPage() {
     const fetchData = useCallback(async () => {
         setIsLoading(true);
         try {
-            const [rulesData, tasksData, settings] = await Promise.all([
+            const [rulesData, tasksData, settings, savedEmail] = await Promise.all([
                 getAllNotificationRules(),
                 getAllScheduledTasks(),
-                getNotificationServiceSettings('telegram')
+                getNotificationServiceSettings('telegram'),
+                getEmailSettings()
             ]);
             setRules(rulesData);
             setTasks(tasksData);
             if (settings.telegram) setTelegramSettings(settings.telegram);
+            if (savedEmail) setEmailSettings(prev => ({ ...prev, ...savedEmail }));
         } catch (error) {
             console.error(error);
             toast({ title: 'Error', description: 'No se pudieron cargar las automatizaciones.', variant: 'destructive' });
@@ -117,6 +133,35 @@ export default function AutomationManagerPage() {
         }
     };
 
+    const handleSaveEmail = async () => {
+        setIsSaving(true);
+        try {
+            await saveEmailSettings(emailSettings);
+            toast({ title: 'Configuración de Correo Guardada' });
+        } catch (error) {
+            console.error(error);
+            toast({ title: 'Error al Guardar Correo', variant: 'destructive' });
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleTestEmail = async () => {
+        if (!emailSettings.smtpHost || !emailSettings.smtpUser || !user?.email) {
+            toast({ title: "Faltan datos", description: "Completa la configuración SMTP y asegúrate de tener un correo en tu perfil.", variant: "destructive" });
+            return;
+        }
+        setIsTestingEmail(true);
+        try {
+            await testEmailSettings(emailSettings, [user.email]);
+            toast({ title: "Correo Enviado", description: `Se envió un mensaje de prueba a ${user.email}.` });
+        } catch (error: any) {
+            toast({ title: "Error en Prueba", description: error.message, variant: "destructive" });
+        } finally {
+            setIsTestingEmail(false);
+        }
+    };
+
     const toggleRuleStatus = async (rule: NotificationRule) => {
         try {
             await saveNotificationRule({ ...rule, enabled: !rule.enabled });
@@ -144,7 +189,7 @@ export default function AutomationManagerPage() {
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-2xl font-bold">Automatizaciones y Alertas</h1>
-                    <p className="text-muted-foreground text-sm">Gestiona el motor de eventos y tareas programadas de Clic-Soporte.</p>
+                    <p className="text-muted-foreground text-sm">Gestiona el motor de eventos y tareas programadas de la plataforma.</p>
                 </div>
             </div>
 
@@ -182,7 +227,12 @@ export default function AutomationManagerPage() {
                                         <TableRow key={rule.id}>
                                             <TableCell className="font-bold">{rule.name}</TableCell>
                                             <TableCell><Badge variant="outline">{rule.event}</Badge></TableCell>
-                                            <TableCell className="capitalize">{rule.action === 'sendEmail' ? 'Email' : 'Telegram'}</TableCell>
+                                            <TableCell className="capitalize">
+                                                <div className="flex items-center gap-2">
+                                                    {rule.action === 'sendEmail' ? <Mail className="h-3 w-3" /> : <Send className="h-3 w-3" />}
+                                                    {rule.action === 'sendEmail' ? 'Email' : 'Telegram'}
+                                                </div>
+                                            </TableCell>
                                             <TableCell>
                                                 <Switch checked={rule.enabled} onCheckedChange={() => toggleRuleStatus(rule)} />
                                             </TableCell>
@@ -247,11 +297,84 @@ export default function AutomationManagerPage() {
                     </Card>
                 </TabsContent>
 
-                <TabsContent value="services" className="space-y-4 pt-4">
+                <TabsContent value="services" className="space-y-6 pt-4">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Configuración de Telegram Bot</CardTitle>
-                            <CardDescription>Establece el token de tu bot oficial para enviar alertas instantáneas.</CardDescription>
+                            <div className="flex items-center gap-4">
+                                <Mail className="h-8 w-8 text-primary" />
+                                <div>
+                                    <CardTitle>Servidor de Correo (SMTP)</CardTitle>
+                                    <CardDescription>Configura la salida de correos para notificaciones y recuperación de contraseñas.</CardDescription>
+                                </div>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                <div className="space-y-2">
+                                    <Label>Servidor SMTP</Label>
+                                    <Input value={emailSettings.smtpHost} onChange={e => setEmailSettings({...emailSettings, smtpHost: e.target.value})} placeholder="smtp.gmail.com" />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Puerto</Label>
+                                    <Input type="number" value={emailSettings.smtpPort} onChange={e => setEmailSettings({...emailSettings, smtpPort: Number(e.target.value)})} />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Seguridad</Label>
+                                    <Select value={String(emailSettings.smtpSecure)} onValueChange={v => setEmailSettings({...emailSettings, smtpSecure: v === 'true'})}>
+                                        <SelectTrigger><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="true">TLS/STARTTLS (Recomendado)</SelectItem>
+                                            <SelectItem value="false">Ninguna (Inseguro)</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Usuario / Correo</Label>
+                                    <Input value={emailSettings.smtpUser} onChange={e => setEmailSettings({...emailSettings, smtpUser: e.target.value})} placeholder="notificaciones@empresa.com" />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Contraseña SMTP</Label>
+                                    <Input type="password" value={emailSettings.smtpPass} onChange={e => setEmailSettings({...emailSettings, smtpPass: e.target.value})} placeholder="••••••••" />
+                                </div>
+                            </div>
+                            
+                            <div className="pt-4 border-t space-y-4">
+                                <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                                    <MailCheck className="h-4 w-4" /> Plantilla de Recuperación de Acceso
+                                </h4>
+                                <div className="grid gap-4">
+                                    <div className="space-y-2">
+                                        <Label>Asunto del Correo</Label>
+                                        <Input value={emailSettings.recoveryEmailSubject} onChange={e => setEmailSettings({...emailSettings, recoveryEmailSubject: e.target.value})} />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Cuerpo del Correo (HTML) - Usa [NOMBRE_USUARIO] y [CLAVE_TEMPORAL]</Label>
+                                        <Textarea rows={8} className="font-mono text-xs" value={emailSettings.recoveryEmailBody} onChange={e => setEmailSettings({...emailSettings, recoveryEmailBody: e.target.value})} />
+                                    </div>
+                                </div>
+                            </div>
+                        </CardContent>
+                        <CardFooter className="flex justify-between border-t p-6">
+                            <Button variant="outline" onClick={handleTestEmail} disabled={isTestingEmail || !emailSettings.smtpHost}>
+                                {isTestingEmail ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
+                                Probar Conexión
+                            </Button>
+                            <Button onClick={handleSaveEmail} disabled={isSaving}>
+                                {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                                Guardar Configuración de Correo
+                            </Button>
+                        </CardFooter>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <div className="flex items-center gap-4">
+                                <Send className="h-8 w-8 text-blue-500" />
+                                <div>
+                                    <CardTitle>Telegram Bot</CardTitle>
+                                    <CardDescription>Configura tu bot para enviar alertas instantáneas a grupos o canales.</CardDescription>
+                                </div>
+                            </div>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -265,7 +388,7 @@ export default function AutomationManagerPage() {
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label>Chat ID de Grupo/Canal</Label>
+                                    <Label>Chat ID Predeterminado</Label>
                                     <Input 
                                         value={telegramSettings?.chatId || ''} 
                                         onChange={e => setTelegramSettings({...telegramSettings!, chatId: e.target.value})} 
@@ -274,10 +397,10 @@ export default function AutomationManagerPage() {
                                 </div>
                             </div>
                         </CardContent>
-                        <CardFooter>
+                        <CardFooter className="flex justify-end border-t p-6">
                             <Button onClick={handleSaveTelegram} disabled={isSaving}>
                                 {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4" />}
-                                Guardar Credenciales
+                                Guardar Credenciales Telegram
                             </Button>
                         </CardFooter>
                     </Card>
@@ -303,6 +426,7 @@ export default function AutomationManagerPage() {
                                         <SelectItem value="onTicketPriorityUrgent">Prioridad Urgente</SelectItem>
                                         <SelectItem value="onProjectCompleted">Proyecto Terminado</SelectItem>
                                         <SelectItem value="onNewSuggestion">Nueva Sugerencia</SelectItem>
+                                        <SelectItem value="onBackupCompleted">Backup Exitoso</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -323,7 +447,7 @@ export default function AutomationManagerPage() {
                                 className="w-full min-h-[100px] border rounded-md p-2 text-sm" 
                                 value={currentRule.recipients?.join('\n')}
                                 onChange={e => setCurrentRule({...currentRule, recipients: e.target.value.split('\n').filter(Boolean)})}
-                                placeholder="ejemplo@clic.com"
+                                placeholder="ejemplo@empresa.com o ID de chat"
                             />
                         </div>
                     </div>
@@ -353,7 +477,7 @@ export default function AutomationManagerPage() {
                                 <SelectContent>
                                     <SelectItem value="erp-sync">Sincronización Completa ERP</SelectItem>
                                     <SelectItem value="backup-system">Copia de Seguridad Automática</SelectItem>
-                                    <SelectItem value="sla-check">Vigilancia de Tickets (SLA)</SelectItem>
+                                    <SelectItem value="check-expirations">Vigilancia de Vencimientos (Contratos/Licencias)</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
