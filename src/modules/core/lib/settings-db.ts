@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Server-side functions for managing system-wide settings.
  */
@@ -26,8 +25,9 @@ export async function getCompanySettings(): Promise<Company> {
         }
         
         // Seeding default company settings if none exist
-        db.prepare(`INSERT OR IGNORE INTO company_settings (id, name, taxId, address, phone, email, systemName, quotePrefix, nextQuoteNumber, decimalPlaces, quoterShowTaxId, searchDebounceTime, syncWarningHours, importMode, supportPackages, servicesCatalog) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+        db.prepare(`INSERT OR IGNORE INTO company_settings (id, name, taxId, address, phone, email, systemName, systemVersion, publicUrl, quotePrefix, nextQuoteNumber, decimalPlaces, quoterShowTaxId, searchDebounceTime, syncWarningHours, importMode, supportPackages, servicesCatalog) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
             initialCompany.name, initialCompany.taxId, initialCompany.address, initialCompany.phone, initialCompany.email, initialCompany.systemName,
+            initialCompany.systemVersion || '1.0.0', initialCompany.publicUrl || '',
             initialCompany.quotePrefix, initialCompany.nextQuoteNumber, initialCompany.decimalPlaces, 1, initialCompany.searchDebounceTime, initialCompany.syncWarningHours, initialCompany.importMode, 
             JSON.stringify(initialCompany.supportPackages), JSON.stringify(initialCompany.servicesCatalog)
         );
@@ -47,7 +47,8 @@ export async function saveCompanySettings(data: Company): Promise<void> {
     const stmt = db.prepare(`
         UPDATE company_settings SET
             name = @name, taxId = @taxId, address = @address, phone = @phone, email = @email, logoUrl = @logoUrl,
-            systemName = @systemName, quotePrefix = @quotePrefix, nextQuoteNumber = @nextQuoteNumber,
+            systemName = @systemName, systemVersion = @systemVersion, publicUrl = @publicUrl,
+            quotePrefix = @quotePrefix, nextQuoteNumber = @nextQuoteNumber,
             decimalPlaces = @decimalPlaces, quoterShowTaxId = @quoterShowTaxId, searchDebounceTime = @searchDebounceTime,
             syncWarningHours = @syncWarningHours, importMode = @importMode, lastSyncTimestamp = @lastSyncTimestamp,
             customerFilePath = @customerFilePath, productFilePath = @productFilePath,

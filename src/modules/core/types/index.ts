@@ -35,6 +35,8 @@ export type Company = {
     email: string;
     logoUrl?: string;
     systemName?: string;
+    systemVersion?: string;
+    publicUrl?: string;
     quotePrefix: string;
     nextQuoteNumber: number;
     decimalPlaces: number;

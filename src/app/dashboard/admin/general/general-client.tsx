@@ -8,8 +8,34 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { getCompanySettings, saveCompanySettings } from '@/modules/core/lib/settings-db';
 import type { Company } from '@/modules/core/types';
-import { Loader2, Save, Building2 } from 'lucide-react';
+import { Loader2, Save, Building2, Settings2 } from 'lucide-react';
 import { useAuth } from '@/modules/core/hooks/useAuth';
+
+/**
+ * Converts decimal hours to HH:MM format.
+ */
+const toHHMM = (decimalHours: number | null | undefined): string => {
+    if (decimalHours === null || decimalHours === undefined) return '';
+    const totalMinutes = Math.round(decimalHours * 60);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+};
+
+/**
+ * Converts a string (either decimal or HH:MM) to decimal hours.
+ */
+const toDecimalHours = (input: string): number | null => {
+    if (!input) return null;
+    if (input.includes(':')) {
+        const [hours, minutes] = input.split(':').map(Number);
+        return (hours || 0) + ((minutes || 0) / 60);
+    } else {
+        const normalized = input.replace(',', '.');
+        const parsed = parseFloat(normalized);
+        return isNaN(parsed) ? null : parsed;
+    }
+};
 
 export default function GeneralSettingsClient() {
     const { toast } = useToast();
@@ -17,15 +43,36 @@ export default function GeneralSettingsClient() {
     const [company, setCompany] = useState<Company | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
+    const [syncWarningDisplay, setSyncWarningDisplay] = useState('');
 
     useEffect(() => {
         const load = async () => {
             const data = await getCompanySettings();
             setCompany(data);
+            setSyncWarningDisplay(toHHMM(data.syncWarningHours));
             setIsLoading(false);
         };
         load();
     }, []);
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!company) return;
+        setCompany({ ...company, [e.target.id]: e.target.value });
+    };
+
+    const handleNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!company) return;
+        setCompany({ ...company, [e.target.id]: Number(e.target.value) });
+    };
+
+    const handleSyncWarningChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value;
+        setSyncWarningDisplay(value);
+        if (company) {
+            const decimal = toDecimalHours(value);
+            setCompany({ ...company, syncWarningHours: decimal || 0 });
+        }
+    };
 
     const handleSave = async () => {
         if (!company) return;
@@ -54,34 +101,92 @@ export default function GeneralSettingsClient() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label>Nombre de Fantasía / Sistema</Label>
-                            <Input value={company.systemName} onChange={e => setCompany({...company, systemName: e.target.value})} />
+                            <Input id="systemName" value={company.systemName} onChange={handleChange} />
                         </div>
                         <div className="space-y-2">
                             <Label>Razón Social</Label>
-                            <Input value={company.name} onChange={e => setCompany({...company, name: e.target.value})} />
+                            <Input id="name" value={company.name} onChange={handleChange} />
                         </div>
                         <div className="space-y-2">
                             <Label>Cédula Jurídica</Label>
-                            <Input value={company.taxId} onChange={e => setCompany({...company, taxId: e.target.value})} />
+                            <Input id="taxId" value={company.taxId} onChange={handleChange} />
                         </div>
                         <div className="space-y-2">
                             <Label>Correo Electrónico</Label>
-                            <Input type="email" value={company.email} onChange={e => setCompany({...company, email: e.target.value})} />
+                            <Input id="email" type="email" value={company.email} onChange={handleChange} />
                         </div>
                         <div className="space-y-2">
                             <Label>Teléfono</Label>
-                            <Input value={company.phone} onChange={e => setCompany({...company, phone: e.target.value})} />
+                            <Input id="phone" value={company.phone} onChange={handleChange} />
                         </div>
                     </div>
                     <div className="space-y-2">
                         <Label>Dirección Física</Label>
-                        <Input value={company.address} onChange={e => setCompany({...company, address: e.target.value})} />
+                        <Input id="address" value={company.address} onChange={handleChange} />
                     </div>
                 </CardContent>
-                <CardFooter>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><Settings2 className="h-5 w-5" /> Ajustes de Interfaz y Rendimiento</CardTitle>
+                    <CardDescription>Configuración global para la experiencia de usuario y el acceso a la aplicación.</CardDescription>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                        <Label htmlFor="systemVersion">Versión del Sistema</Label>
+                        <Input 
+                            id="systemVersion"
+                            value={company.systemVersion || ''}
+                            onChange={handleChange}
+                        />
+                        <p className="text-xs text-muted-foreground pt-1">
+                            El número de versión que se muestra en la aplicación.
+                        </p>
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="searchDebounceTime">Retraso de Búsqueda (ms)</Label>
+                        <Input 
+                            id="searchDebounceTime"
+                            type="number"
+                            value={company.searchDebounceTime ?? ''}
+                            onChange={handleNumberChange}
+                        />
+                        <p className="text-xs text-muted-foreground pt-1">
+                            Tiempo en milisegundos que el sistema espera antes de buscar (ej: 500 = 0.5s).
+                        </p>
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="syncWarningHours">Tiempo para Alerta de Sinc.</Label>
+                        <Input 
+                            id="syncWarningHours"
+                            type="text"
+                            placeholder="HH:MM"
+                            value={syncWarningDisplay}
+                            onChange={handleSyncWarningChange}
+                        />
+                        <p className="text-xs text-muted-foreground pt-1">
+                            Después de cuánto tiempo sin sincronizar se mostrará la alerta. Formato HH:MM o decimal (ej: 0.5 para 30 min).
+                        </p>
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="publicUrl">URL Pública de la Aplicación</Label>
+                        <Input 
+                            id="publicUrl"
+                            type="url"
+                            value={company.publicUrl || ''}
+                            onChange={handleChange}
+                            placeholder="Ej: https://intranet.miempresa.com"
+                        />
+                        <p className="text-xs text-muted-foreground pt-1">
+                            Importante para generar códigos QR correctos si la aplicación está detrás de un proxy.
+                        </p>
+                    </div>
+                </CardContent>
+                <CardFooter className="border-t pt-6">
                     <Button onClick={handleSave} disabled={isSaving}>
                         {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                        Guardar Cambios
+                        Guardar Toda la Configuración
                     </Button>
                 </CardFooter>
             </Card>

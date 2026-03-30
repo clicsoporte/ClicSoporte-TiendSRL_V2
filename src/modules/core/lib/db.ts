@@ -45,7 +45,7 @@ export async function initializeMainDatabase(db: Database) {
         CREATE TABLE IF NOT EXISTS company_settings (
             id INTEGER PRIMARY KEY DEFAULT 1,
             name TEXT, taxId TEXT, address TEXT, phone TEXT, email TEXT,
-            logoUrl TEXT, systemName TEXT,
+            logoUrl TEXT, systemName TEXT, systemVersion TEXT, publicUrl TEXT,
             quotePrefix TEXT, nextQuoteNumber INTEGER, decimalPlaces INTEGER, quoterShowTaxId BOOLEAN,
             searchDebounceTime INTEGER, syncWarningHours INTEGER, importMode TEXT, lastSyncTimestamp TEXT,
             customerFilePath TEXT, productFilePath TEXT, exemptionFilePath TEXT,
@@ -150,6 +150,16 @@ export async function runMainMigrations(db: Database) {
 
     if (!userColumns.has('forcePasswordChange')) {
         db.exec(`ALTER TABLE users ADD COLUMN forcePasswordChange INTEGER DEFAULT 0;`);
+    }
+
+    const companyTableInfo = db.prepare(`PRAGMA table_info(company_settings)`).all() as { name: string }[];
+    const companyColumns = new Set(companyTableInfo.map(c => c.name));
+    
+    if (!companyColumns.has('systemVersion')) {
+        db.exec(`ALTER TABLE company_settings ADD COLUMN systemVersion TEXT;`);
+    }
+    if (!companyColumns.has('publicUrl')) {
+        db.exec(`ALTER TABLE company_settings ADD COLUMN publicUrl TEXT;`);
     }
 
     const hasEmailSettings = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='email_settings'`).get();
