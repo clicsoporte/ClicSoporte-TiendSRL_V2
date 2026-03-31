@@ -54,13 +54,12 @@ async function executeBackup() {
  */
 async function executeExpirationCheck() {
     try {
-        const contractsDb = await connectDb('contracts.db');
-        const licensesDb = await connectDb('licenses.db');
+        const db = await connectDb();
         const now = new Date();
         now.setHours(0, 0, 0, 0);
 
         // 1. Check Contracts
-        const contracts = contractsDb.prepare("SELECT * FROM contracts WHERE status = 'active'").all() as Contract[];
+        const contracts = db.prepare("SELECT * FROM contracts WHERE status = 'active'").all() as Contract[];
         for (const contract of contracts) {
             const daysLeft = differenceInDays(parseISO(contract.endDate), now);
             // Alert at 30, 15, and 7 days
@@ -70,7 +69,7 @@ async function executeExpirationCheck() {
         }
 
         // 2. Check Licenses
-        const licenses = licensesDb.prepare("SELECT * FROM licenses WHERE status = 'active' AND isPerpetual = 0").all() as License[];
+        const licenses = db.prepare("SELECT * FROM licenses WHERE status = 'active' AND isPerpetual = 0").all() as License[];
         for (const license of licenses) {
             const daysLeft = differenceInDays(parseISO(license.expirationDate), now);
             // Alert at 30, 15, and 7 days as requested
@@ -96,12 +95,12 @@ async function executeExpirationCheck() {
  */
 async function executeAutoRenewals() {
     try {
-        const contractsDb = await connectDb('contracts.db');
+        const db = await connectDb();
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         
         // Find contracts that expire today and have autoRenew enabled
-        const toRenew = contractsDb.prepare(`
+        const toRenew = db.prepare(`
             SELECT * FROM contracts 
             WHERE status = 'active' 
             AND autoRenew = 1 

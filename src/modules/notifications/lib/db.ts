@@ -106,7 +106,12 @@ interface NotificationRow {
 export async function getNotifications(userId: number): Promise<Notification[]> {
     const db = await connectNotificationsDb();
     const rows = db.prepare('SELECT * FROM notifications WHERE userId = ? ORDER BY timestamp DESC LIMIT 50').all(userId) as NotificationRow[];
-    return rows.map(r => ({ ...r, isRead: (r.isRead === 1 ? 1 : 0) as 0 | 1 }));
+    return rows.map(r => ({ 
+        ...r, 
+        isRead: (r.isRead === 1 ? 1 : 0) as 0 | 1,
+        entityId: r.entityId ?? undefined,
+        entityType: r.entityType ?? undefined
+    }));
 }
 
 export async function markNotificationsAsRead(notificationIds: number[], userId: number): Promise<void> {
