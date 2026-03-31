@@ -47,7 +47,7 @@ export async function getCostAssistantDbSettings(): Promise<Partial<CostAssistan
             if (row.key === 'draftPrefix') settings.draftPrefix = row.value;
             else if (row.key === 'nextDraftNumber') settings.nextDraftNumber = Number(row.value);
         }
-    } catch (error) {
+    } catch {
         return { draftPrefix: 'AC-', nextDraftNumber: 1 };
     }
     return settings;

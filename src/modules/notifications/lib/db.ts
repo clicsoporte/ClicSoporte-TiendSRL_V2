@@ -11,11 +11,22 @@ export async function connectNotificationsDb() {
     return connectDb();
 }
 
+interface NotificationRuleRow {
+    id: number;
+    name: string;
+    event: string;
+    action: string;
+    recipients: string;
+    subject: string;
+    enabled: number;
+}
+
 export async function getAllNotificationRules(): Promise<NotificationRule[]> {
     const db = await connectNotificationsDb();
-    const rows = db.prepare('SELECT * FROM notification_rules ORDER BY name ASC').all() as any[];
+    const rows = db.prepare('SELECT * FROM notification_rules ORDER BY name ASC').all() as NotificationRuleRow[];
     return rows.map(row => ({
         ...row,
+        action: row.action as 'sendEmail' | 'sendTelegram',
         enabled: Boolean(row.enabled),
         recipients: JSON.parse(row.recipients),
     }));
@@ -39,9 +50,17 @@ export async function deleteNotificationRule(id: number): Promise<void> {
     db.prepare('DELETE FROM notification_rules WHERE id = ?').run(id);
 }
 
+interface ScheduledTaskRow {
+    id: number;
+    name: string;
+    schedule: string;
+    taskId: string;
+    enabled: number;
+}
+
 export async function getAllScheduledTasks(): Promise<ScheduledTask[]> {
     const db = await connectNotificationsDb();
-    const rows = db.prepare('SELECT * FROM scheduled_tasks ORDER BY name ASC').all() as any[];
+    const rows = db.prepare('SELECT * FROM scheduled_tasks ORDER BY name ASC').all() as ScheduledTaskRow[];
     return rows.map(row => ({ ...row, enabled: Boolean(row.enabled) }));
 }
 
@@ -73,9 +92,20 @@ export async function saveNotificationServiceSettings(service: 'telegram', confi
     db.prepare('INSERT OR REPLACE INTO notification_settings (service, config) VALUES (?, ?)').run(service, JSON.stringify(config));
 }
 
+interface NotificationRow {
+    id: number;
+    userId: number;
+    message: string;
+    href: string;
+    isRead: number;
+    timestamp: string;
+    entityId: number | null;
+    entityType: string | null;
+}
+
 export async function getNotifications(userId: number): Promise<Notification[]> {
     const db = await connectNotificationsDb();
-    const rows = db.prepare('SELECT * FROM notifications WHERE userId = ? ORDER BY timestamp DESC LIMIT 50').all(userId) as any[];
+    const rows = db.prepare('SELECT * FROM notifications WHERE userId = ? ORDER BY timestamp DESC LIMIT 50').all(userId) as NotificationRow[];
     return rows.map(r => ({ ...r, isRead: (r.isRead === 1 ? 1 : 0) as 0 | 1 }));
 }
 

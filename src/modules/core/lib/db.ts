@@ -8,7 +8,7 @@ import type { Database } from 'better-sqlite3';
 import { connectDb as baseConnectDb } from './db-connection';
 import { initialUsers, initialRoles } from './db-constants';
 import bcrypt from 'bcryptjs';
-import type { LogEntry, DateRange, Suggestion } from '../types';
+import type { LogEntry, DateRange } from '../types';
 
 const DB_FILE = 'intratool.db';
 const SALT_ROUNDS = 10;
@@ -17,8 +17,7 @@ const SALT_ROUNDS = 10;
  * Connects to the central database.
  * All modules now point here.
  */
-export async function connectDb(dbFile: string = DB_FILE): Promise<Database> {
-    // Regardless of the requested filename (for backward compatibility), we use the main DB.
+export async function connectDb(): Promise<Database> {
     return baseConnectDb(DB_FILE, initializeMainDatabase, runMainMigrations);
 }
 
@@ -235,6 +234,7 @@ export async function initializeMainDatabase(db: Database) {
             dueDate TEXT,
             companyId INTEGER,
             customerName TEXT, 
+            customerEmail TEXT,
             companyName TEXT,
             assigneeId INTEGER,
             helpTopicId INTEGER,

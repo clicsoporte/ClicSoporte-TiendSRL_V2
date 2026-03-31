@@ -73,7 +73,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
         const expiringContracts = contracts.filter(c => differenceInDays(parseISO(c.endDate), now) <= 30).length;
 
         return { activeTickets: activeTickets.count, urgentTickets: urgentTickets.count, activeProjects: activeProjects.count, expiringContracts };
-    } catch (e) {
+    } catch {
         return { activeTickets: 0, urgentTickets: 0, activeProjects: 0, expiringContracts: 0 };
     }
 }
