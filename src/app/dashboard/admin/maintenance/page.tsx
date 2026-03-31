@@ -223,7 +223,7 @@ export default function MaintenancePage() {
         setIsProcessing(true);
         setProcessingAction('factory-reset');
         try {
-            await factoryReset(moduleToReset);
+            await factoryReset();
             const moduleName = dbModules.find(m => m.id === moduleToReset)?.name || moduleToReset;
             await logWarn(`MODULE FACTORY RESET initiated by user ${user?.name} for module ${moduleName}. El sistema se reiniciará.`);
             toast({
@@ -249,7 +249,7 @@ export default function MaintenancePage() {
         setIsProcessing(true);
         setProcessingAction('full-factory-reset');
         try {
-            await factoryReset('__all__'); // Use a special keyword for all modules
+            await factoryReset(); 
             await logWarn(`FULL SYSTEM FACTORY RESET initiated by user ${user?.name}. All data will be wiped. The application will restart.`);
             toast({
                 title: "Reseteo de Fábrica Completado",

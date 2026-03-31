@@ -105,7 +105,10 @@ export async function uploadBackupFile(formData: FormData): Promise<number> {
     return uploadedCount;
 }
 
-export async function factoryReset(_moduleId: string): Promise<void> {
+/**
+ * Performs a factory reset by unlinking the main database file.
+ */
+export async function factoryReset(): Promise<void> {
     const dbPath = path.join(dbDirectory, DB_FILE);
     if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
 }

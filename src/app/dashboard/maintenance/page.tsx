@@ -218,7 +218,7 @@ export default function MaintenancePage() {
         setIsProcessing(true);
         setProcessingAction('factory-reset');
         try {
-            await factoryReset(moduleToReset);
+            await factoryReset();
             const moduleName = dbModules.find(m => m.id === moduleToReset)?.name || moduleToReset;
             await logWarn(`MODULE FACTORY RESET initiated by user ${user?.name} for module ${moduleName}. The application will restart.`);
             toast({
@@ -228,7 +228,7 @@ export default function MaintenancePage() {
             });
             setTimeout(() => window.location.reload(), 5000);
         } catch (error: unknown) {
-            toast({ title: "Error en el Reseteo", description: (error as Error).message, variant: "destructive" });
+            toast({ title: "Error en the Reseteo", description: (error as Error).message, variant: "destructive" });
             logError("Factory reset failed.", { error: (error as Error).message, module: moduleToReset });
             setIsProcessing(false);
             setProcessingAction(null);
@@ -244,7 +244,7 @@ export default function MaintenancePage() {
         setIsProcessing(true);
         setProcessingAction('full-factory-reset');
         try {
-            await factoryReset('__all__');
+            await factoryReset();
             await logWarn(`FULL SYSTEM FACTORY RESET initiated by user ${user?.name}. All data will be wiped. The application will restart.`);
             toast({
                 title: "Reseteo de Fábrica Completado",
@@ -253,7 +253,7 @@ export default function MaintenancePage() {
             });
             setTimeout(() => window.location.reload(), 5000);
         } catch (error: unknown) {
-            toast({ title: "Error en el Reseteo Total", description: (error as Error).message, variant: "destructive" });
+            toast({ title: "Error en the Reseteo Total", description: (error as Error).message, variant: "destructive" });
             logError("Full factory reset failed.", { error: (error as Error).message });
             setIsProcessing(false);
             setProcessingAction(null);
