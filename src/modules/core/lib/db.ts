@@ -1,5 +1,6 @@
 /**
  * @fileoverview Main database initialization and shared utility functions.
+ * Unified into a single source of truth: intratool.db
  */
 "use server";
 
@@ -12,15 +13,18 @@ import type { LogEntry, DateRange, Suggestion } from '../types';
 const DB_FILE = 'intratool.db';
 const SALT_ROUNDS = 10;
 
+/**
+ * Connects to the central database.
+ * All modules now point here.
+ */
 export async function connectDb(dbFile: string = DB_FILE): Promise<Database> {
-    if (dbFile === DB_FILE) {
-        return baseConnectDb(DB_FILE, initializeMainDatabase, runMainMigrations);
-    }
-    return baseConnectDb(dbFile);
+    // Regardless of the requested filename (for backward compatibility), we use the main DB.
+    return baseConnectDb(DB_FILE, initializeMainDatabase, runMainMigrations);
 }
 
 export async function initializeMainDatabase(db: Database) {
     const mainSchema = `
+        -- CORE SYSTEM TABLES
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
@@ -111,6 +115,295 @@ export async function initializeMainDatabase(db: Database) {
             taxAdministration TEXT,
             taxActivities TEXT
         );
+
+        CREATE TABLE IF NOT EXISTS products (
+            id TEXT PRIMARY KEY,
+            description TEXT NOT NULL,
+            classification TEXT,
+            lastEntry TEXT,
+            active TEXT DEFAULT 'S',
+            notes TEXT,
+            unit TEXT,
+            isBasicGood TEXT DEFAULT 'N',
+            cabys TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS stock (
+            itemId TEXT PRIMARY KEY,
+            stockByWarehouse TEXT,
+            totalStock REAL,
+            FOREIGN KEY (itemId) REFERENCES products(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS exemptions (
+            code TEXT PRIMARY KEY,
+            description TEXT,
+            customer TEXT,
+            authNumber TEXT,
+            startDate TEXT,
+            endDate TEXT,
+            percentage REAL,
+            docType TEXT,
+            institutionName TEXT,
+            institutionCode TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS cabys_catalog (
+            code TEXT PRIMARY KEY,
+            description TEXT NOT NULL,
+            taxRate REAL
+        );
+
+        CREATE TABLE IF NOT EXISTS exchange_rates (
+            date TEXT PRIMARY KEY,
+            rate REAL NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS quote_drafts (
+            id TEXT PRIMARY KEY,
+            createdAt TEXT NOT NULL,
+            userId INTEGER NOT NULL,
+            customerId TEXT,
+            customerDetails TEXT,
+            lines TEXT,
+            totals TEXT,
+            notes TEXT,
+            currency TEXT,
+            exchangeRate REAL,
+            purchaseOrderNumber TEXT,
+            deliveryAddress TEXT,
+            deliveryDate TEXT,
+            sellerName TEXT,
+            sellerType TEXT,
+            quoteDate TEXT,
+            validUntilDate TEXT,
+            paymentTerms TEXT,
+            creditDays INTEGER
+        );
+
+        -- CONTRACTS MODULE
+        CREATE TABLE IF NOT EXISTS contracts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            consecutive TEXT UNIQUE NOT NULL,
+            name TEXT NOT NULL,
+            customerId TEXT NOT NULL,
+            startDate TEXT NOT NULL,
+            endDate TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'active',
+            includedServices TEXT NOT NULL,
+            excludedServices TEXT NOT NULL,
+            monthlyHours REAL DEFAULT 0,
+            price REAL DEFAULT 0,
+            currency TEXT DEFAULT 'CRC',
+            notes TEXT,
+            autoRenew INTEGER DEFAULT 0,
+            createdAt TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS contract_settings (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        );
+
+        -- TICKETS MODULE
+        CREATE TABLE IF NOT EXISTS client_companies (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            taxId TEXT UNIQUE NOT NULL,
+            address TEXT,
+            phone TEXT,
+            email TEXT,
+            createdAt TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS help_topics (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE NOT NULL,
+            defaultPriority TEXT,
+            defaultAssigneeId INTEGER,
+            defaultServiceId TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS tickets (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            consecutive TEXT UNIQUE NOT NULL,
+            subject TEXT NOT NULL,
+            status TEXT NOT NULL,
+            priority TEXT NOT NULL,
+            createdAt TEXT NOT NULL,
+            updatedAt TEXT NOT NULL,
+            dueDate TEXT,
+            companyId INTEGER,
+            customerName TEXT, 
+            companyName TEXT,
+            assigneeId INTEGER,
+            helpTopicId INTEGER,
+            serviceId TEXT,
+            contractId INTEGER,
+            isBillable INTEGER DEFAULT 0,
+            providerId INTEGER
+        );
+
+        CREATE TABLE IF NOT EXISTS ticket_threads (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ticketId INTEGER NOT NULL,
+            userId INTEGER,
+            userName TEXT,
+            type TEXT NOT NULL,
+            content TEXT,
+            createdAt TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS ticket_settings (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS third_party_providers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            email TEXT,
+            phone TEXT,
+            specialty TEXT,
+            notes TEXT,
+            createdAt TEXT NOT NULL
+        );
+
+        -- PLANNER MODULE
+        CREATE TABLE IF NOT EXISTS planner_settings (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS projects (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            consecutive TEXT UNIQUE NOT NULL,
+            name TEXT NOT NULL,
+            customerId TEXT NOT NULL,
+            customerName TEXT NOT NULL,
+            category TEXT NOT NULL DEFAULT 'other',
+            status TEXT NOT NULL,
+            priority TEXT NOT NULL,
+            startDate TEXT NOT NULL,
+            endDate TEXT NOT NULL,
+            coordinatorId INTEGER NOT NULL,
+            subcontractorId INTEGER,
+            description TEXT NOT NULL,
+            notes TEXT,
+            billingStatus TEXT DEFAULT 'pending',
+            createdAt TEXT NOT NULL,
+            updatedAt TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS project_advances (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            projectId INTEGER NOT NULL,
+            timestamp TEXT NOT NULL,
+            content TEXT NOT NULL,
+            userId INTEGER NOT NULL,
+            userName TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS project_attachments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            projectId INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            fileName TEXT NOT NULL,
+            fileType TEXT NOT NULL,
+            data TEXT NOT NULL,
+            uploadedBy TEXT NOT NULL,
+            createdAt TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS project_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            projectId INTEGER NOT NULL,
+            description TEXT NOT NULL,
+            quantity REAL NOT NULL,
+            unitPrice REAL NOT NULL,
+            type TEXT NOT NULL
+        );
+
+        -- LICENSES MODULE
+        CREATE TABLE IF NOT EXISTS software_products (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            isInternal BOOLEAN NOT NULL DEFAULT FALSE
+        );
+
+        CREATE TABLE IF NOT EXISTS licenses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            licenseKey TEXT NOT NULL,
+            softwareId INTEGER NOT NULL,
+            clientCompanyId INTEGER,
+            hardwareId TEXT,
+            isPerpetual BOOLEAN NOT NULL DEFAULT FALSE,
+            expirationDate TEXT,
+            status TEXT NOT NULL DEFAULT 'active',
+            createdAt TEXT NOT NULL
+        );
+
+        -- TIMESHEET MODULE
+        CREATE TABLE IF NOT EXISTS time_entries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ticketId INTEGER NOT NULL,
+            userId INTEGER NOT NULL,
+            startTime TEXT NOT NULL,
+            endTime TEXT,
+            duration INTEGER,
+            notes TEXT,
+            isBillable BOOLEAN NOT NULL DEFAULT TRUE,
+            createdAt TEXT NOT NULL
+        );
+
+        -- COST ASSISTANT MODULE
+        CREATE TABLE IF NOT EXISTS cost_drafts (
+            id TEXT PRIMARY KEY,
+            userId INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            createdAt TEXT NOT NULL,
+            data TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS cost_assistant_settings (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        );
+
+        -- NOTIFICATIONS MODULE
+        CREATE TABLE IF NOT EXISTS notification_rules (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            event TEXT NOT NULL,
+            action TEXT NOT NULL,
+            recipients TEXT NOT NULL,
+            subject TEXT,
+            enabled INTEGER DEFAULT 1
+        );
+
+        CREATE TABLE IF NOT EXISTS notification_settings (
+            service TEXT PRIMARY KEY,
+            config TEXT NOT NULL
+        );
+        
+        CREATE TABLE IF NOT EXISTS scheduled_tasks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            schedule TEXT NOT NULL,
+            taskId TEXT NOT NULL,
+            enabled INTEGER DEFAULT 1
+        );
+
+        CREATE TABLE IF NOT EXISTS notifications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            userId INTEGER NOT NULL,
+            message TEXT NOT NULL,
+            href TEXT,
+            isRead INTEGER DEFAULT 0,
+            timestamp TEXT NOT NULL,
+            entityId INTEGER,
+            entityType TEXT
+        );
     `;
 
     db.exec(mainSchema);
@@ -125,72 +418,65 @@ export async function initializeMainDatabase(db: Database) {
     const roleInsert = db.prepare('INSERT OR IGNORE INTO roles (id, name, permissions) VALUES (?, ?, ?)');
     initialRoles.forEach(role => roleInsert.run(role.id, role.name, JSON.stringify(role.permissions)));
 
-    // Seed default recovery email templates
-    const emailInsert = db.prepare('INSERT OR IGNORE INTO email_settings (key, value) VALUES (?, ?)');
-    emailInsert.run('recoveryEmailSubject', 'Recuperación de Contraseña - Clic-Soporte');
-    emailInsert.run('recoveryEmailBody', `
-        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #eee; padding: 20px; border-radius: 10px;">
-            <h2 style="color: #2563eb; text-align: center;">Recuperación de Acceso</h2>
-            <p>Hola <strong>[NOMBRE_USUARIO]</strong>,</p>
-            <p>Has solicitado restablecer tu contraseña en la plataforma interna de Clic-Soporte.</p>
-            <div style="background-color: #f8fafc; border: 1px dashed #cbd5e1; padding: 15px; text-align: center; margin: 20px 0;">
-                <span style="font-size: 14px; color: #64748b; display: block; margin-bottom: 5px;">Tu clave temporal es:</span>
-                <span style="font-size: 24px; font-weight: bold; color: #1e293b; letter-spacing: 2px;">[CLAVE_TEMPORAL]</span>
-            </div>
-            <p style="font-size: 14px; color: #475569;">Por motivos de seguridad, el sistema te solicitará establecer una nueva contraseña personal inmediatamente después de ingresar con esta clave.</p>
-            <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;">
-            <p style="font-size: 11px; color: #94a3b8; text-align: center;">Este es un mensaje automático, por favor no respondas a este correo.</p>
-        </div>
-    `);
+    // Seed default settings for all modules
+    db.prepare(`INSERT OR IGNORE INTO contract_settings (key, value) VALUES ('contractPrefix', 'CON-'), ('nextContractNumber', '1')`).run();
+    db.prepare(`INSERT OR IGNORE INTO ticket_settings (key, value) VALUES ('ticketPrefix', 'CAS-'), ('nextTicketNumber', '1')`).run();
+    db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('projectPrefix', 'PROJ-'), ('nextProjectNumber', '1'), ('pdfTopLegend', 'ACTA DE ENTREGA DE PROYECTO TI')`).run();
+    db.prepare(`INSERT OR IGNORE INTO cost_assistant_settings (key, value) VALUES ('nextDraftNumber', '1'), ('draftPrefix', 'AC-')`).run();
+    db.prepare(`INSERT OR IGNORE INTO notification_settings (service, config) VALUES ('telegram', ?)`).run(JSON.stringify({ botToken: '', chatId: '' }));
+
+    // Default Help Topics
+    const topics = [
+        { id: 1, name: 'Soporte General', defaultPriority: 'medium' },
+        { id: 2, name: 'Consulta de Facturación', defaultPriority: 'medium' },
+        { id: 3, name: 'Problema con Impresora', defaultPriority: 'high' }
+    ];
+    const insertTopic = db.prepare('INSERT OR IGNORE INTO help_topics (id, name, defaultPriority) VALUES (@id, @name, @defaultPriority)');
+    topics.forEach(t => insertTopic.run(t));
+
+    // Default Software Products
+    const products = [
+        { name: 'Clic-Soporte SaaS', isInternal: 1 },
+        { name: 'Antivirus Kaspersky', isInternal: 0 },
+        { name: 'Microsoft Office 365', isInternal: 0 }
+    ];
+    const insertSoftware = db.prepare('INSERT OR IGNORE INTO software_products (name, isInternal) VALUES (@name, @isInternal)');
+    products.forEach(p => insertSoftware.run(p));
 }
 
 export async function runMainMigrations(db: Database) {
-    const userTableInfo = db.prepare(`PRAGMA table_info(users)`).all() as { name: string }[];
-    const userColumns = new Set(userTableInfo.map(c => c.name));
+    const tableInfo = (table: string) => db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+    const hasColumn = (table: string, col: string) => new Set(tableInfo(table).map(c => c.name)).has(col);
 
-    if (!userColumns.has('forcePasswordChange')) {
-        db.exec(`ALTER TABLE users ADD COLUMN forcePasswordChange INTEGER DEFAULT 0;`);
-    }
+    // CORE Migrations
+    if (!hasColumn('users', 'forcePasswordChange')) db.exec(`ALTER TABLE users ADD COLUMN forcePasswordChange INTEGER DEFAULT 0;`);
+    if (!hasColumn('company_settings', 'systemVersion')) db.exec(`ALTER TABLE company_settings ADD COLUMN systemVersion TEXT;`);
+    if (!hasColumn('company_settings', 'publicUrl')) db.exec(`ALTER TABLE company_settings ADD COLUMN publicUrl TEXT;`);
 
-    const companyTableInfo = db.prepare(`PRAGMA table_info(company_settings)`).all() as { name: string }[];
-    const companyColumns = new Set(companyTableInfo.map(c => c.name));
-    
-    if (!companyColumns.has('systemVersion')) {
-        db.exec(`ALTER TABLE company_settings ADD COLUMN systemVersion TEXT;`);
-    }
-    if (!companyColumns.has('publicUrl')) {
-        db.exec(`ALTER TABLE company_settings ADD COLUMN publicUrl TEXT;`);
-    }
-
-    const hasEmailSettings = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='email_settings'`).get();
-    if (!hasEmailSettings) {
-        db.exec(`
-            CREATE TABLE email_settings (
-                key TEXT PRIMARY KEY,
-                value TEXT NOT NULL
-            );
-        `);
-    }
-
-    // Customer Hacienda Fields Migration
-    const customerTableInfo = db.prepare(`PRAGMA table_info(customers)`).all() as { name: string }[];
-    const customerColumns = new Set(customerTableInfo.map(c => c.name));
-    
+    // HACIENDA Migrations
     const haciendaFields = [
-        ['taxRegime', 'TEXT'],
-        ['taxStatus', 'TEXT'],
-        ['isTaxMoroso', 'INTEGER DEFAULT 0'],
-        ['isTaxOmiso', 'INTEGER DEFAULT 0'],
-        ['taxAdministration', 'TEXT'],
-        ['taxActivities', 'TEXT']
+        ['taxRegime', 'TEXT'], ['taxStatus', 'TEXT'], ['isTaxMoroso', 'INTEGER DEFAULT 0'],
+        ['isTaxOmiso', 'INTEGER DEFAULT 0'], ['taxAdministration', 'TEXT'], ['taxActivities', 'TEXT']
     ];
-
     haciendaFields.forEach(([field, type]) => {
-        if (!customerColumns.has(field)) {
-            console.log(`MIGRATION (intratool.db): Adding '${field}' column to 'customers' table.`);
-            db.exec(`ALTER TABLE customers ADD COLUMN ${field} ${type};`);
-        }
+        if (!hasColumn('customers', field)) db.exec(`ALTER TABLE customers ADD COLUMN ${field} ${type};`);
     });
+
+    // TICKETS Migrations
+    const ticketFields = [
+        ['companyName', 'TEXT'], ['helpTopicId', 'INTEGER'], ['serviceId', 'TEXT'],
+        ['dueDate', 'TEXT'], ['contractId', 'INTEGER'], ['isBillable', 'INTEGER DEFAULT 0'],
+        ['providerId', 'INTEGER']
+    ];
+    ticketFields.forEach(([field, type]) => {
+        if (!hasColumn('tickets', field)) db.exec(`ALTER TABLE tickets ADD COLUMN ${field} ${type};`);
+    });
+
+    // PLANNER Migrations
+    if (!hasColumn('projects', 'category')) db.exec(`ALTER TABLE projects ADD COLUMN category TEXT NOT NULL DEFAULT 'other';`);
+    
+    // LICENSES Migrations
+    if (!hasColumn('licenses', 'hardwareId')) db.exec(`ALTER TABLE licenses ADD COLUMN hardwareId TEXT;`);
 }
 
 export async function getLogs(filters: { type?: string; search?: string; dateRange?: DateRange }): Promise<LogEntry[]> {
@@ -226,7 +512,7 @@ export async function getLogs(filters: { type?: string; search?: string; dateRan
     return rows.map(r => ({ ...r, details: r.details ? JSON.parse(String(r.details)) : undefined }));
 }
 
-export async function clearLogs(_clearedBy: string, type: string, deleteAllTime: boolean) {
+export async function clearLogs(clearedBy: string, type: string, deleteAllTime: boolean) {
     const db = await connectDb();
     const query = 'DELETE FROM logs';
     const conditions: string[] = [];
@@ -254,7 +540,8 @@ export async function saveUserPreferences(userId: number, key: string, value: Re
     db.prepare('INSERT OR REPLACE INTO user_preferences (userId, key, value) VALUES (?, ?, ?)').run(userId, key, JSON.stringify(value));
 }
 
-export async function getUnreadSuggestions(): Promise<Suggestion[]> {
+export async function getUnreadSuggestionsCount(): Promise<number> {
     const db = await connectDb();
-    return db.prepare('SELECT * FROM suggestions WHERE isRead = 0 ORDER BY timestamp DESC').all() as Suggestion[];
+    const result = db.prepare('SELECT COUNT(*) as count FROM suggestions WHERE isRead = 0').get() as { count: number };
+    return result.count;
 }

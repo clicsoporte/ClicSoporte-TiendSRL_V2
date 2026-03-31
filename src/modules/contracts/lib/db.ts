@@ -1,57 +1,16 @@
 /**
- * @fileoverview Server-side functions for the contracts database.
+ * @fileoverview Server-side functions for the contracts module.
+ * Now unified into intratool.db.
  */
 "use server";
 
 import type { Database } from 'better-sqlite3';
-import { connectDb as baseConnectDb } from '@/modules/core/lib/db-connection';
+import { connectDb } from '@/modules/core/lib/db';
 import type { Contract } from '@/modules/core/types';
 import { addDays, parseISO, differenceInCalendarDays, format } from 'date-fns';
 
-const CONTRACTS_DB_FILE = 'contracts.db';
-
 export async function connectContractsDb(): Promise<Database> {
-    return baseConnectDb(CONTRACTS_DB_FILE, initializeContractsDb, runContractsMigrations);
-}
-
-export async function initializeContractsDb(db: Database): Promise<void> {
-    const schema = `
-        CREATE TABLE IF NOT EXISTS contracts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            consecutive TEXT UNIQUE NOT NULL,
-            name TEXT NOT NULL,
-            customerId TEXT NOT NULL,
-            startDate TEXT NOT NULL,
-            endDate TEXT NOT NULL,
-            status TEXT NOT NULL DEFAULT 'active', -- active, inactive, expired
-            includedServices TEXT NOT NULL, -- JSON array
-            excludedServices TEXT NOT NULL, -- JSON array
-            monthlyHours REAL DEFAULT 0,
-            price REAL DEFAULT 0,
-            currency TEXT DEFAULT 'CRC',
-            notes TEXT,
-            autoRenew INTEGER DEFAULT 0,
-            createdAt TEXT NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS contract_settings (
-            key TEXT PRIMARY KEY,
-            value TEXT NOT NULL
-        );
-    `;
-    db.exec(schema);
-    db.prepare(`INSERT OR IGNORE INTO contract_settings (key, value) VALUES ('contractPrefix', 'CON-')`).run();
-    db.prepare(`INSERT OR IGNORE INTO contract_settings (key, value) VALUES ('nextContractNumber', '1')`).run();
-    console.log(`Database ${CONTRACTS_DB_FILE} initialized for Contract Management.`);
-}
-
-export async function runContractsMigrations(db: Database) {
-    const tableInfo = db.prepare(`PRAGMA table_info(contracts)`).all() as { name: string }[];
-    const columns = new Set(tableInfo.map(c => c.name));
-    
-    if (!columns.has('autoRenew')) {
-        console.log("MIGRATION (contracts.db): Adding 'autoRenew' column to 'contracts' table.");
-        db.exec(`ALTER TABLE contracts ADD COLUMN autoRenew INTEGER DEFAULT 0;`);
-    }
+    return connectDb();
 }
 
 export async function getContracts(customerId?: string): Promise<Contract[]> {
@@ -149,23 +108,12 @@ export async function getActiveContractForCustomer(customerId: string): Promise<
     } as unknown as Contract;
 }
 
-/**
- * Logic for automatically renewing a contract.
- * Creates a new contract period based on the previous one.
- */
 export async function autoRenewContract(contractId: number): Promise<Contract> {
     const db = await connectContractsDb();
     const old = db.prepare('SELECT * FROM contracts WHERE id = ?').get(contractId) as {
-        name: string;
-        customerId: string;
-        startDate: string;
-        endDate: string;
-        includedServices: string;
-        excludedServices: string;
-        monthlyHours: number;
-        price: number;
-        currency: string;
-        consecutive: string;
+        name: string; customerId: string; startDate: string; endDate: string;
+        includedServices: string; excludedServices: string; monthlyHours: number;
+        price: number; currency: string; consecutive: string;
     } | undefined;
     
     if (!old) throw new Error("Contract not found");
@@ -192,8 +140,6 @@ export async function autoRenewContract(contractId: number): Promise<Contract> {
         autoRenew: true
     };
 
-    // Mark old as expired if it hasn't already
     db.prepare("UPDATE contracts SET status = 'expired', autoRenew = 0 WHERE id = ?").run(contractId);
-
     return await addContract(renewalData);
 }

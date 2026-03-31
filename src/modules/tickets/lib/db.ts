@@ -1,126 +1,16 @@
 /**
- * @fileoverview Server-side functions for the support tickets database.
+ * @fileoverview Server-side functions for the support tickets module.
+ * Unified into intratool.db.
  */
 "use server";
 
 import type { Database } from 'better-sqlite3';
-import { connectDb as baseConnectDb } from '@/modules/core/lib/db-connection';
+import { connectDb } from '@/modules/core/lib/db';
 import { getCompanySettings } from '../../core/lib/settings-db';
 import type { Ticket, NewTicketPayload, User, TicketThread, HelpTopic, ClientCompany, SupportPackage, Service, ThirdPartyProvider } from '@/modules/core/types';
 
-const TICKETS_DB_FILE = 'tickets.db';
-
 export async function connectTicketsDb(): Promise<Database> {
-    return baseConnectDb(TICKETS_DB_FILE, initializeTicketsDb, runTicketMigrations);
-}
-
-export async function initializeTicketsDb(db: Database): Promise<void> {
-    const schema = `
-        CREATE TABLE IF NOT EXISTS client_companies (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            taxId TEXT UNIQUE NOT NULL,
-            address TEXT,
-            phone TEXT,
-            email TEXT,
-            createdAt TEXT NOT NULL
-        );
-
-        CREATE TABLE IF NOT EXISTS help_topics (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT UNIQUE NOT NULL,
-            defaultPriority TEXT,
-            defaultAssigneeId INTEGER,
-            defaultServiceId TEXT
-        );
-
-        CREATE TABLE IF NOT EXISTS tickets (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            consecutive TEXT UNIQUE NOT NULL,
-            subject TEXT NOT NULL,
-            status TEXT NOT NULL,
-            priority TEXT NOT NULL,
-            createdAt TEXT NOT NULL,
-            updatedAt TEXT NOT NULL,
-            dueDate TEXT,
-            companyId INTEGER,
-            customerName TEXT, 
-            companyName TEXT,
-            assigneeId INTEGER,
-            helpTopicId INTEGER,
-            serviceId TEXT,
-            contractId INTEGER,
-            isBillable INTEGER DEFAULT 0,
-            providerId INTEGER,
-            FOREIGN KEY (companyId) REFERENCES client_companies(id) ON DELETE SET NULL,
-            FOREIGN KEY (helpTopicId) REFERENCES help_topics(id)
-        );
-
-        CREATE TABLE IF NOT EXISTS ticket_threads (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            ticketId INTEGER NOT NULL,
-            userId INTEGER,
-            userName TEXT,
-            type TEXT NOT NULL,
-            content TEXT,
-            createdAt TEXT NOT NULL,
-            FOREIGN KEY (ticketId) REFERENCES tickets(id) ON DELETE CASCADE
-        );
-
-        CREATE TABLE IF NOT EXISTS ticket_settings (
-            key TEXT PRIMARY KEY,
-            value TEXT NOT NULL
-        );
-
-        CREATE TABLE IF NOT EXISTS third_party_providers (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            email TEXT,
-            phone TEXT,
-            specialty TEXT,
-            notes TEXT,
-            createdAt TEXT NOT NULL
-        );
-    `;
-    db.exec(schema);
-
-    db.prepare(`INSERT OR IGNORE INTO ticket_settings (key, value) VALUES ('ticketPrefix', 'CAS-')`).run();
-    db.prepare(`INSERT OR IGNORE INTO ticket_settings (key, value) VALUES ('nextTicketNumber', '1')`).run();
-
-    const topics = [
-        { id: 1, name: 'Soporte General', defaultPriority: 'medium', defaultAssigneeId: null, defaultServiceId: null },
-        { id: 2, name: 'Consulta de Facturación', defaultPriority: 'medium', defaultAssigneeId: null, defaultServiceId: null },
-        { id: 3, name: 'Problema con Impresora', defaultPriority: 'high', defaultAssigneeId: null, defaultServiceId: null }
-    ];
-    const insertTopic = db.prepare('INSERT OR IGNORE INTO help_topics (id, name, defaultPriority, defaultAssigneeId, defaultServiceId) VALUES (@id, @name, @defaultPriority, @defaultAssigneeId, @defaultServiceId)');
-    topics.forEach(topic => insertTopic.run(topic));
-}
-
-export async function runTicketMigrations(db: Database) {
-    const tableInfo = db.prepare(`PRAGMA table_info(tickets)`).all() as { name: string }[];
-    const columns = new Set(tableInfo.map(c => c.name));
-    if (!columns.has('companyName')) db.exec(`ALTER TABLE tickets ADD COLUMN companyName TEXT;`);
-    if (!columns.has('helpTopicId')) db.exec(`ALTER TABLE tickets ADD COLUMN helpTopicId INTEGER;`);
-    if (!columns.has('serviceId')) db.exec(`ALTER TABLE tickets ADD COLUMN serviceId TEXT;`);
-    if (!columns.has('dueDate')) db.exec(`ALTER TABLE tickets ADD COLUMN dueDate TEXT;`);
-    if (!columns.has('contractId')) db.exec(`ALTER TABLE tickets ADD COLUMN contractId INTEGER;`);
-    if (!columns.has('isBillable')) db.exec(`ALTER TABLE tickets ADD COLUMN isBillable INTEGER DEFAULT 0;`);
-    if (!columns.has('providerId')) db.exec(`ALTER TABLE tickets ADD COLUMN providerId INTEGER;`);
-
-    const hasProvidersTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='third_party_providers'`).get();
-    if (!hasProvidersTable) {
-        db.exec(`
-            CREATE TABLE third_party_providers (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL,
-                email TEXT,
-                phone TEXT,
-                specialty TEXT,
-                notes TEXT,
-                createdAt TEXT NOT NULL
-            );
-        `);
-    }
+    return connectDb();
 }
 
 async function getNextTicketNumber(db: Database): Promise<{ prefix: string; number: number }> {
@@ -166,10 +56,7 @@ export async function addTicket(payload: NewTicketPayload, user: User): Promise<
     });
 
     const result = transaction() as Ticket;
-    return {
-        ...result,
-        isBillable: !!result.isBillable
-    };
+    return { ...result, isBillable: !!result.isBillable };
 }
 
 export async function addClientCompany(payload: Omit<ClientCompany, 'id' | 'createdAt'>): Promise<ClientCompany> {
@@ -283,12 +170,10 @@ export async function getCustomerSupportInfo(companyId: number | string): Promis
     const db = await connectTicketsDb();
     let customer: Record<string, unknown> | null = null;
     if (typeof companyId === 'string') {
-        const mainDb = await baseConnectDb('intratool.db');
-        customer = mainDb.prepare('SELECT * FROM customers WHERE id = ?').get(companyId) as Record<string, unknown> | null;
+        customer = db.prepare('SELECT * FROM customers WHERE id = ?').get(companyId) as Record<string, unknown> | null;
     } else {
         customer = db.prepare('SELECT * FROM client_companies WHERE id = ?').get(companyId) as Record<string, unknown> | null;
     }
-    
     if (!customer) return { customer: null, supportPackage: null, services: [] };
     const settings = await getCompanySettings();
     const pkgId = customer.supportPackageId as string | undefined;
@@ -296,7 +181,6 @@ export async function getCustomerSupportInfo(companyId: number | string): Promis
     return { customer, supportPackage: pkg, services: settings.servicesCatalog };
 }
 
-// --- Third Party Providers Actions ---
 export async function getThirdPartyProviders(): Promise<ThirdPartyProvider[]> {
     const db = await connectTicketsDb();
     return db.prepare('SELECT * FROM third_party_providers ORDER BY name ASC').all() as ThirdPartyProvider[];

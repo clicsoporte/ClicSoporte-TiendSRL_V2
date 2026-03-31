@@ -1,88 +1,15 @@
 /**
- * @fileoverview Server-side functions for the TI project manager database.
+ * @fileoverview Server-side functions for the planner module.
+ * Unified into intratool.db.
  */
 "use server";
 
 import type { Database } from 'better-sqlite3';
-import { connectDb as baseConnectDb } from '@/modules/core/lib/db-connection';
+import { connectDb } from '@/modules/core/lib/db';
 import type { TIProject, ProjectAdvance, ProjectAttachment, ProjectItem, PlannerSettings } from '../../core/types';
 
-const PLANNER_DB_FILE = 'planner.db';
-
 export async function connectPlannerDb(): Promise<Database> {
-    return baseConnectDb(PLANNER_DB_FILE, initializePlannerDb, runPlannerMigrations);
-}
-
-export async function initializePlannerDb(db: Database) {
-    const schema = `
-        CREATE TABLE IF NOT EXISTS planner_settings (
-            key TEXT PRIMARY KEY,
-            value TEXT NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS projects (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            consecutive TEXT UNIQUE NOT NULL,
-            name TEXT NOT NULL,
-            customerId TEXT NOT NULL,
-            customerName TEXT NOT NULL,
-            category TEXT NOT NULL DEFAULT 'other', -- alarms, wireless, pos, fencing, cctv, etc.
-            status TEXT NOT NULL, -- planning, execution, testing, completed, canceled
-            priority TEXT NOT NULL, -- low, medium, high, urgent
-            startDate TEXT NOT NULL,
-            endDate TEXT NOT NULL,
-            coordinatorId INTEGER NOT NULL,
-            subcontractorId INTEGER,
-            description TEXT NOT NULL,
-            notes TEXT,
-            billingStatus TEXT DEFAULT 'pending', -- pending, invoiced
-            createdAt TEXT NOT NULL,
-            updatedAt TEXT NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS project_advances (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            projectId INTEGER NOT NULL,
-            timestamp TEXT NOT NULL,
-            content TEXT NOT NULL,
-            userId INTEGER NOT NULL,
-            userName TEXT NOT NULL,
-            FOREIGN KEY (projectId) REFERENCES projects(id) ON DELETE CASCADE
-        );
-        CREATE TABLE IF NOT EXISTS project_attachments (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            projectId INTEGER NOT NULL,
-            name TEXT NOT NULL,
-            fileName TEXT NOT NULL,
-            fileType TEXT NOT NULL,
-            data TEXT NOT NULL, -- Base64
-            uploadedBy TEXT NOT NULL,
-            createdAt TEXT NOT NULL,
-            FOREIGN KEY (projectId) REFERENCES projects(id) ON DELETE CASCADE
-        );
-        CREATE TABLE IF NOT EXISTS project_items (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            projectId INTEGER NOT NULL,
-            description TEXT NOT NULL,
-            quantity REAL NOT NULL,
-            unitPrice REAL NOT NULL,
-            type TEXT NOT NULL, -- material, service
-            FOREIGN KEY (projectId) REFERENCES projects(id) ON DELETE CASCADE
-        );
-    `;
-    db.exec(schema);
-
-    db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('projectPrefix', 'PROJ-')`).run();
-    db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('nextProjectNumber', '1')`).run();
-    db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('pdfTopLegend', 'ACTA DE ENTREGA DE PROYECTO TI')`).run();
-}
-
-export async function runPlannerMigrations(db: Database) {
-    const tableInfo = db.prepare(`PRAGMA table_info(projects)`).all() as { name: string }[];
-    const columns = new Set(tableInfo.map(c => c.name));
-    
-    if (!columns.has('category')) {
-        console.log("MIGRATION (planner.db): Adding 'category' column to 'projects' table.");
-        db.exec(`ALTER TABLE projects ADD COLUMN category TEXT NOT NULL DEFAULT 'other';`);
-    }
+    return connectDb();
 }
 
 export async function getSettings(): Promise<PlannerSettings> {
@@ -90,30 +17,16 @@ export async function getSettings(): Promise<PlannerSettings> {
     const rows = db.prepare('SELECT * FROM planner_settings').all() as { key: string; value: string }[];
     const settings: Record<string, unknown> = {};
     rows.forEach(row => {
-        if (row.key === 'nextProjectNumber' || row.key === 'nextOrderNumber') {
-            settings[row.key] = Number(row.value);
-        } else if (['assignments', 'customStatuses', 'pdfExportColumns', 'fieldsToTrackChanges'].includes(row.key)) {
-            try {
-                settings[row.key] = JSON.parse(row.value);
-            } catch {
-                settings[row.key] = [];
-            }
+        if (row.key === 'nextProjectNumber') settings[row.key] = Number(row.value);
+        else if (['assignments'].includes(row.key)) {
+            try { settings[row.key] = JSON.parse(row.value); } catch { settings[row.key] = []; }
         } else if (['showCustomerTaxId', 'requireAssignmentForStart'].includes(row.key)) {
             settings[row.key] = row.value === 'true' || row.value === '1';
-        } else {
-            settings[row.key] = row.value;
-        }
+        } else { settings[row.key] = row.value; }
     });
-
-    // Ensure array properties exist
     if (!settings.assignments) settings.assignments = [];
-    if (!settings.customStatuses) settings.customStatuses = [];
-    if (!settings.pdfExportColumns) settings.pdfExportColumns = [];
-    if (!settings.fieldsToTrackChanges) settings.fieldsToTrackChanges = [];
     if (settings.showCustomerTaxId === undefined) settings.showCustomerTaxId = true;
-    if (settings.requireAssignmentForStart === undefined) settings.requireAssignmentForStart = false;
     if (!settings.assignmentLabel) settings.assignmentLabel = 'Asignado a';
-
     return settings as unknown as PlannerSettings;
 }
 
