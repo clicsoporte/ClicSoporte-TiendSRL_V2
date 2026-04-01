@@ -1,0 +1,66 @@
+
+=================================================================================================
+GUÍA DE MIGRACIÓN: DE MULTI-SQLITE A SINGLE-DB (INTRATOOL.DB)
+=================================================================================================
+Autor: App Prototyper (Firebase Studio AI)
+Contexto: Consolidación de 8 bases de datos fragmentadas en una Fuente Única de Verdad.
+
+1. OBJETIVO TÉCNICO
+-------------------
+Eliminar la complejidad de gestionar múltiples archivos .db (tickets, planner, licenses, quoter, etc.) 
+para permitir integridad referencial (FOREIGN KEYS), simplificar backups y preparar el sistema 
+para una migración indolora a MySQL/PostgreSQL remoto (Vultr -> cPanel).
+
+2. METODOLOGÍA DE UNIFICACIÓN (PASO A PASO)
+-------------------------------------------
+A. CENTRALIZACIÓN DE LA CONEXIÓN:
+   - Se movió la lógica de conexión a 'src/modules/core/lib/db.ts'.
+   - Se simplificó la función 'connectDb()' para que no acepte parámetros. 
+   - ESTRATEGIA: La función ahora siempre apunta a 'intratool.db'. Cualquier intento de pasarle 
+     un nombre de archivo (como se hacía antes) es un error de compilación.
+
+B. CONSOLIDACIÓN DEL ESQUEMA MAESTRO:
+   - Se agruparon todos los 'CREATE TABLE' de todos los módulos en una sola función 'initializeMainDatabase'.
+   - PREVENCIÓN DE COLISIONES: Tablas genéricas como 'settings' se renombraron a 'ticket_settings', 
+     'planner_settings', 'cost_assistant_settings'. Esto es vital para evitar sobreescritura de datos.
+
+C. REDIRECCIÓN DE MÓDULOS:
+   - Cada 'db.ts' modular (ej: src/modules/tickets/lib/db.ts) ahora importa 'connectDb' del CORE.
+   - Se eliminaron las funciones de inicialización locales en favor de la centralizada.
+
+3. ERRORES CRÍTICOS Y REPARACIONES (LECCIONES APRENDIDAS)
+---------------------------------------------------------
+ERROR 1: "Expected 0 arguments, but got 1" (TS2554)
+- Origen: El Scheduler y el Quoter intentaban abrir sus dbs antiguas pasando el string del archivo.
+- Solución: Limpieza masiva de firmas. Se eliminaron los argumentos en TODAS las llamadas del proyecto.
+- Aprendizaje: Cuando cambias una firma de función global, el compilador es tu mejor amigo para encontrar 
+  residuos de la arquitectura anterior.
+
+ERROR 2: Incompatibilidad de Nulos (TS2322)
+- Origen: SQLite devuelve 'null' para campos vacíos. TypeScript espera 'undefined' para propiedades opcionales (?).
+- Solución: Implementar mapeos explícitos en los retornos. 
+  Ej: return rows.map(r => ({ ...r, entityId: r.entityId ?? undefined }));
+- Aprendizaje: La base de datos y la interfaz de usuario hablan idiomas de "vacío" diferentes.
+
+ERROR 3: Variables Huérfanas (ESLint)
+- Origen: Funciones como 'factoryReset' o 'getLogs' recibían un 'moduleId' que ya no sirve para nada.
+- Solución: Eliminar los parámetros y limpiar las llamadas en las páginas (.tsx).
+- Aprendizaje: Una db única requiere menos metadatos para operar. Menos es más.
+
+4. ESTRATEGIAS QUE FUNCIONARON
+------------------------------
+1. "Modular Monolith": Mantener las carpetas separadas pero la data unificada. No mezclar lógica de 
+   negocio solo porque la data está junta.
+2. "Naming Namespacing": Prefijar tablas de configuración. Es la única forma de evitar que un módulo 
+   rompa los ajustes de otro.
+3. "Centralized Migrations": Usar una sola función 'runMainMigrations' para asegurar que, al subir 
+   una nueva versión, todas las tablas se actualicen en bloque.
+
+5. NOTA PARA INSTANCIAS FUTURAS
+-------------------------------
+Si intentas volver atrás, el sistema fallará por dependencias circulares. La arquitectura de 
+"Single DB" es el estado final deseado. Para migrar a MySQL en cPanel, solo debes cambiar la 
+implementación de 'connectDb' en 'src/modules/core/lib/db.ts' para usar el driver 'mysql2' o 
+'mssql' en lugar de 'better-sqlite3'. La lógica de los módulos NO debe tocarse.
+
+ESTADO: ESTABLE Y UNIFICADO.
