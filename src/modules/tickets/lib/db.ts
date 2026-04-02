@@ -6,7 +6,7 @@
 
 import type { Database } from 'better-sqlite3';
 import { connectDb } from '@/modules/core/lib/db';
-import { getCompanySettings } from '../../core/lib/settings-db';
+import { logError } from '@/modules/core/lib/logger';
 import type { Ticket, NewTicketPayload, User, TicketThread, HelpTopic, ClientCompany, SupportPackage, Service, ThirdPartyProvider } from '@/modules/core/types';
 
 export async function connectTicketsDb(): Promise<Database> {
@@ -20,43 +20,49 @@ async function getNextTicketNumber(db: Database): Promise<{ prefix: string; numb
 }
 
 export async function addTicket(payload: NewTicketPayload, user: User): Promise<Ticket> {
-    const db = await connectTicketsDb();
-    const { prefix, number } = await getNextTicketNumber(db);
+    try {
+        const db = await connectTicketsDb();
+        const { prefix, number } = await getNextTicketNumber(db);
 
-    const transaction = db.transaction(() => {
-        const consecutive = `${prefix}${number.toString().padStart(6, '0')}`;
-        const now = new Date().toISOString();
-        let priority = payload.priority;
-        let assigneeId = payload.assigneeId;
+        const transaction = db.transaction(() => {
+            const consecutive = `${prefix}${number.toString().padStart(6, '0')}`;
+            const now = new Date().toISOString();
+            let priority = payload.priority;
+            let assigneeId = payload.assigneeId;
 
-        if (payload.helpTopicId) {
-            const topic = db.prepare('SELECT * FROM help_topics WHERE id = ?').get(payload.helpTopicId) as HelpTopic | undefined;
-            if (topic) {
-                if (topic.defaultPriority && !payload.priority) priority = topic.defaultPriority;
-                if (topic.defaultAssigneeId !== undefined && payload.assigneeId === undefined) assigneeId = topic.defaultAssigneeId;
+            if (payload.helpTopicId) {
+                const topic = db.prepare('SELECT * FROM help_topics WHERE id = ?').get(payload.helpTopicId) as HelpTopic | undefined;
+                if (topic) {
+                    if (topic.defaultPriority && !payload.priority) priority = topic.defaultPriority;
+                    if (topic.defaultAssigneeId !== undefined && payload.assigneeId === undefined) assigneeId = topic.defaultAssigneeId;
+                }
             }
-        }
-        
-        let companyName = payload.companyName || '';
-        if(payload.companyId) {
-            const company = db.prepare('SELECT name FROM client_companies WHERE id = ?').get(payload.companyId) as { name: string } | undefined;
-            if(company) companyName = company.name;
-        }
+            
+            let companyName = payload.companyName || '';
+            if(payload.companyId) {
+                const company = db.prepare('SELECT name FROM client_companies WHERE id = ?').get(payload.companyId) as { name: string } | undefined;
+                if(company) companyName = company.name;
+            }
 
-        const info = db.prepare(`
-            INSERT INTO tickets (consecutive, subject, status, priority, createdAt, updatedAt, companyId, customerName, companyName, assigneeId, helpTopicId, serviceId, dueDate, contractId, isBillable, providerId)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(consecutive, payload.subject, 'open', priority, now, now, payload.companyId, payload.customerName, companyName, assigneeId, payload.helpTopicId, payload.serviceId, payload.dueDate || null, payload.contractId, payload.isBillable ? 1 : 0, payload.providerId);
-        
-        db.prepare('INSERT INTO ticket_threads (ticketId, userId, userName, type, content, createdAt) VALUES (?, ?, ?, ?, ?, ?)')
-          .run(info.lastInsertRowid, user.id, user.name, 'message', payload.content, now);
+            const info = db.prepare(`
+                INSERT INTO tickets (consecutive, subject, status, priority, createdAt, updatedAt, companyId, customerName, companyName, assigneeId, helpTopicId, serviceId, dueDate, contractId, isBillable, providerId)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `).run(consecutive, payload.subject, 'open', priority, now, now, payload.companyId, payload.customerName, companyName, assigneeId, payload.helpTopicId, payload.serviceId, payload.dueDate || null, payload.contractId, payload.isBillable ? 1 : 0, payload.providerId);
+            
+            db.prepare('INSERT INTO ticket_threads (ticketId, userId, userName, type, content, createdAt) VALUES (?, ?, ?, ?, ?, ?)')
+              .run(info.lastInsertRowid, user.id, user.name, 'message', payload.content, now);
 
-        db.prepare('UPDATE ticket_settings SET value = ? WHERE key = ?').run(String(number + 1), 'nextTicketNumber');
-        return db.prepare('SELECT * FROM tickets WHERE id = ?').get(info.lastInsertRowid) as Ticket;
-    });
+            db.prepare('UPDATE ticket_settings SET value = ? WHERE key = ?').run(String(number + 1), 'nextTicketNumber');
+            return db.prepare('SELECT * FROM tickets WHERE id = ?').get(info.lastInsertRowid) as Ticket;
+        });
 
-    const result = transaction() as Ticket;
-    return { ...result, isBillable: !!result.isBillable };
+        const result = transaction() as Ticket;
+        return { ...result, isBillable: !!result.isBillable };
+    } catch (error: unknown) {
+        const err = error as Error;
+        await logError("Falla al abrir ticket de soporte", { error: err.message, subject: payload.subject });
+        throw new Error(`No se pudo crear el ticket: ${err.message}`);
+    }
 }
 
 export async function addClientCompany(payload: Omit<ClientCompany, 'id' | 'createdAt'>): Promise<ClientCompany> {

@@ -6,6 +6,7 @@
 
 import type { Database } from 'better-sqlite3';
 import { connectDb } from '@/modules/core/lib/db';
+import { logError } from '@/modules/core/lib/logger';
 import type { TIProject, ProjectAdvance, ProjectAttachment, ProjectItem, PlannerSettings } from '../../core/types';
 
 export async function connectPlannerDb(): Promise<Database> {
@@ -50,20 +51,26 @@ export async function getProjectById(id: number): Promise<TIProject | null> {
 }
 
 export async function addProject(project: Omit<TIProject, 'id' | 'consecutive' | 'createdAt' | 'updatedAt' | 'billingStatus'>): Promise<TIProject> {
-    const db = await connectPlannerDb();
-    const settings = await getSettings();
-    const nextNum = settings.nextProjectNumber || 1;
-    const prefix = settings.projectPrefix || 'PROJ-';
-    const consecutive = `${prefix}${nextNum.toString().padStart(5, '0')}`;
-    const now = new Date().toISOString();
+    try {
+        const db = await connectPlannerDb();
+        const settings = await getSettings();
+        const nextNum = settings.nextProjectNumber || 1;
+        const prefix = settings.projectPrefix || 'PROJ-';
+        const consecutive = `${prefix}${nextNum.toString().padStart(5, '0')}`;
+        const now = new Date().toISOString();
 
-    const info = db.prepare(`
-        INSERT INTO projects (consecutive, name, customerId, customerName, category, status, priority, startDate, endDate, coordinatorId, subcontractorId, description, notes, createdAt, updatedAt)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(consecutive, project.name, project.customerId, project.customerName, project.category, project.status, project.priority, project.startDate, project.endDate, project.coordinatorId, project.subcontractorId, project.description, project.notes, now, now);
+        const info = db.prepare(`
+            INSERT INTO projects (consecutive, name, customerId, customerName, category, status, priority, startDate, endDate, coordinatorId, subcontractorId, description, notes, createdAt, updatedAt)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(consecutive, project.name, project.customerId, project.customerName, project.category, project.status, project.priority, project.startDate, project.endDate, project.coordinatorId, project.subcontractorId, project.description, project.notes, now, now);
 
-    await saveSettings({ nextProjectNumber: nextNum + 1 });
-    return db.prepare('SELECT * FROM projects WHERE id = ?').get(info.lastInsertRowid) as TIProject;
+        await saveSettings({ nextProjectNumber: nextNum + 1 });
+        return db.prepare('SELECT * FROM projects WHERE id = ?').get(info.lastInsertRowid) as TIProject;
+    } catch (error: unknown) {
+        const err = error as Error;
+        await logError("Falla al crear proyecto TI", { error: err.message, name: project.name });
+        throw new Error(`No se pudo iniciar el proyecto: ${err.message}`);
+    }
 }
 
 export async function updateProject(project: TIProject): Promise<TIProject> {
