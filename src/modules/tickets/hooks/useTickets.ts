@@ -9,7 +9,7 @@ import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError } from '@/modules/core/lib/logger';
 import { useAuth } from '@/modules/core/hooks/useAuth';
-import type { NewTicketPayload, Ticket, TicketPriority, TicketStatus, TicketThread, User, HelpTopic, Contract, ThirdPartyProvider } from '@/modules/core/types';
+import type { NewTicketPayload, Ticket, TicketPriority, TicketStatus, TicketThread, User, HelpTopic, Contract, ThirdPartyProvider, CustomerContact } from '@/modules/core/types';
 import {
     saveTicket, getTickets, getTicketById as getTicketByIdServer,
     getTicketThread as getTicketThreadServer,
@@ -43,6 +43,7 @@ const initialState = {
     isSubmitting: false,
     isNewTicketDialogOpen: false,
     newTicket: emptyTicket,
+    selectedCustomerId: null as string | null,
     customerSearchTerm: '',
     isCustomerSearchOpen: false,
     tickets: [] as Ticket[],
@@ -171,6 +172,7 @@ export const useTickets = () => {
                 const { isBillable } = validateCoverage(prevState.newTicket.serviceId, contract);
                 return {
                     ...prevState,
+                    selectedCustomerId: customer.id,
                     newTicket: { 
                         ...prevState.newTicket, 
                         companyId: null,
@@ -185,6 +187,18 @@ export const useTickets = () => {
                     isCustomerSearchOpen: false,
                 };
             });
+        },
+
+        handleSelectContact: (contact: CustomerContact) => {
+            setState(prevState => ({
+                ...prevState,
+                newTicket: {
+                    ...prevState.newTicket,
+                    customerName: contact.name,
+                    customerEmail: contact.email,
+                    customerPhone: contact.whatsapp || contact.officePhone || prevState.newTicket.customerPhone
+                }
+            }));
         },
 
         handleCreateTicket: async () => {
@@ -208,6 +222,7 @@ export const useTickets = () => {
                     ...prevState,
                     isNewTicketDialogOpen: false,
                     newTicket: emptyTicket,
+                    selectedCustomerId: null,
                     customerSearchTerm: '',
                     tickets: [createdTicket, ...prevState.tickets],
                     activeContract: null,
@@ -274,7 +289,7 @@ export const useTickets = () => {
         },
 
         resetNewTicketForm: () => {
-            updateState({ newTicket: emptyTicket, customerSearchTerm: '', activeContract: null });
+            updateState({ newTicket: emptyTicket, selectedCustomerId: null, customerSearchTerm: '', activeContract: null });
         }
     }), [updateState, toast, customers, users, validateCoverage]);
 

@@ -7,7 +7,7 @@ import { useTickets } from "@/modules/tickets/hooks/useTickets";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
-import { FilePlus, Loader2, FilterX, ShieldCheck, ShieldAlert } from "lucide-react";
+import { FilePlus, Loader2, FilterX, ShieldCheck, ShieldAlert, UserCircle } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -21,7 +21,7 @@ import { useRouter } from "next/navigation";
 import { useAuthorization } from "@/modules/core/hooks/useAuthorization";
 import Link from "next/link";
 import { useAuth } from "@/modules/core/hooks/useAuth";
-import type { Ticket } from '@/modules/core/types';
+import type { Ticket, CustomerContact } from '@/modules/core/types';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
 
@@ -29,7 +29,7 @@ export default function TicketsClient() {
     const { state, actions, selectors } = useTickets();
     const { hasPermission } = useAuthorization(['tickets:admin:settings']);
     const router = useRouter();
-    const { companyData } = useAuth();
+    const { companyData, customers } = useAuth();
     
     const {
         isNewTicketDialogOpen,
@@ -42,8 +42,12 @@ export default function TicketsClient() {
         statusFilter,
         priorityFilter,
         activeContract,
-        providers
+        providers,
+        selectedCustomerId
     } = state;
+
+    const selectedCustomer = customers.find(c => c.id === selectedCustomerId);
+    const customerContacts = selectedCustomer?.contacts || [];
 
     const renderTicketRow = (ticket: Ticket) => {
         const { priorityConfig, statusConfig } = selectors;
@@ -183,7 +187,35 @@ export default function TicketsClient() {
                                             </div>
 
                                             <div className="pt-4 space-y-2 border-t mt-4">
-                                                <Label className="text-xs">Contacto del Cliente</Label>
+                                                <div className="flex items-center justify-between mb-1">
+                                                    <Label className="text-xs">Contacto del Cliente</Label>
+                                                    {customerContacts.length > 0 && (
+                                                        <Badge variant="outline" className="text-[9px] h-4">
+                                                            <UserCircle className="h-2 w-2 mr-1"/> {customerContacts.length} registrados
+                                                        </Badge>
+                                                    )}
+                                                </div>
+                                                
+                                                {customerContacts.length > 0 && (
+                                                    <Select 
+                                                        onValueChange={(val) => {
+                                                            const contact = customerContacts.find(c => c.id === val);
+                                                            if (contact) actions.handleSelectContact(contact);
+                                                        }}
+                                                    >
+                                                        <SelectTrigger className="h-8 text-xs bg-muted/30">
+                                                            <SelectValue placeholder="Seleccionar contacto registrado..." />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {customerContacts.map((contact: CustomerContact) => (
+                                                                <SelectItem key={contact.id} value={contact.id} className="text-xs">
+                                                                    {contact.name} ({contact.department || 'Gral'})
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                )}
+
                                                 <Input id="new-ticket-customer-name" value={newTicket.customerName} onChange={(e) => actions.handleNewTicketChange('customerName', e.target.value)} required placeholder="Nombre" className="h-8 text-xs" />
                                                 <Input id="new-ticket-customer-email" type="email" value={newTicket.customerEmail} onChange={(e) => actions.handleNewTicketChange('customerEmail', e.target.value)} required placeholder="Email" className="h-8 text-xs" />
                                             </div>
