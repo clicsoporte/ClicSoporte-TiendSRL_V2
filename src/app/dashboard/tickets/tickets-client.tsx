@@ -7,7 +7,7 @@ import { useTickets } from "@/modules/tickets/hooks/useTickets";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
-import { FilePlus, Loader2, FilterX, ShieldCheck, ShieldAlert, UserCircle } from "lucide-react";
+import { FilePlus, Loader2, FilterX, ShieldCheck, ShieldAlert, UserCircle, Clock } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -49,6 +49,14 @@ export default function TicketsClient() {
     const selectedCustomer = customers.find(c => c.id === selectedCustomerId);
     const customerContacts = selectedCustomer?.contacts || [];
 
+    const formatDuration = (ms: number | undefined) => {
+        if (!ms) return "00:00";
+        const totalMinutes = Math.floor(ms / 60000);
+        const h = Math.floor(totalMinutes / 60);
+        const m = totalMinutes % 60;
+        return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+    };
+
     const renderTicketRow = (ticket: Ticket) => {
         const { priorityConfig, statusConfig } = selectors;
         return (
@@ -75,6 +83,14 @@ export default function TicketsClient() {
                     <div className="flex items-center gap-2 text-xs">
                         <span className={cn("h-2 w-2 rounded-full", statusConfig[ticket.status]?.color)}></span>
                         <span className="font-medium">{statusConfig[ticket.status]?.label || ticket.status}</span>
+                    </div>
+                </TableCell>
+                <TableCell>
+                    <div className="flex items-center gap-2 text-xs font-mono">
+                        {ticket.hasActiveTimer && <Clock className="h-3 w-3 text-green-600 animate-pulse" />}
+                        <span className={cn(ticket.hasActiveTimer ? "text-green-600 font-bold" : "text-muted-foreground")}>
+                            {formatDuration(ticket.totalDuration)}
+                        </span>
                     </div>
                 </TableCell>
                 <TableCell className="hidden md:table-cell text-xs text-muted-foreground">{format(parseISO(ticket.createdAt), 'dd/MM/yy HH:mm')}</TableCell>
@@ -261,6 +277,7 @@ export default function TicketsClient() {
                                     <TableHead>Cliente</TableHead>
                                     <TableHead className="w-[120px]">Prioridad</TableHead>
                                     <TableHead className="w-[120px]">Estado</TableHead>
+                                    <TableHead className="w-[100px]">Tiempo</TableHead>
                                     <TableHead className="hidden md:table-cell w-[150px]">Fecha</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -268,7 +285,7 @@ export default function TicketsClient() {
                                 {selectors.filteredTickets.length > 0 ? (
                                     selectors.filteredTickets.map(renderTicketRow)
                                 ) : (
-                                    <TableRow><TableCell colSpan={6} className="h-24 text-center text-muted-foreground italic">No se encontraron casos con los filtros actuales.</TableCell></TableRow>
+                                    <TableRow><TableCell colSpan={7} className="h-24 text-center text-muted-foreground italic">No se encontraron casos con los filtros actuales.</TableCell></TableRow>
                                 )}
                             </TableBody>
                         </Table>

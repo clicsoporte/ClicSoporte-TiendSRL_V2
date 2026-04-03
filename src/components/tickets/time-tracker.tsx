@@ -5,7 +5,7 @@
  * Features a real-time stopwatch and manual entry options.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTimeTracker } from '@/modules/timesheet/hooks/useTimeTracker';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -23,9 +23,10 @@ import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 interface TimeTrackerProps {
     ticketId: number;
     defaultIsBillable: boolean;
+    ticketStatus?: string; // Added to trigger refresh on status change
 }
 
-export function TimeTracker({ ticketId, defaultIsBillable }: TimeTrackerProps) {
+export function TimeTracker({ ticketId, defaultIsBillable, ticketStatus }: TimeTrackerProps) {
     const { state, actions, formatDuration } = useTimeTracker(ticketId);
     const { hasPermission } = useAuthorization();
     const [note, setNote] = useState("");
@@ -35,6 +36,11 @@ export function TimeTracker({ ticketId, defaultIsBillable }: TimeTrackerProps) {
     const [manualMinutes, setManualMinutes] = useState(0);
     const [manualNote, setManualNote] = useState("");
     const [manualDate, setManualDate] = useState(new Date().toISOString().substring(0, 10));
+
+    // Refresh when status changes externally (sync with sidebar)
+    useEffect(() => {
+        actions.refresh();
+    }, [ticketStatus, actions]);
 
     const handleStart = () => {
         actions.handleStartTimer(isBillable, note);

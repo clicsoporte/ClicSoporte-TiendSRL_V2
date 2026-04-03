@@ -91,8 +91,21 @@ export async function getClientCompanies(): Promise<ClientCompany[]> {
 
 export async function getTickets(): Promise<Ticket[]> {
     const db = await connectTicketsDb();
-    const rows = db.prepare('SELECT * FROM tickets ORDER BY createdAt DESC').all() as Ticket[];
-    return rows.map(r => ({ ...r, isBillable: !!r.isBillable }));
+    const rows = db.prepare(`
+        SELECT t.*, 
+               COALESCE(SUM(te.duration), 0) as totalDuration,
+               MAX(CASE WHEN te.endTime IS NULL THEN 1 ELSE 0 END) as hasActiveTimer
+        FROM tickets t
+        LEFT JOIN time_entries te ON t.id = te.ticketId
+        GROUP BY t.id
+        ORDER BY t.createdAt DESC
+    `).all() as (Ticket & { hasActiveTimer: number })[];
+    
+    return rows.map(r => ({ 
+        ...r, 
+        isBillable: !!r.isBillable,
+        hasActiveTimer: r.hasActiveTimer === 1
+    }));
 }
 
 export async function getTicketById(id: number): Promise<Ticket | null> {

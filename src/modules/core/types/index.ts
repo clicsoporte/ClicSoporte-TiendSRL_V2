@@ -586,6 +586,8 @@ export type Ticket = {
     contractId?: number | null;
     isBillable: boolean;
     providerId?: number | null;
+    totalDuration?: number;
+    hasActiveTimer?: boolean;
 };
 
 export type TicketThread = {
@@ -605,7 +607,7 @@ export type NewTicketPayload = {
     priority: TicketPriority;
     companyId: number | null;
     serviceId: string | null;
-    customerName: string;
+    customerName: string; 
     customerEmail: string;
     customerPhone?: string;
     companyName?: string;

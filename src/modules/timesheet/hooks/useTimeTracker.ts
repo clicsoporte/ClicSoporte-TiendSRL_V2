@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Custom hook for managing the time tracking component.
  */
@@ -166,7 +165,8 @@ export const useTimeTracker = (ticketId: number) => {
             handleStopTimer,
             handleAddManualEntry,
             handleDeleteEntry,
-            setShowManualForm
+            setShowManualForm,
+            refresh: loadEntries
         },
         formatDuration,
     };

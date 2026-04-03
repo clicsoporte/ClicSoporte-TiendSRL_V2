@@ -260,6 +260,7 @@ export default function TicketDetailPage() {
                     <TimeTracker 
                         ticketId={ticket.id} 
                         defaultIsBillable={ticket.isBillable} 
+                        ticketStatus={ticket.status} // Pass status to trigger internal refresh
                     />
                 )}
 
