@@ -1,5 +1,5 @@
 /**
- * @fileoverview Ticket detail page with contract, provider and time tracking integration.
+ * @fileoverview Ticket detail page with multi-column layout for operations and context info.
  */
 'use client';
 
@@ -14,7 +14,7 @@ import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Send, Loader2, MoreVertical, CreditCard, ShieldCheck, ShieldAlert, Truck, CheckCircle2, XCircle, PlayCircle, PauseCircle } from 'lucide-react';
+import { Send, Loader2, MoreVertical, CreditCard, ShieldCheck, ShieldAlert, Truck, CheckCircle2, XCircle, PlayCircle, PauseCircle, Info, UserCircle } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -49,26 +49,23 @@ export default function TicketDetailPage() {
     const [isDeleting, setIsDeleting] = useState(false);
     const [isInitialLoading, setIsInitialLoading] = useState(true);
 
-    // Closure Dialog States
     const [isClosureDialogOpen, setClosureDialogOpen] = useState(false);
     const [closureType, setClosureType] = useState<'completed' | 'canceled'>('completed');
     const [closureContent, setClosureContent] = useState("");
     
     const supportUsers = useMemo(() => selectors.supportUsers, [selectors.supportUsers]);
 
-    const { getTicketById, getTicketThread } = actions;
-
     const loadData = useCallback(async () => {
         if (ticketId && isAuthorized) {
-            const ticketData = await getTicketById(ticketId);
+            const ticketData = await actions.getTicketById(ticketId);
             if (ticketData) {
                 setTicket(ticketData);
-                const threadData = await getTicketThread(ticketId);
+                const threadData = await actions.getTicketThread(ticketId);
                 setThread(threadData);
             }
             setIsInitialLoading(false);
         }
-    }, [ticketId, isAuthorized, getTicketById, getTicketThread]);
+    }, [ticketId, isAuthorized, actions]);
 
     useEffect(() => {
         loadData();
@@ -97,7 +94,6 @@ export default function TicketDetailPage() {
             return;
         };
 
-        // Intercept Completed/Canceled to show dialog
         if (updates.status === 'completed' || updates.status === 'canceled') {
             setClosureType(updates.status);
             setClosureContent("");
@@ -108,7 +104,7 @@ export default function TicketDetailPage() {
         const updatedTicket = await actions.updateTicketDetails(ticketId, updates, currentUser);
         if (updatedTicket) {
             setTicket(updatedTicket);
-            const threadData = await getTicketThread(ticketId);
+            const threadData = await actions.getTicketThread(ticketId);
             setThread(threadData);
             if (updates.status === 'in_progress') toast({ title: "Cronómetro Iniciado Automáticamente" });
             if (updates.status === 'on_hold') toast({ title: "Tiempo Pausado" });
@@ -119,7 +115,6 @@ export default function TicketDetailPage() {
         if (!closureContent.trim() || !currentUser) return;
         setIsReplying(true);
         
-        // 1. Add the final resolution/cancellation message to thread
         await actions.addThreadEntry({
             ticketId,
             content: closureContent,
@@ -128,12 +123,11 @@ export default function TicketDetailPage() {
             type: 'message'
         });
 
-        // 2. Update status (this also stops timer server-side)
         const updatedTicket = await actions.updateTicketDetails(ticketId, { status: closureType }, currentUser);
         
         if (updatedTicket) {
             setTicket(updatedTicket);
-            const threadData = await getTicketThread(ticketId);
+            const threadData = await actions.getTicketThread(ticketId);
             setThread(threadData);
             setClosureDialogOpen(false);
             toast({ title: closureType === 'completed' ? "Caso Finalizado con Éxito" : "Caso Cancelado" });
@@ -176,13 +170,81 @@ export default function TicketDetailPage() {
     }
 
     const selectedService = companyData?.servicesCatalog.find(s => s.id === ticket.serviceId);
+
+    // --- Sub-componentes de tarjetas para evitar duplicación en el layout adaptable ---
+    const BillingAndCoverageCard = () => (
+        <Card className={cn(ticket.isBillable ? "border-destructive bg-destructive/5" : "border-green-200 bg-green-50/30")}>
+            <CardHeader className="p-4 pb-2">
+                <CardTitle className="text-sm font-bold flex items-center gap-2">
+                    <CreditCard className="h-4 w-4" /> FACTURACIÓN Y COBERTURA
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 pt-0 space-y-4">
+                <div className="flex items-center justify-between">
+                    <Label htmlFor="billable-switch" className="text-sm">Marcar como Facturable</Label>
+                    <Switch 
+                        id="billable-switch" 
+                        checked={ticket.isBillable} 
+                        onCheckedChange={(checked) => handleDetailUpdate({ isBillable: checked })}
+                        disabled={!hasPermission('tickets:manage') || ticket.status === 'completed' || ticket.status === 'canceled'}
+                    />
+                </div>
+                <div className="p-3 rounded-md border text-xs space-y-2">
+                    <div className="flex items-center gap-2">
+                        {ticket.isBillable ? <ShieldAlert className="h-4 w-4 text-destructive" /> : <ShieldCheck className="h-4 w-4 text-green-600" />}
+                        <span className="font-bold">{ticket.isBillable ? 'Servicio Adicional (Con Costo)' : 'Cubierto por Contrato'}</span>
+                    </div>
+                    <p className="text-muted-foreground">Servicio: <strong>{selectedService?.name || 'General'}</strong></p>
+                    {ticket.contractId && <p className="text-muted-foreground">Línea de Contrato: <strong>#{ticket.contractId}</strong></p>}
+                </div>
+            </CardContent>
+        </Card>
+    );
+
+    const ProviderCard = () => (
+        <Card>
+            <CardHeader className="p-4 pb-2">
+                <CardTitle className="text-sm font-bold flex items-center gap-2">
+                    <Truck className="h-4 w-4" /> PROVEEDOR EXTERNO
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 pt-0 space-y-2">
+                <Select value={String(ticket.providerId || 'null')} onValueChange={(v) => handleDetailUpdate({ providerId: v === 'null' ? null : Number(v) })} disabled={!hasPermission('tickets:manage') || ticket.status === 'completed' || ticket.status === 'canceled'}>
+                    <SelectTrigger className="h-8"><SelectValue placeholder="Sin proveedor externo"/></SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="null">Ninguno (Soporte Interno)</SelectItem>
+                        {selectors.providers.map((p: ThirdPartyProvider) => (<SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>))}
+                    </SelectContent>
+                </Select>
+                <p className="text-[10px] text-muted-foreground">Usa esta opción si el caso requiere derivarse a una marca o soporte de tercero.</p>
+            </CardContent>
+        </Card>
+    );
+
+    const CustomerCard = () => (
+        <Card>
+            <CardHeader className="p-4 pb-2">
+                <CardTitle className="text-sm font-bold flex items-center gap-2">
+                    <UserCircle className="h-4 w-4" /> INFORMACIÓN DEL CLIENTE
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 pt-0 text-sm space-y-1">
+                <p className="font-bold">{ticket.customerName}</p>
+                {ticket.companyName && <p className="text-xs text-muted-foreground">{ticket.companyName}</p>}
+                <p className="text-xs text-muted-foreground pt-2 flex items-center gap-1">
+                    <Info className="h-3 w-3" /> Creado el {format(parseISO(ticket.createdAt), 'dd/MM/yy HH:mm')}
+                </p>
+            </CardContent>
+        </Card>
+    );
     
     return (
-        <div className="flex h-[calc(100vh-4rem)] bg-muted/40">
-            <div className="flex-1 flex flex-col">
-                <header className="p-4 border-b bg-background flex justify-between items-center">
+        <div className="flex h-[calc(100vh-4rem)] bg-muted/40 overflow-hidden">
+            {/* --- Columna 1: Conversación Central --- */}
+            <div className="flex-1 flex flex-col min-w-0 bg-background border-r">
+                <header className="p-4 border-b bg-background flex justify-between items-center shrink-0">
                     <div>
-                        <h1 className="text-xl font-bold">{ticket.subject}</h1>
+                        <h1 className="text-xl font-bold truncate max-w-md lg:max-w-xl">{ticket.subject}</h1>
                         <p className="text-sm text-muted-foreground">Ticket #{ticket.consecutive}</p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -201,7 +263,7 @@ export default function TicketDetailPage() {
                                         <AlertDialogContent>
                                             <AlertDialogHeader>
                                                 <AlertDialogTitle>¿Confirmar eliminación?</AlertDialogTitle>
-                                                <AlertDialogDescription>Esta acción es permanente.</AlertDialogDescription>
+                                                <AlertDialogDescription>Esta acción es permanente y borrará todo el historial.</AlertDialogDescription>
                                             </AlertDialogHeader>
                                             <AlertDialogFooter>
                                                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
@@ -218,12 +280,12 @@ export default function TicketDetailPage() {
                     </div>
                 </header>
                  <ScrollArea className="flex-1 p-4">
-                    <div className="space-y-6">
+                    <div className="space-y-6 max-w-4xl mx-auto">
                         {thread.map(item => (
                             <div key={item.id} className={cn("flex items-start gap-4", item.userId ? "justify-end" : "")}>
                                 {!item.userId && <Avatar><AvatarFallback>{getInitials(item.userName)}</AvatarFallback></Avatar>}
                                 <div className={cn(
-                                    "max-w-xl rounded-lg p-3 text-sm shadow-sm",
+                                    "max-w-[85%] sm:max-w-xl rounded-lg p-3 text-sm shadow-sm",
                                     item.userId ? "bg-primary text-primary-foreground" : "bg-card border",
                                     item.type === 'status_change' && "bg-amber-100 text-amber-900 w-full text-center italic border-amber-200"
                                 )}>
@@ -236,17 +298,17 @@ export default function TicketDetailPage() {
                         ))}
                     </div>
                 </ScrollArea>
-                <div className="p-4 border-t bg-background">
-                    <div className="relative">
+                <div className="p-4 border-t bg-background shrink-0">
+                    <div className="relative max-w-4xl mx-auto">
                         <Textarea
                             placeholder={hasPermission('tickets:reply') ? "Escribe una respuesta o nota..." : "No tienes permiso para responder tickets."}
-                            className="pr-20"
+                            className="pr-20 min-h-[100px]"
                             rows={3}
                             value={replyContent}
                             onChange={e => setReplyContent(e.target.value)}
                             disabled={!hasPermission('tickets:reply') || ticket.status === 'completed' || ticket.status === 'canceled'}
                         />
-                        <div className="absolute top-2 right-2 flex gap-1">
+                        <div className="absolute bottom-3 right-3 flex gap-1">
                              <Button type="button" size="icon" onClick={handleAddReply} disabled={isReplying || !hasPermission('tickets:reply') || ticket.status === 'completed' || ticket.status === 'canceled'}>
                                 {isReplying ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Send className="h-4 w-4" />}
                             </Button>
@@ -254,18 +316,19 @@ export default function TicketDetailPage() {
                     </div>
                 </div>
             </div>
-            <aside className="hidden md:flex flex-col w-80 lg:w-96 border-l bg-background p-4 space-y-6 overflow-y-auto">
-                {/* --- Time Tracking Integration --- */}
+
+            {/* --- Columna 2: Operaciones (Tiempo y Estado) --- */}
+            <aside className="hidden md:flex flex-col w-80 lg:w-96 border-r bg-muted/5 p-4 space-y-6 overflow-y-auto shrink-0">
                 {hasPermission('tickets:time-tracking') && (
                     <TimeTracker 
                         ticketId={ticket.id} 
                         defaultIsBillable={ticket.isBillable} 
-                        ticketStatus={ticket.status} // Pass status to trigger internal refresh
+                        ticketStatus={ticket.status}
                     />
                 )}
 
                 <Card>
-                    <CardHeader className="p-4 pb-2"><CardTitle className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Estado del Caso</CardTitle></CardHeader>
+                    <CardHeader className="p-4 pb-2"><CardTitle className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Flujo de Trabajo</CardTitle></CardHeader>
                     <CardContent className="p-4 pt-0 space-y-4">
                          <div className="space-y-1.5">
                             <Label className="text-xs">Prioridad</Label>
@@ -279,7 +342,7 @@ export default function TicketDetailPage() {
                             </Select>
                         </div>
                         <div className="space-y-1.5">
-                            <Label className="text-xs">Flujo de Trabajo</Label>
+                            <Label className="text-xs">Estado del Caso</Label>
                              <div className="grid grid-cols-1 gap-2 pt-1">
                                 <Button 
                                     variant={ticket.status === 'open' ? 'default' : 'outline'} 
@@ -341,62 +404,23 @@ export default function TicketDetailPage() {
                     </CardContent>
                 </Card>
 
-                <Card className={cn(ticket.isBillable ? "border-destructive bg-destructive/5" : "border-green-200 bg-green-50/30")}>
-                    <CardHeader className="p-4 pb-2">
-                        <CardTitle className="text-sm font-bold flex items-center gap-2">
-                            <CreditCard className="h-4 w-4" /> FACTURACIÓN Y COBERTURA
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-4 pt-0 space-y-4">
-                        <div className="flex items-center justify-between">
-                            <Label htmlFor="billable-switch" className="text-sm">Marcar como Facturable</Label>
-                            <Switch 
-                                id="billable-switch" 
-                                checked={ticket.isBillable} 
-                                onCheckedChange={(checked) => handleDetailUpdate({ isBillable: checked })}
-                                disabled={!hasPermission('tickets:manage') || ticket.status === 'completed' || ticket.status === 'canceled'}
-                            />
-                        </div>
-                        <div className="p-3 rounded-md border text-xs space-y-2">
-                            <div className="flex items-center gap-2">
-                                {ticket.isBillable ? <ShieldAlert className="h-4 w-4 text-destructive" /> : <ShieldCheck className="h-4 w-4 text-green-600" />}
-                                <span className="font-bold">{ticket.isBillable ? 'Servicio Adicional (Con Costo)' : 'Cubierto por Contrato'}</span>
-                            </div>
-                            <p className="text-muted-foreground">Servicio: <strong>{selectedService?.name || 'General'}</strong></p>
-                            {ticket.contractId && <p className="text-muted-foreground">Línea de Contrato: <strong>#{ticket.contractId}</strong></p>}
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader className="p-4 pb-2">
-                        <CardTitle className="text-sm font-bold flex items-center gap-2">
-                            <Truck className="h-4 w-4" /> PROVEEDOR EXTERNO
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-4 pt-0 space-y-2">
-                        <Select value={String(ticket.providerId || 'null')} onValueChange={(v) => handleDetailUpdate({ providerId: v === 'null' ? null : Number(v) })} disabled={!hasPermission('tickets:manage') || ticket.status === 'completed' || ticket.status === 'canceled'}>
-                            <SelectTrigger className="h-8"><SelectValue placeholder="Sin proveedor externo"/></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="null">Ninguno (Soporte Interno)</SelectItem>
-                                {selectors.providers.map((p: ThirdPartyProvider) => (<SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>))}
-                            </SelectContent>
-                        </Select>
-                        <p className="text-[10px] text-muted-foreground">Usa esta opción si el caso requiere derivarse a una marca o soporte de tercero.</p>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader className="p-4 pb-2"><CardTitle className="text-sm font-bold">CLIENTE</CardTitle></CardHeader>
-                    <CardContent className="p-4 pt-0 text-sm space-y-1">
-                        <p className="font-bold">{ticket.customerName}</p>
-                        {ticket.companyName && <p className="text-xs text-muted-foreground">{ticket.companyName}</p>}
-                        <p className="text-xs text-muted-foreground mt-2">Creado: {format(parseISO(ticket.createdAt), 'dd/MM/yy HH:mm')}</p>
-                    </CardContent>
-                </Card>
+                {/* En pantallas menores a XL, mostramos aquí el resto de tarjetas */}
+                <div className="xl:hidden space-y-6 pt-4 border-t">
+                    <BillingAndCoverageCard />
+                    <ProviderCard />
+                    <CustomerCard />
+                </div>
             </aside>
 
-            {/* --- Closure Dialog (Resolution/Cancellation) --- */}
+            {/* --- Columna 3: Información de Contexto (Solo XL+) --- */}
+            <aside className="hidden xl:flex flex-col w-80 bg-background p-4 space-y-6 overflow-y-auto shrink-0 shadow-inner">
+                <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest px-1 mb-2">Contexto y Referencia</h3>
+                <BillingAndCoverageCard />
+                <ProviderCard />
+                <CustomerCard />
+            </aside>
+
+            {/* --- Diálogo de Cierre (Resolución/Cancelación) --- */}
             <Dialog open={isClosureDialogOpen} onOpenChange={setClosureDialogOpen}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
