@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Centralized constants for database initialization and default settings.
  * This file helps break circular dependencies by isolating static data.
@@ -49,26 +48,19 @@ export const initialRoles: Role[] = [
   {
     id: "admin",
     name: "Admin",
-    permissions: [
-        "dashboard:access", "quotes:create", "quotes:generate", "quotes:drafts:create", 
-        "quotes:drafts:read", "quotes:drafts:delete", "cost-assistant:access",
-        "planner:read", "planner:create", "planner:reopen", "planner:status:approve", 
-        "planner:status:in-progress", "planner:status:completed", "planner:priority:update",
-        "analytics:read", "users:create", "users:read", "users:update",
-        "users:delete", "roles:create", "roles:read", "roles:update", "roles:delete",
-        "admin:settings:general", "admin:settings:api", "admin:settings:planner", "admin:settings:stock", 
-        "admin:suggestions:read", "admin:import:run", "admin:import:files", "admin:import:sql", 
-        "admin:import:sql-config", "admin:logs:read", "admin:logs:clear", "admin:maintenance:backup", 
-        "admin:maintenance:restore", "admin:maintenance:reset", "hacienda:query", "tickets:create", 
-        "tickets:read:all", "tickets:update", "tickets:delete", "tickets:admin:settings", "licenses:read", 
-        "licenses:manage", "licenses:admin:keys", "customers:read", "customers:manage",
-        "contracts:read", "contracts:manage", "providers:read", "providers:manage"
-    ],
+    permissions: ["admin:all"],
   },
   {
     id: "viewer",
     name: "Viewer",
-    permissions: ["dashboard:access", "quotes:create", "tickets:read:all", "planner:read", "contracts:read"],
+    permissions: [
+        "dashboard:access", 
+        "quotes:create", 
+        "tickets:read:all", 
+        "planner:read", 
+        "contracts:read", 
+        "customers:read"
+    ],
   },
   {
     id: 'planner-user',
@@ -83,8 +75,8 @@ export const initialRoles: Role[] = [
     id: 'support-agent',
     name: 'Soporte Técnico',
     permissions: [
-        "dashboard:access", "tickets:create", "tickets:read:all", "tickets:update", 
-        "customers:read", "contracts:read", "providers:read", "hacienda:query"
+        "dashboard:access", "tickets:create", "tickets:read:all", "tickets:reply", 
+        "tickets:time-tracking", "customers:read", "contracts:read", "providers:read", "hacienda:query"
     ]
   }
 ];

@@ -1,4 +1,3 @@
-
 'use client';
 
 /**
@@ -13,11 +12,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/componen
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Play, Square, Plus, History, Clock, Trash2, Loader2, AlertCircle } from 'lucide-react';
+import { Play, Square, Plus, History, Clock, Trash2, Loader2 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, DialogTrigger } from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
+import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 
 interface TimeTrackerProps {
     ticketId: number;
@@ -26,6 +27,7 @@ interface TimeTrackerProps {
 
 export function TimeTracker({ ticketId, defaultIsBillable }: TimeTrackerProps) {
     const { state, actions, formatDuration } = useTimeTracker(ticketId);
+    const { hasPermission } = useAuthorization();
     const [note, setNote] = useState("");
     const [isBillable, setIsBillable] = useState(defaultIsBillable);
     
@@ -54,6 +56,8 @@ export function TimeTracker({ ticketId, defaultIsBillable }: TimeTrackerProps) {
         return <div className="flex justify-center p-4"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
     }
 
+    const canTrackTime = hasPermission('tickets:time-tracking');
+
     return (
         <div className="space-y-4">
             {/* Active Stopwatch Card */}
@@ -75,6 +79,7 @@ export function TimeTracker({ ticketId, defaultIsBillable }: TimeTrackerProps) {
                             value={note}
                             onChange={(e) => setNote(e.target.value)}
                             className="h-8 text-xs"
+                            disabled={!canTrackTime}
                         />
                         
                         <div className="flex items-center justify-between">
@@ -83,16 +88,17 @@ export function TimeTracker({ ticketId, defaultIsBillable }: TimeTrackerProps) {
                                     id="billable-timer" 
                                     checked={isBillable}
                                     onCheckedChange={setIsBillable}
+                                    disabled={!canTrackTime}
                                 />
                                 <Label htmlFor="billable-timer" className="text-xs">Facturable</Label>
                             </div>
                             
                             {!state.activeEntry ? (
-                                <Button onClick={handleStart} size="sm" className="bg-green-600 hover:bg-green-700">
+                                <Button onClick={handleStart} size="sm" className="bg-green-600 hover:bg-green-700" disabled={!canTrackTime}>
                                     <Play className="mr-2 h-4 w-4" /> Iniciar
                                 </Button>
                             ) : (
-                                <Button onClick={handleStop} size="sm" variant="destructive">
+                                <Button onClick={handleStop} size="sm" variant="destructive" disabled={!canTrackTime}>
                                     <Square className="mr-2 h-4 w-4" /> Detener
                                 </Button>
                             )}
@@ -116,7 +122,7 @@ export function TimeTracker({ ticketId, defaultIsBillable }: TimeTrackerProps) {
                     
                     <Dialog open={state.showManualForm} onOpenChange={actions.setShowManualForm}>
                         <DialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-6 w-6"><Plus className="h-4 w-4" /></Button>
+                            <Button variant="ghost" size="icon" className="h-6 w-6" disabled={!canTrackTime}><Plus className="h-4 w-4" /></Button>
                         </DialogTrigger>
                         <DialogContent>
                             <DialogHeader>
@@ -162,14 +168,16 @@ export function TimeTracker({ ticketId, defaultIsBillable }: TimeTrackerProps) {
                                     </span>
                                     <div className="flex items-center gap-2">
                                         <span>{formatDuration(entry.duration)}</span>
-                                        <Button 
-                                            variant="ghost" 
-                                            size="icon" 
-                                            className="h-4 w-4 opacity-0 group-hover:opacity-100 text-destructive"
-                                            onClick={() => actions.handleDeleteEntry(entry.id)}
-                                        >
-                                            <Trash2 className="h-3 w-3" />
-                                        </Button>
+                                        {hasPermission('billing:manage') && (
+                                            <Button 
+                                                variant="ghost" 
+                                                size="icon" 
+                                                className="h-4 w-4 opacity-0 group-hover:opacity-100 text-destructive"
+                                                onClick={() => actions.handleDeleteEntry(entry.id)}
+                                            >
+                                                <Trash2 className="h-3 w-3" />
+                                            </Button>
+                                        )}
                                     </div>
                                 </div>
                                 <p className="text-muted-foreground truncate italic mt-1">{entry.notes || 'Sin nota'}</p>

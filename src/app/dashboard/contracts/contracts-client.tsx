@@ -1,6 +1,5 @@
 /**
  * @fileoverview Client Component for managing support contracts.
- * Extracted from the main page to support server-side guarding.
  */
 'use client';
 
@@ -12,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { PlusCircle, Edit, Trash2, Loader2, FileText, RefreshCw } from 'lucide-react';
 import { useToast } from '@/modules/core/hooks/use-toast';
@@ -24,6 +23,7 @@ import { format, parseISO } from 'date-fns';
 import { SearchInput } from '@/components/ui/search-input';
 import { useDebounce } from 'use-debounce';
 import { Switch } from '@/components/ui/switch';
+import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 
 type NewContract = Omit<Contract, 'id' | 'consecutive' | 'createdAt'>;
 
@@ -46,6 +46,7 @@ export default function ContractsClient() {
     const { setTitle } = usePageTitle();
     const { customers, companyData, isAuthReady } = useAuth();
     const { toast } = useToast();
+    const { hasPermission } = useAuthorization();
 
     const [contracts, setContracts] = useState<Contract[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -112,6 +113,12 @@ export default function ContractsClient() {
     };
 
     const handleSave = async () => {
+        const requiredPermission = isEditing ? 'contracts:update' : 'contracts:create';
+        if (!hasPermission(requiredPermission)) {
+            toast({ title: "Acceso denegado", description: "No tienes permiso para gestionar contratos.", variant: "destructive" });
+            return;
+        }
+
         if (!currentContract.customerId || !currentContract.name) {
             toast({ title: "Datos faltantes", description: "El nombre y el cliente son requeridos.", variant: "destructive" });
             return;
@@ -146,6 +153,10 @@ export default function ContractsClient() {
     };
 
     const handleDelete = async (id: number) => {
+        if (!hasPermission('contracts:delete')) {
+            toast({ title: "Acceso denegado", variant: "destructive" });
+            return;
+        }
         if (!confirm("¿Está seguro de eliminar este contrato?")) return;
         try {
             await deleteContract(id);
@@ -167,7 +178,9 @@ export default function ContractsClient() {
                     <FileText className="h-6 w-6 text-primary" />
                     <h1 className="text-2xl font-bold">Contratos de Soporte</h1>
                 </div>
-                <Button onClick={() => setFormOpen(true)}><PlusCircle className="mr-2 h-4 w-4" /> Nuevo Contrato</Button>
+                {hasPermission('contracts:create') && (
+                    <Button onClick={() => setFormOpen(true)}><PlusCircle className="mr-2 h-4 w-4" /> Nuevo Contrato</Button>
+                )}
             </div>
 
             <Card>
@@ -205,8 +218,12 @@ export default function ContractsClient() {
                                                 {contract.autoRenew && <RefreshCw className="h-3 w-3 text-green-600 animate-spin-slow" />}
                                             </TableCell>
                                             <TableCell className="text-right space-x-2">
-                                                <Button variant="ghost" size="icon" onClick={() => handleEdit(contract)}><Edit className="h-4 w-4" /></Button>
-                                                <Button variant="ghost" size="icon" onClick={() => handleDelete(contract.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                                {hasPermission('contracts:update') && (
+                                                    <Button variant="ghost" size="icon" onClick={() => handleEdit(contract)}><Edit className="h-4 w-4" /></Button>
+                                                )}
+                                                {hasPermission('contracts:delete') && (
+                                                    <Button variant="ghost" size="icon" onClick={() => handleDelete(contract.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                                )}
                                             </TableCell>
                                         </TableRow>
                                     );

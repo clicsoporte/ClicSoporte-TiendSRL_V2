@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Ticket detail page with contract, provider and time tracking integration.
  */
@@ -87,8 +86,8 @@ export default function TicketDetailPage() {
     };
 
     const handleDetailUpdate = async (updates: Partial<Pick<Ticket, 'status' | 'priority' | 'assigneeId' | 'isBillable' | 'providerId'>>) => {
-        if (!currentUser || !hasPermission('tickets:update')) {
-             toast({ title: "Acción no permitida", variant: "destructive" });
+        if (!currentUser || !hasPermission('tickets:manage')) {
+             toast({ title: "Acción no permitida", description: "No tienes permiso para gestionar metadatos de tickets.", variant: "destructive" });
             return;
         };
         const updatedTicket = await actions.updateTicketDetails(ticketId, updates, currentUser);
@@ -197,15 +196,15 @@ export default function TicketDetailPage() {
                 <div className="p-4 border-t bg-background">
                     <div className="relative">
                         <Textarea
-                            placeholder="Escribe una respuesta o nota..."
+                            placeholder={hasPermission('tickets:reply') ? "Escribe una respuesta o nota..." : "No tienes permiso para responder tickets."}
                             className="pr-20"
                             rows={3}
                             value={replyContent}
                             onChange={e => setReplyContent(e.target.value)}
-                            disabled={!hasPermission('tickets:update')}
+                            disabled={!hasPermission('tickets:reply')}
                         />
                         <div className="absolute top-2 right-2 flex gap-1">
-                             <Button type="button" size="icon" onClick={handleAddReply} disabled={isReplying || !hasPermission('tickets:update')}>
+                             <Button type="button" size="icon" onClick={handleAddReply} disabled={isReplying || !hasPermission('tickets:reply')}>
                                 {isReplying ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Send className="h-4 w-4" />}
                             </Button>
                         </div>
@@ -214,17 +213,19 @@ export default function TicketDetailPage() {
             </div>
             <aside className="hidden md:flex flex-col w-80 lg:w-96 border-l bg-background p-4 space-y-6 overflow-y-auto">
                 {/* --- Time Tracking Integration --- */}
-                <TimeTracker 
-                    ticketId={ticket.id} 
-                    defaultIsBillable={ticket.isBillable} 
-                />
+                {hasPermission('tickets:time-tracking') && (
+                    <TimeTracker 
+                        ticketId={ticket.id} 
+                        defaultIsBillable={ticket.isBillable} 
+                    />
+                )}
 
                 <Card>
                     <CardHeader className="p-4 pb-2"><CardTitle className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Estado del Caso</CardTitle></CardHeader>
                     <CardContent className="p-4 pt-0 space-y-4">
                          <div className="space-y-1.5">
                             <Label className="text-xs">Prioridad</Label>
-                            <Select value={ticket.priority} onValueChange={(v: TicketPriority) => handleDetailUpdate({ priority: v })} disabled={!hasPermission('tickets:update')}>
+                            <Select value={ticket.priority} onValueChange={(v: TicketPriority) => handleDetailUpdate({ priority: v })} disabled={!hasPermission('tickets:manage')}>
                                 <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                     {Object.entries(selectors.priorityConfig).map(([key, config]) => (
@@ -235,7 +236,7 @@ export default function TicketDetailPage() {
                         </div>
                         <div className="space-y-1.5">
                             <Label className="text-xs">Estado</Label>
-                             <Select value={ticket.status} onValueChange={(v: TicketStatus) => handleDetailUpdate({ status: v })} disabled={!hasPermission('tickets:update')}>
+                             <Select value={ticket.status} onValueChange={(v: TicketStatus) => handleDetailUpdate({ status: v })} disabled={!hasPermission('tickets:manage')}>
                                 <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                      {Object.entries(selectors.statusConfig).map(([key, config]) => (
@@ -251,7 +252,7 @@ export default function TicketDetailPage() {
                         </div>
                          <div className="space-y-1.5">
                             <Label className="text-xs">Técnico Asignado</Label>
-                            <Select value={String(ticket.assigneeId || 'null')} onValueChange={(v) => handleDetailUpdate({ assigneeId: v === 'null' ? null : Number(v) })} disabled={!hasPermission('tickets:update')}>
+                            <Select value={String(ticket.assigneeId || 'null')} onValueChange={(v) => handleDetailUpdate({ assigneeId: v === 'null' ? null : Number(v) })} disabled={!hasPermission('tickets:manage')}>
                                 <SelectTrigger className="h-8"><SelectValue placeholder="Sin Asignar"/></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="null">Sin Asignar</SelectItem>
@@ -275,7 +276,7 @@ export default function TicketDetailPage() {
                                 id="billable-switch" 
                                 checked={ticket.isBillable} 
                                 onCheckedChange={(checked) => handleDetailUpdate({ isBillable: checked })}
-                                disabled={!hasPermission('tickets:update')}
+                                disabled={!hasPermission('tickets:manage')}
                             />
                         </div>
                         <div className="p-3 rounded-md border text-xs space-y-2">
@@ -296,7 +297,7 @@ export default function TicketDetailPage() {
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="p-4 pt-0 space-y-2">
-                        <Select value={String(ticket.providerId || 'null')} onValueChange={(v) => handleDetailUpdate({ providerId: v === 'null' ? null : Number(v) })} disabled={!hasPermission('tickets:update')}>
+                        <Select value={String(ticket.providerId || 'null')} onValueChange={(v) => handleDetailUpdate({ providerId: v === 'null' ? null : Number(v) })} disabled={!hasPermission('tickets:manage')}>
                             <SelectTrigger className="h-8"><SelectValue placeholder="Sin proveedor externo"/></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="null">Ninguno (Soporte Interno)</SelectItem>

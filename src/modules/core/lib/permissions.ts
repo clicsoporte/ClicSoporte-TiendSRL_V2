@@ -5,9 +5,40 @@
 export const permissionGroups = {
   "Acceso General": ["dashboard:access"],
   "Cotizador": ["quotes:create", "quotes:generate", "quotes:drafts:create", "quotes:drafts:read", "quotes:drafts:delete"],
-  "Asistente de Costos": ["cost-assistant:access"],
-  "Soporte Técnico": ["tickets:create", "tickets:read:all", "tickets:update", "tickets:delete", "tickets:admin:settings"],
-  "Clientes y Contratos": ["customers:read", "customers:manage", "contracts:read", "contracts:manage", "providers:read", "providers:manage"],
+  "Asistente de Costos": [
+    "cost-assistant:view", 
+    "cost-assistant:process", 
+    "cost-assistant:margins", 
+    "cost-assistant:export"
+  ],
+  "Soporte Técnico": [
+    "tickets:create", 
+    "tickets:read:all", 
+    "tickets:reply", 
+    "tickets:manage", 
+    "tickets:time-tracking", 
+    "tickets:delete", 
+    "tickets:admin:settings"
+  ],
+  "Clientes": [
+    "customers:read", 
+    "customers:create", 
+    "customers:update", 
+    "customers:delete"
+  ],
+  "Contratos": [
+    "contracts:read", 
+    "contracts:create", 
+    "contracts:update", 
+    "contracts:delete"
+  ],
+  "Proveedores": [
+    "providers:read", 
+    "providers:manage"
+  ],
+  "Facturación": [
+    "billing:manage"
+  ],
   "Gestión de Licencias": ["licenses:read", "licenses:manage", "licenses:admin:keys"],
   "Proyectos TI": ["planner:read", "planner:create", "planner:status:approve", "planner:status:in-progress", "planner:status:completed", "planner:priority:update"],
   "Hacienda": ["hacienda:query"],
@@ -29,25 +60,34 @@ export const permissionTree: Record<string, string[]> = {
     'admin:suggestions:read', 'admin:import:run', 'admin:logs:read', 'admin:maintenance:backup',
     'users:read', 'users:create', 'users:update', 'users:delete',
     'roles:read', 'roles:create', 'roles:update', 'roles:delete',
-    'licenses:admin:keys', 'tickets:admin:settings'
+    'licenses:admin:keys', 'tickets:admin:settings', 'billing:manage',
+    'customers:create', 'customers:update', 'customers:delete',
+    'contracts:create', 'contracts:update', 'contracts:delete',
+    'cost-assistant:margins', 'cost-assistant:export'
   ],
   'users:manage': ['users:read', 'users:create', 'users:update', 'users:delete'],
   'roles:manage': ['roles:read', 'roles:create', 'roles:update', 'roles:delete'],
-  'customers:manage': ['customers:read'],
-  'contracts:manage': ['contracts:read'],
-  'providers:manage': ['providers:read']
+  'customers:manage': ['customers:read', 'customers:create', 'customers:update', 'customers:delete'],
+  'contracts:manage': ['contracts:read', 'contracts:create', 'contracts:update', 'contracts:delete'],
+  'tickets:manage': ['tickets:reply', 'tickets:time-tracking'],
+  'cost-assistant:access': ['cost-assistant:view', 'cost-assistant:process']
 };
 
 export const permissionTranslations: Record<string, string> = {
   "dashboard:access": "Acceso al Panel",
-  "cost-assistant:access": "Acceder al Asistente de Costos",
+  "cost-assistant:view": "Ver Asistente de Costos",
+  "cost-assistant:process": "Procesar XMLs",
+  "cost-assistant:margins": "Editar Márgenes",
+  "cost-assistant:export": "Exportar para ERP",
   "quotes:create": "Cotizador: Crear",
-  "quotes:generate": "Cotizador: Generar PDF",
   "tickets:create": "Tickets: Abrir Casos",
-  "tickets:read:all": "Tickets: Ver Todos",
-  "users:read": "Usuarios: Ver Lista",
-  "users:create": "Usuarios: Crear Nuevo",
-  "roles:read": "Roles: Ver Lista",
+  "tickets:reply": "Tickets: Responder",
+  "tickets:manage": "Tickets: Gestionar (Estado/Asignación)",
+  "tickets:time-tracking": "Tickets: Usar Cronómetro",
+  "billing:manage": "Facturación: Auditar Tiempos",
+  "customers:create": "Clientes: Crear",
+  "customers:update": "Clientes: Editar",
+  "contracts:create": "Contratos: Crear",
   "admin:all": "Control Total del Sistema",
   "admin:import:run": "Ejecutar Sincronización ERP"
 };

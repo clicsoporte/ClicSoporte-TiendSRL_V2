@@ -58,7 +58,7 @@ const initialState = {
 };
 
 export const useCostAssistant = () => {
-    useAuthorization(['dashboard:access', 'cost-assistant:access']); // Permissions
+    const { hasPermission } = useAuthorization(['cost-assistant:view']);
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
     const { user, isLoading: isAuthLoading } = useAuth();
@@ -96,6 +96,11 @@ export const useCostAssistant = () => {
     };
     
     const onFileSelected = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+        if (!hasPermission('cost-assistant:process')) {
+            toast({ title: "Acceso denegado", description: "No tienes permiso para procesar facturas.", variant: "destructive" });
+            return;
+        }
+
         if (!event.target.files || event.target.files.length === 0) return;
         
         const acceptedFiles = Array.from(event.target.files);
@@ -122,8 +127,8 @@ export const useCostAssistant = () => {
                 displayTaxRate: (line.taxRate * 100).toFixed(0),
                 displayUnitCost: line.unitCostWithoutTax.toFixed(4),
                 isCostEdited: false,
-                finalSellPrice: 0, // Will be calculated by useMemo
-                profitPerLine: 0, // Will be calculated by useMemo
+                finalSellPrice: 0, 
+                profitPerLine: 0, 
                 sellPriceWithoutTax: 0,
             }));
             
@@ -141,11 +146,11 @@ export const useCostAssistant = () => {
         } finally {
             setState(prevState => ({ ...prevState, isProcessing: false }));
         }
-    }, [toast]);
+    }, [toast, hasPermission]);
     
     const openFileDialog = () => {
         if (fileInputRef.current) {
-            fileInputRef.current.value = ""; // Reset to allow re-uploading the same file
+            fileInputRef.current.value = ""; 
             fileInputRef.current.click();
         }
     };
@@ -158,6 +163,10 @@ export const useCostAssistant = () => {
     };
 
     const handleMarginBlur = (lineId: string, displayValue: string) => {
+        if (!hasPermission('cost-assistant:margins')) {
+            toast({ title: "Acceso denegado", description: "No tienes permiso para modificar márgenes.", variant: "destructive" });
+            return;
+        }
         const numericValue = parseDecimal(displayValue);
         updateLine(lineId, {
             margin: numericValue / 100,
@@ -178,7 +187,7 @@ export const useCostAssistant = () => {
         updateLine(lineId, {
             unitCostWithoutTax: numericValue,
             displayUnitCost: String(numericValue),
-            isCostEdited: true, // Mark as manually edited
+            isCostEdited: true, 
         });
     };
 
@@ -218,12 +227,17 @@ export const useCostAssistant = () => {
             ...initialState, 
             columnVisibility: prevState.columnVisibility,
             discountHandling: prevState.discountHandling,
-            drafts: prevState.drafts, // Keep drafts loaded
+            drafts: prevState.drafts, 
         }));
         toast({ title: "Operación Limpiada", description: "Se han borrado todos los datos para iniciar un nuevo análisis." });
     };
 
     const handleExportToERP = async () => {
+        if (!hasPermission('cost-assistant:export')) {
+            toast({ title: "Acceso denegado", description: "No tienes permiso para exportar datos.", variant: "destructive" });
+            return;
+        }
+
         if (state.lines.length === 0) {
             toast({ title: 'No hay datos', description: 'No hay artículos para exportar.', variant: 'destructive' });
             return;
@@ -248,7 +262,6 @@ export const useCostAssistant = () => {
             toast({ title: 'Exportación Finalizada', description: 'El archivo temporal ha sido eliminado del servidor.' });
         } catch (error: unknown) {
             logError("Failed to cleanup export file", { error: (error as Error).message });
-            // Even if cleanup fails, reset UI state
             setState(prevState => ({ ...prevState, exportStatus: 'idle', exportFileName: null }));
             toast({ title: "Error de Limpieza", description: `No se pudo eliminar el archivo del servidor. ${(error as Error).message}`, variant: "destructive" });
         }
@@ -282,13 +295,13 @@ export const useCostAssistant = () => {
 
         if (!draftName) {
             setState(prevState => ({ ...prevState, isSubmitting: false }));
-            return; // User cancelled prompt
+            return; 
         }
 
         const newDraft: Omit<CostAnalysisDraft, 'id' | 'createdAt'> = {
             userId: user.id,
             name: draftName,
-            lines: state.lines, // Keep display fields for accurate reloading
+            lines: state.lines, 
             globalCosts: {
                 transportCost: state.transportCost,
                 otherCosts: state.otherCosts,
@@ -300,7 +313,7 @@ export const useCostAssistant = () => {
         try {
             await saveDraft(newDraft);
             toast({ title: "Borrador Guardado", description: `El análisis "${draftName}" ha sido guardado.` });
-            await loadDrafts(); // Refresh draft list
+            await loadDrafts(); 
         } catch (error: unknown) {
             logError("Failed to save draft", { error: (error as Error).message });
             toast({ title: "Error", description: "No se pudo guardar el borrador.", variant: "destructive" });
@@ -310,7 +323,6 @@ export const useCostAssistant = () => {
     };
     
     const loadDraft = (draftToLoad: CostAnalysisDraft) => {
-        // The draft already contains the display fields, so we can load it directly.
         setState(prevState => ({
             ...prevState,
             lines: draftToLoad.lines,
@@ -342,7 +354,6 @@ export const useCostAssistant = () => {
 
         return state.lines.map(line => {
             if (line.isCostEdited) {
-                // If cost is manually edited, calculations are based on that edited cost
                 const sellPriceWithoutTax = line.unitCostWithoutTax / (1 - line.margin);
                 const finalSellPrice = sellPriceWithoutTax * (1 + line.taxRate);
                 const profitPerLine = (sellPriceWithoutTax - line.unitCostWithoutTax) * line.quantity;
@@ -351,12 +362,10 @@ export const useCostAssistant = () => {
 
             let baseUnitCost = line.xmlUnitCost;
 
-            // Apply discount to base cost if option is selected
             if (state.discountHandling === 'customer' && line.discountAmount > 0 && line.quantity > 0) {
                 baseUnitCost -= (line.discountAmount / line.quantity);
             }
 
-            // Prorate additional costs based on the line's value relative to the total invoice value
             const lineTotalValue = line.xmlUnitCost * line.quantity;
             const proratedAdditionalCost = totalInvoiceValue > 0 ? (lineTotalValue / totalInvoiceValue) * totalAdditionalCosts : 0;
             const additionalCostPerUnit = line.quantity > 0 ? proratedAdditionalCost / line.quantity : 0;
