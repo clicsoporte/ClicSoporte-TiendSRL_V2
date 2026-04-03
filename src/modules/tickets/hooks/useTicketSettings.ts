@@ -115,7 +115,7 @@ export const useTicketSettings = () => {
         try {
             await deleteHelpTopic(topicToDelete.id);
             setHelpTopics(prev => prev.filter(t => t.id !== topicToDelete.id));
-            toast({ title: "Tema Eliminado" });
+            toast({ title: "Tema Eliminao" });
             logInfo('Help topic deleted', { topic: topicToDelete.name });
             setTopicToDelete(null);
         } catch (error: unknown) {
@@ -191,7 +191,7 @@ export const useTicketSettings = () => {
         setCompanyData({ ...companyData, supportPackages: updatedPackages });
     };
 
-    const handlePackagePropChange = (packageId: string, prop: keyof SupportPackage, value: any) => {
+    const handlePackagePropChange = (packageId: string, prop: keyof SupportPackage, value: string | number | string[]) => {
         if (!companyData) return;
         const updatedPackages = (companyData.supportPackages || []).map(pkg => {
             if (pkg.id === packageId) {

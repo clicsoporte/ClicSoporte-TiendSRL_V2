@@ -7,6 +7,7 @@
 import { connectDb } from '../../core/lib/db';
 import { getCompanySettings } from '../../core/lib/settings-db';
 import type { TimeEntry, SupportPackage } from '@/modules/core/types';
+import type { Database } from 'better-sqlite3';
 
 /**
  * Calculates the rounded billable duration based on the client's support package.
@@ -34,7 +35,7 @@ function calculateBillableDuration(actualMs: number, pkg: SupportPackage | null)
 /**
  * Helper to find the support package assigned to a ticket's customer.
  */
-async function getPackageForTicket(db: any, ticketId: number): Promise<SupportPackage | null> {
+async function getPackageForTicket(db: Database, ticketId: number): Promise<SupportPackage | null> {
     try {
         const ticketRow = db.prepare(`
             SELECT c.supportPackageId 
@@ -88,7 +89,7 @@ export async function addTimeEntry(payload: Partial<Omit<TimeEntry, 'id'|'create
 
 export async function getEntriesForTicket(ticketId: number): Promise<TimeEntry[]> {
     const db = await connectDb();
-    const rows = db.prepare('SELECT * FROM time_entries WHERE ticketId = ? ORDER BY createdAt DESC').all(ticketId) as any[];
+    const rows = db.prepare('SELECT * FROM time_entries WHERE ticketId = ? ORDER BY createdAt DESC').all(ticketId) as (Omit<TimeEntry, 'isBillable'> & { isBillable: number })[];
     return rows.map(r => ({
         ...r,
         isBillable: !!r.isBillable
@@ -113,7 +114,7 @@ export async function stopTimeEntry(entryId: number, notes: string, isBillable: 
     db.prepare(`UPDATE time_entries SET endTime = ?, duration = ?, billableDuration = ?, notes = ?, isBillable = ? WHERE id = ?`)
       .run(endTime.toISOString(), actualDuration, billableDuration, notes, isBillable ? 1 : 0, entryId);
     
-    const result = db.prepare('SELECT * FROM time_entries WHERE id = ?').get(entryId) as any;
+    const result = db.prepare('SELECT * FROM time_entries WHERE id = ?').get(entryId) as (Omit<TimeEntry, 'isBillable'> & { isBillable: number });
     return { ...result, isBillable: !!result.isBillable } as TimeEntry;
 }
 
