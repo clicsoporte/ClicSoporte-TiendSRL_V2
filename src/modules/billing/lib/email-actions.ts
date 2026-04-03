@@ -5,15 +5,21 @@
  */
 
 import { sendEmail } from '@/modules/core/lib/email-service';
-import type { Company, User } from '@/modules/core/types';
+import type { Company, User, TimeEntry } from '@/modules/core/types';
 import { logInfo, logError } from '@/modules/core/lib/logger';
 import { format, parseISO } from 'date-fns';
+
+interface BillingEmailEntry extends TimeEntry {
+    ticketConsecutive: string;
+    serviceName: string;
+    amount: number;
+}
 
 interface SendBillingEmailParams {
     recipients: string[];
     companyData: Company;
     customerName: string;
-    entries: any[];
+    entries: BillingEmailEntry[];
     totalAmount: number;
     sender: User;
 }

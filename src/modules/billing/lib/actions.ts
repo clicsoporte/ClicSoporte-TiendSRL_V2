@@ -5,7 +5,7 @@
  */
 
 import { connectDb } from '@/modules/core/lib/db';
-import type { TimeEntry, SupportPackage } from '@/modules/core/types';
+import type { TimeEntry } from '@/modules/core/types';
 import { getCompanySettings } from '@/modules/core/lib/settings-db';
 import { logInfo, logError } from '@/modules/core/lib/logger';
 import { revalidatePath } from 'next/cache';
@@ -17,6 +17,15 @@ export interface PendingCustomer {
     pendingCount: number;
     totalAmount: number;
     currency: string;
+}
+
+interface DbBillingRow extends TimeEntry {
+    customerId: string;
+    customerName: string;
+    taxId: string;
+    entryId: number;
+    ticketConsecutive: string;
+    serviceId: string;
 }
 
 /**
@@ -42,7 +51,7 @@ export async function getCustomersWithPendingBilling(): Promise<PendingCustomer[
             JOIN tickets t ON te.ticketId = t.id
             JOIN customers c ON (t.customerName = c.name OR t.companyName = c.name)
             WHERE te.billingStatus = 'pending' AND te.isBillable = 1
-        `).all() as any[];
+        `).all() as (Pick<DbBillingRow, 'customerId' | 'customerName' | 'taxId' | 'billableDuration' | 'duration' | 'serviceId'>)[];
 
         const customerMap = new Map<string, PendingCustomer>();
 
@@ -94,7 +103,7 @@ export async function getPendingEntriesForCustomer(customerId: string): Promise<
             JOIN customers c ON (t.customerName = c.name OR t.companyName = c.name)
             WHERE c.id = ? AND te.billingStatus = 'pending' AND te.isBillable = 1
             ORDER BY te.startTime DESC
-        `).all(customerId) as any[];
+        `).all(customerId) as (TimeEntry & { ticketConsecutive: string, serviceId: string })[];
 
         return rows.map(row => {
             const price = servicePriceMap.get(row.serviceId) || 0;

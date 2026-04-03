@@ -6,7 +6,6 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -23,6 +22,14 @@ import { useAuth } from '@/modules/core/hooks/useAuth';
 import { generateDocument } from '@/modules/core/lib/pdf-generator';
 import { sendBillingStatementByEmail } from '@/modules/billing/lib/email-actions';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
+import type { TimeEntry } from '@/modules/core/types';
+
+interface BillingEntry extends TimeEntry {
+    ticketConsecutive: string;
+    serviceName: string;
+    price: number;
+    amount: number;
+}
 
 export default function BillingClient() {
     const { toast } = useToast();
@@ -33,7 +40,7 @@ export default function BillingClient() {
     
     // Selection state
     const [selectedCustomer, setSelectedCustomer] = useState<PendingCustomer | null>(null);
-    const [entries, setEntries] = useState<any[]>([]);
+    const [entries, setEntries] = useState<BillingEntry[]>([]);
     const [isLoadingEntries, setIsLoadingEntries] = useState(false);
     const [selectedEntryIds, setSelectedEntryIds] = useState<number[]>([]);
     const [externalInvoice, setExternalInvoice] = useState("");
@@ -88,7 +95,7 @@ export default function BillingClient() {
             const data = await getPendingEntriesForCustomer(customer.id);
             setEntries(data);
             setSelectedEntryIds(data.map(e => e.id)); // Select all by default
-        } catch (error) {
+        } catch {
             toast({ title: "Error al cargar detalles", variant: "destructive" });
         } finally {
             setIsLoadingEntries(false);
@@ -146,8 +153,8 @@ export default function BillingClient() {
                 format(parseISO(e.startTime), 'dd/MM/yy'),
                 e.ticketConsecutive,
                 { content: `${e.serviceName}\n${e.notes || ''}`, styles: { fontSize: 8 } },
-                { content: ((e.billableDuration || e.duration || 0) / 3600000).toFixed(2) + ' h', styles: { halign: 'center' } },
-                { content: formatCurrency(e.amount), styles: { halign: 'right' } }
+                { content: (((e.billableDuration || e.duration || 0) / 3600000)).toFixed(2) + ' h', styles: { halign: 'center' as const } },
+                { content: formatCurrency(e.amount), styles: { halign: 'right' as const } }
             ]);
 
             const doc = generateDocument({
@@ -174,7 +181,7 @@ export default function BillingClient() {
 
             doc.save(`estado_cuenta_${selectedCustomer.id}.pdf`);
             toast({ title: "PDF Descargado" });
-        } catch (error) {
+        } catch {
             toast({ title: "Error al generar PDF", variant: "destructive" });
         } finally {
             setIsGeneratingPDF(false);

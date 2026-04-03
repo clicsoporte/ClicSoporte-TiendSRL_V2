@@ -5,7 +5,7 @@
 'use server';
 
 import { connectDb } from "@/modules/core/lib/db";
-import type { Ticket, TIProject, TimeEntry, User } from "@/modules/core/types";
+import type { Ticket, TIProject, User, Service, TimeEntry } from "@/modules/core/types";
 import { DateRange } from 'react-day-picker';
 import { differenceInDays, parseISO } from 'date-fns';
 
@@ -33,8 +33,8 @@ export async function getAnalyticsData(range?: DateRange): Promise<AnalyticsData
     
     // Config for prices
     const companyRow = db.prepare('SELECT servicesCatalog FROM company_settings WHERE id = 1').get() as { servicesCatalog: string };
-    const catalog = JSON.parse(companyRow.servicesCatalog || '[]');
-    const priceMap = new Map<string, number>(catalog.map((s: any) => [s.id, s.price || 0]));
+    const catalog = JSON.parse(companyRow.servicesCatalog || '[]') as Service[];
+    const priceMap = new Map<string, number>(catalog.map((s) => [s.id, s.price || 0]));
 
     // Tickets
     const tF = applyDateFilter('SELECT status FROM tickets {{WHERE}}', range, 'createdAt');
@@ -53,7 +53,7 @@ export async function getAnalyticsData(range?: DateRange): Promise<AnalyticsData
         JOIN tickets t ON te.ticketId = t.id
         {{WHERE}}
     `, range, 'startTime');
-    const timeEntries = db.prepare(tsF.filteredQuery).all(...tsF.params) as any[];
+    const timeEntries = db.prepare(tsF.filteredQuery).all(...tsF.params) as (TimeEntry & { serviceId: string })[];
     const users = db.prepare('SELECT id, name FROM users').all() as Pick<User, 'id' | 'name'>[];
     const userMap = new Map(users.map(u => [u.id, u.name]));
 

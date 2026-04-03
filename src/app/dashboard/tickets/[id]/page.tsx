@@ -6,7 +6,7 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useTickets } from '@/modules/tickets/hooks/useTickets';
-import type { Ticket, TicketThread, TicketPriority, ThirdPartyProvider, User, CustomerContact, TimeEntry } from '@/modules/core/types';
+import type { Ticket, TicketThread, TicketPriority, ThirdPartyProvider, User, TimeEntry } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -111,7 +111,7 @@ export default function TicketDetailPage() {
 
     const handleDetailUpdate = async (updates: Partial<Pick<Ticket, 'status' | 'priority' | 'assigneeId' | 'isBillable' | 'providerId'>>) => {
         if (!currentUser || !hasPermission('tickets:manage')) {
-             toast({ title: "Acción no permitida", description: "No tienes permiso para gestionar metadatos de tickets.", variant: "destructive" });
+             toast({ title: "Accion no permitida", description: "No tienes permiso para gestionar metadatos de tickets.", variant: "destructive" });
             return;
         };
 
