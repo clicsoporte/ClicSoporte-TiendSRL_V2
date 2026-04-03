@@ -6,15 +6,15 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useTickets } from '@/modules/tickets/hooks/useTickets';
-import type { Ticket, TicketThread, TicketPriority, ThirdPartyProvider, User } from '@/modules/core/types';
+import type { Ticket, TicketThread, TicketPriority, ThirdPartyProvider, User, Customer, CustomerContact, TimeEntry } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Send, Loader2, MoreVertical, CreditCard, ShieldCheck, ShieldAlert, Truck, CheckCircle2, XCircle, PlayCircle, PauseCircle, Info, UserCircle } from 'lucide-react';
+import { Send, Loader2, MoreVertical, CreditCard, ShieldCheck, ShieldAlert, Truck, CheckCircle2, XCircle, PlayCircle, PauseCircle, Info, UserCircle, FileText, Download, Mail, UserCheck } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -23,10 +23,14 @@ import { useToast } from '@/modules/core/hooks/use-toast';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose, DialogTrigger } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { TimeTracker } from '@/components/tickets/time-tracker';
+import { getEntriesForTicket } from '@/modules/timesheet/lib/actions';
+import { generateDocument } from '@/modules/core/lib/pdf-generator';
+import { sendTicketReportByEmail } from '@/modules/tickets/lib/report-email-actions';
 
 const getInitials = (name: string) => {
     if (!name) return "??";
@@ -39,11 +43,12 @@ export default function TicketDetailPage() {
     const ticketId = Number(params.id);
     const { isAuthorized, hasPermission } = useAuthorization(['tickets:read:all']);
     const { actions, selectors } = useTickets();
-    const { user: currentUser, companyData } = useAuth();
+    const { user: currentUser, companyData, customers } = useAuth();
     const { toast } = useToast();
     
     const [ticket, setTicket] = useState<Ticket | null>(null);
     const [thread, setThread] = useState<TicketThread[]>([]);
+    const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
     const [replyContent, setReplyContent] = useState("");
     const [isReplying, setIsReplying] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
@@ -52,16 +57,32 @@ export default function TicketDetailPage() {
     const [isClosureDialogOpen, setClosureDialogOpen] = useState(false);
     const [closureType, setClosureType] = useState<'completed' | 'canceled'>('completed');
     const [closureContent, setClosureContent] = useState("");
+
+    // Report Dialog State
+    const [isReportDialogOpen, setReportDialogOpen] = useState(false);
+    const [selectedEmailRecipients, setSelectedEmailRecipients] = useState<string[]>([]);
+    const [isGeneratingReport, setIsGeneratingReport] = useState(false);
     
     const supportUsers = useMemo(() => selectors.supportUsers, [selectors.supportUsers]);
 
+    // Find the linked customer to get contacts
+    const linkedCustomer = useMemo(() => {
+        if (!ticket) return null;
+        return customers.find(c => c.name === ticket.customerName || c.name === ticket.companyName);
+    }, [ticket, customers]);
+
     const loadData = useCallback(async () => {
         if (ticketId && isAuthorized) {
-            const ticketData = await actions.getTicketById(ticketId);
+            const [ticketData, threadData, entriesData] = await Promise.all([
+                actions.getTicketById(ticketId),
+                actions.getTicketThread(ticketId),
+                getEntriesForTicket(ticketId)
+            ]);
+            
             if (ticketData) {
                 setTicket(ticketData);
-                const threadData = await actions.getTicketThread(ticketId);
                 setThread(threadData);
+                setTimeEntries(entriesData);
             }
             setIsInitialLoading(false);
         }
@@ -146,7 +167,86 @@ export default function TicketDetailPage() {
             toast({ title: "Error", variant: "destructive" });
             setIsDeleting(false);
         }
-    }
+    };
+
+    // --- Report Actions ---
+    const formatDuration = (ms: number | null | undefined) => {
+        if (ms === null || ms === undefined) return "00:00:00";
+        const totalSeconds = Math.floor(ms / 1000);
+        const hours = Math.floor(totalSeconds / 3600).toString().padStart(2, '0');
+        const minutes = Math.floor((totalSeconds % 3600) / 60).toString().padStart(2, '0');
+        const seconds = (totalSeconds % 60).toString().padStart(2, '0');
+        return `${hours}:${minutes}:${seconds}`;
+    };
+
+    const handleGeneratePDF = () => {
+        if (!ticket || !companyData) return;
+
+        const totalMs = timeEntries.reduce((acc, e) => acc + (e.duration || 0), 0);
+        const billableMs = timeEntries.reduce((acc, e) => acc + (e.billableDuration || 0), 0);
+
+        const tableRows = timeEntries.map(e => [
+            format(parseISO(e.startTime), 'dd/MM/yy HH:mm'),
+            e.notes || 'Soporte Técnico',
+            e.isBillable ? 'Sí' : 'No',
+            { content: formatDuration(e.duration), styles: { halign: 'right' as const } }
+        ]);
+
+        const doc = generateDocument({
+            docTitle: "REPORTE DE SOPORTE TÉCNICO",
+            docId: ticket.consecutive,
+            companyData,
+            meta: [
+                { label: 'Fecha Reporte', value: format(new Date(), 'dd/MM/yyyy') },
+                { label: 'Estado Ticket', value: ticket.status.toUpperCase() },
+                { label: 'Facturación', value: ticket.isBillable ? 'EXTRA' : 'CONTRATO' }
+            ],
+            blocks: [
+                { title: 'Información del Caso', content: `Asunto: ${ticket.subject}\nCliente: ${ticket.customerName}\nAbierto el: ${format(parseISO(ticket.createdAt), 'dd/MM/yyyy HH:mm')}` },
+                { title: 'Resumen de Tiempos', content: `Tiempo Real: ${formatDuration(totalMs)}\nTiempo Facturable: ${formatDuration(billableMs)}` }
+            ],
+            table: {
+                columns: ["Fecha", "Actividad / Notas", "Bajo Contrato", "Duración"],
+                rows: tableRows,
+                columnStyles: { 3: { halign: 'right' } }
+            },
+            notes: "Este reporte detalla las actividades realizadas y el tiempo consumido. Si tiene dudas sobre este reporte, favor contactar a soporte técnico.",
+            totals: [
+                { label: 'Total Tiempo Real:', value: formatDuration(totalMs) },
+                { label: 'Total Tiempo Facturable:', value: formatDuration(billableMs) }
+            ]
+        });
+
+        doc.save(`reporte_${ticket.consecutive}.pdf`);
+        toast({ title: "PDF Generado" });
+    };
+
+    const handleSendEmailReport = async () => {
+        if (selectedEmailRecipients.length === 0 || !ticket || !companyData || !currentUser) return;
+        
+        setIsGeneratingReport(true);
+        try {
+            await sendTicketReportByEmail({
+                recipients: selectedEmailRecipients,
+                ticket,
+                timeEntries,
+                companyData,
+                sender: currentUser
+            });
+            toast({ title: "Reporte Enviado", description: `Se envió el informe a ${selectedEmailRecipients.length} destinatario(s).` });
+            setReportDialogOpen(false);
+        } catch (error: unknown) {
+            toast({ title: "Error al enviar", description: (error as Error).message, variant: "destructive" });
+        } finally {
+            setIsGeneratingReport(false);
+        }
+    };
+
+    const toggleRecipient = (email: string) => {
+        setSelectedEmailRecipients(prev => 
+            prev.includes(email) ? prev.filter(e => e !== email) : [...prev, email]
+        );
+    };
     
     if (!isAuthorized) return null;
 
@@ -249,6 +349,61 @@ export default function TicketDetailPage() {
                     </div>
                     <div className="flex items-center gap-2">
                         {ticket.isBillable && <Badge variant="destructive" className="animate-pulse">FACTURABLE</Badge>}
+                        
+                        <Dialog open={isReportDialogOpen} onOpenChange={setReportDialogOpen}>
+                            <DialogTrigger asChild>
+                                <Button variant="outline" size="sm">
+                                    <FileText className="mr-2 h-4 w-4" /> Reporte
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-md">
+                                <DialogHeader>
+                                    <DialogTitle className="flex items-center gap-2">
+                                        <FileText className="h-5 w-5 text-primary" /> Generar Informe de Servicio
+                                    </DialogTitle>
+                                    <DialogDescription>Selecciona los destinatarios para enviar este informe detallado.</DialogDescription>
+                                </DialogHeader>
+                                <div className="py-4 space-y-4">
+                                    <div className="space-y-2">
+                                        <Label className="text-xs font-bold uppercase">Contactos Registrados</Label>
+                                        <ScrollArea className="h-48 border rounded-md p-2">
+                                            {linkedCustomer?.contacts && linkedCustomer.contacts.length > 0 ? (
+                                                <div className="space-y-2">
+                                                    {linkedCustomer.contacts.map((c: CustomerContact) => (
+                                                        <div key={c.id} className="flex items-center space-x-3 p-2 hover:bg-muted/50 rounded cursor-pointer" onClick={() => toggleRecipient(c.email)}>
+                                                            <Checkbox checked={selectedEmailRecipients.includes(c.email)} onCheckedChange={() => toggleRecipient(c.email)} />
+                                                            <div className="flex-1 min-w-0">
+                                                                <p className="text-sm font-medium truncate">{c.name}</p>
+                                                                <p className="text-xs text-muted-foreground">{c.email}</p>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <div className="h-full flex flex-col items-center justify-center text-center p-4">
+                                                    <UserCheck className="h-8 w-8 text-muted-foreground mb-2" />
+                                                    <p className="text-xs text-muted-foreground">No se encontraron contactos para este cliente.</p>
+                                                </div>
+                                            )}
+                                        </ScrollArea>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <Button variant="outline" className="w-full" onClick={handleGeneratePDF}>
+                                            <Download className="mr-2 h-4 w-4" /> Bajar PDF
+                                        </Button>
+                                        <Button 
+                                            className="w-full" 
+                                            disabled={selectedEmailRecipients.length === 0 || isGeneratingReport}
+                                            onClick={handleSendEmailReport}
+                                        >
+                                            {isGeneratingReport ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Mail className="mr-2 h-4 w-4" />}
+                                            Enviar Email
+                                        </Button>
+                                    </div>
+                                </div>
+                            </DialogContent>
+                        </Dialog>
+
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="icon"><MoreVertical className="h-5 w-5" /></Button>
