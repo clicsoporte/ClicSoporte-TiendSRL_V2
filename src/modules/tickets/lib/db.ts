@@ -91,6 +91,9 @@ export async function getClientCompanies(): Promise<ClientCompany[]> {
 
 export async function getTickets(): Promise<Ticket[]> {
     const db = await connectTicketsDb();
+    
+    type TicketRow = Omit<Ticket, 'hasActiveTimer' | 'isBillable'> & { hasActiveTimer: number; isBillable: number };
+
     const rows = db.prepare(`
         SELECT t.*, 
                COALESCE(SUM(te.duration), 0) as totalDuration,
@@ -99,19 +102,19 @@ export async function getTickets(): Promise<Ticket[]> {
         LEFT JOIN time_entries te ON t.id = te.ticketId
         GROUP BY t.id
         ORDER BY t.createdAt DESC
-    `).all() as any[];
+    `).all() as TicketRow[];
     
     return rows.map(r => ({ 
         ...r, 
-        isBillable: !!r.isBillable,
+        isBillable: r.isBillable === 1,
         hasActiveTimer: r.hasActiveTimer === 1
     })) as Ticket[];
 }
 
 export async function getTicketById(id: number): Promise<Ticket | null> {
     const db = await connectTicketsDb();
-    const result = db.prepare('SELECT * FROM tickets WHERE id = ?').get(id) as Ticket | undefined;
-    return result ? { ...result, isBillable: !!result.isBillable } : null;
+    const result = db.prepare('SELECT * FROM tickets WHERE id = ?').get(id) as (Omit<Ticket, 'isBillable'> & { isBillable: number }) | undefined;
+    return result ? { ...result, isBillable: result.isBillable === 1 } as Ticket : null;
 }
 
 export async function getTicketThread(ticketId: number): Promise<TicketThread[]> {
@@ -157,7 +160,7 @@ export async function updateTicketDetails(ticketId: number, updates: Partial<Pic
 
             // 2. If moving TO on_hold, completed, or canceled, stop any running timer
             if (['on_hold', 'completed', 'canceled'].includes(updates.status)) {
-                const active = db.prepare('SELECT * FROM time_entries WHERE ticketId = ? AND endTime IS NULL').get(ticketId) as any;
+                const active = db.prepare('SELECT id, startTime FROM time_entries WHERE ticketId = ? AND endTime IS NULL').get(ticketId) as { id: number; startTime: string } | undefined;
                 if (active) {
                     const start = new Date(active.startTime).getTime();
                     const end = new Date(now).getTime();
@@ -184,8 +187,8 @@ export async function updateTicketDetails(ticketId: number, updates: Partial<Pic
         return db.prepare('SELECT * FROM tickets WHERE id = ?').get(ticketId) as Ticket;
     });
 
-    const result = transaction() as Ticket;
-    return { ...result, isBillable: !!result.isBillable };
+    const result = transaction() as (Omit<Ticket, 'isBillable'> & { isBillable: number });
+    return { ...result, isBillable: result.isBillable === 1 } as Ticket;
 }
 
 export async function getHelpTopics(): Promise<HelpTopic[]> {
