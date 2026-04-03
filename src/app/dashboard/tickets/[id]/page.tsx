@@ -1,12 +1,13 @@
+'use client';
+
 /**
  * @fileoverview Ticket detail page with multi-column layout for operations and context info.
  */
-'use client';
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useTickets } from '@/modules/tickets/hooks/useTickets';
-import type { Ticket, TicketThread, TicketPriority, ThirdPartyProvider, User, TimeEntry } from '@/modules/core/types';
+import type { Ticket, TicketThread, TicketPriority, ThirdPartyProvider, TimeEntry } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';

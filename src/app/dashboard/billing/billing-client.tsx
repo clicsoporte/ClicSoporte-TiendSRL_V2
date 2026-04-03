@@ -23,6 +23,7 @@ import { generateDocument } from '@/modules/core/lib/pdf-generator';
 import { sendBillingStatementByEmail } from '@/modules/billing/lib/email-actions';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
 import type { TimeEntry } from '@/modules/core/types';
+import type { RowInput } from 'jspdf-autotable';
 
 interface BillingEntry extends TimeEntry {
     ticketConsecutive: string;
@@ -57,8 +58,8 @@ export default function BillingClient() {
         try {
             const data = await getCustomersWithPendingBilling();
             setCustomers(data);
-        } catch (error) {
-            console.error(error);
+        } catch {
+            // Error logged by action
         } finally {
             setIsLoading(false);
         }
@@ -170,7 +171,7 @@ export default function BillingClient() {
                 ],
                 table: {
                     columns: ["Fecha", "Ticket", "Descripción / Labor", "Horas", "Subtotal"],
-                    rows: tableRows as any[],
+                    rows: tableRows as RowInput[],
                     columnStyles: { 4: { halign: 'right' } }
                 },
                 notes: "Este documento detalla las horas de soporte técnico que se encuentran pendientes de facturar en el ERP.",
