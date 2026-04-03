@@ -7,7 +7,7 @@
 import { useAnalytics } from '@/modules/analytics/hooks/useAnalytics';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AreaChart, CalendarCheck, Hourglass, Ticket, FileText, BadgeAlert, Coins, Receipt } from 'lucide-react';
+import { AreaChart, CalendarCheck, Hourglass, Ticket, FileText, BadgeAlert, Coins, Receipt, CheckCircle2 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
 import { Button } from '@/components/ui/button';
