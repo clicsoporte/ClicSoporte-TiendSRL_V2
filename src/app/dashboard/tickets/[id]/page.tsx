@@ -14,7 +14,7 @@ import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Send, Loader2, MoreVertical, CreditCard, ShieldCheck, ShieldAlert, Truck } from 'lucide-react';
+import { Send, Loader2, MoreVertical, CreditCard, ShieldCheck, ShieldAlert, Truck, CheckCircle2, XCircle, PlayCircle, PauseCircle } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -23,6 +23,7 @@ import { useToast } from '@/modules/core/hooks/use-toast';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { TimeTracker } from '@/components/tickets/time-tracker';
@@ -47,6 +48,11 @@ export default function TicketDetailPage() {
     const [isReplying, setIsReplying] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [isInitialLoading, setIsInitialLoading] = useState(true);
+
+    // Closure Dialog States
+    const [isClosureDialogOpen, setClosureDialogOpen] = useState(false);
+    const [closureType, setClosureType] = useState<'completed' | 'canceled'>('completed');
+    const [closureContent, setClosureContent] = useState("");
     
     const supportUsers = useMemo(() => selectors.supportUsers, [selectors.supportUsers]);
 
@@ -90,12 +96,49 @@ export default function TicketDetailPage() {
              toast({ title: "Acción no permitida", description: "No tienes permiso para gestionar metadatos de tickets.", variant: "destructive" });
             return;
         };
+
+        // Intercept Completed/Canceled to show dialog
+        if (updates.status === 'completed' || updates.status === 'canceled') {
+            setClosureType(updates.status);
+            setClosureContent("");
+            setClosureDialogOpen(true);
+            return;
+        }
+
         const updatedTicket = await actions.updateTicketDetails(ticketId, updates, currentUser);
         if (updatedTicket) {
             setTicket(updatedTicket);
             const threadData = await getTicketThread(ticketId);
             setThread(threadData);
+            if (updates.status === 'in_progress') toast({ title: "Cronómetro Iniciado Automáticamente" });
+            if (updates.status === 'on_hold') toast({ title: "Tiempo Pausado" });
         }
+    };
+
+    const handleConfirmClosure = async () => {
+        if (!closureContent.trim() || !currentUser) return;
+        setIsReplying(true);
+        
+        // 1. Add the final resolution/cancellation message to thread
+        await actions.addThreadEntry({
+            ticketId,
+            content: closureContent,
+            userId: currentUser.id,
+            userName: currentUser.name,
+            type: 'message'
+        });
+
+        // 2. Update status (this also stops timer server-side)
+        const updatedTicket = await actions.updateTicketDetails(ticketId, { status: closureType }, currentUser);
+        
+        if (updatedTicket) {
+            setTicket(updatedTicket);
+            const threadData = await getTicketThread(ticketId);
+            setThread(threadData);
+            setClosureDialogOpen(false);
+            toast({ title: closureType === 'completed' ? "Caso Finalizado con Éxito" : "Caso Cancelado" });
+        }
+        setIsReplying(false);
     };
 
     const handleDeleteTicket = async () => {
@@ -201,10 +244,10 @@ export default function TicketDetailPage() {
                             rows={3}
                             value={replyContent}
                             onChange={e => setReplyContent(e.target.value)}
-                            disabled={!hasPermission('tickets:reply')}
+                            disabled={!hasPermission('tickets:reply') || ticket.status === 'completed' || ticket.status === 'canceled'}
                         />
                         <div className="absolute top-2 right-2 flex gap-1">
-                             <Button type="button" size="icon" onClick={handleAddReply} disabled={isReplying || !hasPermission('tickets:reply')}>
+                             <Button type="button" size="icon" onClick={handleAddReply} disabled={isReplying || !hasPermission('tickets:reply') || ticket.status === 'completed' || ticket.status === 'canceled'}>
                                 {isReplying ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Send className="h-4 w-4" />}
                             </Button>
                         </div>
@@ -225,7 +268,7 @@ export default function TicketDetailPage() {
                     <CardContent className="p-4 pt-0 space-y-4">
                          <div className="space-y-1.5">
                             <Label className="text-xs">Prioridad</Label>
-                            <Select value={ticket.priority} onValueChange={(v: TicketPriority) => handleDetailUpdate({ priority: v })} disabled={!hasPermission('tickets:manage')}>
+                            <Select value={ticket.priority} onValueChange={(v: TicketPriority) => handleDetailUpdate({ priority: v })} disabled={!hasPermission('tickets:manage') || ticket.status === 'completed' || ticket.status === 'canceled'}>
                                 <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                     {Object.entries(selectors.priorityConfig).map(([key, config]) => (
@@ -235,24 +278,58 @@ export default function TicketDetailPage() {
                             </Select>
                         </div>
                         <div className="space-y-1.5">
-                            <Label className="text-xs">Estado</Label>
-                             <Select value={ticket.status} onValueChange={(v: TicketStatus) => handleDetailUpdate({ status: v })} disabled={!hasPermission('tickets:manage')}>
-                                <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                     {Object.entries(selectors.statusConfig).map(([key, config]) => (
-                                        <SelectItem key={key} value={key}>
-                                             <div className="flex items-center gap-2">
-                                                <span className={cn("h-2 w-2 rounded-full", config.color)}></span>
-                                                <span>{config.label}</span>
-                                            </div>
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            <Label className="text-xs">Flujo de Trabajo</Label>
+                             <div className="grid grid-cols-1 gap-2 pt-1">
+                                <Button 
+                                    variant={ticket.status === 'open' ? 'default' : 'outline'} 
+                                    size="sm" 
+                                    className="justify-start h-8 text-xs"
+                                    onClick={() => handleDetailUpdate({ status: 'open' })}
+                                    disabled={ticket.status === 'completed' || ticket.status === 'canceled'}
+                                >
+                                    <Badge variant="outline" className="mr-2 h-2 w-2 p-0 rounded-full bg-slate-400" /> Abierto
+                                </Button>
+                                <Button 
+                                    variant={ticket.status === 'in_progress' ? 'default' : 'outline'} 
+                                    size="sm" 
+                                    className="justify-start h-8 text-xs"
+                                    onClick={() => handleDetailUpdate({ status: 'in_progress' })}
+                                    disabled={ticket.status === 'completed' || ticket.status === 'canceled'}
+                                >
+                                    <PlayCircle className={cn("mr-2 h-4 w-4", ticket.status === 'in_progress' && "animate-pulse")} /> En Progreso
+                                </Button>
+                                <Button 
+                                    variant={ticket.status === 'on_hold' ? 'default' : 'outline'} 
+                                    size="sm" 
+                                    className="justify-start h-8 text-xs"
+                                    onClick={() => handleDetailUpdate({ status: 'on_hold' })}
+                                    disabled={ticket.status === 'completed' || ticket.status === 'canceled'}
+                                >
+                                    <PauseCircle className="mr-2 h-4 w-4" /> En Espera
+                                </Button>
+                                <Button 
+                                    variant={ticket.status === 'completed' ? 'default' : 'outline'} 
+                                    size="sm" 
+                                    className="justify-start h-8 text-xs border-green-600 text-green-700 hover:bg-green-50"
+                                    onClick={() => handleDetailUpdate({ status: 'completed' })}
+                                    disabled={ticket.status === 'completed' || ticket.status === 'canceled'}
+                                >
+                                    <CheckCircle2 className="mr-2 h-4 w-4" /> Finalizar Caso
+                                </Button>
+                                <Button 
+                                    variant={ticket.status === 'canceled' ? 'default' : 'outline'} 
+                                    size="sm" 
+                                    className="justify-start h-8 text-xs border-red-600 text-red-700 hover:bg-red-50"
+                                    onClick={() => handleDetailUpdate({ status: 'canceled' })}
+                                    disabled={ticket.status === 'completed' || ticket.status === 'canceled'}
+                                >
+                                    <XCircle className="mr-2 h-4 w-4" /> Anular / Cancelar
+                                </Button>
+                             </div>
                         </div>
-                         <div className="space-y-1.5">
+                         <div className="space-y-1.5 pt-2">
                             <Label className="text-xs">Técnico Asignado</Label>
-                            <Select value={String(ticket.assigneeId || 'null')} onValueChange={(v) => handleDetailUpdate({ assigneeId: v === 'null' ? null : Number(v) })} disabled={!hasPermission('tickets:manage')}>
+                            <Select value={String(ticket.assigneeId || 'null')} onValueChange={(v) => handleDetailUpdate({ assigneeId: v === 'null' ? null : Number(v) })} disabled={!hasPermission('tickets:manage') || ticket.status === 'completed' || ticket.status === 'canceled'}>
                                 <SelectTrigger className="h-8"><SelectValue placeholder="Sin Asignar"/></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="null">Sin Asignar</SelectItem>
@@ -276,7 +353,7 @@ export default function TicketDetailPage() {
                                 id="billable-switch" 
                                 checked={ticket.isBillable} 
                                 onCheckedChange={(checked) => handleDetailUpdate({ isBillable: checked })}
-                                disabled={!hasPermission('tickets:manage')}
+                                disabled={!hasPermission('tickets:manage') || ticket.status === 'completed' || ticket.status === 'canceled'}
                             />
                         </div>
                         <div className="p-3 rounded-md border text-xs space-y-2">
@@ -297,7 +374,7 @@ export default function TicketDetailPage() {
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="p-4 pt-0 space-y-2">
-                        <Select value={String(ticket.providerId || 'null')} onValueChange={(v) => handleDetailUpdate({ providerId: v === 'null' ? null : Number(v) })} disabled={!hasPermission('tickets:manage')}>
+                        <Select value={String(ticket.providerId || 'null')} onValueChange={(v) => handleDetailUpdate({ providerId: v === 'null' ? null : Number(v) })} disabled={!hasPermission('tickets:manage') || ticket.status === 'completed' || ticket.status === 'canceled'}>
                             <SelectTrigger className="h-8"><SelectValue placeholder="Sin proveedor externo"/></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="null">Ninguno (Soporte Interno)</SelectItem>
@@ -317,6 +394,47 @@ export default function TicketDetailPage() {
                     </CardContent>
                 </Card>
             </aside>
+
+            {/* --- Closure Dialog (Resolution/Cancellation) --- */}
+            <Dialog open={isClosureDialogOpen} onOpenChange={setClosureDialogOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            {closureType === 'completed' ? <CheckCircle2 className="h-5 w-5 text-green-600" /> : <XCircle className="h-5 w-5 text-red-600" />}
+                            {closureType === 'completed' ? 'Finalizar Soporte Técnico' : 'Anulación de Caso'}
+                        </DialogTitle>
+                        <DialogDescription>
+                            {closureType === 'completed' 
+                                ? 'Por favor, detalla la solución aplicada para cerrar este caso satisfactoriamente.' 
+                                : 'Indica el motivo por el cual este ticket debe ser cancelado.'}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <Label htmlFor="closure-content" className="text-xs font-bold mb-2 block uppercase">
+                            {closureType === 'completed' ? 'Resolución de la Incidencia' : 'Motivo de Cancelación'}
+                        </Label>
+                        <Textarea 
+                            id="closure-content" 
+                            rows={5} 
+                            placeholder="Escribe aquí los detalles..." 
+                            value={closureContent}
+                            onChange={e => setClosureContent(e.target.value)}
+                            required
+                        />
+                    </div>
+                    <DialogFooter>
+                        <DialogClose asChild><Button variant="ghost">Atrás</Button></DialogClose>
+                        <Button 
+                            onClick={handleConfirmClosure} 
+                            disabled={!closureContent.trim() || isReplying}
+                            className={cn(closureType === 'completed' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700')}
+                        >
+                            {isReplying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Confirmar y Cerrar
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

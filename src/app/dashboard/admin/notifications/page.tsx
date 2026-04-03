@@ -425,7 +425,8 @@ export default function AutomationManagerPage() {
                                     <SelectContent>
                                         <SelectItem value="onTicketCreated">Nuevo Ticket (Recibido)</SelectItem>
                                         <SelectItem value="onTicketStatusChanged">Cambio de Estado Ticket</SelectItem>
-                                        <SelectItem value="onTicketClosed">Ticket Resuelto (Cerrado)</SelectItem>
+                                        <SelectItem value="onTicketCompleted">Ticket Resuelto (Completado)</SelectItem>
+                                        <SelectItem value="onTicketCanceled">Ticket Anulado (Cancelado)</SelectItem>
                                         <SelectItem value="onTicketReplyAdded">Nueva Respuesta en Ticket</SelectItem>
                                         <SelectItem value="onTicketPriorityUrgent">Prioridad Urgente</SelectItem>
                                         <SelectItem value="onProjectCompleted">Proyecto TI Terminado</SelectItem>
@@ -484,6 +485,7 @@ export default function AutomationManagerPage() {
                                     <SelectItem value="erp-sync">Sincronización Completa ERP</SelectItem>
                                     <SelectItem value="backup-system">Copia de Seguridad Automática</SelectItem>
                                     <SelectItem value="check-expirations">Vigilancia de Vencimientos (Contratos/Licencias)</SelectItem>
+                                    <SelectItem value="auto-renew-contracts">Renovación Automática de Contratos</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>

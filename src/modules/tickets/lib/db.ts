@@ -125,7 +125,36 @@ export async function updateTicketDetails(ticketId: number, updates: Partial<Pic
         const params: (string | number | null)[] = [now];
         const notes: string[] = [];
 
-        if (updates.status && updates.status !== currentTicket.status) { query += ', status = ?'; params.push(updates.status); notes.push(`Estado: ${updates.status}`); }
+        // Workflow logic: Sync Timer with Status
+        if (updates.status && updates.status !== currentTicket.status) {
+            query += ', status = ?';
+            params.push(updates.status);
+            notes.push(`Estado: ${updates.status}`);
+
+            // 1. If moving TO in_progress, start a new timer entry if none exists
+            if (updates.status === 'in_progress') {
+                const running = db.prepare('SELECT id FROM time_entries WHERE ticketId = ? AND endTime IS NULL').get(ticketId);
+                if (!running) {
+                    db.prepare(`
+                        INSERT INTO time_entries (ticketId, userId, startTime, isBillable, billingStatus, createdAt)
+                        VALUES (?, ?, ?, ?, 'pending', ?)
+                    `).run(ticketId, user.id, now, currentTicket.isBillable ? 1 : 0, now);
+                }
+            }
+
+            // 2. If moving TO on_hold, completed, or canceled, stop any running timer
+            if (['on_hold', 'completed', 'canceled'].includes(updates.status)) {
+                const active = db.prepare('SELECT * FROM time_entries WHERE ticketId = ? AND endTime IS NULL').get(ticketId) as any;
+                if (active) {
+                    const start = new Date(active.startTime).getTime();
+                    const end = new Date(now).getTime();
+                    const duration = end - start;
+                    db.prepare('UPDATE time_entries SET endTime = ?, duration = ?, billableDuration = ? WHERE id = ?')
+                      .run(now, duration, duration, active.id);
+                }
+            }
+        }
+
         if (updates.priority && updates.priority !== currentTicket.priority) { query += ', priority = ?'; params.push(updates.priority); notes.push(`Prioridad: ${updates.priority}`); }
         if (updates.assigneeId !== undefined && updates.assigneeId !== currentTicket.assigneeId) { query += ', assigneeId = ?'; params.push(updates.assigneeId); notes.push(`Asignado`); }
         if (updates.isBillable !== undefined && !!updates.isBillable !== !!currentTicket.isBillable) { query += ', isBillable = ?'; params.push(updates.isBillable ? 1 : 0); notes.push(`Facturación: ${updates.isBillable ? 'Facturable' : 'No facturable'}`); }

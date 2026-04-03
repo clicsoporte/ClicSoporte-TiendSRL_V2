@@ -546,7 +546,7 @@ export type CostAssistantSettings = {
 };
 
 // --- Tickets Module Types ---
-export type TicketStatus = 'open' | 'in_progress' | 'on_hold' | 'closed';
+export type TicketStatus = 'open' | 'in_progress' | 'on_hold' | 'completed' | 'canceled';
 export type TicketPriority = 'low' | 'medium' | 'high' | 'urgent';
 
 export type HelpTopic = {
@@ -670,7 +670,8 @@ export type NotificationServiceConfig = {
 export type NotificationEventId = 
     | 'onTicketCreated' 
     | 'onTicketStatusChanged'
-    | 'onTicketClosed'
+    | 'onTicketCompleted'
+    | 'onTicketCanceled'
     | 'onTicketReplyAdded'
     | 'onTicketPriorityUrgent' 
     | 'onProjectCompleted' 

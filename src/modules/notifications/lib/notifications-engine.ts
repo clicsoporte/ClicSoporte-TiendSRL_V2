@@ -51,13 +51,13 @@ const eventTemplates: Record<string, (p: Record<string, unknown>) => { subject: 
         const internal = `Ticket ${v.consecutive} cambió a ${v.status}`;
         return { subject, body, telegram, internal };
     },
-    'onTicketClosed': (p) => {
+    'onTicketCompleted': (p) => {
         const v = p as Record<string, string | number>;
-        const subject = `[CASO CERRADO] Ticket ${v.consecutive} - ${v.subject}`;
+        const subject = `[CASO RESUELTO] Ticket ${v.consecutive} - ${v.subject}`;
         const body = `
             <div style="font-family: sans-serif; color: #333;">
                 <h2 style="color: #16a34a;">Caso de Soporte Finalizado</h2>
-                <p>Tu solicitud <b>${v.consecutive}</b> ha sido resuelta y marcada como cerrada.</p>
+                <p>Tu solicitud <b>${v.consecutive}</b> ha sido resuelta satisfactoriamente.</p>
                 <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; padding: 15px; border-radius: 8px; margin: 20px 0;">
                     <h4 style="margin-top: 0; color: #166534;">Solución Técnica:</h4>
                     <p style="font-size: 14px; line-height: 1.6;">${v.content || 'El caso fue resuelto satisfactoriamente.'}</p>
@@ -66,8 +66,26 @@ const eventTemplates: Record<string, (p: Record<string, unknown>) => { subject: 
                 <p>Gracias por confiar en <b>Clic-Soporte</b>.</p>
             </div>
         `;
-        const telegram = `✅ <b>TICKET CERRADO</b>\n\n<b>ID:</b> ${v.consecutive}\n<b>Cliente:</b> ${v.customerName}\n<b>Resuelto por:</b> ${v.userName}`;
-        const internal = `Ticket ${v.consecutive} cerrado con solución.`;
+        const telegram = `✅ <b>TICKET COMPLETADO</b>\n\n<b>ID:</b> ${v.consecutive}\n<b>Cliente:</b> ${v.customerName}\n<b>Resuelto por:</b> ${v.userName}`;
+        const internal = `Ticket ${v.consecutive} completado con éxito.`;
+        return { subject, body, telegram, internal };
+    },
+    'onTicketCanceled': (p) => {
+        const v = p as Record<string, string | number>;
+        const subject = `[CASO CANCELADO] Ticket ${v.consecutive} - ${v.subject}`;
+        const body = `
+            <div style="font-family: sans-serif; color: #333;">
+                <h2 style="color: #dc2626;">Caso de Soporte Cancelado</h2>
+                <p>Tu solicitud <b>${v.consecutive}</b> ha sido marcada como cancelada y no procederá.</p>
+                <div style="background-color: #fef2f2; border: 1px solid #fecaca; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                    <h4 style="margin-top: 0; color: #991b1b;">Motivo:</h4>
+                    <p style="font-size: 14px; line-height: 1.6;">${v.content || 'El caso fue cancelado por el técnico.'}</p>
+                </div>
+                <p>Gracias por su comprensión.</p>
+            </div>
+        `;
+        const telegram = `❌ <b>TICKET CANCELADO</b>\n\n<b>ID:</b> ${v.consecutive}\n<b>Cliente:</b> ${v.customerName}\n<b>Motivo:</b> ${v.content}`;
+        const internal = `Ticket ${v.consecutive} cancelado.`;
         return { subject, body, telegram, internal };
     },
     'onTicketReplyAdded': (p) => {
@@ -231,7 +249,8 @@ function getHrefForEvent(eventId: string, p: Record<string, unknown>): string {
     switch (eventId) {
         case 'onTicketCreated':
         case 'onTicketStatusChanged':
-        case 'onTicketClosed':
+        case 'onTicketCompleted':
+        case 'onTicketCanceled':
         case 'onTicketReplyAdded':
         case 'onTicketPriorityUrgent': return `/dashboard/tickets/${v.id || v.ticketId}`;
         case 'onProjectCompleted': 
