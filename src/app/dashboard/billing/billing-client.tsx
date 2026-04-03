@@ -16,12 +16,17 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { getCustomersWithPendingBilling, getPendingEntriesForCustomer, markEntriesAsInvoiced, type PendingCustomer } from '@/modules/billing/lib/actions';
 import { format, parseISO } from 'date-fns';
-import { Loader2, Receipt, CheckCircle2, Search, Download, Mail, UserCircle, ChevronRight, AlertCircle } from 'lucide-react';
+import { Loader2, Receipt, CheckCircle2, Search, Download, Mail, UserCircle, ChevronRight, AlertCircle, UserCheck } from 'lucide-react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/modules/core/hooks/useAuth';
+import { generateDocument } from '@/modules/core/lib/pdf-generator';
+import { sendBillingStatementByEmail } from '@/modules/billing/lib/email-actions';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
 
 export default function BillingClient() {
     const { toast } = useToast();
+    const { companyData, user: currentUser, customers: allCustomers } = useAuth();
     const [customers, setCustomers] = useState<PendingCustomer[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
@@ -33,6 +38,12 @@ export default function BillingClient() {
     const [selectedEntryIds, setSelectedEntryIds] = useState<number[]>([]);
     const [externalInvoice, setExternalInvoice] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // PDF & Email States
+    const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+    const [isEmailDialogOpen, setEmailDialogOpen] = useState(false);
+    const [selectedEmailRecipients, setSelectedEmailRecipients] = useState<string[]>([]);
+    const [isSendingEmail, setIsSendingEmail] = useState(false);
 
     const loadData = async () => {
         setIsLoading(true);
@@ -50,7 +61,6 @@ export default function BillingClient() {
         loadData();
     }, []);
 
-    // Fixed search logic
     const filteredCustomers = useMemo(() => {
         const lowerSearch = searchTerm.trim().toLowerCase();
         if (!lowerSearch) return customers;
@@ -61,6 +71,11 @@ export default function BillingClient() {
             (c.id || "").toLowerCase().includes(lowerSearch)
         );
     }, [customers, searchTerm]);
+
+    const linkedCustomerInfo = useMemo(() => {
+        if (!selectedCustomer) return null;
+        return allCustomers.find(c => c.id === selectedCustomer.id);
+    }, [selectedCustomer, allCustomers]);
 
     const handleSelectCustomer = async (customer: PendingCustomer) => {
         if (selectedCustomer?.id === customer.id) return;
@@ -90,7 +105,6 @@ export default function BillingClient() {
             await markEntriesAsInvoiced(selectedEntryIds, externalInvoice);
             toast({ title: "Registros Actualizados", description: `Se marcaron ${selectedEntryIds.length} sesiones como facturadas.` });
             setExternalInvoice("");
-            // Clear details if everything was invoiced or refresh
             const remainingEntries = entries.filter(e => !selectedEntryIds.includes(e.id));
             if (remainingEntries.length === 0) {
                 setSelectedCustomer(null);
@@ -120,6 +134,80 @@ export default function BillingClient() {
     }, [entries, selectedEntryIds]);
 
     const formatCurrency = (val: number) => `¢${val.toLocaleString('es-CR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+    // --- PDF & Email Implementation ---
+
+    const handleGeneratePDF = () => {
+        if (!selectedCustomer || !companyData || entries.length === 0) return;
+        setIsGeneratingPDF(true);
+
+        try {
+            const tableRows = entries.map(e => [
+                format(parseISO(e.startTime), 'dd/MM/yy'),
+                e.ticketConsecutive,
+                { content: `${e.serviceName}\n${e.notes || ''}`, styles: { fontSize: 8 } },
+                { content: ((e.billableDuration || e.duration || 0) / 3600000).toFixed(2) + ' h', styles: { halign: 'center' } },
+                { content: formatCurrency(e.amount), styles: { halign: 'right' } }
+            ]);
+
+            const doc = generateDocument({
+                docTitle: "ESTADO DE CUENTA DE SERVICIOS",
+                docId: "PEND-ACTUAL",
+                companyData,
+                meta: [
+                    { label: 'Fecha Emisión', value: format(new Date(), 'dd/MM/yyyy') },
+                    { label: 'Cliente', value: selectedCustomer.name }
+                ],
+                blocks: [
+                    { title: 'Información del Cliente', content: `Nombre: ${selectedCustomer.name}\nIdentificación: ${selectedCustomer.taxId}` }
+                ],
+                table: {
+                    columns: ["Fecha", "Ticket", "Descripción / Labor", "Horas", "Subtotal"],
+                    rows: tableRows as any[],
+                    columnStyles: { 4: { halign: 'right' } }
+                },
+                notes: "Este documento detalla las horas de soporte técnico que se encuentran pendientes de facturar en el ERP.",
+                totals: [
+                    { label: 'Total Pendiente:', value: formatCurrency(entries.reduce((acc, e) => acc + e.amount, 0)) }
+                ]
+            });
+
+            doc.save(`estado_cuenta_${selectedCustomer.id}.pdf`);
+            toast({ title: "PDF Descargado" });
+        } catch (error) {
+            toast({ title: "Error al generar PDF", variant: "destructive" });
+        } finally {
+            setIsGeneratingPDF(false);
+        }
+    };
+
+    const handleSendEmail = async () => {
+        if (!selectedCustomer || selectedEmailRecipients.length === 0 || !companyData || !currentUser) return;
+        
+        setIsSendingEmail(true);
+        try {
+            await sendBillingStatementByEmail({
+                recipients: selectedEmailRecipients,
+                companyData,
+                customerName: selectedCustomer.name,
+                entries,
+                totalAmount: entries.reduce((acc, e) => acc + e.amount, 0),
+                sender: currentUser
+            });
+            toast({ title: "Correo Enviado", description: `Se envió el estado de cuenta a ${selectedEmailRecipients.length} destinatario(s).` });
+            setEmailDialogOpen(false);
+        } catch (error: unknown) {
+            toast({ title: "Error al enviar correo", description: (error as Error).message, variant: "destructive" });
+        } finally {
+            setIsSendingEmail(false);
+        }
+    };
+
+    const toggleRecipient = (email: string) => {
+        setSelectedEmailRecipients(prev => 
+            prev.includes(email) ? prev.filter(e => e !== email) : [...prev, email]
+        );
+    };
 
     return (
         <main className="flex flex-col h-[calc(100vh-4rem)] bg-muted/20 overflow-hidden">
@@ -206,8 +294,14 @@ export default function BillingClient() {
                                     <p className="text-sm text-muted-foreground">Revisión de {entries.length} sesiones pendientes de cobro</p>
                                 </div>
                                 <div className="flex gap-2">
-                                    <Button variant="outline" size="sm" onClick={() => { /* PDF Logic */ }}><Download className="mr-2 h-4 w-4" /> PDF</Button>
-                                    <Button variant="outline" size="sm" onClick={() => { /* Email Logic */ }}><Mail className="mr-2 h-4 w-4" /> Email</Button>
+                                    <Button variant="outline" size="sm" onClick={handleGeneratePDF} disabled={isGeneratingPDF}>
+                                        {isGeneratingPDF ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Download className="mr-2 h-4 w-4" />}
+                                        PDF
+                                    </Button>
+                                    <Button variant="outline" size="sm" onClick={() => setEmailDialogOpen(true)}>
+                                        <Mail className="mr-2 h-4 w-4" /> 
+                                        Email
+                                    </Button>
                                 </div>
                             </div>
 
@@ -311,6 +405,53 @@ export default function BillingClient() {
                     )}
                 </section>
             </div>
+
+            {/* Email Selection Dialog */}
+            <Dialog open={isEmailDialogOpen} onOpenChange={setEmailDialogOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Mail className="h-5 w-5 text-primary" />
+                            Enviar Estado de Cuenta
+                        </DialogTitle>
+                        <DialogDescription>
+                            Seleccione los destinatarios de <strong>{selectedCustomer?.name}</strong>.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4 space-y-4">
+                        <div className="space-y-2 max-h-60 overflow-y-auto pr-2 scrollbar-thin">
+                            {linkedCustomerInfo?.contacts && linkedCustomerInfo.contacts.length > 0 ? (
+                                linkedCustomerInfo.contacts.map((contact) => (
+                                    <div key={contact.id} className="flex items-center space-x-3 p-3 rounded-md border hover:bg-muted/50 cursor-pointer transition-colors" onClick={() => toggleRecipient(contact.email)}>
+                                        <Checkbox 
+                                            id={`contact-${contact.id}`} 
+                                            checked={selectedEmailRecipients.includes(contact.email)}
+                                            onCheckedChange={() => toggleRecipient(contact.email)}
+                                        />
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-bold truncate">{contact.name}</p>
+                                            <p className="text-xs text-muted-foreground truncate">{contact.email}</p>
+                                        </div>
+                                        <Badge variant="outline" className="text-[10px] uppercase font-bold">{contact.department || 'Gral'}</Badge>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="text-center py-6 border-2 border-dashed rounded-lg">
+                                    <UserCheck className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                                    <p className="text-xs text-muted-foreground">Este cliente no tiene contactos registrados.</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
+                        <Button onClick={handleSendEmail} disabled={isSendingEmail || selectedEmailRecipients.length === 0}>
+                            {isSendingEmail ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
+                            Enviar Ahora
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </main>
     );
 }
