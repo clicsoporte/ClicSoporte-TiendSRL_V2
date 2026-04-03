@@ -39,7 +39,7 @@ export async function getAnalyticsData(range?: DateRange): Promise<AnalyticsData
     const projects = db.prepare(pF.filteredQuery).all(...pF.params) as Pick<TIProject, 'status'>[];
     const projectKpi = projects.reduce((acc, p) => { acc.total++; acc[p.status] = (acc[p.status] || 0) + 1; return acc; }, { total: 0 } as Kpi);
 
-    // Time Tracking
+    // Time Tracking (Using billableDuration for financial reports)
     const tsF = applyDateFilter('SELECT * FROM time_entries {{WHERE}}', range, 'startTime');
     const timeEntries = db.prepare(tsF.filteredQuery).all(...tsF.params) as TimeEntry[];
     const users = db.prepare('SELECT id, name FROM users').all() as Pick<User, 'id' | 'name'>[];
@@ -49,10 +49,14 @@ export async function getAnalyticsData(range?: DateRange): Promise<AnalyticsData
     const byUserMap = new Map<number, { userId: number; userName: string; billable: number; nonBillable: number }>();
 
     timeEntries.forEach(entry => {
-        const hours = (entry.duration || 0) / 3600000;
+        // Use billableDuration (rounded) for kpis, fallback to actual duration if null
+        const effectiveDuration = entry.billableDuration !== null ? entry.billableDuration : (entry.duration || 0);
+        const hours = effectiveDuration / 3600000;
+        
         timeKpi.totalHours += hours;
         if (!byUserMap.has(entry.userId)) byUserMap.set(entry.userId, { userId: entry.userId, userName: userMap.get(entry.userId) || 'Desconocido', billable: 0, nonBillable: 0 });
         const userEntry = byUserMap.get(entry.userId)!;
+        
         if (entry.isBillable) { timeKpi.totalBillable += hours; userEntry.billable += hours; }
         else { timeKpi.totalNonBillable += hours; userEntry.nonBillable += hours; }
     });

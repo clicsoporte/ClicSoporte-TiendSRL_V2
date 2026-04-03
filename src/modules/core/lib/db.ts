@@ -107,6 +107,7 @@ export async function initializeMainDatabase(db: Database) {
             electronicDocEmail TEXT,
             isManual INTEGER DEFAULT 0,
             contacts TEXT,
+            supportPackageId TEXT,
             taxRegime TEXT,
             taxStatus TEXT,
             isTaxMoroso INTEGER DEFAULT 0,
@@ -351,6 +352,8 @@ export async function initializeMainDatabase(db: Database) {
             startTime TEXT NOT NULL,
             endTime TEXT,
             duration INTEGER,
+            billableDuration INTEGER,
+            billingStatus TEXT DEFAULT 'pending',
             notes TEXT,
             isBillable BOOLEAN NOT NULL DEFAULT TRUE,
             createdAt TEXT NOT NULL
@@ -471,6 +474,13 @@ export async function runMainMigrations(db: Database) {
     ticketFields.forEach(([field, type]) => {
         if (!hasColumn('tickets', field)) db.exec(`ALTER TABLE tickets ADD COLUMN ${field} ${type};`);
     });
+
+    // TIMESHEET Migrations
+    if (!hasColumn('time_entries', 'billableDuration')) db.exec(`ALTER TABLE time_entries ADD COLUMN billableDuration INTEGER;`);
+    if (!hasColumn('time_entries', 'billingStatus')) db.exec(`ALTER TABLE time_entries ADD COLUMN billingStatus TEXT DEFAULT 'pending';`);
+
+    // CUSTOMERS Migrations
+    if (!hasColumn('customers', 'supportPackageId')) db.exec(`ALTER TABLE customers ADD COLUMN supportPackageId TEXT;`);
 
     // PLANNER Migrations
     if (!hasColumn('projects', 'category')) db.exec(`ALTER TABLE projects ADD COLUMN category TEXT NOT NULL DEFAULT 'other';`);

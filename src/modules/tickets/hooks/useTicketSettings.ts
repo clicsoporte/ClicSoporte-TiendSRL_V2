@@ -45,7 +45,13 @@ export const useTicketSettings = () => {
     
     // States for services and packages, now managed here
     const [newService, setNewService] = useState({ id: "", name: "" });
-    const [newPackage, setNewPackage] = useState<Omit<SupportPackage, 'includedServices' | 'excludedServices'>>({ id: "", name: "", defaultHours: 0 });
+    const [newPackage, setNewPackage] = useState<Omit<SupportPackage, 'includedServices' | 'excludedServices'>>({ 
+        id: "", 
+        name: "", 
+        defaultHours: 0,
+        roundingMultiple: 15,
+        graceMinutes: 5
+    });
 
     const fetchInitialData = useCallback(async () => {
         setIsLoading(true);
@@ -143,10 +149,17 @@ export const useTicketSettings = () => {
       
       const handleAddPackage = () => {
         if (!companyData || !newPackage.id || !newPackage.name) return;
-        const newPkg: SupportPackage = { ...newPackage, defaultHours: newPackage.defaultHours || 0, includedServices: [], excludedServices: [] };
+        const newPkg: SupportPackage = { 
+            ...newPackage, 
+            defaultHours: newPackage.defaultHours || 0, 
+            includedServices: [], 
+            excludedServices: [],
+            roundingMultiple: newPackage.roundingMultiple || 15,
+            graceMinutes: newPackage.graceMinutes || 0
+        };
         const updatedPackages = [...(companyData.supportPackages || []), newPkg];
         setCompanyData({ ...companyData, supportPackages: updatedPackages });
-        setNewPackage({ id: "", name: "", defaultHours: 0 });
+        setNewPackage({ id: "", name: "", defaultHours: 0, roundingMultiple: 15, graceMinutes: 5 });
       };
     
       const handleDeletePackage = (packageId: string) => {
@@ -177,6 +190,17 @@ export const useTicketSettings = () => {
         });
         setCompanyData({ ...companyData, supportPackages: updatedPackages });
     };
+
+    const handlePackagePropChange = (packageId: string, prop: keyof SupportPackage, value: any) => {
+        if (!companyData) return;
+        const updatedPackages = (companyData.supportPackages || []).map(pkg => {
+            if (pkg.id === packageId) {
+                return { ...pkg, [prop]: value };
+            }
+            return pkg;
+        });
+        setCompanyData({ ...companyData, supportPackages: updatedPackages });
+    }
 
     const handleSaveAll = async () => {
         if (!companyData) return;
@@ -214,6 +238,7 @@ export const useTicketSettings = () => {
             handleAddPackage,
             handleDeletePackage,
             handlePackageServiceToggle,
+            handlePackagePropChange,
             handleSaveAll
         },
         selectors: {

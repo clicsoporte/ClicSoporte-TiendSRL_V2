@@ -60,6 +60,8 @@ export type SupportPackage = {
   includedServices: string[];
   excludedServices: string[];
   defaultHours?: number;
+  roundingMultiple: number; // In minutes (e.g., 15, 30, 60)
+  graceMinutes: number; // In minutes
 };
 
 export type Service = {
@@ -122,6 +124,7 @@ export type Customer = {
     electronicDocEmail: string;
     isManual?: boolean;
     contacts: CustomerContact[];
+    supportPackageId?: string | null;
     // Hacienda data
     taxRegime?: string;
     taxStatus?: string;
@@ -297,7 +300,9 @@ export type TimeEntry = {
     userId: number;
     startTime: string;
     endTime?: string | null;
-    duration: number | null; // in milliseconds
+    duration: number | null; // actual milliseconds
+    billableDuration: number | null; // rounded milliseconds according to package
+    billingStatus: 'pending' | 'invoiced' | 'void';
     notes?: string | null;
     isBillable: boolean;
     createdAt: string;

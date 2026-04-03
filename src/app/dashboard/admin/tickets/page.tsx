@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { MoreHorizontal, PlusCircle, Trash2 } from 'lucide-react';
+import { MoreHorizontal, PlusCircle, Trash2, Clock, Hourglass } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -69,7 +69,7 @@ export default function TicketSettingsPage() {
 
     return (
         <main className="flex-1 p-4 md:p-6 lg:p-8">
-            <Accordion type="multiple" defaultValue={['help-topics']} className="w-full space-y-6">
+            <Accordion type="multiple" defaultValue={['help-topics', 'support-packages']} className="w-full space-y-6">
                 <Card>
                     <AccordionItem value="help-topics">
                         <AccordionTrigger className="p-6 text-lg font-semibold">
@@ -213,52 +213,77 @@ export default function TicketSettingsPage() {
                     <AccordionItem value="support-packages">
                     <AccordionTrigger className="p-6 text-lg font-semibold">Paquetes de Soporte</AccordionTrigger>
                     <AccordionContent className="p-6 pt-0">
-                        <CardDescription className="mb-4">Cree paquetes de soporte, defina las horas incluidas, y asigne los servicios de su catálogo.</CardDescription>
-                        <div className="space-y-4">
+                        <CardDescription className="mb-4">Configure los planes, horas incluidas y reglas de redondeo de tiempo.</CardDescription>
+                        <div className="space-y-6">
                         {(companyData.supportPackages || []).map(pkg => (
-                            <Card key={pkg.id}>
-                            <CardHeader className="flex flex-row items-center justify-between">
+                            <Card key={pkg.id} className="border-primary/20 shadow-sm">
+                            <CardHeader className="flex flex-row items-center justify-between pb-2">
                                 <div>
-                                    <CardTitle>{pkg.name} <span className="font-mono text-sm text-muted-foreground">({pkg.id})</span></CardTitle>
-                                    <CardDescription>Horas Incluidas: {pkg.defaultHours || 0}</CardDescription>
+                                    <CardTitle className="text-xl">{pkg.name} <span className="font-mono text-sm text-muted-foreground ml-2">({pkg.id})</span></CardTitle>
                                 </div>
                                 <Button variant="ghost" size="icon" onClick={() => actions.handleDeletePackage(pkg.id)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
                             </CardHeader>
-                            <CardContent>
-                                <div className="grid grid-cols-2 gap-6">
-                                <div>
-                                    <h4 className="font-medium mb-2">Servicios Incluidos</h4>
-                                    <div className="space-y-2">
-                                    {(companyData.servicesCatalog || []).map(service => (
-                                        <div key={`${pkg.id}-inc-${service.id}`} className="flex items-center space-x-2">
-                                        <Checkbox id={`${pkg.id}-inc-${service.id}`} checked={(pkg.includedServices || []).includes(service.id)} onCheckedChange={(checked) => actions.handlePackageServiceToggle(pkg.id, service.id, 'included', !!checked)} />
-                                        <Label htmlFor={`${pkg.id}-inc-${service.id}`}>{service.name}</Label>
-                                        </div>
-                                    ))}
+                            <CardContent className="space-y-6">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div className="space-y-1.5">
+                                        <Label className="text-xs uppercase font-bold text-muted-foreground">Horas Incluidas</Label>
+                                        <Input type="number" value={pkg.defaultHours || 0} onChange={e => actions.handlePackagePropChange(pkg.id, 'defaultHours', Number(e.target.value))} className="h-8" />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <Label className="text-xs uppercase font-bold text-muted-foreground flex items-center gap-1"><Clock className="h-3 w-3"/> Redondeo (min)</Label>
+                                        <Select value={String(pkg.roundingMultiple || 1)} onValueChange={v => actions.handlePackagePropChange(pkg.id, 'roundingMultiple', Number(v))}>
+                                            <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="1">Minuto Exacto</SelectItem>
+                                                <SelectItem value="15">Bloques 15 min</SelectItem>
+                                                <SelectItem value="30">Bloques 30 min</SelectItem>
+                                                <SelectItem value="60">Horas Completas</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <Label className="text-xs uppercase font-bold text-muted-foreground flex items-center gap-1"><Hourglass className="h-3 w-3"/> Gracia (min)</Label>
+                                        <Input type="number" value={pkg.graceMinutes || 0} onChange={e => actions.handlePackagePropChange(pkg.id, 'graceMinutes', Number(e.target.value))} className="h-8" placeholder="Ej: 5" />
                                     </div>
                                 </div>
-                                <div>
-                                    <h4 className="font-medium mb-2">Servicios Excluidos</h4>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
                                     <div className="space-y-2">
-                                    {(companyData.servicesCatalog || []).map(service => (
-                                        <div key={`${pkg.id}-exc-${service.id}`} className="flex items-center space-x-2">
-                                        <Checkbox id={`${pkg.id}-exc-${service.id}`} checked={(pkg.excludedServices || []).includes(service.id)} onCheckedChange={(checked) => actions.handlePackageServiceToggle(pkg.id, service.id, 'excluded', !!checked)} />
-                                        <Label htmlFor={`${pkg.id}-exc-${service.id}`}>{service.name}</Label>
+                                        <h4 className="text-xs font-bold uppercase text-primary">Servicios Incluidos</h4>
+                                        <div className="grid grid-cols-1 gap-2 p-3 bg-muted/30 rounded-lg border">
+                                        {(companyData.servicesCatalog || []).map(service => (
+                                            <div key={`${pkg.id}-inc-${service.id}`} className="flex items-center space-x-2">
+                                            <Checkbox id={`${pkg.id}-inc-${service.id}`} checked={(pkg.includedServices || []).includes(service.id)} onCheckedChange={(checked) => actions.handlePackageServiceToggle(pkg.id, service.id, 'included', !!checked)} />
+                                            <Label htmlFor={`${pkg.id}-inc-${service.id}`} className="text-sm font-normal cursor-pointer">{service.name}</Label>
+                                            </div>
+                                        ))}
                                         </div>
-                                    ))}
                                     </div>
-                                </div>
+                                    <div className="space-y-2">
+                                        <h4 className="text-xs font-bold uppercase text-destructive">Servicios Excluidos</h4>
+                                        <div className="grid grid-cols-1 gap-2 p-3 bg-muted/30 rounded-lg border">
+                                        {(companyData.servicesCatalog || []).map(service => (
+                                            <div key={`${pkg.id}-exc-${service.id}`} className="flex items-center space-x-2">
+                                            <Checkbox id={`${pkg.id}-exc-${service.id}`} checked={(pkg.excludedServices || []).includes(service.id)} onCheckedChange={(checked) => actions.handlePackageServiceToggle(pkg.id, service.id, 'excluded', !!checked)} />
+                                            <Label htmlFor={`${pkg.id}-exc-${service.id}`} className="text-sm font-normal cursor-pointer">{service.name}</Label>
+                                            </div>
+                                        ))}
+                                        </div>
+                                    </div>
                                 </div>
                             </CardContent>
                             </Card>
                         ))}
                         </div>
-                        <Separator className="my-4"/>
-                        <div className="flex items-end gap-2">
-                            <div className="flex-1 space-y-1.5"><Label htmlFor="package-id">ID Paquete</Label><Input id="package-id" value={state.newPackage.id} onChange={e => actions.setNewPackage({...state.newPackage, id: e.target.value})} placeholder="Ej: alfa"/></div>
-                            <div className="flex-1 space-y-1.5"><Label htmlFor="package-name">Nombre Paquete</Label><Input id="package-name" value={state.newPackage.name} onChange={e => actions.setNewPackage({...state.newPackage, name: e.target.value})} placeholder="Ej: Paquete Alfa"/></div>
-                            <div className="flex-1 space-y-1.5"><Label htmlFor="package-hours">Horas Incluidas</Label><Input id="package-hours" type="number" value={state.newPackage.defaultHours || ''} onChange={e => actions.setNewPackage({...state.newPackage, defaultHours: Number(e.target.value)})} placeholder="Ej: 10"/></div>
-                            <Button size="icon" onClick={actions.handleAddPackage}><PlusCircle className="h-4 w-4"/></Button>
+                        <Separator className="my-6"/>
+                        <div className="bg-muted/50 p-4 rounded-lg border border-dashed">
+                            <h4 className="text-sm font-bold mb-4">Añadir Nuevo Paquete</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                                <div className="space-y-1.5"><Label htmlFor="package-id">ID Único</Label><Input id="package-id" value={state.newPackage.id} onChange={e => actions.setNewPackage({...state.newPackage, id: e.target.value})} placeholder="Ej: alfa"/></div>
+                                <div className="space-y-1.5"><Label htmlFor="package-name">Nombre</Label><Input id="package-name" value={state.newPackage.name} onChange={e => actions.setNewPackage({...state.newPackage, name: e.target.value})} placeholder="Ej: Plan Corporativo"/></div>
+                                <div className="space-y-1.5"><Label htmlFor="package-hours">Horas</Label><Input id="package-hours" type="number" value={state.newPackage.defaultHours || ''} onChange={e => actions.setNewPackage({...state.newPackage, defaultHours: Number(e.target.value)})} placeholder="Ej: 10"/></div>
+                                <Button onClick={actions.handleAddPackage} className="w-full"><PlusCircle className="mr-2 h-4 w-4"/>Crear Paquete</Button>
+                            </div>
                         </div>
                     </AccordionContent>
                     </AccordionItem>
@@ -266,9 +291,9 @@ export default function TicketSettingsPage() {
 
             </Accordion>
             
-            <Card className="mt-6">
-                 <CardContent className="p-6">
-                    <Button onClick={actions.handleSaveAll}>Guardar Todos los Cambios</Button>
+            <Card className="mt-6 border-primary bg-primary/5">
+                 <CardContent className="p-6 flex justify-end">
+                    <Button onClick={actions.handleSaveAll} size="lg" className="px-10">Guardar Cambios del Módulo</Button>
                 </CardContent>
             </Card>
 
