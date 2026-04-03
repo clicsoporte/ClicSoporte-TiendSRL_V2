@@ -354,6 +354,7 @@ export async function initializeMainDatabase(db: Database) {
             duration INTEGER,
             billableDuration INTEGER,
             billingStatus TEXT DEFAULT 'pending',
+            externalInvoiceNumber TEXT,
             notes TEXT,
             isBillable BOOLEAN NOT NULL DEFAULT TRUE,
             createdAt TEXT NOT NULL
@@ -478,6 +479,7 @@ export async function runMainMigrations(db: Database) {
     // TIMESHEET Migrations
     if (!hasColumn('time_entries', 'billableDuration')) db.exec(`ALTER TABLE time_entries ADD COLUMN billableDuration INTEGER;`);
     if (!hasColumn('time_entries', 'billingStatus')) db.exec(`ALTER TABLE time_entries ADD COLUMN billingStatus TEXT DEFAULT 'pending';`);
+    if (!hasColumn('time_entries', 'externalInvoiceNumber')) db.exec(`ALTER TABLE time_entries ADD COLUMN externalInvoiceNumber TEXT;`);
 
     // CUSTOMERS Migrations
     if (!hasColumn('customers', 'supportPackageId')) db.exec(`ALTER TABLE customers ADD COLUMN supportPackageId TEXT;`);

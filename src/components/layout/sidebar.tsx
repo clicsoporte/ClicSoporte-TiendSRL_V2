@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Sidebar component for the main application layout.
  */
@@ -31,7 +30,8 @@ import {
   Network,
   Sheet as SheetIcon,
   Users,
-  FileText
+  FileText,
+  Receipt
 } from "lucide-react";
 import type { Tool } from "../../modules/core/types";
 import { UserNav } from "./user-nav";
@@ -99,6 +99,16 @@ export function AppSidebar() {
       bgColor: "bg-blue-500",
       textColor: "text-white",
       permission: "tickets:read:all"
+    },
+    {
+      id: "billing",
+      name: "Facturación",
+      description: "Gestionar horas cobrables y cierres.",
+      href: "/dashboard/billing",
+      icon: Receipt,
+      bgColor: "bg-emerald-600",
+      textColor: "text-white",
+      permission: "billing:manage"
     },
     {
       id: "customers",

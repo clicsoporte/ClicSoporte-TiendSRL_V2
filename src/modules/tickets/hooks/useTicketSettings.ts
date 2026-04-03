@@ -7,7 +7,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError, logInfo } from '@/modules/core/lib/logger';
-import type { HelpTopic, TicketPriority, Role, User, SupportPackage } from '@/modules/core/types';
+import type { HelpTopic, TicketPriority, Role, User, SupportPackage, Service } from '@/modules/core/types';
 import { getHelpTopics, addHelpTopic, updateHelpTopic, deleteHelpTopic } from '../lib/actions';
 import { getAllUsers } from '@/modules/core/lib/auth-client';
 import { getAllRoles } from '@/modules/core/lib/roles-db';
@@ -44,7 +44,7 @@ export const useTicketSettings = () => {
     const [allRoles, setAllRoles] = useState<Role[]>([]);
     
     // States for services and packages, now managed here
-    const [newService, setNewService] = useState({ id: "", name: "" });
+    const [newService, setNewService] = useState<Service>({ id: "", name: "", price: 0 });
     const [newPackage, setNewPackage] = useState<Omit<SupportPackage, 'includedServices' | 'excludedServices'>>({ 
         id: "", 
         name: "", 
@@ -115,7 +115,7 @@ export const useTicketSettings = () => {
         try {
             await deleteHelpTopic(topicToDelete.id);
             setHelpTopics(prev => prev.filter(t => t.id !== topicToDelete.id));
-            toast({ title: "Tema Eliminao" });
+            toast({ title: "Tema Eliminado" });
             logInfo('Help topic deleted', { topic: topicToDelete.name });
             setTopicToDelete(null);
         } catch (error: unknown) {
@@ -133,7 +133,7 @@ export const useTicketSettings = () => {
         if (!companyData || !newService.id || !newService.name) return;
         const updatedCatalog = [...(companyData.servicesCatalog || []), newService];
         setCompanyData({ ...companyData, servicesCatalog: updatedCatalog });
-        setNewService({ id: "", name: "" });
+        setNewService({ id: "", name: "", price: 0 });
       };
     
       const handleDeleteService = (serviceId: string) => {

@@ -6,10 +6,10 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useTickets } from '@/modules/tickets/hooks/useTickets';
-import type { Ticket, TicketThread, TicketPriority, ThirdPartyProvider, User, Customer, CustomerContact, TimeEntry } from '@/modules/core/types';
+import type { Ticket, TicketThread, TicketPriority, ThirdPartyProvider, User, CustomerContact, TimeEntry } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
@@ -369,7 +369,7 @@ export default function TicketDetailPage() {
                                         <ScrollArea className="h-48 border rounded-md p-2">
                                             {linkedCustomer?.contacts && linkedCustomer.contacts.length > 0 ? (
                                                 <div className="space-y-2">
-                                                    {linkedCustomer.contacts.map((c: CustomerContact) => (
+                                                    {linkedCustomer.contacts.map((c) => (
                                                         <div key={c.id} className="flex items-center space-x-3 p-2 hover:bg-muted/50 rounded cursor-pointer" onClick={() => toggleRecipient(c.email)}>
                                                             <Checkbox checked={selectedEmailRecipients.includes(c.email)} onCheckedChange={() => toggleRecipient(c.email)} />
                                                             <div className="flex-1 min-w-0">

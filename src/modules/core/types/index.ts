@@ -67,6 +67,7 @@ export type SupportPackage = {
 export type Service = {
   id: string;
   name: string;
+  price?: number; // Base price per hour
 };
 
 /**
@@ -303,6 +304,7 @@ export type TimeEntry = {
     duration: number | null; // actual milliseconds
     billableDuration: number | null; // rounded milliseconds according to package
     billingStatus: 'pending' | 'invoiced' | 'void';
+    externalInvoiceNumber?: string | null;
     notes?: string | null;
     isBillable: boolean;
     createdAt: string;

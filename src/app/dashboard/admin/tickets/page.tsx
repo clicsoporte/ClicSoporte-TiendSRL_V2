@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { MoreHorizontal, PlusCircle, Trash2, Clock, Hourglass } from 'lucide-react';
+import { MoreHorizontal, PlusCircle, Trash2, Clock, Hourglass, DollarSign } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -190,19 +190,29 @@ export default function TicketSettingsPage() {
                     <AccordionItem value="services-catalog">
                         <AccordionTrigger className="p-6 text-lg font-semibold">Catálogo de Servicios</AccordionTrigger>
                         <AccordionContent className="p-6 pt-0">
-                            <CardDescription className="mb-4">Defina la lista maestra de todos los servicios de soporte que su empresa ofrece.</CardDescription>
+                            <CardDescription className="mb-4">Defina la lista maestra de todos los servicios de soporte que su empresa ofrece y sus precios por hora.</CardDescription>
                             <div className="space-y-2">
                                 {(companyData.servicesCatalog || []).map(service => (
                                     <div key={service.id} className="flex items-center justify-between rounded-lg border p-3">
-                                    <p className="font-medium">{service.name} <span className="font-mono text-xs text-muted-foreground">({service.id})</span></p>
-                                    <Button variant="ghost" size="icon" onClick={() => actions.handleDeleteService(service.id)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
+                                        <div className="flex-1">
+                                            <p className="font-medium">{service.name} <span className="font-mono text-xs text-muted-foreground">({service.id})</span></p>
+                                            <p className="text-xs text-green-600 font-bold">Precio por hora: ¢{(service.price || 0).toLocaleString()}</p>
+                                        </div>
+                                        <Button variant="ghost" size="icon" onClick={() => actions.handleDeleteService(service.id)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
                                     </div>
                                 ))}
                             </div>
                             <Separator className="my-4"/>
-                            <div className="flex items-end gap-2">
+                            <div className="flex flex-col sm:flex-row items-end gap-2">
                                 <div className="flex-1 space-y-1.5"><Label htmlFor="service-id">ID Servicio</Label><Input id="service-id" value={state.newService.id} onChange={e => actions.setNewService({...state.newService, id: e.target.value})} placeholder="Ej: soporte-pc"/></div>
                                 <div className="flex-1 space-y-1.5"><Label htmlFor="service-name">Nombre Servicio</Label><Input id="service-name" value={state.newService.name} onChange={e => actions.setNewService({...state.newService, name: e.target.value})} placeholder="Ej: Soporte a PC"/></div>
+                                <div className="w-full sm:w-32 space-y-1.5">
+                                    <Label htmlFor="service-price">Precio/Hora</Label>
+                                    <div className="relative">
+                                        <DollarSign className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground"/>
+                                        <Input id="service-price" type="number" value={state.newService.price || ''} onChange={e => actions.setNewService({...state.newService, price: Number(e.target.value)})} placeholder="0" className="pl-6"/>
+                                    </div>
+                                </div>
                                 <Button size="icon" onClick={actions.handleAddService}><PlusCircle className="h-4 w-4"/></Button>
                             </div>
                         </AccordionContent>

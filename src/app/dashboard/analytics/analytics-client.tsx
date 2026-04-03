@@ -7,7 +7,7 @@
 import { useAnalytics } from '@/modules/analytics/hooks/useAnalytics';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AreaChart, CalendarCheck, Hourglass, Ticket, FileText, BadgeAlert, Coins } from 'lucide-react';
+import { AreaChart, CalendarCheck, Hourglass, Ticket, FileText, BadgeAlert, Coins, Receipt } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
 import { Button } from '@/components/ui/button';
@@ -54,6 +54,8 @@ export default function AnalyticsClient() {
         </div>;
     }
 
+    const formatCurrency = (val: number) => `¢${val.toLocaleString('es-CR', { minimumFractionDigits: 2 })}`;
+
     return (
         <main className="flex-1 p-4 md:p-6 lg:p-8 space-y-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -87,7 +89,7 @@ export default function AnalyticsClient() {
             <Tabs defaultValue="overview" className="space-y-6">
                 <TabsList>
                     <TabsTrigger value="overview">Resumen Operativo</TabsTrigger>
-                    <TabsTrigger value="billing">Reporte de Facturación</TabsTrigger>
+                    <TabsTrigger value="billing">Métricas de Facturación</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="overview" className="space-y-6">
@@ -138,37 +140,33 @@ export default function AnalyticsClient() {
                 </TabsContent>
 
                 <TabsContent value="billing" className="space-y-6">
+                    <div className="grid gap-4 md:grid-cols-2">
+                        <StatCard title="Total Facturado (Periodo)" value={formatCurrency(state.kpis?.timeTracking.totalAmountInvoiced || 0)} icon={CheckCircle2} isLoading={state.isLoading} color="text-green-600" />
+                        <StatCard title="Total por Cobrar (Pendiente)" value={formatCurrency(state.kpis?.timeTracking.totalAmountPending || 0)} icon={Receipt} isLoading={state.isLoading} color="text-orange-600" />
+                    </div>
+
                     <Card>
                         <CardHeader>
-                            <CardTitle>Tickets Facturables Fuera de Contrato</CardTitle>
-                            <CardDescription>Estos casos no están cubiertos por los contratos de soporte y deben ser cobrados por separado.</CardDescription>
+                            <CardTitle>Facturación por Técnico</CardTitle>
+                            <CardDescription>Monto generado por cada técnico basado en horas fuera de contrato.</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>Caso</TableHead>
-                                        <TableHead>Cliente</TableHead>
-                                        <TableHead>Servicio</TableHead>
-                                        <TableHead>Horas</TableHead>
-                                        <TableHead>Estado</TableHead>
+                                        <TableHead>Técnico</TableHead>
+                                        <TableHead className="text-right">Horas Facturables</TableHead>
+                                        <TableHead className="text-right">Monto Generado</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    <TableRow>
-                                        <TableCell className="font-mono">CAS-000124</TableCell>
-                                        <TableCell>Corporación ABC</TableCell>
-                                        <TableCell>Configuración Router</TableCell>
-                                        <TableCell>2.5 h</TableCell>
-                                        <TableCell><Badge variant="outline">Pendiente</Badge></TableCell>
-                                    </TableRow>
-                                    <TableRow>
-                                        <TableCell className="font-mono">CAS-000130</TableCell>
-                                        <TableCell>Tienda El Sol</TableCell>
-                                        <TableCell>Reparación Hardware</TableCell>
-                                        <TableCell>1.0 h</TableCell>
-                                        <TableCell><Badge variant="outline">Pendiente</Badge></TableCell>
-                                    </TableRow>
+                                    {state.kpis?.timeTracking.byUser.map(user => (
+                                        <TableRow key={user.userId}>
+                                            <TableCell className="font-medium">{user.userName}</TableCell>
+                                            <TableCell className="text-right">{user.billable.toFixed(2)} h</TableCell>
+                                            <TableCell className="text-right font-bold text-primary">{formatCurrency(user.amount)}</TableCell>
+                                        </TableRow>
+                                    ))}
                                 </TableBody>
                             </Table>
                         </CardContent>
