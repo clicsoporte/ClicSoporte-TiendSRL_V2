@@ -7,6 +7,7 @@
 import type { Database } from 'better-sqlite3';
 import { connectDb } from '@/modules/core/lib/db';
 import { logError } from '@/modules/core/lib/logger';
+import { getCompanySettings } from '@/modules/core/lib/settings-db';
 import type { Ticket, NewTicketPayload, User, TicketThread, HelpTopic, ClientCompany, SupportPackage, Service, ThirdPartyProvider } from '@/modules/core/types';
 
 export async function connectTicketsDb(): Promise<Database> {
@@ -183,7 +184,7 @@ export async function getCustomerSupportInfo(companyId: number | string): Promis
     if (!customer) return { customer: null, supportPackage: null, services: [] };
     const settings = await getCompanySettings();
     const pkgId = customer.supportPackageId as string | undefined;
-    const pkg = settings.supportPackages.find(p => p.id === pkgId) || null;
+    const pkg = settings.supportPackages.find((p: SupportPackage) => p.id === pkgId) || null;
     return { customer, supportPackage: pkg, services: settings.servicesCatalog };
 }
 
