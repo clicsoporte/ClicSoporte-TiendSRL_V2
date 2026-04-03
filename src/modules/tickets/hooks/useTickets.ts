@@ -1,7 +1,8 @@
+'use client';
+
 /**
  * @fileoverview Custom hook `useTickets` for managing the state and logic of the Tickets page.
  */
-'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useToast } from '@/modules/core/hooks/use-toast';
@@ -127,6 +128,59 @@ export const useTickets = () => {
         return { isBillable: true, message: 'Servicio no especificado en el contrato. Por defecto será FACTURABLE.' };
     }, []);
 
+    const handleNewTicketChange = useCallback((field: keyof NewTicketPayload, value: string | number | boolean | null) => {
+        setState(prevState => {
+            let updatedTicket = { ...prevState.newTicket, [field]: value };
+
+            if (field === 'helpTopicId' && value) {
+                const topic = prevState.helpTopics.find(t => t.id === value);
+                if (topic) {
+                    updatedTicket = {
+                        ...updatedTicket,
+                        helpTopicId: topic.id,
+                        priority: topic.defaultPriority || updatedTicket.priority,
+                        assigneeId: topic.defaultAssigneeId !== undefined ? topic.defaultAssigneeId : updatedTicket.assigneeId,
+                        serviceId: topic.defaultServiceId || updatedTicket.serviceId
+                    };
+                }
+            }
+
+            if (field === 'serviceId' || field === 'helpTopicId') {
+                const { isBillable } = validateCoverage(updatedTicket.serviceId, prevState.activeContract);
+                updatedTicket.isBillable = isBillable;
+            }
+
+            return { ...prevState, newTicket: updatedTicket };
+        });
+    }, [validateCoverage]);
+
+    const handleSelectCompany = useCallback(async (customerId: string) => {
+        const customer = customers.find(c => c.id === customerId);
+        if (!customer) return;
+
+        const contract = await getActiveContractForCustomer(customer.id);
+        
+        setState(prevState => {
+            const { isBillable } = validateCoverage(prevState.newTicket.serviceId, contract);
+            return {
+                ...prevState,
+                selectedCustomerId: customer.id,
+                newTicket: { 
+                    ...prevState.newTicket, 
+                    companyId: null,
+                    companyName: customer.name, 
+                    customerName: customer.name, 
+                    customerEmail: customer.email || customer.electronicDocEmail,
+                    contractId: contract?.id || null,
+                    isBillable
+                },
+                activeContract: contract,
+                customerSearchTerm: customer.name,
+                isCustomerSearchOpen: false,
+            };
+        });
+    }, [customers, validateCoverage]);
+
     const actions = useMemo(() => ({
         setNewTicketDialogOpen: (isOpen: boolean) => updateState({ isNewTicketDialogOpen: isOpen }),
         setCustomerSearchTerm: (term: string) => updateState({ customerSearchTerm: term }),
@@ -137,58 +191,8 @@ export const useTickets = () => {
 
         clearFilters: () => updateState({ searchTerm: '', statusFilter: 'all', priorityFilter: 'all' }),
 
-        handleNewTicketChange: (field: keyof NewTicketPayload, value: string | number | boolean | null) => {
-            setState(prevState => {
-                let updatedTicket = { ...prevState.newTicket, [field]: value };
-
-                if (field === 'helpTopicId' && value) {
-                    const topic = prevState.helpTopics.find(t => t.id === value);
-                    if (topic) {
-                        updatedTicket = {
-                            ...updatedTicket,
-                            helpTopicId: topic.id,
-                            priority: topic.defaultPriority || updatedTicket.priority,
-                            assigneeId: topic.defaultAssigneeId !== undefined ? topic.defaultAssigneeId : updatedTicket.assigneeId,
-                            serviceId: topic.defaultServiceId || updatedTicket.serviceId
-                        };
-                    }
-                }
-
-                if (field === 'serviceId' || field === 'helpTopicId') {
-                    const { isBillable } = validateCoverage(updatedTicket.serviceId, prevState.activeContract);
-                    updatedTicket.isBillable = isBillable;
-                }
-
-                return { ...prevState, newTicket: updatedTicket };
-            });
-        },
-
-        handleSelectCompany: async (customerId: string) => {
-            const customer = customers.find(c => c.id === customerId);
-            if (!customer) return;
-
-            const contract = await getActiveContractForCustomer(customer.id);
-            
-            setState(prevState => {
-                const { isBillable } = validateCoverage(prevState.newTicket.serviceId, contract);
-                return {
-                    ...prevState,
-                    selectedCustomerId: customer.id,
-                    newTicket: { 
-                        ...prevState.newTicket, 
-                        companyId: null,
-                        companyName: customer.name, 
-                        customerName: customer.name, 
-                        customerEmail: customer.email || customer.electronicDocEmail,
-                        contractId: contract?.id || null,
-                        isBillable
-                    },
-                    activeContract: contract,
-                    customerSearchTerm: customer.name,
-                    isCustomerSearchOpen: false,
-                };
-            });
-        },
+        handleNewTicketChange,
+        handleSelectCompany,
 
         handleSelectContact: (contact: CustomerContact) => {
             setState(prevState => ({
@@ -292,7 +296,7 @@ export const useTickets = () => {
         resetNewTicketForm: () => {
             updateState({ newTicket: emptyTicket, selectedCustomerId: null, customerSearchTerm: '', activeContract: null });
         }
-    }), [updateState, toast, customers, users, validateCoverage]);
+    }), [updateState, toast, users, handleNewTicketChange, handleSelectCompany]);
 
     const selectors = useMemo(() => ({
         priorityConfig,

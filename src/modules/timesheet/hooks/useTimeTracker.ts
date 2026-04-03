@@ -1,7 +1,8 @@
+'use client';
+
 /**
  * @fileoverview Custom hook for managing the time tracking component.
  */
-'use client';
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useToast } from '@/modules/core/hooks/use-toast';
@@ -64,7 +65,7 @@ export const useTimeTracker = (ticketId: number) => {
         };
     }, [activeEntry]);
 
-    const handleStartTimer = async (isBillable: boolean, notes: string) => {
+    const handleStartTimer = useCallback(async (isBillable: boolean, notes: string) => {
         if (!user || activeEntry) return;
         try {
             const newEntry = await addTimeEntry({
@@ -75,28 +76,28 @@ export const useTimeTracker = (ticketId: number) => {
                 notes: notes || 'Cronómetro iniciado'
             });
             setActiveEntry(newEntry);
-            setEntries(prev => [...prev, newEntry]);
+            setEntries(prev => [newEntry, ...prev]);
             toast({ title: "Cronómetro Iniciado" });
         } catch (error) {
             logError("Failed to start timer", { error, ticketId });
             toast({ title: "Error", description: "No se pudo iniciar el cronómetro.", variant: "destructive" });
         }
-    };
+    }, [user, activeEntry, ticketId, toast]);
     
-    const handleStopTimer = async (notes: string, isBillable: boolean) => {
+    const handleStopTimer = useCallback(async (notes: string, isBillable: boolean) => {
         if (!user || !activeEntry) return;
         try {
             const updatedEntry = await stopTimeEntry(activeEntry.id, notes, isBillable);
             setActiveEntry(null);
             setEntries(prev => prev.map(e => e.id === updatedEntry.id ? updatedEntry : e));
-            toast({ title: "Cronómetro Detenido", description: `Tiempo registrado: ${formatDuration(updatedEntry.duration)}` });
+            toast({ title: "Cronómetro Detenido" });
         } catch (error) {
-            logError("Failed to stop timer", { error, activeEntryId: activeEntry.id });
+            logError("Failed to stop timer", { error, activeEntryId: activeEntry?.id });
             toast({ title: "Error", description: "No se pudo detener el cronómetro.", variant: "destructive" });
         }
-    };
+    }, [user, activeEntry, toast]);
     
-    const handleAddManualEntry = async (durationMinutes: number, notes: string, isBillable: boolean, entryDate: Date) => {
+    const handleAddManualEntry = useCallback(async (durationMinutes: number, notes: string, isBillable: boolean, entryDate: Date) => {
         if (!user || durationMinutes <= 0) {
             toast({ title: "Datos inválidos", description: "La duración debe ser mayor a 0.", variant: "destructive" });
             return;
@@ -115,16 +116,16 @@ export const useTimeTracker = (ticketId: number) => {
                 notes,
                 isBillable
             });
-            setEntries(prev => [...prev, newEntry].sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+            setEntries(prev => [newEntry, ...prev].sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
             toast({ title: "Entrada Manual Guardada" });
             setShowManualForm(false);
         } catch (error) {
              logError("Failed to add manual time entry", { error, ticketId });
             toast({ title: "Error", description: "No se pudo guardar la entrada manual.", variant: "destructive" });
         }
-    };
+    }, [user, ticketId, toast]);
 
-    const handleDeleteEntry = async (entryId: number) => {
+    const handleDeleteEntry = useCallback(async (entryId: number) => {
         try {
             await deleteTimeEntry(entryId);
             setEntries(prev => prev.filter(e => e.id !== entryId));
@@ -136,20 +137,29 @@ export const useTimeTracker = (ticketId: number) => {
             logError("Failed to delete time entry", { error, entryId });
             toast({ title: "Error", description: "No se pudo eliminar la entrada.", variant: "destructive" });
         }
-    };
+    }, [activeEntry, toast]);
 
-    const formatDuration = (ms: number | null | undefined) => {
+    const formatDuration = useCallback((ms: number | null | undefined) => {
         if (ms === null || ms === undefined) return "00:00:00";
         const totalSeconds = Math.floor(ms / 1000);
         const hours = Math.floor(totalSeconds / 3600).toString().padStart(2, '0');
         const minutes = Math.floor((totalSeconds % 3600) / 60).toString().padStart(2, '0');
         const seconds = (totalSeconds % 60).toString().padStart(2, '0');
         return `${hours}:${minutes}:${seconds}`;
-    };
+    }, []);
 
     const totalRegisteredTime = useMemo(() => {
         return entries.reduce((acc, entry) => acc + (entry.duration || 0), 0);
     }, [entries]);
+
+    const actions = useMemo(() => ({
+        handleStartTimer,
+        handleStopTimer,
+        handleAddManualEntry,
+        handleDeleteEntry,
+        setShowManualForm,
+        refresh: loadEntries
+    }), [handleStartTimer, handleStopTimer, handleAddManualEntry, handleDeleteEntry, loadEntries]);
     
     return {
         state: {
@@ -160,14 +170,7 @@ export const useTimeTracker = (ticketId: number) => {
             showManualForm,
             totalRegisteredTime,
         },
-        actions: {
-            handleStartTimer,
-            handleStopTimer,
-            handleAddManualEntry,
-            handleDeleteEntry,
-            setShowManualForm,
-            refresh: loadEntries
-        },
+        actions,
         formatDuration,
     };
 };
