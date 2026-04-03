@@ -5,7 +5,7 @@
 'use client';
 
 import { useAnalytics } from '@/modules/analytics/hooks/useAnalytics';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AreaChart, CalendarCheck, Hourglass, Ticket, FileText, BadgeAlert, Coins, Receipt, CheckCircle2 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
@@ -101,7 +101,9 @@ export default function AnalyticsClient() {
 
                     <div className="grid gap-4 md:grid-cols-7">
                         <Card className="col-span-4">
-                            <CardHeader><CardTitle>Carga de Trabajo por Técnico (Horas)</CardTitle></CardHeader>
+                            <CardHeader>
+                                <CardTitle>Carga de Trabajo por Técnico (Horas)</CardTitle>
+                            </CardHeader>
                             <CardContent className="h-80">
                                 <ChartContainer config={{}} className="h-full w-full">
                                     <ResponsiveContainer width="100%" height="100%">
