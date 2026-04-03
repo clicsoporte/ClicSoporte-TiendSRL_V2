@@ -1,6 +1,6 @@
 /**
  * @fileoverview Server-side functions for the support tickets module.
- * Unified into intratool.db.
+ * Unified into intratool.db. Tables prefixed with ticket_.
  */
 "use server";
 
@@ -9,6 +9,16 @@ import { connectDb } from '@/modules/core/lib/db';
 import { logError } from '@/modules/core/lib/logger';
 import { getCompanySettings } from '@/modules/core/lib/settings-db';
 import type { Ticket, NewTicketPayload, User, TicketThread, HelpTopic, ClientCompany, SupportPackage, Service, ThirdPartyProvider } from '@/modules/core/types';
+
+/**
+ * Interface representing a Ticket row as it comes from the database.
+ * SQLite stores booleans as integers (0 or 1).
+ */
+interface DbTicketRow extends Omit<Ticket, 'isBillable' | 'hasActiveTimer' | 'totalDuration'> {
+    isBillable: number;
+    hasActiveTimer?: number;
+    totalDuration?: number;
+}
 
 export async function connectTicketsDb(): Promise<Database> {
     return connectDb();
@@ -54,11 +64,11 @@ export async function addTicket(payload: NewTicketPayload, user: User): Promise<
               .run(info.lastInsertRowid, user.id, user.name, 'message', payload.content, now);
 
             db.prepare('UPDATE ticket_settings SET value = ? WHERE key = ?').run(String(number + 1), 'nextTicketNumber');
-            return db.prepare('SELECT * FROM tickets WHERE id = ?').get(info.lastInsertRowid) as Ticket;
+            return db.prepare('SELECT * FROM tickets WHERE id = ?').get(info.lastInsertRowid) as DbTicketRow;
         });
 
-        const result = transaction() as Ticket;
-        return { ...result, isBillable: !!result.isBillable };
+        const result = transaction() as DbTicketRow;
+        return { ...result, isBillable: result.isBillable === 1 } as Ticket;
     } catch (error: unknown) {
         const err = error as Error;
         await logError("Falla al abrir ticket de soporte", { error: err.message, subject: payload.subject });
@@ -70,7 +80,7 @@ export async function addClientCompany(payload: Omit<ClientCompany, 'id' | 'crea
     const db = await connectTicketsDb();
     const now = new Date().toISOString();
     const info = db.prepare(`INSERT INTO client_companies (name, taxId, address, phone, email, createdAt) VALUES (@name, @taxId, @address, @phone, @email, @createdAt)`).run({ ...payload, createdAt: now });
-    return { ...payload, id: Number(info.lastInsertRowid), createdAt: now };
+    return { ...payload, id: Number(info.lastInsertRowid), createdAt: now } as ClientCompany;
 }
 
 export async function updateClientCompany(payload: ClientCompany): Promise<ClientCompany> {
@@ -92,8 +102,6 @@ export async function getClientCompanies(): Promise<ClientCompany[]> {
 export async function getTickets(): Promise<Ticket[]> {
     const db = await connectTicketsDb();
     
-    type TicketRow = Omit<Ticket, 'hasActiveTimer' | 'isBillable'> & { hasActiveTimer: number; isBillable: number };
-
     const rows = db.prepare(`
         SELECT t.*, 
                COALESCE(SUM(te.duration), 0) as totalDuration,
@@ -102,18 +110,19 @@ export async function getTickets(): Promise<Ticket[]> {
         LEFT JOIN time_entries te ON t.id = te.ticketId
         GROUP BY t.id
         ORDER BY t.createdAt DESC
-    `).all() as TicketRow[];
+    `).all() as DbTicketRow[];
     
     return rows.map(r => ({ 
         ...r, 
         isBillable: r.isBillable === 1,
-        hasActiveTimer: r.hasActiveTimer === 1
+        hasActiveTimer: r.hasActiveTimer === 1,
+        totalDuration: r.totalDuration || 0
     })) as Ticket[];
 }
 
 export async function getTicketById(id: number): Promise<Ticket | null> {
     const db = await connectTicketsDb();
-    const result = db.prepare('SELECT * FROM tickets WHERE id = ?').get(id) as (Omit<Ticket, 'isBillable'> & { isBillable: number }) | undefined;
+    const result = db.prepare('SELECT * FROM tickets WHERE id = ?').get(id) as DbTicketRow | undefined;
     return result ? { ...result, isBillable: result.isBillable === 1 } as Ticket : null;
 }
 
@@ -132,7 +141,7 @@ export async function addThreadEntry(payload: { ticketId: number; userId: number
 
 export async function updateTicketDetails(ticketId: number, updates: Partial<Pick<Ticket, 'status' | 'priority' | 'assigneeId' | 'isBillable' | 'providerId'>>, user: User): Promise<Ticket> {
     const db = await connectTicketsDb();
-    const currentTicket = db.prepare('SELECT * FROM tickets WHERE id = ?').get(ticketId) as Ticket;
+    const currentTicket = db.prepare('SELECT * FROM tickets WHERE id = ?').get(ticketId) as DbTicketRow;
     if (!currentTicket) throw new Error("Ticket not found.");
     
     const transaction = db.transaction(() => {
@@ -154,7 +163,7 @@ export async function updateTicketDetails(ticketId: number, updates: Partial<Pic
                     db.prepare(`
                         INSERT INTO time_entries (ticketId, userId, startTime, isBillable, billingStatus, createdAt)
                         VALUES (?, ?, ?, ?, 'pending', ?)
-                    `).run(ticketId, user.id, now, currentTicket.isBillable ? 1 : 0, now);
+                    `).run(ticketId, user.id, now, currentTicket.isBillable === 1 ? 1 : 0, now);
                 }
             }
 
@@ -173,7 +182,7 @@ export async function updateTicketDetails(ticketId: number, updates: Partial<Pic
 
         if (updates.priority && updates.priority !== currentTicket.priority) { query += ', priority = ?'; params.push(updates.priority); notes.push(`Prioridad: ${updates.priority}`); }
         if (updates.assigneeId !== undefined && updates.assigneeId !== currentTicket.assigneeId) { query += ', assigneeId = ?'; params.push(updates.assigneeId); notes.push(`Asignado`); }
-        if (updates.isBillable !== undefined && !!updates.isBillable !== !!currentTicket.isBillable) { query += ', isBillable = ?'; params.push(updates.isBillable ? 1 : 0); notes.push(`Facturación: ${updates.isBillable ? 'Facturable' : 'No facturable'}`); }
+        if (updates.isBillable !== undefined && !!updates.isBillable !== (currentTicket.isBillable === 1)) { query += ', isBillable = ?'; params.push(updates.isBillable ? 1 : 0); notes.push(`Facturación: ${updates.isBillable ? 'Facturable' : 'No facturable'}`); }
         if (updates.providerId !== undefined && updates.providerId !== currentTicket.providerId) { query += ', providerId = ?'; params.push(updates.providerId); notes.push(`Proveedor externo actualizado`); }
         
         query += ' WHERE id = ?';
@@ -184,10 +193,10 @@ export async function updateTicketDetails(ticketId: number, updates: Partial<Pic
             db.prepare(`INSERT INTO ticket_threads (ticketId, userId, userName, type, content, createdAt) VALUES (?, ?, ?, ?, ?, ?)`)
               .run(ticketId, user.id, user.name, 'status_change', notes.join('. '), now);
         }
-        return db.prepare('SELECT * FROM tickets WHERE id = ?').get(ticketId) as Ticket;
+        return db.prepare('SELECT * FROM tickets WHERE id = ?').get(ticketId) as DbTicketRow;
     });
 
-    const result = transaction() as (Omit<Ticket, 'isBillable'> & { isBillable: number });
+    const result = transaction() as DbTicketRow;
     return { ...result, isBillable: result.isBillable === 1 } as Ticket;
 }
 
@@ -242,7 +251,7 @@ export async function addThirdPartyProvider(payload: Omit<ThirdPartyProvider, 'i
     const db = await connectTicketsDb();
     const now = new Date().toISOString();
     const info = db.prepare(`INSERT INTO third_party_providers (name, email, phone, specialty, notes, createdAt) VALUES (?, ?, ?, ?, ?, ?)`).run(payload.name, payload.email, payload.phone, payload.specialty, payload.notes, now);
-    return { ...payload, id: Number(info.lastInsertRowid), createdAt: now };
+    return { ...payload, id: Number(info.lastInsertRowid), createdAt: now } as ThirdPartyProvider;
 }
 
 export async function updateThirdPartyProvider(payload: ThirdPartyProvider): Promise<ThirdPartyProvider> {
