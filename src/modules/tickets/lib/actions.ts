@@ -115,12 +115,13 @@ export async function updateTicketDetails(ticketId: number, updates: Partial<Pic
     
     // Trigger notification for status change
     if (updates.status) {
-        if (updates.status === 'closed') {
+        if (updates.status === 'completed' || updates.status === 'canceled') {
+            const event = updates.status === 'completed' ? 'onTicketCompleted' : 'onTicketCanceled';
             // Fetch last message content to serve as "solution"
             const thread = await getTicketThreadServer(ticketId);
             const lastMessage = thread.filter(t => t.type === 'message').pop();
             
-            await triggerNotificationEvent('onTicketClosed', {
+            await triggerNotificationEvent(event, {
                 ...updatedTicket,
                 content: lastMessage?.content || 'El caso fue resuelto satisfactoriamente.',
                 userName: user.name

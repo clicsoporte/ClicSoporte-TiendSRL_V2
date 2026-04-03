@@ -99,13 +99,13 @@ export async function getTickets(): Promise<Ticket[]> {
         LEFT JOIN time_entries te ON t.id = te.ticketId
         GROUP BY t.id
         ORDER BY t.createdAt DESC
-    `).all() as (Ticket & { hasActiveTimer: number })[];
+    `).all() as any[];
     
     return rows.map(r => ({ 
         ...r, 
         isBillable: !!r.isBillable,
         hasActiveTimer: r.hasActiveTimer === 1
-    }));
+    })) as Ticket[];
 }
 
 export async function getTicketById(id: number): Promise<Ticket | null> {

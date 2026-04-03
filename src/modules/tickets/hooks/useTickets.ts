@@ -67,7 +67,8 @@ const statusConfig: { [key in TicketStatus]: { label: string, color: string } } 
     open: { label: "Abierto", color: "bg-green-500" },
     in_progress: { label: "En Progreso", color: "bg-blue-500" },
     on_hold: { label: "En Espera", color: "bg-yellow-500" },
-    closed: { label: "Cerrado", color: "bg-gray-500" },
+    completed: { label: "Completado", color: "bg-green-600" },
+    canceled: { label: "Cancelado", color: "bg-red-600" },
 };
 
 export const useTickets = () => {
