@@ -1,12 +1,13 @@
+
 /**
- * @fileoverview Ticket detail page with contract and provider integration.
+ * @fileoverview Ticket detail page with contract, provider and time tracking integration.
  */
 'use client';
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useTickets } from '@/modules/tickets/hooks/useTickets';
-import type { Ticket, TicketThread, TicketStatus, TicketPriority, ThirdPartyProvider } from '@/modules/core/types';
+import type { Ticket, TicketThread, TicketStatus, TicketPriority, ThirdPartyProvider, User } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -25,6 +26,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
+import { TimeTracker } from '@/components/tickets/time-tracker';
 
 const getInitials = (name: string) => {
     if (!name) return "??";
@@ -211,6 +213,12 @@ export default function TicketDetailPage() {
                 </div>
             </div>
             <aside className="hidden md:flex flex-col w-80 lg:w-96 border-l bg-background p-4 space-y-6 overflow-y-auto">
+                {/* --- Time Tracking Integration --- */}
+                <TimeTracker 
+                    ticketId={ticket.id} 
+                    defaultIsBillable={ticket.isBillable} 
+                />
+
                 <Card>
                     <CardHeader className="p-4 pb-2"><CardTitle className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Estado del Caso</CardTitle></CardHeader>
                     <CardContent className="p-4 pt-0 space-y-4">
