@@ -20,6 +20,7 @@ import { useToast } from '@/modules/core/hooks/use-toast';
 import { getProjects, createProject } from '@/modules/planner/lib/actions';
 import type { TIProject, ProjectStatus, ProjectPriority, ProjectCategory, ThirdPartyProvider } from '@/modules/core/types';
 import { format, parseISO } from 'date-fns';
+import { es } from 'date-fns/locale';
 import { SearchInput } from '@/components/ui/search-input';
 import { useDebounce } from 'use-debounce';
 import Link from 'next/link';
@@ -143,7 +144,12 @@ export default function PlannerClient() {
 
         setIsSubmitting(true);
         try {
-            await createProject(newProject as any);
+            const payload = {
+                ...newProject,
+                coordinatorId: newProject.coordinatorId as number,
+            } as TIProject;
+            
+            await createProject(payload);
             toast({ title: "Proyecto Iniciado", description: `El proyecto "${newProject.name}" ha sido creado con éxito.` });
             await fetchData();
             setFormOpen(false);

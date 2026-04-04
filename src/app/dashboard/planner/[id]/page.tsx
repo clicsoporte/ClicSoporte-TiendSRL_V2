@@ -23,10 +23,10 @@ import {
     saveProjectItem, deleteProjectItem, updateProject 
 } from '@/modules/planner/lib/actions';
 import { getThirdPartyProviders } from '@/modules/tickets/lib/actions';
-import type { TIProject, ProjectAdvance, ProjectAttachment, ProjectItem, ProjectStatus, ProjectPriority, ThirdPartyProvider } from '@/modules/core/types';
+import type { TIProject, ProjectAdvance, ProjectAttachment, ProjectItem, ProjectStatus, ProjectPriority, ThirdPartyProvider, User } from '@/modules/core/types';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Loader2, Send, Paperclip, Plus, Trash2, FileDown, ArrowLeft, History, Truck, UserCircle, Package, FileText, Info, CheckCircle2, Monitor, Lock, Radio, Briefcase, Zap, Network, Edit, Phone, Mail } from 'lucide-react';
+import { Loader2, Send, Paperclip, Plus, Trash2, FileDown, ArrowLeft, History, Truck, UserCircle, Package, FileText, Info, CheckCircle2, Edit, Phone, Mail } from 'lucide-react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { generateDocument } from '@/modules/core/lib/pdf-generator';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -36,6 +36,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import type { RowInput } from 'jspdf-autotable';
 
 const statusConfig: { [key in ProjectStatus]: { label: string, color: string } } = {
     planning: { label: 'Planeación', color: 'bg-yellow-500' },
@@ -249,7 +250,7 @@ export default function ProjectDetailsPage() {
         
         const { subtotal, tax, total } = projectTotals;
 
-        const tableRows = items.map(item => [
+        const tableRows: RowInput[] = items.map(item => [
             item.type === 'material' ? '[M]' : '[S]',
             item.description,
             item.quantity.toLocaleString('es-CR'),
@@ -272,7 +273,7 @@ export default function ProjectDetailsPage() {
             ],
             table: {
                 columns: ["Tipo", "Descripción", "Cant.", "Precio Unit.", "Subtotal"],
-                rows: tableRows as any[],
+                rows: tableRows,
                 columnStyles: { 0: { cellWidth: 30 }, 2: { halign: 'center' }, 3: { halign: 'right' }, 4: { halign: 'right' } }
             },
             notes: "Al firmar este documento, el cliente manifiesta su entera satisfacción con la instalación y configuración de los equipos detallados. Se entrega manual de usuario y capacitación básica.",
@@ -378,7 +379,7 @@ export default function ProjectDetailsPage() {
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div className="p-4 bg-muted/30 rounded-lg border text-sm italic leading-relaxed text-muted-foreground">
-                                "{project.description}"
+                                &quot;{project.description}&quot;
                             </div>
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t">
                                 <div className="flex flex-col"><span className="text-[10px] uppercase font-black text-muted-foreground">Estado</span><Badge className={cn("w-fit mt-1 text-white", statusConfig[project.status].color)}>{statusConfig[project.status].label}</Badge></div>
@@ -602,7 +603,7 @@ export default function ProjectDetailsPage() {
                                                             <span className="truncate">{sub.email || 'No registrado'}</span>
                                                         </div>
                                                         <div className="bg-muted p-2 rounded text-[10px] text-muted-foreground mt-2 italic">
-                                                            "{sub.notes || 'Servicios TI'}"
+                                                            &quot;{sub.notes || 'Servicios TI'}&quot;
                                                         </div>
                                                     </div>
                                                 </div>

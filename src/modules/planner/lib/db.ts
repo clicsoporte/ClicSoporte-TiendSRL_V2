@@ -16,7 +16,7 @@ export async function connectPlannerDb(): Promise<Database> {
 /**
  * Normalizes a database row to a TIProject object.
  */
-function mapProjectRow(db: Database, row: any): TIProject {
+function mapProjectRow(db: Database, row: Record<string, unknown>): TIProject {
     const subcontractorIds = db.prepare('SELECT providerId FROM project_subcontractors WHERE projectId = ?').all(row.id) as { providerId: number }[];
     
     return {
@@ -31,7 +31,7 @@ function mapProjectRow(db: Database, row: any): TIProject {
 export async function getSettings(): Promise<PlannerSettings> {
     const db = await connectPlannerDb();
     const rows = db.prepare('SELECT * FROM planner_settings').all() as { key: string; value: string }[];
-    const settings: Record<string, any> = {};
+    const settings: Record<string, unknown> = {};
     rows.forEach(row => {
         if (row.key === 'nextProjectNumber') settings[row.key] = Number(row.value);
         else if (['assignments'].includes(row.key)) {
@@ -61,13 +61,13 @@ export async function saveSettings(settings: Partial<PlannerSettings>): Promise<
 
 export async function getProjects(): Promise<TIProject[]> {
     const db = await connectPlannerDb();
-    const rows = db.prepare('SELECT * FROM projects ORDER BY createdAt DESC').all();
+    const rows = db.prepare('SELECT * FROM projects ORDER BY createdAt DESC').all() as Record<string, unknown>[];
     return rows.map(row => mapProjectRow(db, row));
 }
 
 export async function getProjectById(id: number): Promise<TIProject | null> {
     const db = await connectPlannerDb();
-    const row = db.prepare('SELECT * FROM projects WHERE id = ?').get(id);
+    const row = db.prepare('SELECT * FROM projects WHERE id = ?').get(id) as Record<string, unknown> | undefined;
     return row ? mapProjectRow(db, row) : null;
 }
 
@@ -116,7 +116,7 @@ export async function addProject(project: Omit<TIProject, 'id' | 'consecutive' |
 
             db.prepare("UPDATE planner_settings SET value = ? WHERE key = 'nextProjectNumber'").run(String(nextNum + 1));
             
-            const newRow = db.prepare('SELECT * FROM projects WHERE id = ?').get(info.lastInsertRowid);
+            const newRow = db.prepare('SELECT * FROM projects WHERE id = ?').get(info.lastInsertRowid) as Record<string, unknown>;
             return mapProjectRow(db, newRow);
         });
 
@@ -164,7 +164,7 @@ export async function updateProject(project: TIProject): Promise<TIProject> {
             }
         }
 
-        const updatedRow = db.prepare('SELECT * FROM projects WHERE id = ?').get(project.id);
+        const updatedRow = db.prepare('SELECT * FROM projects WHERE id = ?').get(project.id) as Record<string, unknown>;
         return mapProjectRow(db, updatedRow);
     });
 
@@ -173,40 +173,95 @@ export async function updateProject(project: TIProject): Promise<TIProject> {
 
 export async function getProjectAdvances(projectId: number): Promise<ProjectAdvance[]> {
     const db = await connectPlannerDb();
-    const rows = db.prepare('SELECT * FROM project_advances WHERE projectId = ? ORDER BY timestamp ASC').all(projectId);
-    return rows.map((r: any) => ({ ...r, id: Number(r.id), projectId: Number(r.projectId) })) as ProjectAdvance[];
+    const rows = db.prepare('SELECT * FROM project_advances WHERE projectId = ? ORDER BY timestamp ASC').all(projectId) as Record<string, unknown>[];
+    return rows.map((r) => ({ 
+        ...r, 
+        id: Number(r.id), 
+        projectId: Number(r.projectId),
+        timestamp: String(r.timestamp),
+        content: String(r.content),
+        userId: Number(r.userId),
+        userName: String(r.userName)
+    })) as ProjectAdvance[];
 }
 
 export async function addProjectAdvance(advance: Omit<ProjectAdvance, 'id' | 'timestamp'>): Promise<ProjectAdvance> {
     const db = await connectPlannerDb();
     const now = new Date().toISOString();
     const info = db.prepare(`INSERT INTO project_advances (projectId, timestamp, content, userId, userName) VALUES (?, ?, ?, ?, ?)`).run(advance.projectId, now, advance.content, advance.userId, advance.userName);
-    return db.prepare('SELECT * FROM project_advances WHERE id = ?').get(info.lastInsertRowid) as ProjectAdvance;
+    const row = db.prepare('SELECT * FROM project_advances WHERE id = ?').get(info.lastInsertRowid) as Record<string, unknown>;
+    return {
+        ...row,
+        id: Number(row.id),
+        projectId: Number(row.projectId),
+        timestamp: String(row.timestamp),
+        content: String(row.content),
+        userId: Number(row.userId),
+        userName: String(row.userName)
+    } as ProjectAdvance;
 }
 
 export async function getProjectAttachments(projectId: number): Promise<ProjectAttachment[]> {
     const db = await connectPlannerDb();
-    const rows = db.prepare('SELECT * FROM project_attachments WHERE projectId = ? ORDER BY createdAt DESC').all(projectId);
-    return rows.map((r: any) => ({ ...r, id: Number(r.id), projectId: Number(r.projectId) })) as ProjectAttachment[];
+    const rows = db.prepare('SELECT * FROM project_attachments WHERE projectId = ? ORDER BY createdAt DESC').all(projectId) as Record<string, unknown>[];
+    return rows.map((r) => ({ 
+        ...r, 
+        id: Number(r.id), 
+        projectId: Number(r.projectId),
+        name: String(r.name),
+        fileName: String(r.fileName),
+        fileType: String(r.fileType),
+        data: String(r.data),
+        uploadedBy: String(r.uploadedBy),
+        createdAt: String(r.createdAt)
+    })) as ProjectAttachment[];
 }
 
 export async function addProjectAttachment(attachment: Omit<ProjectAttachment, 'id' | 'createdAt'>): Promise<ProjectAttachment> {
     const db = await connectPlannerDb();
     const now = new Date().toISOString();
     const info = db.prepare(`INSERT INTO project_attachments (projectId, name, fileName, fileType, data, uploadedBy, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)`).run(attachment.projectId, attachment.name, attachment.fileName, attachment.fileType, attachment.data, attachment.uploadedBy, now);
-    return db.prepare('SELECT * FROM project_attachments WHERE id = ?').get(info.lastInsertRowid) as ProjectAttachment;
+    const row = db.prepare('SELECT * FROM project_attachments WHERE id = ?').get(info.lastInsertRowid) as Record<string, unknown>;
+    return {
+        ...row,
+        id: Number(row.id),
+        projectId: Number(row.projectId),
+        name: String(row.name),
+        fileName: String(row.fileName),
+        fileType: String(row.fileType),
+        data: String(row.data),
+        uploadedBy: String(row.uploadedBy),
+        createdAt: String(row.createdAt)
+    } as ProjectAttachment;
 }
 
 export async function getProjectItems(projectId: number): Promise<ProjectItem[]> {
     const db = await connectPlannerDb();
-    const rows = db.prepare('SELECT * FROM project_items WHERE projectId = ?').all(projectId);
-    return rows.map((r: any) => ({ ...r, id: Number(r.id), projectId: Number(r.projectId), quantity: Number(r.quantity), unitPrice: Number(r.unitPrice) })) as ProjectItem[];
+    const rows = db.prepare('SELECT * FROM project_items WHERE projectId = ?').all(projectId) as Record<string, unknown>[];
+    return rows.map((r) => ({ 
+        ...r, 
+        id: Number(r.id), 
+        projectId: Number(r.projectId), 
+        quantity: Number(r.quantity), 
+        unitPrice: Number(r.unitPrice),
+        description: String(r.description),
+        type: r.type as 'material' | 'service'
+    })) as ProjectItem[];
 }
 
 export async function saveProjectItem(item: Omit<ProjectItem, 'id'>): Promise<ProjectItem> {
     const db = await connectPlannerDb();
     const info = db.prepare(`INSERT INTO project_items (projectId, description, quantity, unitPrice, type) VALUES (?, ?, ?, ?, ?)`).run(item.projectId, item.description, item.quantity, item.unitPrice, item.type);
-    return db.prepare('SELECT * FROM project_items WHERE id = ?').get(info.lastInsertRowid) as ProjectItem;
+    const row = db.prepare('SELECT * FROM project_items WHERE id = ?').get(info.lastInsertRowid) as Record<string, unknown>;
+    return {
+        ...row,
+        id: Number(row.id),
+        projectId: Number(row.projectId),
+        quantity: Number(row.quantity),
+        unitPrice: Number(row.unitPrice),
+        description: String(row.description),
+        type: row.type as 'material' | 'service'
+    } as ProjectItem;
 }
 
 export async function deleteProjectItem(id: number): Promise<void> {
