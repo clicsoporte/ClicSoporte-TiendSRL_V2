@@ -32,7 +32,7 @@ const StatWidget = ({ title, value, subValue, icon: Icon, colorClass, href }: { 
 );
 
 export default function DashboardPage() {
-  const { userRole, isLoading: isAuthLoading, unreadSuggestionsCount, hasPermission } = useAuth();
+  const { userRole, isLoading: isAuthLoading, unreadSuggestionsCount } = useAuth();
   const [visibleTools, setVisibleTools] = useState<Tool[]>([]);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [isStatsLoading, setIsStatsLoading] = useState(true);
