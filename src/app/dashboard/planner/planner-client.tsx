@@ -14,11 +14,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { PlusCircle, Calendar as CalendarIcon, Users, FileText, ChevronRight, Loader2, Briefcase, Truck, Network, Radio, Monitor, Zap, Lock, AlertCircle } from 'lucide-react';
+import { PlusCircle, Calendar as CalendarIcon, Users, FileText, ChevronRight, Loader2, Briefcase, Truck, Network, Radio, Monitor, Zap, Lock, AlertCircle, ShieldCheck } from 'lucide-react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { getProjects, createProject } from '@/modules/planner/lib/actions';
-import type { TIProject, ProjectStatus, ProjectPriority, ProjectCategory, ThirdPartyProvider, User } from '@/modules/core/types';
-import { format, parseISO, isValid } from 'date-fns';
+import type { TIProject, ProjectStatus, ProjectPriority, ProjectCategory, ThirdPartyProvider } from '@/modules/core/types';
+import { format, parseISO } from 'date-fns';
 import { SearchInput } from '@/components/ui/search-input';
 import { useDebounce } from 'use-debounce';
 import Link from 'next/link';
@@ -46,10 +46,10 @@ const categoryConfig: { [key in ProjectCategory]: { label: string, icon: React.E
 };
 
 const priorityConfig: { [key in ProjectPriority]: { label: string, color: string } } = {
-    low: { label: 'Baja', color: 'bg-gray-400' },
-    medium: { label: 'Media', color: 'bg-blue-400' },
-    high: { label: 'Alta', color: 'bg-orange-500' },
-    urgent: { label: 'Urgente', color: 'bg-red-600' },
+    low: { label: 'Baja', color: 'bg-slate-100 text-slate-600 border-slate-200' },
+    medium: { label: 'Media', color: 'bg-blue-100 text-blue-700 border-blue-200' },
+    high: { label: 'Alta', color: 'bg-orange-500 text-white border-orange-600' },
+    urgent: { label: 'Urgente', color: 'bg-red-600 text-white border-red-700' },
 };
 
 interface NewProjectState extends Omit<TIProject, 'id' | 'consecutive' | 'createdAt' | 'updatedAt' | 'billingStatus' | 'coordinatorId'> {
@@ -141,7 +141,6 @@ export default function PlannerClient() {
 
         setIsSubmitting(true);
         try {
-            // Coordinator ID is verified not null here
             await createProject(newProject as any);
             toast({ title: "Proyecto Iniciado", description: `El proyecto "${newProject.name}" ha sido creado con éxito.` });
             await fetchData();
@@ -293,7 +292,7 @@ export default function PlannerClient() {
                                             </div>
                                             <Badge variant="secondary" className="font-mono text-[10px]">{project.consecutive}</Badge>
                                         </div>
-                                        <Badge className={cn("text-[10px] uppercase font-bold", statusConfig[project.status].color)}>
+                                        <Badge className={cn("text-[10px] uppercase font-bold text-white", statusConfig[project.status].color)}>
                                             {statusConfig[project.status].label}
                                         </Badge>
                                     </div>
@@ -313,15 +312,15 @@ export default function PlannerClient() {
                                         {project.subcontractorId && (
                                             <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold text-amber-700 bg-amber-50 px-2 py-1 rounded border border-amber-100">
                                                 <Truck className="h-3 w-3" /> 
-                                                Subcontrato
+                                                {providers.find(p => p.id === project.subcontractorId)?.name || 'Externo'}
                                             </div>
                                         )}
                                     </div>
                                 </CardContent>
                                 <CardFooter className="pt-2 border-t text-[10px] flex justify-between items-center bg-muted/5">
-                                    <span className={cn("font-black uppercase tracking-wider", priorityConfig[project.priority].color.replace('bg-', 'text-'))}>
+                                    <Badge className={cn("font-black uppercase tracking-wider", priorityConfig[project.priority].color)}>
                                         Prioridad {priorityConfig[project.priority].label}
-                                    </span>
+                                    </Badge>
                                     <ChevronRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-all group-hover:translate-x-1" />
                                 </CardFooter>
                             </Card>
@@ -337,11 +336,5 @@ export default function PlannerClient() {
                 )}
             </div>
         </main>
-    );
-}
-
-function ShieldCheck({ className }: { className?: string }) {
-    return (
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>
     );
 }

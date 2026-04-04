@@ -1,6 +1,6 @@
 /**
  * @fileoverview Detailed project view for advancement tracking and documentation.
- * Improved with better status handling and total calculations.
+ * Improved with better status handling, team editing, and subcontractor contact info.
  */
 'use client';
 
@@ -22,14 +22,17 @@ import {
     getProjectAttachments, addProjectAttachment, getProjectItems, 
     saveProjectItem, deleteProjectItem, updateProject 
 } from '@/modules/planner/lib/actions';
-import type { TIProject, ProjectAdvance, ProjectAttachment, ProjectItem, ProjectStatus, ProjectPriority } from '@/modules/core/types';
+import { getThirdPartyProviders } from '@/modules/tickets/lib/actions';
+import type { TIProject, ProjectAdvance, ProjectAttachment, ProjectItem, ProjectStatus, ProjectPriority, ThirdPartyProvider } from '@/modules/core/types';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Loader2, Send, Paperclip, Plus, Trash2, FileDown, ArrowLeft, History, Truck, UserCircle, Package, FileText, Info, CheckCircle2, Monitor, Lock, Radio, Briefcase, Zap, Network } from 'lucide-react';
+import { Loader2, Send, Paperclip, Plus, Trash2, FileDown, ArrowLeft, History, Truck, UserCircle, Package, FileText, Info, CheckCircle2, Monitor, Lock, Radio, Briefcase, Zap, Network, Edit, Phone, Mail } from 'lucide-react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { generateDocument } from '@/modules/core/lib/pdf-generator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 const statusConfig: { [key in ProjectStatus]: { label: string, color: string } } = {
     planning: { label: 'Planeación', color: 'bg-yellow-500' },
@@ -40,10 +43,10 @@ const statusConfig: { [key in ProjectStatus]: { label: string, color: string } }
 };
 
 const priorityConfig: { [key in ProjectPriority]: { label: string, color: string } } = {
-    low: { label: "Baja", color: "text-gray-400" },
-    medium: { label: "Media", color: "text-blue-400" },
-    high: { label: "Alta", color: "text-orange-500" },
-    urgent: { label: "Urgente", color: "text-red-600" }
+    low: { label: "Baja", color: "bg-slate-100 text-slate-600 border-slate-200" },
+    medium: { label: "Media", color: "bg-blue-100 text-blue-700 border-blue-200" },
+    high: { label: "Alta", color: "bg-orange-500 text-white border-orange-600" },
+    urgent: { label: "Urgente", color: "bg-red-600 text-white border-red-700" }
 };
 
 export default function ProjectDetailsPage() {
@@ -57,25 +60,33 @@ export default function ProjectDetailsPage() {
     const [advances, setAdvances] = useState<ProjectAdvance[]>([]);
     const [attachments, setAttachments] = useState<ProjectAttachment[]>([]);
     const [items, setItems] = useState<ProjectItem[]>([]);
+    const [providers, setProviders] = useState<ThirdPartyProvider[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     
     const [newAdvance, setNewAdvance] = useState("");
     const [newItem, setNewItem] = useState({ description: '', quantity: 1, unitPrice: 0, type: 'material' as 'material' | 'service' });
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // Edit Team State
+    const [isEditTeamOpen, setEditTeamOpen] = useState(false);
+    const [teamForm, setTeamTeamForm] = useState({ coordinatorId: 0, subcontractorId: null as number | null });
+
     const loadProjectData = useCallback(async () => {
         setIsLoading(true);
         try {
-            const [p, adv, att, its] = await Promise.all([
+            const [p, adv, att, its, provs] = await Promise.all([
                 getProjectById(projectId),
                 getProjectAdvances(projectId),
                 getProjectAttachments(projectId),
-                getProjectItems(projectId)
+                getProjectItems(projectId),
+                getThirdPartyProviders()
             ]);
             setProject(p);
             setAdvances(adv);
             setAttachments(att);
             setItems(its);
+            setProviders(provs);
+            if (p) setTeamTeamForm({ coordinatorId: p.coordinatorId, subcontractorId: p.subcontractorId || null });
         } catch (error) {
             console.error("Failed to load project data:", error);
             toast({ title: "Error de carga", description: "No se pudo obtener la información del proyecto.", variant: "destructive" });
@@ -174,6 +185,35 @@ export default function ProjectDetailsPage() {
         }
     };
 
+    const handleUpdateTeam = async () => {
+        if (!project || !user) return;
+        setIsSubmitting(true);
+        try {
+            const updated = { ...project, coordinatorId: teamForm.coordinatorId, subcontractorId: teamForm.subcontractorId };
+            await updateProject(updated);
+            
+            const oldCoordinator = users.find(u => u.id === project.coordinatorId)?.name || 'N/A';
+            const newCoordinator = users.find(u => u.id === teamForm.coordinatorId)?.name || 'N/A';
+            const oldSub = providers.find(p => p.id === project.subcontractorId)?.name || 'Ninguno';
+            const newSub = providers.find(p => p.id === teamForm.subcontractorId)?.name || 'Ninguno';
+
+            await addProjectAdvance({ 
+                projectId, 
+                content: `ACTUALIZACIÓN DE EQUIPO: Coordinador (${oldCoordinator} -> ${newCoordinator}), Subcontratista (${oldSub} -> ${newSub})`, 
+                userId: user.id, 
+                userName: user.name 
+            });
+
+            await loadProjectData();
+            setEditTeamOpen(false);
+            toast({ title: "Equipo Actualizado" });
+        } catch {
+            toast({ title: "Error", variant: "destructive" });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
     const projectTotals = useMemo(() => {
         const subtotal = items.reduce((acc, i) => acc + (i.quantity * i.unitPrice), 0);
         const tax = subtotal * 0.13;
@@ -248,6 +288,8 @@ export default function ProjectDetailsPage() {
     }
 
     const assignedCoordinator = users.find(u => u.id === project.coordinatorId);
+    const assignedSubcontractor = providers.find(p => p.id === project.subcontractorId);
+    const supportUsers = users.filter(u => u.role === 'admin' || u.role === 'support-agent');
 
     return (
         <main className="flex-1 p-4 md:p-6 lg:p-8 space-y-6 bg-muted/20 min-h-screen">
@@ -316,7 +358,7 @@ export default function ProjectDetailsPage() {
                                 "{project.description}"
                             </div>
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t">
-                                <div className="flex flex-col"><span className="text-[10px] uppercase font-black text-muted-foreground">Estado</span><Badge className={cn("w-fit mt-1", statusConfig[project.status].color)}>{statusConfig[project.status].label}</Badge></div>
+                                <div className="flex flex-col"><span className="text-[10px] uppercase font-black text-muted-foreground">Estado</span><Badge className={cn("w-fit mt-1 text-white", statusConfig[project.status].color)}>{statusConfig[project.status].label}</Badge></div>
                                 <div className="flex flex-col"><span className="text-[10px] uppercase font-black text-muted-foreground">Entrega Estimada</span><span className="text-sm font-black text-destructive mt-1">{format(parseISO(project.endDate), 'dd/MM/yyyy')}</span></div>
                             </div>
                         </CardContent>
@@ -448,16 +490,91 @@ export default function ProjectDetailsPage() {
 
                 <div className="space-y-6">
                     <Card className="shadow-md border-none overflow-hidden">
-                        <CardHeader className="bg-primary/10 pb-4"><CardTitle className="text-xs font-black uppercase text-primary tracking-widest flex items-center gap-2"><UserCircle className="h-4 w-4"/> Equipo Responsable</CardTitle></CardHeader>
+                        <CardHeader className="bg-primary/10 pb-4 flex flex-row items-center justify-between">
+                            <CardTitle className="text-xs font-black uppercase text-primary tracking-widest flex items-center gap-2">
+                                <UserCircle className="h-4 w-4"/> Equipo Responsable
+                            </CardTitle>
+                            <Dialog open={isEditTeamOpen} onOpenChange={setEditTeamOpen}>
+                                <DialogTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-primary"><Edit className="h-3 w-3"/></Button>
+                                </DialogTrigger>
+                                <DialogContent className="sm:max-w-md">
+                                    <DialogHeader>
+                                        <DialogTitle>Editar Equipo de Trabajo</DialogTitle>
+                                        <DialogDescription>Modifica los responsables técnicos del proyecto.</DialogDescription>
+                                    </DialogHeader>
+                                    <div className="space-y-4 py-4">
+                                        <div className="space-y-2">
+                                            <Label className="text-xs font-bold uppercase">Técnico Coordinador</Label>
+                                            <Select value={String(teamForm.coordinatorId)} onValueChange={v => setTeamTeamForm({...teamForm, coordinatorId: Number(v)})}>
+                                                <SelectTrigger><SelectValue/></SelectTrigger>
+                                                <SelectContent>
+                                                    {supportUsers.map(u => <SelectItem key={u.id} value={String(u.id)}>{u.name}</SelectItem>)}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label className="text-xs font-bold uppercase">Subcontratista Externo</Label>
+                                            <Select value={String(teamForm.subcontractorId || 'null')} onValueChange={v => setTeamTeamForm({...teamForm, subcontractorId: v === 'null' ? null : Number(v)})}>
+                                                <SelectTrigger><SelectValue placeholder="Ninguno (Solo interno)"/></SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="null">Ninguno (Solo interno)</SelectItem>
+                                                    {providers.map(p => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </div>
+                                    <DialogFooter>
+                                        <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
+                                        <Button onClick={handleUpdateTeam} disabled={isSubmitting}>
+                                            {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <CheckCircle2 className="mr-2 h-4 w-4"/>}
+                                            Guardar Cambios
+                                        </Button>
+                                    </DialogFooter>
+                                </DialogContent>
+                            </Dialog>
+                        </CardHeader>
                         <CardContent className="space-y-4 pt-4">
                             <div className="flex items-center gap-3 p-3 rounded-lg border bg-card">
                                 <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary border border-primary/20"><UserCircle className="h-6 w-6" /></div>
                                 <div><p className="text-[10px] font-bold uppercase text-muted-foreground">Coordinador</p><p className="text-sm font-black">{assignedCoordinator?.name || 'Técnico Asignado'}</p></div>
                             </div>
-                            {project.subcontractorId && (
-                                <div className="flex items-center gap-3 p-3 rounded-lg border bg-amber-50">
-                                    <div className="h-10 w-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600"><Truck className="h-6 w-6" /></div>
-                                    <div><p className="text-[10px] font-bold uppercase text-amber-600">Subcontratista</p><p className="text-sm font-black">Externo</p></div>
+                            
+                            {assignedSubcontractor ? (
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <div className="flex items-center gap-3 p-3 rounded-lg border bg-amber-50 cursor-pointer hover:bg-amber-100 transition-colors">
+                                            <div className="h-10 w-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600"><Truck className="h-6 w-6" /></div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-[10px] font-bold uppercase text-amber-600">Subcontratista</p>
+                                                <p className="text-sm font-black truncate">{assignedSubcontractor.name}</p>
+                                            </div>
+                                            <Info className="h-4 w-4 text-amber-400" />
+                                        </div>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-64">
+                                        <div className="space-y-3">
+                                            <h4 className="font-bold text-sm border-b pb-1">Datos de Contacto</h4>
+                                            <div className="space-y-2">
+                                                <div className="flex items-center gap-2 text-xs">
+                                                    <Phone className="h-3 w-3 text-primary"/>
+                                                    <span>{assignedSubcontractor.phone || 'No registrado'}</span>
+                                                </div>
+                                                <div className="flex items-center gap-2 text-xs">
+                                                    <Mail className="h-3 w-3 text-primary"/>
+                                                    <span className="truncate">{assignedSubcontractor.email || 'No registrado'}</span>
+                                                </div>
+                                                <div className="bg-muted p-2 rounded text-[10px] text-muted-foreground mt-2 italic">
+                                                    "{assignedSubcontractor.specialty || 'Servicios TI'}"
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </PopoverContent>
+                                </Popover>
+                            ) : (
+                                <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/20 opacity-50 italic">
+                                    <Truck className="h-6 w-6 text-muted-foreground" />
+                                    <p className="text-xs">Sin subcontrato asignado</p>
                                 </div>
                             )}
                         </CardContent>
