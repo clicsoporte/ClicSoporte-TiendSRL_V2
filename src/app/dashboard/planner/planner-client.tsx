@@ -14,6 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { PlusCircle, Calendar as CalendarIcon, Users, FileText, ChevronRight, Loader2, Briefcase, Truck, Network, Radio, Monitor, Zap, Lock, AlertCircle, ShieldCheck } from 'lucide-react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { getProjects, createProject } from '@/modules/planner/lib/actions';
@@ -52,8 +53,9 @@ const priorityConfig: { [key in ProjectPriority]: { label: string, color: string
     urgent: { label: 'Urgente', color: 'bg-red-600 text-white border-red-700' },
 };
 
-interface NewProjectState extends Omit<TIProject, 'id' | 'consecutive' | 'createdAt' | 'updatedAt' | 'billingStatus' | 'coordinatorId'> {
+interface NewProjectState extends Omit<TIProject, 'id' | 'consecutive' | 'createdAt' | 'updatedAt' | 'billingStatus' | 'coordinatorId' | 'subcontractorIds'> {
     coordinatorId: number | null;
+    subcontractorIds: number[];
 }
 
 const initialNewProject: NewProjectState = {
@@ -258,7 +260,7 @@ export default function PlannerClient() {
                                                     <Checkbox 
                                                         id={`sub-${p.id}`}
                                                         checked={newProject.subcontractorIds.includes(p.id)}
-                                                        onCheckedChange={(checked) => {
+                                                        onCheckedChange={(checked: boolean) => {
                                                             const ids = checked 
                                                                 ? [...newProject.subcontractorIds, p.id]
                                                                 : newProject.subcontractorIds.filter(id => id !== p.id);
@@ -303,7 +305,7 @@ export default function PlannerClient() {
                                             <div className={cn("p-2 rounded-lg bg-muted", catInfo.color.replace('text-', 'bg-').replace('600', '100'))}>
                                                 <CategoryIcon className={cn("h-4 w-4", catInfo.color)} />
                                             </div>
-                                            <Badge variant="secondary" className="font-mono text-[10px]">{project.consecutive}</Badge>
+                                            <Badge variant="outline" className="font-mono text-[10px]">{project.consecutive}</Badge>
                                         </div>
                                         <Badge className={cn("text-[10px] uppercase font-bold text-white", statusConfig[project.status].color)}>
                                             {statusConfig[project.status].label}
