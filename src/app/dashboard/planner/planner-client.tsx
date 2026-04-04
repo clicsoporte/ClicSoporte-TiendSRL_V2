@@ -1,9 +1,10 @@
 /**
  * @fileoverview Client-side component for TI Project Manager.
+ * Handles project creation and listing with robust validation.
  */
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,11 +14,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { PlusCircle, Calendar as CalendarIcon, Users, FileText, ChevronRight, Loader2, Briefcase, Truck, Network, Radio, Monitor, Zap, Lock } from 'lucide-react';
+import { PlusCircle, Calendar as CalendarIcon, Users, FileText, ChevronRight, Loader2, Briefcase, Truck, Network, Radio, Monitor, Zap, Lock, AlertCircle } from 'lucide-react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { getProjects, createProject } from '@/modules/planner/lib/actions';
-import type { TIProject, ProjectStatus, ProjectPriority, ProjectCategory, ThirdPartyProvider } from '@/modules/core/types';
-import { format, parseISO } from 'date-fns';
+import type { TIProject, ProjectStatus, ProjectPriority, ProjectCategory, ThirdPartyProvider, User } from '@/modules/core/types';
+import { format, parseISO, isValid } from 'date-fns';
 import { SearchInput } from '@/components/ui/search-input';
 import { useDebounce } from 'use-debounce';
 import Link from 'next/link';
@@ -51,8 +52,27 @@ const priorityConfig: { [key in ProjectPriority]: { label: string, color: string
     urgent: { label: 'Urgente', color: 'bg-red-600' },
 };
 
+interface NewProjectState extends Omit<TIProject, 'id' | 'consecutive' | 'createdAt' | 'updatedAt' | 'billingStatus' | 'coordinatorId'> {
+    coordinatorId: number | null;
+}
+
+const initialNewProject: NewProjectState = {
+    name: '',
+    customerId: '',
+    customerName: '',
+    category: 'other',
+    status: 'planning',
+    priority: 'medium',
+    startDate: new Date().toISOString().split('T')[0],
+    endDate: new Date(new Date().setDate(new Date().getDate() + 15)).toISOString().split('T')[0],
+    coordinatorId: null,
+    subcontractorId: null,
+    description: '',
+    notes: '',
+};
+
 export default function PlannerClient() {
-    const { customers, users } = useAuth();
+    const { customers, users, companyData } = useAuth();
     const { toast } = useToast();
 
     const [projects, setProjects] = useState<TIProject[]>([]);
@@ -61,27 +81,13 @@ export default function PlannerClient() {
     const [isFormOpen, setFormOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     
-    // Search states
     const [customerSearch, setCustomerSearch] = useState('');
     const [isCustomerSearchOpen, setCustomerSearchOpen] = useState(false);
-    const [debouncedCustomerSearch] = useDebounce(customerSearch, 500);
+    const [debouncedCustomerSearch] = useDebounce(customerSearch, companyData?.searchDebounceTime ?? 500);
 
-    const [newProject, setNewProject] = useState<Omit<TIProject, 'id' | 'consecutive' | 'createdAt' | 'updatedAt' | 'billingStatus'>>({
-        name: '',
-        customerId: '',
-        customerName: '',
-        category: 'other',
-        status: 'planning',
-        priority: 'medium',
-        startDate: new Date().toISOString().split('T')[0],
-        endDate: new Date(new Date().setDate(new Date().getDate() + 15)).toISOString().split('T')[0],
-        coordinatorId: 0,
-        subcontractorId: null,
-        description: '',
-        notes: '',
-    });
+    const [newProject, setNewProject] = useState<NewProjectState>(initialNewProject);
 
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
         setIsLoading(true);
         try {
             const [pData, provData] = await Promise.all([
@@ -91,15 +97,15 @@ export default function PlannerClient() {
             setProjects(pData);
             setProviders(provData);
         } catch (e) {
-            console.error(e);
+            console.error("Error fetching planner data:", e);
         } finally {
             setIsLoading(false);
         }
-    };
+    }, []);
 
     useEffect(() => {
         fetchData();
-    }, []);
+    }, [fetchData]);
 
     const customerOptions = useMemo(() => {
         if (debouncedCustomerSearch.length < 2) return [];
@@ -112,25 +118,39 @@ export default function PlannerClient() {
     const handleSelectCustomer = (id: string) => {
         const customer = customers.find(c => c.id === id);
         if (customer) {
-            setNewProject({ ...newProject, customerId: id, customerName: customer.name });
+            setNewProject(prev => ({ ...prev, customerId: id, customerName: customer.name }));
             setCustomerSearch(customer.name);
             setCustomerSearchOpen(false);
         }
     };
 
     const handleCreate = async () => {
-        if (!newProject.customerId || !newProject.name || !newProject.coordinatorId) {
-            toast({ title: "Datos insuficientes", description: "Cliente, nombre y coordinador son requeridos.", variant: "destructive" });
+        // Strict validation
+        if (!newProject.customerId) {
+            toast({ title: "Falta Cliente", description: "Debe seleccionar un cliente de la lista de sugerencias.", variant: "destructive" });
             return;
         }
+        if (!newProject.name.trim()) {
+            toast({ title: "Falta Nombre", description: "El nombre del proyecto es obligatorio.", variant: "destructive" });
+            return;
+        }
+        if (newProject.coordinatorId === null || newProject.coordinatorId === 0) {
+            toast({ title: "Falta Coordinador", description: "Debe asignar a un técnico responsable del proyecto.", variant: "destructive" });
+            return;
+        }
+
         setIsSubmitting(true);
         try {
-            await createProject(newProject);
-            toast({ title: "Proyecto Iniciado" });
-            fetchData();
+            // Coordinator ID is verified not null here
+            await createProject(newProject as any);
+            toast({ title: "Proyecto Iniciado", description: `El proyecto "${newProject.name}" ha sido creado con éxito.` });
+            await fetchData();
             setFormOpen(false);
+            setNewProject(initialNewProject);
+            setCustomerSearch('');
         } catch (error: unknown) {
-            toast({ title: "Error", description: (error as Error).message, variant: "destructive" });
+            const err = error as Error;
+            toast({ title: "Error al crear", description: err.message, variant: "destructive" });
         } finally {
             setIsSubmitting(false);
         }
@@ -138,8 +158,11 @@ export default function PlannerClient() {
 
     if (isLoading) {
         return (
-            <div className="flex h-screen items-center justify-center">
-                <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            <div className="flex h-[calc(100vh-4rem)] items-center justify-center bg-muted/10">
+                <div className="flex flex-col items-center gap-4">
+                    <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                    <p className="text-sm text-muted-foreground animate-pulse font-medium">Cargando proyectos TI...</p>
+                </div>
             </div>
         );
     }
@@ -148,13 +171,16 @@ export default function PlannerClient() {
 
     return (
         <main className="flex-1 p-4 md:p-6 lg:p-8 space-y-6">
-            <div className="flex justify-between items-center">
-                <h1 className="text-2xl font-bold flex items-center gap-2">
-                    <Network className="h-6 w-6 text-primary" /> Proyectos TI Llave en Mano
-                </h1>
-                <Dialog open={isFormOpen} onOpenChange={setFormOpen}>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold flex items-center gap-2">
+                        <Network className="h-6 w-6 text-primary" /> Proyectos TI Llave en Mano
+                    </h1>
+                    <p className="text-sm text-muted-foreground">Administra ejecuciones de infraestructura, redes y seguridad.</p>
+                </div>
+                <Dialog open={isFormOpen} onOpenChange={(open) => { setFormOpen(open); if(!open) setNewProject(initialNewProject); }}>
                     <DialogTrigger asChild>
-                        <Button><PlusCircle className="mr-2 h-4 w-4" /> Nuevo Proyecto</Button>
+                        <Button className="shadow-md"><PlusCircle className="mr-2 h-4 w-4" /> Nuevo Proyecto</Button>
                     </DialogTrigger>
                     <DialogContent className="sm:max-w-4xl">
                         <DialogHeader>
@@ -164,7 +190,7 @@ export default function PlannerClient() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
                             <div className="space-y-4">
                                 <div className="space-y-2">
-                                    <Label>Categoría de Servicio</Label>
+                                    <Label className="text-xs font-bold uppercase text-muted-foreground">Categoría de Servicio</Label>
                                     <Select value={newProject.category} onValueChange={v => setNewProject({...newProject, category: v as ProjectCategory})}>
                                         <SelectTrigger><SelectValue /></SelectTrigger>
                                         <SelectContent>
@@ -180,7 +206,7 @@ export default function PlannerClient() {
                                     </Select>
                                 </div>
                                 <div className="space-y-2">
-                                    <Label>Cliente</Label>
+                                    <Label className="text-xs font-bold uppercase text-muted-foreground">Cliente</Label>
                                     <SearchInput 
                                         options={customerOptions}
                                         onSelect={handleSelectCustomer}
@@ -188,28 +214,36 @@ export default function PlannerClient() {
                                         onValueChange={setCustomerSearch}
                                         open={isCustomerSearchOpen}
                                         onOpenChange={setCustomerSearchOpen}
-                                        placeholder="Buscar cliente..."
+                                        placeholder="Escribe para buscar cliente..."
                                     />
+                                    {newProject.customerId && (
+                                        <p className="text-[10px] text-green-600 font-bold flex items-center gap-1">
+                                            <AlertCircle className="h-3 w-3" /> Cliente seleccionado correctamente
+                                        </p>
+                                    )}
                                 </div>
                                 <div className="space-y-2">
-                                    <Label>Nombre del Proyecto</Label>
+                                    <Label className="text-xs font-bold uppercase text-muted-foreground">Nombre del Proyecto</Label>
                                     <Input value={newProject.name} onChange={e => setNewProject({...newProject, name: e.target.value})} placeholder="Ej: Sistema Paradox Central" />
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
-                                        <Label>Fecha Inicio</Label>
+                                        <Label className="text-xs font-bold uppercase text-muted-foreground">Fecha Inicio</Label>
                                         <Input type="date" value={newProject.startDate} onChange={e => setNewProject({...newProject, startDate: e.target.value})} />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label>Fecha Compromiso</Label>
+                                        <Label className="text-xs font-bold uppercase text-muted-foreground">Fecha Compromiso</Label>
                                         <Input type="date" value={newProject.endDate} onChange={e => setNewProject({...newProject, endDate: e.target.value})} />
                                     </div>
                                 </div>
                             </div>
                             <div className="space-y-4">
                                 <div className="space-y-2">
-                                    <Label>Coordinador Interno (Soporte)</Label>
-                                    <Select value={String(newProject.coordinatorId)} onValueChange={v => setNewProject({...newProject, coordinatorId: Number(v)})}>
+                                    <Label className="text-xs font-bold uppercase text-muted-foreground">Coordinador Interno (Soporte)</Label>
+                                    <Select 
+                                        value={newProject.coordinatorId ? String(newProject.coordinatorId) : ""} 
+                                        onValueChange={v => setNewProject({...newProject, coordinatorId: Number(v)})}
+                                    >
                                         <SelectTrigger><SelectValue placeholder="Selecciona un técnico..." /></SelectTrigger>
                                         <SelectContent>
                                             {coordinators.map(u => <SelectItem key={u.id} value={String(u.id)}>{u.name}</SelectItem>)}
@@ -217,7 +251,7 @@ export default function PlannerClient() {
                                     </Select>
                                 </div>
                                 <div className="space-y-2">
-                                    <Label>Subcontratista (Instalador Externo)</Label>
+                                    <Label className="text-xs font-bold uppercase text-muted-foreground">Subcontratista (Instalador Externo)</Label>
                                     <Select value={String(newProject.subcontractorId || 'none')} onValueChange={v => setNewProject({...newProject, subcontractorId: v === 'none' ? null : Number(v)})}>
                                         <SelectTrigger><SelectValue placeholder="Gestión Interna Completa" /></SelectTrigger>
                                         <SelectContent>
@@ -227,15 +261,15 @@ export default function PlannerClient() {
                                     </Select>
                                 </div>
                                 <div className="space-y-2">
-                                    <Label>Descripción Llave en Mano</Label>
-                                    <Textarea value={newProject.description} onChange={e => setNewProject({...newProject, description: e.target.value})} rows={3} placeholder="Detalla los entregables finales y configuración..." />
+                                    <Label className="text-xs font-bold uppercase text-muted-foreground">Descripción de Alcance</Label>
+                                    <Textarea value={newProject.description} onChange={e => setNewProject({...newProject, description: e.target.value})} rows={4} placeholder="Detalla los entregables finales, configuración y equipos clave..." />
                                 </div>
                             </div>
                         </div>
-                        <DialogFooter>
+                        <DialogFooter className="bg-muted/30 -mx-6 -mb-6 p-6 mt-4 border-t">
                             <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
-                            <Button onClick={handleCreate} disabled={isSubmitting}>
-                                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            <Button onClick={handleCreate} disabled={isSubmitting} className="min-w-[150px]">
+                                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}
                                 Abrir Proyecto
                             </Button>
                         </DialogFooter>
@@ -245,55 +279,69 @@ export default function PlannerClient() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                 {projects.map(project => {
-                    const CategoryIcon = categoryConfig[project.category]?.icon || FileText;
                     const catInfo = categoryConfig[project.category] || categoryConfig.other;
+                    const CategoryIcon = catInfo.icon;
                     
                     return (
                         <Link key={project.id} href={`/dashboard/planner/${project.id}`}>
-                            <Card className="hover:shadow-md transition-all cursor-pointer group border-l-4" style={{ borderLeftColor: 'currentColor' }}>
+                            <Card className="hover:shadow-lg transition-all cursor-pointer group border-l-4 h-full flex flex-col" style={{ borderLeftColor: 'currentColor' }}>
                                 <CardHeader className="pb-2">
                                     <div className="flex justify-between items-start mb-2">
                                         <div className="flex items-center gap-2">
-                                            <CategoryIcon className={cn("h-5 w-5", catInfo.color)} />
+                                            <div className={cn("p-2 rounded-lg bg-muted", catInfo.color.replace('text-', 'bg-').replace('600', '100'))}>
+                                                <CategoryIcon className={cn("h-4 w-4", catInfo.color)} />
+                                            </div>
                                             <Badge variant="secondary" className="font-mono text-[10px]">{project.consecutive}</Badge>
                                         </div>
-                                        <Badge className={statusConfig[project.status].color}>{statusConfig[project.status].label}</Badge>
+                                        <Badge className={cn("text-[10px] uppercase font-bold", statusConfig[project.status].color)}>
+                                            {statusConfig[project.status].label}
+                                        </Badge>
                                     </div>
-                                    <CardTitle className="text-lg group-hover:text-primary transition-colors">{project.name}</CardTitle>
-                                    <CardDescription>{project.customerName}</CardDescription>
+                                    <CardTitle className="text-lg group-hover:text-primary transition-colors line-clamp-1">{project.name}</CardTitle>
+                                    <CardDescription className="font-bold text-foreground/80">{project.customerName}</CardDescription>
                                 </CardHeader>
-                                <CardContent className="py-2 space-y-3">
+                                <CardContent className="py-2 space-y-3 flex-1">
                                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                         <CalendarIcon className="h-3 w-3" />
                                         <span>{format(parseISO(project.startDate), 'dd/MM/yy')} al {format(parseISO(project.endDate), 'dd/MM/yy')}</span>
                                     </div>
                                     <div className="flex items-center gap-4">
-                                        <div className="flex items-center gap-1 text-[10px] uppercase font-bold text-muted-foreground">
+                                        <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold text-muted-foreground bg-muted/50 px-2 py-1 rounded">
                                             <Users className="h-3 w-3" /> 
-                                            {users.find(u => u.id === project.coordinatorId)?.name.split(' ')[0]}
+                                            {users.find(u => u.id === project.coordinatorId)?.name.split(' ')[0] || 'Técnico'}
                                         </div>
                                         {project.subcontractorId && (
-                                            <div className="flex items-center gap-1 text-[10px] uppercase font-bold text-amber-600">
+                                            <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold text-amber-700 bg-amber-50 px-2 py-1 rounded border border-amber-100">
                                                 <Truck className="h-3 w-3" /> 
-                                                Ext.
+                                                Subcontrato
                                             </div>
                                         )}
                                     </div>
                                 </CardContent>
-                                <CardFooter className="pt-2 border-t text-xs flex justify-between">
-                                    <span className={cn("font-bold", priorityConfig[project.priority].color.replace('bg-', 'text-'))}>Prioridad {priorityConfig[project.priority].label}</span>
-                                    <ChevronRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                <CardFooter className="pt-2 border-t text-[10px] flex justify-between items-center bg-muted/5">
+                                    <span className={cn("font-black uppercase tracking-wider", priorityConfig[project.priority].color.replace('bg-', 'text-'))}>
+                                        Prioridad {priorityConfig[project.priority].label}
+                                    </span>
+                                    <ChevronRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-all group-hover:translate-x-1" />
                                 </CardFooter>
                             </Card>
                         </Link>
                     )
                 })}
                 {projects.length === 0 && (
-                    <div className="col-span-full py-20 text-center border-2 border-dashed rounded-lg bg-muted/20">
-                        <p className="text-muted-foreground">No hay proyectos registrados en este momento.</p>
+                    <div className="col-span-full py-32 text-center border-2 border-dashed rounded-xl bg-muted/20">
+                        <Network className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-20" />
+                        <h3 className="text-lg font-bold text-muted-foreground">Sin Proyectos Activos</h3>
+                        <p className="text-sm text-muted-foreground max-w-xs mx-auto">Comienza registrando un nuevo proyecto TI llave en mano para dar seguimiento a tus ejecuciones.</p>
                     </div>
                 )}
             </div>
         </main>
+    );
+}
+
+function ShieldCheck({ className }: { className?: string }) {
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>
     );
 }
