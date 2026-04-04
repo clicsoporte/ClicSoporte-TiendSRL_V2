@@ -23,7 +23,7 @@ import {
     saveProjectItem, deleteProjectItem, updateProject 
 } from '@/modules/planner/lib/actions';
 import { getThirdPartyProviders } from '@/modules/tickets/lib/actions';
-import type { TIProject, ProjectAdvance, ProjectAttachment, ProjectItem, ProjectStatus, ProjectPriority, ThirdPartyProvider, User } from '@/modules/core/types';
+import type { TIProject, ProjectAdvance, ProjectAttachment, ProjectItem, ProjectStatus, ProjectPriority, ThirdPartyProvider } from '@/modules/core/types';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Loader2, Send, Paperclip, Plus, Trash2, FileDown, ArrowLeft, History, Truck, UserCircle, Package, FileText, Info, CheckCircle2, Edit, Phone, Mail, Briefcase } from 'lucide-react';

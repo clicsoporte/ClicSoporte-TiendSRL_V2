@@ -20,7 +20,6 @@ import { useToast } from '@/modules/core/hooks/use-toast';
 import { getProjects, createProject } from '@/modules/planner/lib/actions';
 import type { TIProject, ProjectStatus, ProjectPriority, ProjectCategory, ThirdPartyProvider } from '@/modules/core/types';
 import { format, parseISO } from 'date-fns';
-import { es } from 'date-fns/locale';
 import { SearchInput } from '@/components/ui/search-input';
 import { useDebounce } from 'use-debounce';
 import Link from 'next/link';
