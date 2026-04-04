@@ -16,12 +16,15 @@ export async function connectPlannerDb(): Promise<Database> {
 /**
  * Normalizes a database row to a TIProject object.
  */
-function mapProjectRow(row: any): TIProject {
+function mapProjectRow(db: Database, row: any): TIProject {
+    const subcontractorIds = db.prepare('SELECT providerId FROM project_subcontractors WHERE projectId = ?').all(row.id) as { providerId: number }[];
+    
     return {
         ...row,
         id: Number(row.id),
         coordinatorId: Number(row.coordinatorId),
         subcontractorId: row.subcontractorId ? Number(row.subcontractorId) : null,
+        subcontractorIds: subcontractorIds.map(s => s.providerId)
     } as TIProject;
 }
 
@@ -59,16 +62,16 @@ export async function saveSettings(settings: Partial<PlannerSettings>): Promise<
 export async function getProjects(): Promise<TIProject[]> {
     const db = await connectPlannerDb();
     const rows = db.prepare('SELECT * FROM projects ORDER BY createdAt DESC').all();
-    return rows.map(mapProjectRow);
+    return rows.map(row => mapProjectRow(db, row));
 }
 
 export async function getProjectById(id: number): Promise<TIProject | null> {
     const db = await connectPlannerDb();
     const row = db.prepare('SELECT * FROM projects WHERE id = ?').get(id);
-    return row ? mapProjectRow(row) : null;
+    return row ? mapProjectRow(db, row) : null;
 }
 
-export async function addProject(project: Omit<TIProject, 'id' | 'consecutive' | 'createdAt' | 'updatedAt' | 'billingStatus'>): Promise<TIProject> {
+export async function addProject(project: Omit<TIProject, 'id' | 'consecutive' | 'createdAt' | 'updatedAt' | 'billingStatus' | 'subcontractorIds'> & { subcontractorIds?: number[] }): Promise<TIProject> {
     try {
         const db = await connectPlannerDb();
         const settings = await getSettings();
@@ -77,31 +80,48 @@ export async function addProject(project: Omit<TIProject, 'id' | 'consecutive' |
         const consecutive = `${prefix}${nextNum.toString().padStart(5, '0')}`;
         const now = new Date().toISOString();
 
-        const info = db.prepare(`
-            INSERT INTO projects (consecutive, name, customerId, customerName, category, status, priority, startDate, endDate, coordinatorId, subcontractorId, description, notes, createdAt, updatedAt)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(
-            consecutive, 
-            project.name, 
-            project.customerId, 
-            project.customerName, 
-            project.category, 
-            project.status, 
-            project.priority, 
-            project.startDate, 
-            project.endDate, 
-            Number(project.coordinatorId), 
-            project.subcontractorId ? Number(project.subcontractorId) : null, 
-            project.description, 
-            project.notes || null, 
-            now, 
-            now
-        );
+        const transaction = db.transaction(() => {
+            const info = db.prepare(`
+                INSERT INTO projects (consecutive, name, customerId, customerName, category, status, priority, startDate, endDate, coordinatorId, subcontractorId, description, notes, createdAt, updatedAt)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `).run(
+                consecutive, 
+                project.name, 
+                project.customerId, 
+                project.customerName, 
+                project.category, 
+                project.status, 
+                project.priority, 
+                project.startDate, 
+                project.endDate, 
+                Number(project.coordinatorId), 
+                project.subcontractorId ? Number(project.subcontractorId) : null, 
+                project.description, 
+                project.notes || null, 
+                now, 
+                now
+            );
 
-        db.prepare("UPDATE planner_settings SET value = ? WHERE key = 'nextProjectNumber'").run(String(nextNum + 1));
-        
-        const newRow = db.prepare('SELECT * FROM projects WHERE id = ?').get(info.lastInsertRowid);
-        return mapProjectRow(newRow);
+            const projectId = Number(info.lastInsertRowid);
+
+            // Handle subcontractors
+            if (project.subcontractorIds && project.subcontractorIds.length > 0) {
+                const insertSub = db.prepare('INSERT INTO project_subcontractors (projectId, providerId) VALUES (?, ?)');
+                for (const subId of project.subcontractorIds) {
+                    insertSub.run(projectId, subId);
+                }
+            } else if (project.subcontractorId) {
+                // Backward compatibility for single select during creation
+                db.prepare('INSERT INTO project_subcontractors (projectId, providerId) VALUES (?, ?)').run(projectId, project.subcontractorId);
+            }
+
+            db.prepare("UPDATE planner_settings SET value = ? WHERE key = 'nextProjectNumber'").run(String(nextNum + 1));
+            
+            const newRow = db.prepare('SELECT * FROM projects WHERE id = ?').get(info.lastInsertRowid);
+            return mapProjectRow(db, newRow);
+        });
+
+        return transaction();
     } catch (error: unknown) {
         const err = error as Error;
         await logError("Falla al crear proyecto TI en DB", { error: err.message, name: project.name });
@@ -112,28 +132,42 @@ export async function addProject(project: Omit<TIProject, 'id' | 'consecutive' |
 export async function updateProject(project: TIProject): Promise<TIProject> {
     const db = await connectPlannerDb();
     const now = new Date().toISOString();
-    db.prepare(`
-        UPDATE projects SET
-            name = ?, category = ?, status = ?, priority = ?, startDate = ?, endDate = ?,
-            coordinatorId = ?, subcontractorId = ?, description = ?, notes = ?,
-            billingStatus = ?, updatedAt = ?
-        WHERE id = ?
-    `).run(
-        project.name, 
-        project.category, 
-        project.status, 
-        project.priority, 
-        project.startDate, 
-        project.endDate, 
-        Number(project.coordinatorId), 
-        project.subcontractorId ? Number(project.subcontractorId) : null, 
-        project.description, 
-        project.notes || null, 
-        project.billingStatus, 
-        now, 
-        project.id
-    );
-    return project;
+
+    const transaction = db.transaction(() => {
+        db.prepare(`
+            UPDATE projects SET
+                name = ?, category = ?, status = ?, priority = ?, startDate = ?, endDate = ?,
+                coordinatorId = ?, subcontractorId = ?, description = ?, notes = ?,
+                billingStatus = ?, updatedAt = ?
+            WHERE id = ?
+        `).run(
+            project.name, 
+            project.category, 
+            project.status, 
+            project.priority, 
+            project.startDate, 
+            project.endDate, 
+            Number(project.coordinatorId), 
+            project.subcontractorId ? Number(project.subcontractorId) : null, 
+            project.description, 
+            project.notes || null, 
+            project.billingStatus, 
+            now, 
+            project.id
+        );
+
+        // Sync subcontractors
+        db.prepare('DELETE FROM project_subcontractors WHERE projectId = ?').run(project.id);
+        const insertSub = db.prepare('INSERT INTO project_subcontractors (projectId, providerId) VALUES (?, ?)');
+        for (const subId of project.subcontractorIds) {
+            insertSub.run(project.id, subId);
+        }
+
+        const updatedRow = db.prepare('SELECT * FROM projects WHERE id = ?').get(project.id);
+        return mapProjectRow(db, updatedRow);
+    });
+
+    return transaction();
 }
 
 export async function getProjectAdvances(projectId: number): Promise<ProjectAdvance[]> {

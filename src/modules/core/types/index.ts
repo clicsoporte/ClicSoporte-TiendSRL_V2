@@ -328,7 +328,8 @@ export type TIProject = {
   startDate: string;
   endDate: string;
   coordinatorId: number; // Internal support agent
-  subcontractorId?: number | null; // Third party provider
+  subcontractorId?: number | null; // Legacy field (single)
+  subcontractorIds: number[]; // New field (multiple)
   description: string;
   notes?: string;
   billingStatus: 'pending' | 'invoiced';

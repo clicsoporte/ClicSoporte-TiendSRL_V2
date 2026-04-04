@@ -296,6 +296,14 @@ export async function initializeMainDatabase(db: Database) {
             updatedAt TEXT NOT NULL
         );
 
+        CREATE TABLE IF NOT EXISTS project_subcontractors (
+            projectId INTEGER NOT NULL,
+            providerId INTEGER NOT NULL,
+            PRIMARY KEY (projectId, providerId),
+            FOREIGN KEY (projectId) REFERENCES projects(id) ON DELETE CASCADE,
+            FOREIGN KEY (providerId) REFERENCES third_party_providers(id) ON DELETE CASCADE
+        );
+
         CREATE TABLE IF NOT EXISTS project_advances (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             projectId INTEGER NOT NULL,
@@ -489,6 +497,17 @@ export async function runMainMigrations(db: Database) {
     
     // LICENSES Migrations
     if (!hasColumn('licenses', 'hardwareId')) db.exec(`ALTER TABLE licenses ADD COLUMN hardwareId TEXT;`);
+
+    // New M-M table for subcontractors
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS project_subcontractors (
+            projectId INTEGER NOT NULL,
+            providerId INTEGER NOT NULL,
+            PRIMARY KEY (projectId, providerId),
+            FOREIGN KEY (projectId) REFERENCES projects(id) ON DELETE CASCADE,
+            FOREIGN KEY (providerId) REFERENCES third_party_providers(id) ON DELETE CASCADE
+        );
+    `);
 }
 
 export async function getLogs(filters: { type?: string; search?: string; dateRange?: DateRange }): Promise<LogEntry[]> {
