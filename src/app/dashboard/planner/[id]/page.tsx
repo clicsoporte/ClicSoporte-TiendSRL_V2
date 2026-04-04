@@ -26,7 +26,7 @@ import { getThirdPartyProviders } from '@/modules/tickets/lib/actions';
 import type { TIProject, ProjectAdvance, ProjectAttachment, ProjectItem, ProjectStatus, ProjectPriority, ThirdPartyProvider, User } from '@/modules/core/types';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Loader2, Send, Paperclip, Plus, Trash2, FileDown, ArrowLeft, History, Truck, UserCircle, Package, FileText, Info, CheckCircle2, Edit, Phone, Mail } from 'lucide-react';
+import { Loader2, Send, Paperclip, Plus, Trash2, FileDown, ArrowLeft, History, Truck, UserCircle, Package, FileText, Info, CheckCircle2, Edit, Phone, Mail, Briefcase } from 'lucide-react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { generateDocument } from '@/modules/core/lib/pdf-generator';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -68,12 +68,12 @@ export default function ProjectDetailsPage() {
     const [isLoading, setIsLoading] = useState(true);
     
     const [newAdvance, setNewAdvance] = useState("");
-    const [newItem, setNewItem] = useState({ description: '', quantity: 1, unitPrice: 0, type: 'material' as 'material' | 'service' });
+    const [newItem, setNewItem] = useState<{ description: string; quantity: number; unitPrice: number; type: 'material' | 'service' }>({ description: '', quantity: 1, unitPrice: 0, type: 'material' });
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Edit Team State
     const [isEditTeamOpen, setEditTeamOpen] = useState(false);
-    const [teamForm, setTeamForm] = useState({ coordinatorId: 0, subcontractorIds: [] as number[] });
+    const [teamForm, setTeamForm] = useState<{ coordinatorId: number; subcontractorIds: number[] }>({ coordinatorId: 0, subcontractorIds: [] });
 
     const loadProjectData = useCallback(async () => {
         setIsLoading(true);
