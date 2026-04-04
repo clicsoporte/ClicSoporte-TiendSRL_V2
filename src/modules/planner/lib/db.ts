@@ -24,7 +24,7 @@ function mapProjectRow(db: Database, row: any): TIProject {
         id: Number(row.id),
         coordinatorId: Number(row.coordinatorId),
         subcontractorId: row.subcontractorId ? Number(row.subcontractorId) : null,
-        subcontractorIds: subcontractorIds.map(s => s.providerId)
+        subcontractorIds: (subcontractorIds || []).map(s => Number(s.providerId))
     } as TIProject;
 }
 
@@ -71,7 +71,7 @@ export async function getProjectById(id: number): Promise<TIProject | null> {
     return row ? mapProjectRow(db, row) : null;
 }
 
-export async function addProject(project: Omit<TIProject, 'id' | 'consecutive' | 'createdAt' | 'updatedAt' | 'billingStatus' | 'subcontractorIds'> & { subcontractorIds?: number[] }): Promise<TIProject> {
+export async function addProject(project: Omit<TIProject, 'id' | 'consecutive' | 'createdAt' | 'updatedAt' | 'billingStatus'>): Promise<TIProject> {
     try {
         const db = await connectPlannerDb();
         const settings = await getSettings();
@@ -108,11 +108,10 @@ export async function addProject(project: Omit<TIProject, 'id' | 'consecutive' |
             if (project.subcontractorIds && project.subcontractorIds.length > 0) {
                 const insertSub = db.prepare('INSERT INTO project_subcontractors (projectId, providerId) VALUES (?, ?)');
                 for (const subId of project.subcontractorIds) {
-                    insertSub.run(projectId, subId);
+                    insertSub.run(projectId, Number(subId));
                 }
             } else if (project.subcontractorId) {
-                // Backward compatibility for single select during creation
-                db.prepare('INSERT INTO project_subcontractors (projectId, providerId) VALUES (?, ?)').run(projectId, project.subcontractorId);
+                db.prepare('INSERT INTO project_subcontractors (projectId, providerId) VALUES (?, ?)').run(projectId, Number(project.subcontractorId));
             }
 
             db.prepare("UPDATE planner_settings SET value = ? WHERE key = 'nextProjectNumber'").run(String(nextNum + 1));
@@ -159,8 +158,10 @@ export async function updateProject(project: TIProject): Promise<TIProject> {
         // Sync subcontractors
         db.prepare('DELETE FROM project_subcontractors WHERE projectId = ?').run(project.id);
         const insertSub = db.prepare('INSERT INTO project_subcontractors (projectId, providerId) VALUES (?, ?)');
-        for (const subId of project.subcontractorIds) {
-            insertSub.run(project.id, subId);
+        if (project.subcontractorIds) {
+            for (const subId of project.subcontractorIds) {
+                insertSub.run(project.id, Number(subId));
+            }
         }
 
         const updatedRow = db.prepare('SELECT * FROM projects WHERE id = ?').get(project.id);
@@ -173,7 +174,7 @@ export async function updateProject(project: TIProject): Promise<TIProject> {
 export async function getProjectAdvances(projectId: number): Promise<ProjectAdvance[]> {
     const db = await connectPlannerDb();
     const rows = db.prepare('SELECT * FROM project_advances WHERE projectId = ? ORDER BY timestamp ASC').all(projectId);
-    return rows.map(r => ({ ...r, id: Number(r.id), projectId: Number(r.projectId) })) as ProjectAdvance[];
+    return rows.map((r: any) => ({ ...r, id: Number(r.id), projectId: Number(r.projectId) })) as ProjectAdvance[];
 }
 
 export async function addProjectAdvance(advance: Omit<ProjectAdvance, 'id' | 'timestamp'>): Promise<ProjectAdvance> {
@@ -186,7 +187,7 @@ export async function addProjectAdvance(advance: Omit<ProjectAdvance, 'id' | 'ti
 export async function getProjectAttachments(projectId: number): Promise<ProjectAttachment[]> {
     const db = await connectPlannerDb();
     const rows = db.prepare('SELECT * FROM project_attachments WHERE projectId = ? ORDER BY createdAt DESC').all(projectId);
-    return rows.map(r => ({ ...r, id: Number(r.id), projectId: Number(r.projectId) })) as ProjectAttachment[];
+    return rows.map((r: any) => ({ ...r, id: Number(r.id), projectId: Number(r.projectId) })) as ProjectAttachment[];
 }
 
 export async function addProjectAttachment(attachment: Omit<ProjectAttachment, 'id' | 'createdAt'>): Promise<ProjectAttachment> {
@@ -199,7 +200,7 @@ export async function addProjectAttachment(attachment: Omit<ProjectAttachment, '
 export async function getProjectItems(projectId: number): Promise<ProjectItem[]> {
     const db = await connectPlannerDb();
     const rows = db.prepare('SELECT * FROM project_items WHERE projectId = ?').all(projectId);
-    return rows.map(r => ({ ...r, id: Number(r.id), projectId: Number(r.projectId), quantity: Number(r.quantity), unitPrice: Number(r.unitPrice) })) as ProjectItem[];
+    return rows.map((r: any) => ({ ...r, id: Number(r.id), projectId: Number(r.projectId), quantity: Number(r.quantity), unitPrice: Number(r.unitPrice) })) as ProjectItem[];
 }
 
 export async function saveProjectItem(item: Omit<ProjectItem, 'id'>): Promise<ProjectItem> {

@@ -26,7 +26,7 @@ import { getThirdPartyProviders } from '@/modules/tickets/lib/actions';
 import type { TIProject, ProjectAdvance, ProjectAttachment, ProjectItem, ProjectStatus, ProjectPriority, ThirdPartyProvider } from '@/modules/core/types';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Loader2, Send, Paperclip, Plus, Trash2, FileDown, ArrowLeft, History, Truck, UserCircle, Package, FileText, Info, CheckCircle2, Monitor, Lock, Radio, Briefcase, Zap, Network, Edit, Phone, Mail, X } from 'lucide-react';
+import { Loader2, Send, Paperclip, Plus, Trash2, FileDown, ArrowLeft, History, Truck, UserCircle, Package, FileText, Info, CheckCircle2, Monitor, Lock, Radio, Briefcase, Zap, Network, Edit, Phone, Mail } from 'lucide-react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { generateDocument } from '@/modules/core/lib/pdf-generator';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -34,6 +34,8 @@ import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
 
 const statusConfig: { [key in ProjectStatus]: { label: string, color: string } } = {
     planning: { label: 'Planeación', color: 'bg-yellow-500' },
@@ -199,13 +201,17 @@ export default function ProjectDetailsPage() {
         if (!project || !user) return;
         setIsSubmitting(true);
         try {
-            const updated = { ...project, coordinatorId: teamForm.coordinatorId, subcontractorIds: teamForm.subcontractorIds };
+            const updated = { 
+                ...project, 
+                coordinatorId: Number(teamForm.coordinatorId), 
+                subcontractorIds: teamForm.subcontractorIds.map(id => Number(id))
+            };
             await updateProject(updated);
             
             const oldCoordinator = users.find(u => u.id === project.coordinatorId)?.name || 'N/A';
             const newCoordinator = users.find(u => u.id === teamForm.coordinatorId)?.name || 'N/A';
             
-            const oldSubs = providers.filter(p => project.subcontractorIds.includes(p.id)).map(p => p.name).join(', ') || 'Ninguno';
+            const oldSubs = providers.filter(p => (project.subcontractorIds || []).includes(p.id)).map(p => p.name).join(', ') || 'Ninguno';
             const newSubs = providers.filter(p => teamForm.subcontractorIds.includes(p.id)).map(p => p.name).join(', ') || 'Ninguno';
 
             let logMsg = '';
@@ -305,7 +311,7 @@ export default function ProjectDetailsPage() {
     }
 
     const assignedCoordinator = users.find(u => u.id === project.coordinatorId);
-    const assignedSubcontractors = providers.filter(p => project.subcontractorIds.includes(p.id));
+    const assignedSubcontractors = providers.filter(p => (project.subcontractorIds || []).includes(p.id));
     const supportUsers = users.filter(u => u.role === 'admin' || u.role === 'support-agent');
 
     return (

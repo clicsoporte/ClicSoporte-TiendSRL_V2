@@ -66,7 +66,7 @@ const initialNewProject: NewProjectState = {
     startDate: new Date().toISOString().split('T')[0],
     endDate: new Date(new Date().setDate(new Date().getDate() + 15)).toISOString().split('T')[0],
     coordinatorId: null,
-    subcontractorId: null,
+    subcontractorIds: [],
     description: '',
     notes: '',
 };
@@ -250,14 +250,27 @@ export default function PlannerClient() {
                                     </Select>
                                 </div>
                                 <div className="space-y-2">
-                                    <Label className="text-xs font-bold uppercase text-muted-foreground">Subcontratista (Instalador Externo)</Label>
-                                    <Select value={String(newProject.subcontractorId || 'none')} onValueChange={v => setNewProject({...newProject, subcontractorId: v === 'none' ? null : Number(v)})}>
-                                        <SelectTrigger><SelectValue placeholder="Gestión Interna Completa" /></SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="none">Gestión Interna Completa</SelectItem>
-                                            {providers.map(p => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}
-                                        </SelectContent>
-                                    </Select>
+                                    <Label className="text-xs font-bold uppercase text-muted-foreground">Subcontratistas Externos (Opcional)</Label>
+                                    <div className="border rounded-md p-3 bg-muted/10 h-[140px] overflow-y-auto">
+                                        <div className="space-y-2">
+                                            {providers.map(p => (
+                                                <div key={p.id} className="flex items-center space-x-2">
+                                                    <Checkbox 
+                                                        id={`sub-${p.id}`}
+                                                        checked={newProject.subcontractorIds.includes(p.id)}
+                                                        onCheckedChange={(checked) => {
+                                                            const ids = checked 
+                                                                ? [...newProject.subcontractorIds, p.id]
+                                                                : newProject.subcontractorIds.filter(id => id !== p.id);
+                                                            setNewProject({...newProject, subcontractorIds: ids});
+                                                        }}
+                                                    />
+                                                    <Label htmlFor={`sub-${p.id}`} className="text-xs cursor-pointer">{p.name}</Label>
+                                                </div>
+                                            ))}
+                                            {providers.length === 0 && <p className="text-[10px] text-muted-foreground italic">No hay proveedores registrados.</p>}
+                                        </div>
+                                    </div>
                                 </div>
                                 <div className="space-y-2">
                                     <Label className="text-xs font-bold uppercase text-muted-foreground">Descripción de Alcance</Label>
@@ -309,10 +322,10 @@ export default function PlannerClient() {
                                             <Users className="h-3 w-3" /> 
                                             {users.find(u => u.id === project.coordinatorId)?.name.split(' ')[0] || 'Técnico'}
                                         </div>
-                                        {project.subcontractorId && (
+                                        {(project.subcontractorIds?.length > 0) && (
                                             <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold text-amber-700 bg-amber-50 px-2 py-1 rounded border border-amber-100">
                                                 <Truck className="h-3 w-3" /> 
-                                                {providers.find(p => p.id === project.subcontractorId)?.name || 'Externo'}
+                                                {project.subcontractorIds.length} Externos
                                             </div>
                                         )}
                                     </div>
