@@ -1,6 +1,7 @@
 /**
  * @fileoverview Detailed project view for advancement tracking and documentation.
  * Improved with support for multiple subcontractors and contact info popovers.
+ * Optimized to prevent UI flickering on updates.
  */
 'use client';
 
@@ -26,7 +27,7 @@ import { getThirdPartyProviders } from '@/modules/tickets/lib/actions';
 import type { TIProject, ProjectAdvance, ProjectAttachment, ProjectItem, ProjectStatus, ProjectPriority, ThirdPartyProvider } from '@/modules/core/types';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Loader2, Send, Paperclip, Plus, Trash2, FileDown, ArrowLeft, History, Truck, UserCircle, Package, FileText, Info, CheckCircle2, Edit, Phone, Mail, Briefcase } from 'lucide-react';
+import { Loader2, Send, Paperclip, Plus, Trash2, FileDown, ArrowLeft, History, Truck, UserCircle, Package, Briefcase, Info, CheckCircle2, Edit, Phone, Mail } from 'lucide-react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { generateDocument } from '@/modules/core/lib/pdf-generator';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -37,6 +38,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import type { RowInput } from 'jspdf-autotable';
+import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 
 const statusConfig: { [key in ProjectStatus]: { label: string, color: string } } = {
     planning: { label: 'Planeación', color: 'bg-yellow-500' },
@@ -58,6 +60,7 @@ export default function ProjectDetailsPage() {
     const router = useRouter();
     const projectId = Number(params.id);
     const { user, companyData, users } = useAuth();
+    const { setTitle } = usePageTitle();
     const { toast } = useToast();
 
     const [project, setProject] = useState<TIProject | null>(null);
@@ -75,8 +78,8 @@ export default function ProjectDetailsPage() {
     const [isEditTeamOpen, setEditTeamOpen] = useState(false);
     const [teamForm, setTeamForm] = useState<{ coordinatorId: number; subcontractorIds: number[] }>({ coordinatorId: 0, subcontractorIds: [] });
 
-    const loadProjectData = useCallback(async () => {
-        setIsLoading(true);
+    const loadProjectData = useCallback(async (silent = false) => {
+        if (!silent) setIsLoading(true);
         try {
             const [p, adv, att, its, provs] = await Promise.all([
                 getProjectById(projectId),
@@ -95,13 +98,14 @@ export default function ProjectDetailsPage() {
             console.error("Failed to load project data:", error);
             toast({ title: "Error de carga", description: "No se pudo obtener la información del proyecto.", variant: "destructive" });
         } finally {
-            setIsLoading(false);
+            if (!silent) setIsLoading(false);
         }
     }, [projectId, toast]);
 
     useEffect(() => {
+        setTitle("Detalles del Proyecto");
         loadProjectData();
-    }, [loadProjectData]);
+    }, [loadProjectData, setTitle]);
 
     const handleAddAdvance = async () => {
         if (!newAdvance.trim() || !user) return;
@@ -170,7 +174,7 @@ export default function ProjectDetailsPage() {
                 userId: user.id, 
                 userName: user.name 
             });
-            await loadProjectData();
+            await loadProjectData(true); // Silent refresh
             toast({ title: "Estado Actualizado" });
         } catch {
             toast({ title: "Error", description: "No se pudo actualizar el estado del proyecto.", variant: "destructive" });
@@ -183,6 +187,7 @@ export default function ProjectDetailsPage() {
         try {
             await updateProject(updated);
             setProject(updated);
+            await loadProjectData(true); // Silent refresh
             toast({ title: "Prioridad Actualizada" });
         } catch {
             toast({ title: "Error", description: "No se pudo actualizar la prioridad.", variant: "destructive" });
@@ -228,7 +233,7 @@ export default function ProjectDetailsPage() {
                 });
             }
 
-            await loadProjectData();
+            await loadProjectData(true); // Silent refresh
             setEditTeamOpen(false);
             toast({ title: "Equipo Actualizado" });
         } catch {
@@ -435,7 +440,7 @@ export default function ProjectDetailsPage() {
                                     <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end bg-muted/30 p-4 rounded-lg border">
                                         <div className="md:col-span-2 space-y-1">
                                             <Label className="text-[10px] font-bold uppercase">Descripción</Label>
-                                            <Input value={newItem.description} onChange={e => setNewItem({...newItem, description: e.target.value})} placeholder="Item o Servicio..." />
+                                            <input value={newItem.description} onChange={e => setNewItem({...newItem, description: e.target.value})} placeholder="Item o Servicio..." className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" />
                                         </div>
                                         <div className="space-y-1">
                                             <Label className="text-[10px] font-bold uppercase">Cant.</Label>
@@ -466,7 +471,7 @@ export default function ProjectDetailsPage() {
                                                         <TableCell className="text-right">¢{i.unitPrice.toLocaleString()}</TableCell>
                                                         <TableCell className="text-right font-bold">¢{(i.quantity * i.unitPrice).toLocaleString()}</TableCell>
                                                         <TableCell>
-                                                            <Button variant="ghost" size="icon" onClick={() => deleteProjectItem(i.id).then(loadProjectData)} className="text-destructive">
+                                                            <Button variant="ghost" size="icon" onClick={() => deleteProjectItem(i.id).then(() => loadProjectData(true))} className="text-destructive">
                                                                 <Trash2 className="h-4 w-4" />
                                                             </Button>
                                                         </TableCell>
