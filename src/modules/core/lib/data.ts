@@ -12,11 +12,12 @@ import {
   AreaChart,
   Search,
   Users,
-  FileText
+  FileText,
+  Receipt
 } from "lucide-react";
 
 /**
- * List of tools available on the main dashboard.
+ * List of tools available on the main dashboard (Technical/Operational).
  */
 export const mainTools: Tool[] = [
   {
@@ -44,24 +45,6 @@ export const mainTools: Tool[] = [
     href: "/dashboard/contracts",
     icon: FileText,
     bgColor: "bg-indigo-600",
-    textColor: "text-white",
-  },
-  {
-    id: "quoter",
-    name: "Cotizador",
-    description: "Crear y gestionar cotizaciones para clientes.",
-    href: "/dashboard/quoter",
-    icon: Sheet,
-    bgColor: "bg-green-500",
-    textColor: "text-white",
-  },
-    {
-    id: "cost-assistant",
-    name: "Asistente de Costos",
-    description: "Procesar facturas de compra XML para calcular precios.",
-    href: "/dashboard/cost-assistant",
-    icon: FileScan,
-    bgColor: "bg-orange-600",
     textColor: "text-white",
   },
    {
@@ -108,5 +91,41 @@ export const mainTools: Tool[] = [
       icon: LifeBuoy,
       bgColor: "bg-orange-500",
       textColor: "text-white",
+    },
+];
+
+/**
+ * List of financial tools grouped for the "Financial Module" card.
+ */
+export const financeTools: (Tool & { permission: string })[] = [
+    {
+        id: "billing",
+        name: "Facturación",
+        description: "Gestionar horas cobrables y conciliación con ERP.",
+        href: "/dashboard/billing",
+        icon: Receipt,
+        bgColor: "bg-emerald-600",
+        textColor: "text-white",
+        permission: "billing:manage"
+    },
+    {
+        id: "quoter",
+        name: "Cotizador",
+        description: "Crear y gestionar cotizaciones para clientes.",
+        href: "/dashboard/quoter",
+        icon: Sheet,
+        bgColor: "bg-green-500",
+        textColor: "text-white",
+        permission: "quotes:create"
+    },
+    {
+        id: "cost-assistant",
+        name: "Asistente de Costos",
+        description: "Procesar facturas de compra XML para calcular precios.",
+        href: "/dashboard/cost-assistant",
+        icon: FileScan,
+        bgColor: "bg-orange-600",
+        textColor: "text-white",
+        permission: "cost-assistant:access"
     },
 ];

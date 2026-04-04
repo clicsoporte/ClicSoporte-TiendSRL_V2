@@ -2,6 +2,7 @@
 
 import { mainTools } from "../../modules/core/lib/data";
 import { ToolCard } from "../../components/dashboard/tool-card";
+import { FinanceGroupCard } from "../../components/dashboard/finance-group-card";
 import { useEffect, useState, useCallback } from "react";
 import type { Tool, DashboardStats } from "../../modules/core/types";
 import { Skeleton } from "../../components/ui/skeleton";
@@ -31,7 +32,7 @@ const StatWidget = ({ title, value, subValue, icon: Icon, colorClass, href }: { 
 );
 
 export default function DashboardPage() {
-  const { userRole, isLoading: isAuthLoading, unreadSuggestionsCount } = useAuth();
+  const { userRole, isLoading: isAuthLoading, unreadSuggestionsCount, hasPermission } = useAuth();
   const [visibleTools, setVisibleTools] = useState<Tool[]>([]);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [isStatsLoading, setIsStatsLoading] = useState(true);
@@ -148,6 +149,10 @@ export default function DashboardPage() {
               Accesos Directos
             </h2>
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {/* Financial Group Card */}
+              <FinanceGroupCard />
+
+              {/* Other Operational Tools */}
               {visibleTools.map((tool) => {
                 const isAdminTool = tool.id === 'admin';
                 const badgeCount = isAdminTool ? unreadSuggestionsCount : 0;

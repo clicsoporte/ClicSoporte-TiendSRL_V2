@@ -13,6 +13,9 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarGroupContent,
   SidebarFooter,
   useSidebar,
 } from "../ui/sidebar";
@@ -31,7 +34,8 @@ import {
   Sheet as SheetIcon,
   Users,
   FileText,
-  Receipt
+  Receipt,
+  Wallet
 } from "lucide-react";
 import type { Tool } from "../../modules/core/types";
 import { UserNav } from "./user-nav";
@@ -101,16 +105,6 @@ export function AppSidebar() {
       permission: "tickets:read:all"
     },
     {
-      id: "billing",
-      name: "Facturación",
-      description: "Gestionar horas cobrables y cierres.",
-      href: "/dashboard/billing",
-      icon: Receipt,
-      bgColor: "bg-emerald-600",
-      textColor: "text-white",
-      permission: "billing:manage"
-    },
-    {
       id: "customers",
       name: "Clientes",
       description: "Administrar base de clientes.",
@@ -150,26 +144,6 @@ export function AppSidebar() {
       textColor: "text-white",
       permission: "planner:read"
     },
-    {
-        id: "quoter",
-        name: "Cotizador",
-        description: "Crear y gestionar cotizaciones para clientes.",
-        href: "/dashboard/quoter",
-        icon: SheetIcon,
-        bgColor: "bg-green-500",
-        textColor: "text-white",
-        permission: "quotes:create"
-    },
-    {
-        id: "cost-assistant",
-        name: "Asistente de Costos",
-        description: "Procesar facturas de compra XML para calcular precios.",
-        href: "/dashboard/cost-assistant",
-        icon: FileScan,
-        bgColor: "bg-orange-600",
-        textColor: "text-white",
-        permission: "cost-assistant:access"
-    },
      {
       id: "hacienda-query",
       name: "Consultas Hacienda",
@@ -201,7 +175,41 @@ export function AppSidebar() {
     },
   ];
 
-  const visibleLinks = navLinks.filter(link => !link.permission || hasPermission(link.permission));
+  const financeLinks: (Tool & { permission: string })[] = [
+    {
+      id: "billing",
+      name: "Facturación",
+      description: "Gestionar horas cobrables.",
+      href: "/dashboard/billing",
+      icon: Receipt,
+      bgColor: "bg-emerald-600",
+      textColor: "text-white",
+      permission: "billing:manage"
+    },
+    {
+        id: "quoter",
+        name: "Cotizador",
+        description: "Crear cotizaciones.",
+        href: "/dashboard/quoter",
+        icon: SheetIcon,
+        bgColor: "bg-green-500",
+        textColor: "text-white",
+        permission: "quotes:create"
+    },
+    {
+        id: "cost-assistant",
+        name: "Asistente de Costos",
+        description: "Procesar XMLs.",
+        href: "/dashboard/cost-assistant",
+        icon: FileScan,
+        bgColor: "bg-orange-600",
+        textColor: "text-white",
+        permission: "cost-assistant:access"
+    },
+  ];
+
+  const visibleNavLinks = navLinks.filter(link => !link.permission || hasPermission(link.permission));
+  const visibleFinanceLinks = financeLinks.filter(link => hasPermission(link.permission));
 
   return (
       <Sidebar collapsible="icon" className="border-r z-20">
@@ -217,7 +225,7 @@ export function AppSidebar() {
         </SidebarHeader>
         <SidebarContent>
           <SidebarMenu>
-            {visibleLinks.map((item) => (
+            {visibleNavLinks.map((item) => (
                 <SidebarMenuItem key={item.id}>
                     <SidebarMenuButton
                     asChild
@@ -233,6 +241,33 @@ export function AppSidebar() {
               )
             )}
           </SidebarMenu>
+
+          {visibleFinanceLinks.length > 0 && (
+            <SidebarGroup>
+                <SidebarGroupLabel className="flex items-center gap-2 px-2 text-[10px] uppercase font-bold tracking-widest text-sidebar-foreground/40">
+                    <Wallet className="h-3 w-3" />
+                    <span>Gestión Financiera</span>
+                </SidebarGroupLabel>
+                <SidebarGroupContent>
+                    <SidebarMenu>
+                        {visibleFinanceLinks.map((item) => (
+                            <SidebarMenuItem key={item.id}>
+                                <SidebarMenuButton
+                                    asChild
+                                    isActive={isActive(item.href)}
+                                    tooltip={item.name}
+                                >
+                                    <Link href={item.href} onClick={handleLinkClick}>
+                                        <item.icon />
+                                        <span>{item.name}</span>
+                                    </Link>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                        ))}
+                    </SidebarMenu>
+                </SidebarGroupContent>
+            </SidebarGroup>
+          )}
         </SidebarContent>
         <SidebarFooter>
         <SidebarMenu>
