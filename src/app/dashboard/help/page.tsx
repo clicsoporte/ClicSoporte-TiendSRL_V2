@@ -1,5 +1,5 @@
 /**
- * @fileoverview Help Center page with search highlighting.
+ * @fileoverview Help Center page with structured mini-tutorials for MSP operations.
  */
 "use client";
 
@@ -7,7 +7,7 @@ import { useEffect, useState, useMemo } from "react";
 import { usePageTitle } from "@/modules/core/hooks/usePageTitle";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Search, LifeBuoy, Rocket, MessageSquare, DollarSign, CalendarCheck, Ticket, Wrench, AlertTriangle } from "lucide-react";
+import { Search, LifeBuoy, Rocket, MessageSquare, DollarSign, CalendarCheck, Ticket, Wrench, AlertTriangle, ShieldCheck, MapPin, Clock } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/modules/core/hooks/useAuth";
 import { Input } from "@/components/ui/input";
@@ -110,72 +110,72 @@ export default function HelpPage() {
 
   const helpSections = [
     {
-        title: "Introducción al Sistema",
+        title: "Primeros Pasos",
         icon: <Rocket className="mr-4 h-6 w-6 text-blue-500" />,
         content: (
             <div className="space-y-4">
                 <p>¡Bienvenido a <strong>{companyData?.systemName || "Clic-Soporte"}</strong>! Esta plataforma centraliza todas las herramientas operativas de la empresa.</p>
-                <p>El sistema está optimizado para la velocidad y la precisión, permitiendo gestionar tickets, proyectos, cotizaciones y licencias desde una interfaz unificada.</p>
+                <p>El sistema está optimizado para gestionar tickets, proyectos, cotizaciones y licencias desde una interfaz unificada y rápida.</p>
             </div>
         )
     },
     {
-        title: "Tutorial: Buzón de Sugerencias",
-        icon: <MessageSquare className="mr-4 h-6 w-6 text-green-600" />,
+        title: "Tutorial: Validación Automática de Cobertura",
+        icon: <ShieldCheck className="mr-4 h-6 w-6 text-green-600" />,
         content: (
             <div className="space-y-4">
-                <p>Herramienta de comunicación directa para mejorar la aplicación. Todos los usuarios pueden participar.</p>
+                <p>El sistema verifica automáticamente si un cliente debe pagar por un servicio o si está incluido en su plan mensual.</p>
                 <ul className="list-disc space-y-2 pl-6">
-                    <li><strong>Enviar una Sugerencia:</strong> Haz clic en el botón verde &quot;Sugerencias&quot; en la parte superior derecha de cualquier página.</li>
-                    <li><strong>Gestión para Administradores:</strong> Accede a Administración &gt; Buzón de Sugerencias para revisar y marcar como leídas las ideas del equipo.</li>
+                    <li><strong>Por Contrato:</strong> Si el cliente tiene un contrato vigente, el sistema revisa la lista de servicios incluidos en dicho documento.</li>
+                    <li><strong>Por Paquete:</strong> Si no hay contrato pero el cliente tiene un plan asignado (Oro, Plata, etc.), se aplican las reglas del paquete.</li>
+                    <li><strong>Fuera de Cobertura:</strong> Si el servicio no se encuentra en ninguna de las listas anteriores, el ticket se marca como <span className="text-destructive font-bold">FACTURABLE</span> automáticamente.</li>
                 </ul>
             </div>
         )
     },
     {
-        title: "Guía Maestra: Módulo Cotizador",
-        icon: <DollarSign className="mr-4 h-6 w-6 text-emerald-500" />,
+        title: "Guía: Lógica de Redondeo y Gracia",
+        icon: <Clock className="mr-4 h-6 w-6 text-blue-400" />,
         content: (
             <div className="space-y-4">
-                <p>Optimizado para generar proformas profesionales en segundos.</p>
+                <p>Para asegurar una facturación justa, el sistema aplica reglas de tiempo basadas en el paquete del cliente:</p>
+                <ul className="list-disc space-y-2 pl-6">
+                    <li><strong>Periodo de Gracia:</strong> Si un técnico dura menos de los minutos de gracia (ej: 5 min), el tiempo facturable será 0.</li>
+                    <li><strong>Múltiplos de Redondeo:</strong> El tiempo se redondea hacia arriba según el paquete (ej: cada 15 min). Una sesión de 17 minutos se facturará como 30 minutos si el múltiplo es 15.</li>
+                </ul>
+            </div>
+        )
+    },
+    {
+        title: "Tutorial: Módulo Geográfico y Viáticos",
+        icon: <MapPin className="mr-4 h-6 w-6 text-orange-500" />,
+        content: (
+            <div className="space-y-4">
+                <p>Gestiona los costos de transporte de técnicos externos de forma precisa:</p>
                 <ol className="list-decimal space-y-2 pl-6">
-                    <li><strong>Paso 1: Seleccionar Cliente.</strong> El sistema verificará automáticamente el límite de crédito y exoneraciones en Hacienda.</li>
-                    <li><strong>Paso 2: Agregar Productos.</strong> Busca por descripción o código. El stock del ERP se muestra en tiempo real.</li>
-                    <li><strong>Paso 3: Generar PDF.</strong> El sistema asigna el consecutivo y aplica los impuestos según la ley.</li>
+                    <li><strong>Configuración:</strong> Define Provincias, Cantones y Distritos en <i>Administración &gt; Soporte Técnico</i>.</li>
+                    <li><strong>Tarifario:</strong> En el perfil del <i>Proveedor Externo</i>, asigna un monto de viático a zonas específicas.</li>
+                    <li><strong>Uso:</strong> Al abrir un ticket, selecciona el servicio "En Sitio" y el sistema te sugerirá el viático basado en la dirección del cliente.</li>
                 </ol>
             </div>
         )
     },
     {
-        title: "Módulo Gestor de Proyectos TI",
-        icon: <CalendarCheck className="mr-4 h-6 w-6 text-purple-500" />,
+        title: "Gestión de Cotizaciones e Historial",
+        icon: <DollarSign className="mr-4 h-6 w-6 text-emerald-500" />,
         content: (
             <div className="space-y-4">
-                <p>Organiza proyectos integrales (CCTV, Alarmas, Redes) bajo la modalidad &quot;Llave en Mano&quot;.</p>
+                <p>El Cotizador permite generar proformas profesionales en segundos.</p>
                 <ul className="list-disc space-y-2 pl-6">
-                    <li><strong>Bitácora:</strong> Registro histórico de cada avance técnico por usuario.</li>
-                    <li><strong>Materiales:</strong> Listado de equipos instalados para el acta de entrega.</li>
-                    <li><strong>Acta de Entrega:</strong> Generación de documento formal para el cliente al finalizar la ejecución.</li>
+                    <li><strong>Borradores:</strong> Puedes guardar avances para retomarlos luego.</li>
+                    <li><strong>Hacienda:</strong> El sistema consulta el estado tributario del cliente en tiempo real al seleccionarlo.</li>
+                    <li><strong>Moneda:</strong> El tipo de cambio se actualiza diariamente desde el BCCR para conversiones automáticas.</li>
                 </ul>
             </div>
         )
     },
     {
-        title: "Tutorial: Soporte Técnico (Tickets)",
-        icon: <Ticket className="mr-4 h-6 w-6 text-blue-500" />,
-        content: (
-            <div className="space-y-4">
-                <p>Centro de mando para la Mesa de Ayuda.</p>
-                <ul className="list-disc space-y-2 pl-6">
-                    <li><strong>Validación de Cobertura:</strong> Al abrir un ticket, el sistema te avisa si el servicio está cubierto por el contrato del cliente o si es facturable extra.</li>
-                    <li><strong>Cronómetro:</strong> Registra el tiempo exacto invertido en cada caso para reportes de productividad.</li>
-                    <li><strong>Escalación:</strong> Cambia el técnico asignado en el panel lateral para pasar el caso a otro departamento.</li>
-                </ul>
-            </div>
-        )
-    },
-    {
-        title: "Guía Técnica: Actualizaciones",
+        title: "Nota de Seguridad: Actualizaciones",
         icon: <Wrench className="mr-4 h-6 w-6 text-slate-600" />,
         content: (
             <div className="space-y-4">
@@ -183,7 +183,7 @@ export default function HelpPage() {
                 <Alert variant="destructive">
                     <AlertTriangle className="h-4 w-4" />
                     <AlertTitle>¡Importante!</AlertTitle>
-                    <AlertDescription>Nunca borres la carpeta &quot;dbs&quot; del servidor, ya que contiene toda la información viva del sistema.</AlertDescription>
+                    <AlertDescription>Nunca borres la carpeta "dbs" del servidor, ya que contiene toda la base de datos viva del sistema.</AlertDescription>
                 </Alert>
             </div>
         )
@@ -215,7 +215,7 @@ export default function HelpPage() {
             <div className="relative mt-6">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
               <Input
-                placeholder="Escribe para buscar en la ayuda (ej: 'contraseña', 'hacienda', 'ticket')..."
+                placeholder="Escribe para buscar en la ayuda (ej: 'cobertura', 'viáticos', 'redondeo')..."
                 className="w-full pl-10 h-12 text-base"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}

@@ -11,12 +11,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { PlusCircle, Search, Edit, Trash2, Loader2, UserPlus, Users, Building2, Mail, Phone, Briefcase, SearchIcon, CheckCircle2, AlertCircle, MapPin } from 'lucide-react';
+import { PlusCircle, Search, Edit, Trash2, Loader2, UserPlus, Users, Building2, Mail, Phone, Briefcase, SearchIcon, CheckCircle2, AlertCircle, MapPin, ShieldCheck } from 'lucide-react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { upsertCustomer, deleteCustomer } from '@/modules/core/lib/data-access-db';
 import { getContributorInfo } from '@/modules/hacienda/lib/actions';
 import { getCRGeoData } from '@/modules/tickets/lib/actions';
-import type { Customer, CustomerContact, HaciendaContributorInfo, Province, Canton, District } from '@/modules/core/types';
+import type { Customer, CustomerContact, HaciendaContributorInfo, Province, Canton, District, SupportPackage } from '@/modules/core/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -53,12 +53,13 @@ const emptyCustomer: Customer = {
     taxActivities: '[]',
     provinceId: null,
     cantonId: null,
-    districtId: null
+    districtId: null,
+    supportPackageId: null
 };
 
 export default function CustomersClient() {
     const { setTitle } = usePageTitle();
-    const { customers, refreshAuth, isAuthReady } = useAuth();
+    const { customers, refreshAuth, isAuthReady, companyData } = useAuth();
     const { toast } = useToast();
     const { hasPermission } = useAuthorization();
 
@@ -70,7 +71,6 @@ export default function CustomersClient() {
     const [isEditing, setIsEditing] = useState(false);
     const [newContact, setNewContact] = useState<CustomerContact>(emptyContact);
 
-    // Geo Data State
     const [geoData, setGeoData] = useState<{ provinces: Province[], cantons: Canton[], districts: District[] }>({ provinces: [], cantons: [], districts: [] });
 
     useEffect(() => {
@@ -86,7 +86,6 @@ export default function CustomersClient() {
         fetchGeo();
     }, [setTitle]);
 
-    // Effect to auto-search Hacienda when taxId is entered
     useEffect(() => {
         if (isEditing || currentCustomer.taxId.length < 9 || currentCustomer.taxId.length > 12) return;
 
@@ -162,7 +161,8 @@ export default function CustomersClient() {
         setCurrentCustomer({
             ...customer,
             contacts: Array.isArray(customer.contacts) ? customer.contacts : [],
-            taxActivities: customer.taxActivities || '[]'
+            taxActivities: customer.taxActivities || '[]',
+            supportPackageId: customer.supportPackageId || null
         });
         setIsEditing(true);
         setFormOpen(true);
@@ -308,18 +308,6 @@ export default function CustomersClient() {
                                                             </div>
                                                         </div>
                                                     </div>
-                                                    {taxActivities.length > 0 && (
-                                                        <div className="space-y-1">
-                                                            <span className="text-muted-foreground text-[10px]">Actividades Económicas:</span>
-                                                            <div className="space-y-1 max-h-24 overflow-y-auto pr-2 scrollbar-thin">
-                                                                {taxActivities.map((act: { codigo: string; descripcion: string }) => (
-                                                                    <div key={act.codigo} className="p-1.5 bg-background border rounded text-[9px] leading-tight">
-                                                                        <strong>{act.codigo}</strong> - {act.descripcion}
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                    )}
                                                 </div>
                                             )}
 
@@ -330,6 +318,32 @@ export default function CustomersClient() {
                                             <div className="space-y-2">
                                                 <Label htmlFor="cust-email">Correo para Notificaciones</Label>
                                                 <Input id="cust-email" type="email" value={currentCustomer.email} onChange={e => setCurrentCustomer({...currentCustomer, email: e.target.value})} />
+                                            </div>
+                                        </div>
+                                    </section>
+
+                                    <Separator />
+
+                                    <section>
+                                        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                                            <ShieldCheck className="h-5 w-5 text-primary" /> Plan de Soporte Técnico
+                                        </h3>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <Label>Paquete de Soporte Mensual</Label>
+                                                <Select 
+                                                    value={currentCustomer.supportPackageId || 'none'} 
+                                                    onValueChange={v => setCurrentCustomer({...currentCustomer, supportPackageId: v === 'none' ? null : v})}
+                                                >
+                                                    <SelectTrigger><SelectValue placeholder="Sin plan asignado"/></SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="none">Sin plan (Soporte por evento)</SelectItem>
+                                                        {(companyData?.supportPackages || []).map(pkg => (
+                                                            <SelectItem key={pkg.id} value={pkg.id}>{pkg.name}</SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                                <p className="text-[10px] text-muted-foreground">Define la lógica de redondeo y servicios incluidos para este cliente.</p>
                                             </div>
                                         </div>
                                     </section>
@@ -382,7 +396,7 @@ export default function CustomersClient() {
                                         </div>
                                         <div className="space-y-2">
                                             <Label htmlFor="cust-address">Dirección Exacta (Señas)</Label>
-                                            <Textarea id="cust-address" value={currentCustomer.address} onChange={e => setCurrentCustomer({...currentCustomer, address: e.target.value})} placeholder="Ej: 100m norte de la escuela, casa color verde..." />
+                                            <Textarea id="cust-address" value={currentCustomer.address || ''} onChange={e => setCurrentCustomer({...currentCustomer, address: e.target.value})} placeholder="Ej: 100m norte de la escuela, casa color verde..." />
                                         </div>
                                     </section>
 
@@ -396,36 +410,20 @@ export default function CustomersClient() {
                                         <div className="bg-muted/30 p-4 rounded-lg border space-y-4 mb-6">
                                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                                 <div className="space-y-1.5">
-                                                    <Label htmlFor="contact-name" className="text-xs">Nombre Completo</Label>
-                                                    <Input id="contact-name" value={newContact.name} onChange={e => setNewContact({...newContact, name: e.target.value})} placeholder="Ej: Juan Perez" className="h-8 text-xs" />
+                                                    <Label className="text-xs">Nombre Completo</Label>
+                                                    <Input value={newContact.name} onChange={e => setNewContact({...newContact, name: e.target.value})} placeholder="Ej: Juan Perez" className="h-8 text-xs" />
                                                 </div>
                                                 <div className="space-y-1.5">
-                                                    <Label htmlFor="contact-email" className="text-xs">Correo</Label>
-                                                    <Input id="contact-email" type="email" value={newContact.email} onChange={e => setNewContact({...newContact, email: e.target.value})} placeholder="juan@ejemplo.com" className="h-8 text-xs" />
+                                                    <Label className="text-xs">Correo</Label>
+                                                    <Input type="email" value={newContact.email} onChange={e => setNewContact({...newContact, email: e.target.value})} placeholder="juan@ejemplo.com" className="h-8 text-xs" />
                                                 </div>
                                                 <div className="space-y-1.5">
-                                                    <Label htmlFor="contact-dept" className="text-xs">Departamento / Área</Label>
-                                                    <Input id="contact-dept" value={newContact.department} onChange={e => setNewContact({...newContact, department: e.target.value})} placeholder="Ej: TI, RRHH" className="h-8 text-xs" />
-                                                </div>
-                                                <div className="space-y-1.5">
-                                                    <Label htmlFor="contact-pos" className="text-xs">Puesto</Label>
-                                                    <Input id="contact-pos" value={newContact.position} onChange={e => setNewContact({...newContact, position: e.target.value})} placeholder="Ej: Gerente" className="h-8 text-xs" />
-                                                </div>
-                                                <div className="space-y-1.5">
-                                                    <Label htmlFor="contact-phone" className="text-xs">Tel. Oficina</Label>
-                                                    <Input id="contact-phone" value={newContact.officePhone} onChange={e => setNewContact({...newContact, officePhone: e.target.value})} placeholder="2222-3333" className="h-8 text-xs" />
-                                                </div>
-                                                <div className="space-y-1.5">
-                                                    <Label htmlFor="contact-ws" className="text-xs">WhatsApp</Label>
-                                                    <Input id="contact-ws" value={newContact.whatsapp} onChange={e => setNewContact({...newContact, whatsapp: e.target.value})} placeholder="8888-9999" className="h-8 text-xs" />
-                                                </div>
-                                                <div className="space-y-1.5">
-                                                    <Label htmlFor="contact-branch" className="text-xs">Sucursal</Label>
-                                                    <Input id="contact-branch" value={newContact.branch} onChange={e => setNewContact({...newContact, branch: e.target.value})} placeholder="Ej: San José" className="h-8 text-xs" />
+                                                    <Label className="text-xs">Departamento</Label>
+                                                    <Input value={newContact.department} onChange={e => setNewContact({...newContact, department: e.target.value})} placeholder="Ej: TI, RRHH" className="h-8 text-xs" />
                                                 </div>
                                                 <div className="flex items-end lg:col-span-2">
-                                                    <Button type="button" size="sm" onClick={handleAddContactToList} className="w-full">
-                                                        <PlusCircle className="mr-2 h-4 w-4" /> Agregar Contacto a la Lista
+                                                    <Button type="button" size="sm" onClick={handleAddContactToList} className="w-full h-8">
+                                                        <PlusCircle className="mr-2 h-4 w-4" /> Agregar Contacto
                                                     </Button>
                                                 </div>
                                             </div>
@@ -434,22 +432,16 @@ export default function CustomersClient() {
                                         <div className="space-y-2">
                                             {(currentCustomer.contacts || []).map((contact) => (
                                                 <div key={contact.id} className="flex items-center justify-between p-3 rounded-md border bg-card text-sm shadow-sm group hover:border-primary transition-colors">
-                                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 flex-1">
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 flex-1">
                                                         <div>
                                                             <p className="font-bold">{contact.name}</p>
                                                             <p className="text-xs text-muted-foreground flex items-center gap-1"><Mail className="h-3 w-3" /> {contact.email}</p>
                                                         </div>
                                                         <div>
                                                             <p className="text-xs font-semibold flex items-center gap-1"><Briefcase className="h-3 w-3" /> {contact.department}</p>
-                                                            <p className="text-xs text-muted-foreground">{contact.position}</p>
                                                         </div>
                                                         <div>
-                                                            <p className="text-xs flex items-center gap-1"><Phone className="h-3 w-3" /> {contact.officePhone}</p>
-                                                            <p className="text-xs text-green-600 font-medium">WS: {contact.whatsapp}</p>
-                                                        </div>
-                                                        <div>
-                                                            <p className="text-xs font-semibold">Sucursal:</p>
-                                                            <p className="text-xs text-muted-foreground">{contact.branch || 'Principal'}</p>
+                                                            <p className="text-xs flex items-center gap-1"><Phone className="h-3 w-3" /> {contact.officePhone || contact.whatsapp || 'N/A'}</p>
                                                         </div>
                                                     </div>
                                                     <Button variant="ghost" size="icon" onClick={() => handleRemoveContact(contact.id)} className="opacity-0 group-hover:opacity-100 text-destructive">
@@ -457,11 +449,6 @@ export default function CustomersClient() {
                                                     </Button>
                                                 </div>
                                             ))}
-                                            {(!currentCustomer.contacts || currentCustomer.contacts.length === 0) && (
-                                                <div className="text-center py-8 border-2 border-dashed rounded-lg bg-muted/20">
-                                                    <p className="text-muted-foreground text-sm">No hay contactos agregados para este cliente.</p>
-                                                </div>
-                                            )}
                                         </div>
                                     </section>
                                 </div>
@@ -499,58 +486,61 @@ export default function CustomersClient() {
                                     <TableHead>Código</TableHead>
                                     <TableHead>Nombre</TableHead>
                                     <TableHead>Cédula</TableHead>
-                                    <TableHead>Contactos</TableHead>
+                                    <TableHead>Plan Asignado</TableHead>
                                     <TableHead>Estado</TableHead>
                                     <TableHead className="text-right">Acciones</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {filteredCustomers.length > 0 ? (
-                                    filteredCustomers.map(customer => (
-                                        <TableRow key={customer.id}>
-                                            <TableCell className="font-mono text-xs">{customer.id}</TableCell>
-                                            <TableCell className="font-medium">
-                                                {customer.name}
-                                                {customer.isManual && <Badge variant="outline" className="ml-2 text-[10px]">Local</Badge>}
-                                            </TableCell>
-                                            <TableCell>{customer.taxId}</TableCell>
-                                            <TableCell>
-                                                <div className="flex items-center gap-1">
-                                                    <Badge variant="secondary" className="h-5 px-1.5">{customer.contacts?.length || 0}</Badge>
-                                                    <span className="text-[10px] text-muted-foreground">pers.</span>
-                                                </div>
-                                            </TableCell>
-                                            <TableCell>
-                                                <Badge variant={customer.active === 'S' ? 'default' : 'secondary'}>
-                                                    {customer.active === 'S' ? 'Activo' : 'Inactivo'}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell className="text-right">
-                                                <div className="flex justify-end gap-2">
-                                                    {hasPermission('customers:update') && (
-                                                        <Button variant="ghost" size="icon" onClick={() => handleEdit(customer)}><Edit className="h-4 w-4" /></Button>
+                                    filteredCustomers.map(customer => {
+                                        const pkg = companyData?.supportPackages.find(p => p.id === customer.supportPackageId);
+                                        return (
+                                            <TableRow key={customer.id}>
+                                                <TableCell className="font-mono text-xs">{customer.id}</TableCell>
+                                                <TableCell className="font-medium">{customer.name}</TableCell>
+                                                <TableCell>{customer.taxId}</TableCell>
+                                                <TableCell>
+                                                    {pkg ? (
+                                                        <Badge variant="default" className="bg-primary/10 text-primary border-primary/20">
+                                                            {pkg.name}
+                                                        </Badge>
+                                                    ) : (
+                                                        <span className="text-xs text-muted-foreground italic">Sin plan</span>
                                                     )}
-                                                    {hasPermission('customers:delete') && (
-                                                        <AlertDialog>
-                                                            <AlertDialogTrigger asChild>
-                                                                <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                                                            </AlertDialogTrigger>
-                                                            <AlertDialogContent>
-                                                                <AlertDialogHeader>
-                                                                    <AlertDialogTitle>¿Eliminar cliente?</AlertDialogTitle>
-                                                                    <AlertDialogDescription>Esta acción borrará permanentemente a <strong>{customer.name}</strong>.</AlertDialogDescription>
-                                                                </AlertDialogHeader>
-                                                                <AlertDialogFooter>
-                                                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                                    <AlertDialogAction onClick={() => handleDelete(customer.id)} className="bg-destructive text-destructive-foreground">Eliminar</AlertDialogAction>
-                                                                </AlertDialogFooter>
-                                                            </AlertDialogContent>
-                                                        </AlertDialog>
-                                                    )}
-                                                </div>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge variant={customer.active === 'S' ? 'default' : 'secondary'}>
+                                                        {customer.active === 'S' ? 'Activo' : 'Inactivo'}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    <div className="flex justify-end gap-2">
+                                                        {hasPermission('customers:update') && (
+                                                            <Button variant="ghost" size="icon" onClick={() => handleEdit(customer)}><Edit className="h-4 w-4" /></Button>
+                                                        )}
+                                                        {hasPermission('customers:delete') && (
+                                                            <AlertDialog>
+                                                                <AlertDialogTrigger asChild>
+                                                                    <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                                                </AlertDialogTrigger>
+                                                                <AlertDialogContent>
+                                                                    <AlertDialogHeader>
+                                                                        <AlertDialogTitle>¿Eliminar cliente?</AlertDialogTitle>
+                                                                        <AlertDialogDescription>Esta acción borrará permanentemente a <strong>{customer.name}</strong>.</AlertDialogDescription>
+                                                                    </AlertDialogHeader>
+                                                                    <AlertDialogFooter>
+                                                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                                        <AlertDialogAction onClick={() => handleDelete(customer.id)} className="bg-destructive text-destructive-foreground">Eliminar</AlertDialogAction>
+                                                                    </AlertDialogFooter>
+                                                                </AlertDialogContent>
+                                                            </AlertDialog>
+                                                        )}
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        );
+                                    })
                                 ) : (
                                     <TableRow>
                                         <TableCell colSpan={6} className="h-24 text-center">No se encontraron clientes.</TableCell>

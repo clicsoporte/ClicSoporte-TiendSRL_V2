@@ -10,7 +10,7 @@ import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError } from '@/modules/core/lib/logger';
 import { useAuth } from '@/modules/core/hooks/useAuth';
-import type { NewTicketPayload, Ticket, TicketPriority, TicketStatus, TicketThread, User, HelpTopic, Contract, ThirdPartyProvider, CustomerContact } from '@/modules/core/types';
+import type { NewTicketPayload, Ticket, TicketPriority, TicketStatus, TicketThread, User, HelpTopic, Contract, ThirdPartyProvider, CustomerContact, SupportPackage } from '@/modules/core/types';
 import {
     saveTicket, getTickets, getTicketById as getTicketByIdServer,
     getTicketThread as getTicketThreadServer,
@@ -115,18 +115,37 @@ export const useTickets = () => {
         }
     }, [setTitle, isAuthorized, loadInitialData]);
 
-    const validateCoverage = useCallback((serviceId: string | null, contract: Contract | null) => {
-        if (!serviceId) return { isBillable: false, message: 'Seleccione un servicio' };
-        if (!contract) return { isBillable: true, message: 'El cliente NO TIENE un contrato activo. El servicio será FACTURABLE.' };
+    const validateCoverage = useCallback((serviceId: string | null, contract: Contract | null, customerId: string | null) => {
+        if (!serviceId) return { isBillable: false, message: 'Seleccione un servicio para validar cobertura.' };
+        
+        // Priority 1: Check active contract
+        if (contract) {
+            if (contract.includedServices.includes(serviceId)) {
+                return { isBillable: false, message: `Servicio cubierto por CONTRATO VIGENTE: ${contract.name}` };
+            }
+            if (contract.excludedServices.includes(serviceId)) {
+                return { isBillable: true, message: `Servicio EXCLUIDO del contrato. Se generará cobro adicional.` };
+            }
+        }
 
-        if (contract.includedServices.includes(serviceId)) {
-            return { isBillable: false, message: `Servicio cubierto por el contrato: ${contract.name}` };
+        // Priority 2: Check support package linked to customer profile
+        if (customerId) {
+            const customer = customers.find(c => c.id === customerId);
+            if (customer?.supportPackageId) {
+                const pkg = companyData?.supportPackages.find(p => p.id === customer.supportPackageId);
+                if (pkg) {
+                    if (pkg.includedServices.includes(serviceId)) {
+                        return { isBillable: false, message: `Servicio cubierto por PLAN MENSUAL: ${pkg.name}` };
+                    }
+                    if (pkg.excludedServices.includes(serviceId)) {
+                        return { isBillable: true, message: `Servicio NO INCLUIDO en el plan ${pkg.name}. Se generará cobro.` };
+                    }
+                }
+            }
         }
-        if (contract.excludedServices.includes(serviceId)) {
-            return { isBillable: true, message: `Servicio EXCLUIDO del contrato. Será FACTURABLE por separado.` };
-        }
-        return { isBillable: true, message: 'Servicio no especificado en el contrato. Por defecto será FACTURABLE.' };
-    }, []);
+
+        return { isBillable: true, message: 'Sin cobertura detectada (No tiene contrato ni plan mensual que incluya este servicio). FACTURABLE.' };
+    }, [customers, companyData]);
 
     const handleNewTicketChange = useCallback((field: keyof NewTicketPayload, value: string | number | boolean | null) => {
         setState(prevState => {
@@ -146,7 +165,7 @@ export const useTickets = () => {
             }
 
             if (field === 'serviceId' || field === 'helpTopicId') {
-                const { isBillable } = validateCoverage(updatedTicket.serviceId, prevState.activeContract);
+                const { isBillable } = validateCoverage(updatedTicket.serviceId, prevState.activeContract, prevState.selectedCustomerId);
                 updatedTicket.isBillable = isBillable;
             }
 
@@ -161,7 +180,7 @@ export const useTickets = () => {
         const contract = await getActiveContractForCustomer(customer.id);
         
         setState(prevState => {
-            const { isBillable } = validateCoverage(prevState.newTicket.serviceId, contract);
+            const { isBillable } = validateCoverage(prevState.newTicket.serviceId, contract, customer.id);
             return {
                 ...prevState,
                 selectedCustomerId: customer.id,
@@ -314,9 +333,9 @@ export const useTickets = () => {
             const priorityMatch = state.priorityFilter === 'all' || ticket.priority === state.priorityFilter;
             return searchMatch && statusMatch && priorityMatch;
         }),
-        coverageMessage: validateCoverage(state.newTicket.serviceId, state.activeContract).message,
+        coverageMessage: validateCoverage(state.newTicket.serviceId, state.activeContract, state.selectedCustomerId).message,
         providers: state.providers
-    }), [users, customers, debouncedCustomerSearch, debouncedSearchTerm, state.tickets, state.statusFilter, state.priorityFilter, state.newTicket.serviceId, state.activeContract, state.providers, validateCoverage]);
+    }), [users, customers, debouncedCustomerSearch, debouncedSearchTerm, state.tickets, state.statusFilter, state.priorityFilter, state.newTicket.serviceId, state.activeContract, state.selectedCustomerId, state.providers, validateCoverage]);
 
     return {
         state,
