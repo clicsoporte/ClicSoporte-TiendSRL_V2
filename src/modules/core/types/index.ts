@@ -94,7 +94,7 @@ export type Role = {
 };
 
 /**
- * Represents a contact person within a customer company.
+ * Represents a contact person within a customer or provider company.
  */
 export type CustomerContact = {
     id: string;
@@ -169,6 +169,7 @@ export type ThirdPartyProvider = {
     createdAt: string;
     services?: ProviderService[];
     geoRates?: ProviderGeoRate[];
+    contacts?: CustomerContact[];
 };
 
 export type ProviderService = {

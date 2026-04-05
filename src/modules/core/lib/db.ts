@@ -267,6 +267,7 @@ export async function initializeMainDatabase(db: Database) {
             phone TEXT,
             specialty TEXT,
             notes TEXT,
+            contacts TEXT,
             createdAt TEXT NOT NULL
         );
 
@@ -564,6 +565,9 @@ export async function runMainMigrations(db: Database) {
     
     // LICENSES Migrations
     if (!hasColumn('licenses', 'hardwareId')) db.exec(`ALTER TABLE licenses ADD COLUMN hardwareId TEXT;`);
+
+    // PROVIDERS Migrations
+    if (!hasColumn('third_party_providers', 'contacts')) db.exec(`ALTER TABLE third_party_providers ADD COLUMN contacts TEXT;`);
 
     // New M-M table for subcontractors
     db.exec(`

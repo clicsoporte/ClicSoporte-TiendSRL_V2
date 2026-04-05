@@ -244,10 +244,11 @@ export async function getCustomerSupportInfo(companyId: number | string): Promis
 
 export async function getThirdPartyProviders(): Promise<ThirdPartyProvider[]> {
     const db = await connectTicketsDb();
-    const providers = db.prepare('SELECT * FROM third_party_providers ORDER BY name ASC').all() as ThirdPartyProvider[];
+    const providers = db.prepare('SELECT * FROM third_party_providers ORDER BY name ASC').all() as (ThirdPartyProvider & { contacts: string })[];
     
     return providers.map(p => ({
         ...p,
+        contacts: JSON.parse(p.contacts || '[]'),
         services: db.prepare('SELECT * FROM provider_services WHERE providerId = ?').all(p.id) as ProviderService[],
         geoRates: db.prepare('SELECT * FROM provider_geo_rates WHERE providerId = ?').all(p.id) as ProviderGeoRate[]
     }));
@@ -256,13 +257,15 @@ export async function getThirdPartyProviders(): Promise<ThirdPartyProvider[]> {
 export async function addThirdPartyProvider(payload: Omit<ThirdPartyProvider, 'id' | 'createdAt'>): Promise<ThirdPartyProvider> {
     const db = await connectTicketsDb();
     const now = new Date().toISOString();
-    const info = db.prepare(`INSERT INTO third_party_providers (name, email, phone, specialty, notes, createdAt) VALUES (?, ?, ?, ?, ?, ?)`).run(payload.name, payload.email, payload.phone, payload.specialty, payload.notes, now);
+    const info = db.prepare(`INSERT INTO third_party_providers (name, email, phone, specialty, notes, contacts, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)`)
+        .run(payload.name, payload.email, payload.phone, payload.specialty, payload.notes, JSON.stringify(payload.contacts || []), now);
     return { ...payload, id: Number(info.lastInsertRowid), createdAt: now, services: [], geoRates: [] } as ThirdPartyProvider;
 }
 
 export async function updateThirdPartyProvider(payload: ThirdPartyProvider): Promise<ThirdPartyProvider> {
     const db = await connectTicketsDb();
-    db.prepare(`UPDATE third_party_providers SET name = ?, email = ?, phone = ?, specialty = ?, notes = ? WHERE id = ?`).run(payload.name, payload.email, payload.phone, payload.specialty, payload.notes, payload.id);
+    db.prepare(`UPDATE third_party_providers SET name = ?, email = ?, phone = ?, specialty = ?, notes = ?, contacts = ? WHERE id = ?`)
+        .run(payload.name, payload.email, payload.phone, payload.specialty, payload.notes, JSON.stringify(payload.contacts || []), payload.id);
     return payload;
 }
 

@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { PlusCircle, Loader2, MoreVertical, Truck, Trash2, MapPin, DollarSign, Briefcase } from 'lucide-react';
+import { PlusCircle, Loader2, MoreVertical, Truck, Trash2, MapPin, DollarSign, Briefcase, Users, Mail, Phone, Building2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { useToast } from '@/modules/core/hooks/use-toast';
@@ -20,15 +20,27 @@ import {
     getThirdPartyProviders, addThirdPartyProvider, updateThirdPartyProvider, deleteThirdPartyProvider,
     getCRGeoData, saveProviderService, deleteProviderService, saveProviderGeoRate, deleteProviderGeoRate 
 } from '@/modules/tickets/lib/actions';
-import type { ThirdPartyProvider, Province, Canton, District, ProviderService, ProviderGeoRate } from '@/modules/core/types';
+import type { ThirdPartyProvider, Province, Canton, District, ProviderService, ProviderGeoRate, CustomerContact } from '@/modules/core/types';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/modules/core/hooks/useAuth';
+import { Separator } from '@/components/ui/separator';
 
-const emptyProvider: Omit<ThirdPartyProvider, 'id' | 'createdAt' | 'services' | 'geoRates'> = {
+const emptyContact: CustomerContact = {
+    id: '',
+    name: '',
+    email: '',
+    department: '',
+    position: '',
+    officePhone: '',
+    whatsapp: '',
+    branch: ''
+};
+
+const emptyProvider: Omit<ThirdPartyProvider, 'id' | 'createdAt' | 'services' | 'geoRates' | 'contacts'> = {
     name: '',
     email: '',
     phone: '',
@@ -51,6 +63,7 @@ export default function ProvidersPage() {
     const [isEditing, setIsEditing] = useState(false);
     const [currentProvider, setCurrentProvider] = useState<ThirdPartyProvider | Omit<ThirdPartyProvider, 'id' | 'createdAt'>>(emptyProvider);
     const [providerToDelete, setProviderToDelete] = useState<ThirdPartyProvider | null>(null);
+    const [newContact, setNewContact] = useState<CustomerContact>(emptyContact);
 
     // Rate Management States
     const [newServiceRate, setNewServiceRate] = useState<Omit<ProviderService, 'id'>>({ providerId: 0, serviceId: '', priceRemote: 0, priceOnSite: 0 });
@@ -147,6 +160,26 @@ export default function ProvidersPage() {
         } catch (e) { console.error(e); }
     };
 
+    const handleAddContactToList = () => {
+        if (!newContact.name || !newContact.email) {
+            toast({ title: "Contacto incompleto", description: "El nombre y el correo son obligatorios.", variant: "destructive" });
+            return;
+        }
+        const contactWithId = { ...newContact, id: Date.now().toString() };
+        setCurrentProvider(prev => ({
+            ...prev,
+            contacts: [...(prev.contacts || []), contactWithId]
+        } as ThirdPartyProvider));
+        setNewContact(emptyContact);
+    };
+
+    const handleRemoveContact = (id: string) => {
+        setCurrentProvider(prev => ({
+            ...prev,
+            contacts: (prev.contacts || []).filter(c => c.id !== id)
+        } as ThirdPartyProvider));
+    };
+
     const cantonsForProvince = useMemo(() => geoData.cantons.filter(c => c.provinceId === newGeoRate.provinceId), [geoData.cantons, newGeoRate.provinceId]);
     const districtsForCanton = useMemo(() => geoData.districts.filter(d => d.cantonId === newGeoRate.cantonId), [geoData.districts, newGeoRate.cantonId]);
 
@@ -184,6 +217,7 @@ export default function ProvidersPage() {
                                         <div className="flex gap-1">
                                             <Badge variant="outline" className="text-[10px]">{provider.services?.length || 0} Serv.</Badge>
                                             <Badge variant="outline" className="text-[10px]">{provider.geoRates?.length || 0} Rutas</Badge>
+                                            <Badge variant="outline" className="text-[10px]">{provider.contacts?.length || 0} Cont.</Badge>
                                         </div>
                                     </TableCell>
                                     <TableCell>
@@ -208,11 +242,11 @@ export default function ProvidersPage() {
                 </CardContent>
             </Card>
 
-            <Dialog open={isFormOpen} onOpenChange={(open) => { setFormOpen(open); if(!open){ setCurrentProvider(emptyProvider); setIsEditing(false); }}}>
-                <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-hidden flex flex-col p-0">
+            <Dialog open={isFormOpen} onOpenChange={(open) => { setFormOpen(open); if(!open){ setCurrentProvider(emptyProvider); setIsEditing(false); setNewContact(emptyContact); }}}>
+                <DialogContent className="sm:max-w-5xl h-[90vh] overflow-hidden flex flex-col p-0">
                     <DialogHeader className="p-6 pb-0">
                         <DialogTitle>{isEditing ? 'Gestionar' : 'Registrar'} Proveedor Externo</DialogTitle>
-                        <DialogDescription>Define el catálogo de servicios y zonas geográficas de este colaborador.</DialogDescription>
+                        <DialogDescription>Define el catálogo de servicios, zonas geográficas y contactos de este colaborador.</DialogDescription>
                     </DialogHeader>
                     
                     <Tabs defaultValue="general" className="flex-1 overflow-hidden flex flex-col">
@@ -222,18 +256,91 @@ export default function ProvidersPage() {
                             <TabsTrigger value="geo" className="px-4" disabled={!isEditing}>Zonas y Viáticos</TabsTrigger>
                         </TabsList>
 
-                        <div className="flex-1 overflow-y-auto p-6">
-                            <TabsContent value="general" className="space-y-4 m-0">
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2"><Label>Nombre Comercial</Label><Input value={currentProvider.name} onChange={e => setCurrentProvider({...currentProvider, name: e.target.value})} required /></div>
-                                    <div className="space-y-2"><Label>Especialidad Principal</Label><Input value={currentProvider.specialty} onChange={e => setCurrentProvider({...currentProvider, specialty: e.target.value})} /></div>
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2"><Label>Teléfono</Label><Input value={currentProvider.phone} onChange={e => setCurrentProvider({...currentProvider, phone: e.target.value})} /></div>
-                                    <div className="space-y-2"><Label>Correo Electrónico</Label><Input type="email" value={currentProvider.email} onChange={e => setCurrentProvider({...currentProvider, email: e.target.value})} /></div>
-                                </div>
-                                <div className="space-y-2"><Label>Notas Internas</Label><Textarea value={currentProvider.notes} onChange={e => setCurrentProvider({...currentProvider, notes: e.target.value})} rows={4} /></div>
-                                <div className="flex justify-end pt-4"><Button onClick={handleSaveProvider} disabled={isSubmitting}>{isSubmitting && <Loader2 className="mr-2 animate-spin"/>}Guardar Datos Generales</Button></div>
+                        <div className="flex-1 overflow-y-auto p-6 scrollbar-thin">
+                            <TabsContent value="general" className="space-y-8 m-0 pr-2">
+                                <section>
+                                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                                        <Building2 className="h-5 w-5 text-primary" /> Información de Empresa
+                                    </h3>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2"><Label>Nombre Comercial</Label><Input value={currentProvider.name} onChange={e => setCurrentProvider({...currentProvider, name: e.target.value})} required /></div>
+                                        <div className="space-y-2"><Label>Especialidad Principal</Label><Input value={currentProvider.specialty} onChange={e => setCurrentProvider({...currentProvider, specialty: e.target.value})} /></div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4 mt-4">
+                                        <div className="space-y-2"><Label>Teléfono Central</Label><Input value={currentProvider.phone} onChange={e => setCurrentProvider({...currentProvider, phone: e.target.value})} /></div>
+                                        <div className="space-y-2"><Label>Correo Central</Label><Input type="email" value={currentProvider.email} onChange={e => setCurrentProvider({...currentProvider, email: e.target.value})} /></div>
+                                    </div>
+                                    <div className="space-y-2 mt-4"><Label>Notas Internas</Label><Textarea value={currentProvider.notes} onChange={e => setCurrentProvider({...currentProvider, notes: e.target.value})} rows={3} /></div>
+                                </section>
+
+                                <Separator />
+
+                                <section>
+                                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                                        <Users className="h-5 w-5 text-primary" /> Contactos de la Empresa
+                                    </h3>
+                                    
+                                    <div className="bg-muted/30 p-4 rounded-lg border space-y-4 mb-6">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                            <div className="space-y-1.5">
+                                                <Label className="text-xs">Nombre Completo</Label>
+                                                <Input value={newContact.name} onChange={e => setNewContact({...newContact, name: e.target.value})} placeholder="Ej: Juan Perez" className="h-8 text-xs" />
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <Label className="text-xs">Correo</Label>
+                                                <Input type="email" value={newContact.email} onChange={e => setNewContact({...newContact, email: e.target.value})} placeholder="juan@ejemplo.com" className="h-8 text-xs" />
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <Label className="text-xs">Departamento</Label>
+                                                <Input value={newContact.department} onChange={e => setNewContact({...newContact, department: e.target.value})} placeholder="Ej: Técnico, Ventas" className="h-8 text-xs" />
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <Label className="text-xs">Tel. Oficina</Label>
+                                                <Input value={newContact.officePhone} onChange={e => setNewContact({...newContact, officePhone: e.target.value})} placeholder="2222-3333" className="h-8 text-xs" />
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <Label className="text-xs">WhatsApp</Label>
+                                                <Input value={newContact.whatsapp} onChange={e => setNewContact({...newContact, whatsapp: e.target.value})} placeholder="8888-9999" className="h-8 text-xs" />
+                                            </div>
+                                            <div className="flex items-end">
+                                                <Button type="button" size="sm" onClick={handleAddContactToList} className="w-full h-8">
+                                                    <PlusCircle className="mr-2 h-4 w-4" /> Agregar Contacto
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        {(currentProvider.contacts || []).map((contact) => (
+                                            <div key={contact.id} className="flex items-center justify-between p-3 rounded-md border bg-card text-sm shadow-sm group hover:border-primary transition-colors">
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 flex-1">
+                                                    <div>
+                                                        <p className="font-bold">{contact.name}</p>
+                                                        <p className="text-xs text-muted-foreground flex items-center gap-1"><Mail className="h-3 w-3" /> {contact.email}</p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-xs font-semibold flex items-center gap-1"><Briefcase className="h-3 w-3" /> {contact.department}</p>
+                                                        <p className="text-xs text-muted-foreground">{contact.position}</p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-xs flex items-center gap-1"><Phone className="h-3 w-3" /> {contact.officePhone}</p>
+                                                        <p className="text-xs text-green-600 font-medium">WS: {contact.whatsapp}</p>
+                                                    </div>
+                                                </div>
+                                                <Button variant="ghost" size="icon" onClick={() => handleRemoveContact(contact.id)} className="opacity-0 group-hover:opacity-100 text-destructive">
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        ))}
+                                        {(!currentProvider.contacts || currentProvider.contacts.length === 0) && (
+                                            <div className="text-center py-8 border-2 border-dashed rounded-lg bg-muted/20">
+                                                <p className="text-muted-foreground text-sm">No hay contactos agregados para este proveedor.</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </section>
+
+                                <div className="flex justify-end pt-4"><Button onClick={handleSaveProvider} disabled={isSubmitting}>{isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Guardar Proveedor</Button></div>
                             </TabsContent>
 
                             <TabsContent value="rates" className="space-y-6 m-0">
