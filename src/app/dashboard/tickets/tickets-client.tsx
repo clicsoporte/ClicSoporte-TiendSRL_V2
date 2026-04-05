@@ -7,7 +7,7 @@ import { useTickets } from "@/modules/tickets/hooks/useTickets";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
-import { FilePlus, Loader2, FilterX, ShieldCheck, ShieldAlert, UserCircle, Clock } from "lucide-react";
+import { FilePlus, Loader2, FilterX, ShieldCheck, ShieldAlert, UserCircle, Clock, Info, DollarSign } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -21,9 +21,10 @@ import { useRouter } from "next/navigation";
 import { useAuthorization } from "@/modules/core/hooks/useAuthorization";
 import Link from "next/link";
 import { useAuth } from "@/modules/core/hooks/useAuth";
-import type { Ticket, CustomerContact } from '@/modules/core/types';
+import type { Ticket, CustomerContact, ThirdPartyProvider } from '@/modules/core/types';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
+import { useMemo } from "react";
 
 export default function TicketsClient() {
     const { state, actions, selectors } = useTickets();
@@ -48,6 +49,22 @@ export default function TicketsClient() {
 
     const selectedCustomer = customers.find(c => c.id === selectedCustomerId);
     const customerContacts = selectedCustomer?.contacts || [];
+
+    // Intelligence: Provider rate matching
+    const providerRateInfo = useMemo(() => {
+        if (!newTicket.providerId || !newTicket.serviceId) return null;
+        const provider = providers.find(p => p.id === Number(newTicket.providerId));
+        if (!provider) return null;
+
+        const serviceRate = provider.services?.find(s => s.serviceId === newTicket.serviceId);
+        if (!serviceRate) return null;
+
+        return {
+            providerName: provider.name,
+            remote: serviceRate.priceRemote,
+            onSite: serviceRate.priceOnSite,
+        };
+    }, [newTicket.providerId, newTicket.serviceId, providers]);
 
     const formatDuration = (ms: number | undefined) => {
         if (!ms) return "00:00";
@@ -201,6 +218,22 @@ export default function TicketsClient() {
                                                     </Select>
                                                 </div>
                                             </div>
+
+                                            {providerRateInfo && (
+                                                <div className="bg-blue-50 p-3 rounded-lg border border-blue-200 space-y-2">
+                                                    <p className="text-[10px] font-bold text-blue-700 uppercase flex items-center gap-1"><Info className="h-3 w-3"/> Tarifas del Especialista</p>
+                                                    <div className="grid grid-cols-2 gap-2 text-[10px]">
+                                                        <div className="flex flex-col">
+                                                            <span className="text-muted-foreground uppercase">Remoto</span>
+                                                            <span className="font-bold text-blue-900">¢{providerRateInfo.remote.toLocaleString()}</span>
+                                                        </div>
+                                                        <div className="flex flex-col">
+                                                            <span className="text-muted-foreground uppercase">En Sitio (Labor)</span>
+                                                            <span className="font-bold text-blue-900">¢{providerRateInfo.onSite.toLocaleString()}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
 
                                             <div className="pt-4 space-y-2 border-t mt-4">
                                                 <div className="flex items-center justify-between mb-1">

@@ -270,6 +270,45 @@ export async function initializeMainDatabase(db: Database) {
             createdAt TEXT NOT NULL
         );
 
+        CREATE TABLE IF NOT EXISTS provider_services (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            providerId INTEGER NOT NULL,
+            serviceId TEXT NOT NULL,
+            priceRemote REAL DEFAULT 0,
+            priceOnSite REAL DEFAULT 0,
+            FOREIGN KEY (providerId) REFERENCES third_party_providers(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS provinces (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS cantons (
+            id INTEGER PRIMARY KEY,
+            provinceId INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            FOREIGN KEY (provinceId) REFERENCES provinces(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS districts (
+            id INTEGER PRIMARY KEY,
+            cantonId INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            FOREIGN KEY (cantonId) REFERENCES cantons(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS provider_geo_rates (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            providerId INTEGER NOT NULL,
+            provinceId INTEGER NOT NULL,
+            cantonId INTEGER,
+            districtId INTEGER,
+            travelPrice REAL DEFAULT 0,
+            locationName TEXT NOT NULL,
+            FOREIGN KEY (providerId) REFERENCES third_party_providers(id) ON DELETE CASCADE
+        );
+
         -- PLANNER MODULE
         CREATE TABLE IF NOT EXISTS planner_settings (
             key TEXT PRIMARY KEY,
@@ -437,6 +476,34 @@ export async function initializeMainDatabase(db: Database) {
     db.prepare(`INSERT OR IGNORE INTO cost_assistant_settings (key, value) VALUES ('nextDraftNumber', '1'), ('draftPrefix', 'AC-')`).run();
     db.prepare(`INSERT OR IGNORE INTO notification_settings (service, config) VALUES ('telegram', ?)`).run(JSON.stringify({ botToken: '', chatId: '' }));
 
+    // Seed Costa Rica Provinces
+    const provinces = [
+        { id: 1, name: 'San José' },
+        { id: 2, name: 'Alajuela' },
+        { id: 3, name: 'Cartago' },
+        { id: 4, name: 'Heredia' },
+        { id: 5, name: 'Guanacaste' },
+        { id: 6, name: 'Puntarenas' },
+        { id: 7, name: 'Limón' }
+    ];
+    const insertProvince = db.prepare('INSERT OR IGNORE INTO provinces (id, name) VALUES (?, ?)');
+    provinces.forEach(p => insertProvince.run(p.id, p.name));
+
+    // Seed some example cantons
+    const cantons = [
+        { id: 101, provinceId: 1, name: 'San José' },
+        { id: 102, provinceId: 1, name: 'Escazú' },
+        { id: 103, provinceId: 1, name: 'Desamparados' },
+        { id: 201, provinceId: 2, name: 'Alajuela' },
+        { id: 202, provinceId: 2, name: 'San Ramón' },
+        { id: 301, provinceId: 3, name: 'Cartago' },
+        { id: 302, provinceId: 3, name: 'Paraíso' },
+        { id: 401, provinceId: 4, name: 'Heredia' },
+        { id: 402, provinceId: 4, name: 'Barva' }
+    ];
+    const insertCanton = db.prepare('INSERT OR IGNORE INTO cantons (id, provinceId, name) VALUES (?, ?, ?)');
+    cantons.forEach(c => insertCanton.run(c.id, c.provinceId, c.name));
+
     // Default Help Topics
     const topics = [
         { id: 1, name: 'Soporte General', defaultPriority: 'medium' },
@@ -447,13 +514,13 @@ export async function initializeMainDatabase(db: Database) {
     topics.forEach(t => insertTopic.run(t));
 
     // Default Software Products
-    const products = [
+    const software = [
         { name: 'Clic-Soporte SaaS', isInternal: 1 },
         { name: 'Antivirus Kaspersky', isInternal: 0 },
         { name: 'Microsoft Office 365', isInternal: 0 }
     ];
     const insertSoftware = db.prepare('INSERT OR IGNORE INTO software_products (name, isInternal) VALUES (@name, @isInternal)');
-    products.forEach(p => insertSoftware.run(p));
+    software.forEach(p => insertSoftware.run(p));
 }
 
 export async function runMainMigrations(db: Database) {
@@ -505,6 +572,48 @@ export async function runMainMigrations(db: Database) {
             providerId INTEGER NOT NULL,
             PRIMARY KEY (projectId, providerId),
             FOREIGN KEY (projectId) REFERENCES projects(id) ON DELETE CASCADE,
+            FOREIGN KEY (providerId) REFERENCES third_party_providers(id) ON DELETE CASCADE
+        );
+    `);
+
+    // Provider Intelligence Tables
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS provider_services (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            providerId INTEGER NOT NULL,
+            serviceId TEXT NOT NULL,
+            priceRemote REAL DEFAULT 0,
+            priceOnSite REAL DEFAULT 0,
+            FOREIGN KEY (providerId) REFERENCES third_party_providers(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS provinces (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS cantons (
+            id INTEGER PRIMARY KEY,
+            provinceId INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            FOREIGN KEY (provinceId) REFERENCES provinces(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS districts (
+            id INTEGER PRIMARY KEY,
+            cantonId INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            FOREIGN KEY (cantonId) REFERENCES cantons(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS provider_geo_rates (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            providerId INTEGER NOT NULL,
+            provinceId INTEGER NOT NULL,
+            cantonId INTEGER,
+            districtId INTEGER,
+            travelPrice REAL DEFAULT 0,
+            locationName TEXT NOT NULL,
             FOREIGN KEY (providerId) REFERENCES third_party_providers(id) ON DELETE CASCADE
         );
     `);

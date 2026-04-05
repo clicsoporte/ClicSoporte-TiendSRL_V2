@@ -4,7 +4,7 @@
 'use client';
 
 import { logInfo, logError } from '@/modules/core/lib/logger';
-import type { Ticket, NewTicketPayload, User, TicketThread, HelpTopic, ClientCompany, SupportPackage, Service, ThirdPartyProvider } from '@/modules/core/types';
+import type { Ticket, NewTicketPayload, User, TicketThread, HelpTopic, ClientCompany, SupportPackage, Service, ThirdPartyProvider, ProviderService, ProviderGeoRate, Province, Canton, District } from '@/modules/core/types';
 import { 
     addTicket as addTicketServer, 
     getTickets as getTicketsServer, 
@@ -26,6 +26,11 @@ import {
     addThirdPartyProvider as addThirdPartyProviderServer,
     updateThirdPartyProvider as updateThirdPartyProviderServer,
     deleteThirdPartyProvider as deleteThirdPartyProviderServer,
+    saveProviderService as saveProviderServiceServer,
+    deleteProviderService as deleteProviderServiceServer,
+    saveProviderGeoRate as saveProviderGeoRateServer,
+    deleteProviderGeoRate as deleteProviderGeoRateServer,
+    getCRGeoData as getCRGeoDataServer,
 } from './db';
 import { triggerNotificationEvent } from '@/modules/notifications/lib/notifications-engine';
 
@@ -185,4 +190,24 @@ export async function updateThirdPartyProvider(payload: ThirdPartyProvider): Pro
 
 export async function deleteThirdPartyProvider(id: number): Promise<void> {
     return deleteThirdPartyProviderServer(id);
+}
+
+export async function saveProviderService(payload: Omit<ProviderService, 'id'>): Promise<ProviderService> {
+    return JSON.parse(JSON.stringify(await saveProviderServiceServer(payload)));
+}
+
+export async function deleteProviderService(id: number): Promise<void> {
+    return deleteProviderServiceServer(id);
+}
+
+export async function saveProviderGeoRate(payload: Omit<ProviderGeoRate, 'id'>): Promise<ProviderGeoRate> {
+    return JSON.parse(JSON.stringify(await saveProviderGeoRateServer(payload)));
+}
+
+export async function deleteProviderGeoRate(id: number): Promise<void> {
+    return deleteProviderGeoRateServer(id);
+}
+
+export async function getCRGeoData(): Promise<{ provinces: Province[], cantons: Canton[], districts: District[] }> {
+    return JSON.parse(JSON.stringify(await getCRGeoDataServer()));
 }

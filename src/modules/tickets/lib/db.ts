@@ -8,7 +8,7 @@ import type { Database } from 'better-sqlite3';
 import { connectDb } from '@/modules/core/lib/db';
 import { logError } from '@/modules/core/lib/logger';
 import { getCompanySettings } from '@/modules/core/lib/settings-db';
-import type { Ticket, NewTicketPayload, User, TicketThread, HelpTopic, ClientCompany, SupportPackage, Service, ThirdPartyProvider } from '@/modules/core/types';
+import type { Ticket, NewTicketPayload, User, TicketThread, HelpTopic, ClientCompany, SupportPackage, Service, ThirdPartyProvider, ProviderService, ProviderGeoRate, Province, Canton, District } from '@/modules/core/types';
 
 /**
  * Interface representing a Ticket row as it comes from the database.
@@ -244,14 +244,20 @@ export async function getCustomerSupportInfo(companyId: number | string): Promis
 
 export async function getThirdPartyProviders(): Promise<ThirdPartyProvider[]> {
     const db = await connectTicketsDb();
-    return db.prepare('SELECT * FROM third_party_providers ORDER BY name ASC').all() as ThirdPartyProvider[];
+    const providers = db.prepare('SELECT * FROM third_party_providers ORDER BY name ASC').all() as ThirdPartyProvider[];
+    
+    return providers.map(p => ({
+        ...p,
+        services: db.prepare('SELECT * FROM provider_services WHERE providerId = ?').all(p.id) as ProviderService[],
+        geoRates: db.prepare('SELECT * FROM provider_geo_rates WHERE providerId = ?').all(p.id) as ProviderGeoRate[]
+    }));
 }
 
 export async function addThirdPartyProvider(payload: Omit<ThirdPartyProvider, 'id' | 'createdAt'>): Promise<ThirdPartyProvider> {
     const db = await connectTicketsDb();
     const now = new Date().toISOString();
     const info = db.prepare(`INSERT INTO third_party_providers (name, email, phone, specialty, notes, createdAt) VALUES (?, ?, ?, ?, ?, ?)`).run(payload.name, payload.email, payload.phone, payload.specialty, payload.notes, now);
-    return { ...payload, id: Number(info.lastInsertRowid), createdAt: now } as ThirdPartyProvider;
+    return { ...payload, id: Number(info.lastInsertRowid), createdAt: now, services: [], geoRates: [] } as ThirdPartyProvider;
 }
 
 export async function updateThirdPartyProvider(payload: ThirdPartyProvider): Promise<ThirdPartyProvider> {
@@ -263,4 +269,35 @@ export async function updateThirdPartyProvider(payload: ThirdPartyProvider): Pro
 export async function deleteThirdPartyProvider(id: number): Promise<void> {
     const db = await connectTicketsDb();
     db.prepare('DELETE FROM third_party_providers WHERE id = ?').run(id);
+}
+
+export async function saveProviderService(payload: Omit<ProviderService, 'id'>): Promise<ProviderService> {
+    const db = await connectTicketsDb();
+    const info = db.prepare('INSERT INTO provider_services (providerId, serviceId, priceRemote, priceOnSite) VALUES (?, ?, ?, ?)').run(payload.providerId, payload.serviceId, payload.priceRemote, payload.priceOnSite);
+    return { ...payload, id: Number(info.lastInsertRowid) } as ProviderService;
+}
+
+export async function deleteProviderService(id: number): Promise<void> {
+    const db = await connectTicketsDb();
+    db.prepare('DELETE FROM provider_services WHERE id = ?').run(id);
+}
+
+export async function saveProviderGeoRate(payload: Omit<ProviderGeoRate, 'id'>): Promise<ProviderGeoRate> {
+    const db = await connectTicketsDb();
+    const info = db.prepare('INSERT INTO provider_geo_rates (providerId, provinceId, cantonId, districtId, travelPrice, locationName) VALUES (?, ?, ?, ?, ?, ?)').run(payload.providerId, payload.provinceId, payload.cantonId || null, payload.districtId || null, payload.travelPrice, payload.locationName);
+    return { ...payload, id: Number(info.lastInsertRowid) } as ProviderGeoRate;
+}
+
+export async function deleteProviderGeoRate(id: number): Promise<void> {
+    const db = await connectTicketsDb();
+    db.prepare('DELETE FROM provider_geo_rates WHERE id = ?').run(id);
+}
+
+export async function getCRGeoData(): Promise<{ provinces: Province[], cantons: Canton[], districts: District[] }> {
+    const db = await connectTicketsDb();
+    return {
+        provinces: db.prepare('SELECT * FROM provinces ORDER BY name ASC').all() as Province[],
+        cantons: db.prepare('SELECT * FROM cantons ORDER BY name ASC').all() as Canton[],
+        districts: db.prepare('SELECT * FROM districts ORDER BY name ASC').all() as District[]
+    };
 }

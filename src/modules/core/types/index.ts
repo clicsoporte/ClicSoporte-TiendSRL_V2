@@ -167,7 +167,31 @@ export type ThirdPartyProvider = {
     specialty: string;
     notes?: string;
     createdAt: string;
+    services?: ProviderService[];
+    geoRates?: ProviderGeoRate[];
 };
+
+export type ProviderService = {
+    id: number;
+    providerId: number;
+    serviceId: string;
+    priceRemote: number;
+    priceOnSite: number;
+};
+
+export type ProviderGeoRate = {
+    id: number;
+    providerId: number;
+    provinceId: number;
+    cantonId?: number;
+    districtId?: number;
+    travelPrice: number;
+    locationName: string; // Flattened name for UI
+};
+
+export type Province = { id: number; name: string; };
+export type Canton = { id: number; provinceId: number; name: string; };
+export type District = { id: number; cantonId: number; name: string; };
 
 /**
  * Represents a product or article, typically imported from an ERP system.
