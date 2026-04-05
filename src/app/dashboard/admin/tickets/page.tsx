@@ -1,10 +1,11 @@
 /**
  * @fileoverview Page for managing support ticket settings.
+ * Now includes management for the Costa Rica Geographic Module.
  */
 'use client';
 
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTicketSettings } from '@/modules/tickets/hooks/useTicketSettings';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
@@ -13,7 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { MoreHorizontal, PlusCircle, Trash2, Clock, Hourglass, DollarSign } from 'lucide-react';
+import { MoreHorizontal, PlusCircle, Trash2, Clock, Hourglass, DollarSign, MapPin, Edit, Map as MapIcon } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -34,6 +35,14 @@ export default function TicketSettingsPage() {
         isLoading
     } = useTicketSettings();
 
+    // Geographic selection state
+    const [selectedProvinceId, setSelectedProvinceId] = useState<number | null>(null);
+    const [selectedCantonId, setSelectedCantonId] = useState<number | null>(null);
+    const [geoEditName, setGeoGeoEditName] = useState("");
+    const [isGeoEditOpen, setGeoEditOpen] = useState(false);
+    const [geoEditType, setGeoEditType] = useState<'province' | 'canton' | 'district'>('province');
+    const [geoEditTarget, setGeoEditTarget] = useState<any>(null);
+
     const supportUsers = useMemo(() => {
         if (!selectors.allUsers) return [];
         const supportRoleIds = (selectors.allRoles || [])
@@ -47,29 +56,46 @@ export default function TicketSettingsPage() {
         setTitle("Configuración de Tickets");
     }, [setTitle]);
 
+    const openGeoEdit = (type: 'province' | 'canton' | 'district', target?: any) => {
+        setGeoEditType(type);
+        setGeoEditTarget(target || null);
+        setGeoGeoEditName(target?.name || "");
+        setGeoEditOpen(true);
+    };
+
+    const handleGeoSave = async () => {
+        if (!geoGeoEditName.trim()) return;
+        const action = geoEditTarget ? 'update' : 'add';
+        const data = geoEditTarget ? { ...geoEditTarget, name: geoGeoEditName } : { name: geoGeoEditName };
+        
+        if (action === 'add') {
+            if (geoEditType === 'canton') (data as any).provinceId = selectedProvinceId;
+            if (geoEditType === 'district') (data as any).cantonId = selectedCantonId;
+        }
+
+        await actions.handleGeoAction(geoEditType, action, data);
+        setGeoEditOpen(false);
+    };
+
     if (!isAuthorized) {
         return null;
     }
 
     if (isLoading || !companyData) {
         return (
-            <main className="flex-1 p-4 md:p-6 lg:p-8">
-                 <Card>
-                    <CardHeader>
-                        <Skeleton className="h-8 w-64"/>
-                        <Skeleton className="h-4 w-96 mt-2"/>
-                    </CardHeader>
-                    <CardContent className="pt-6">
-                        <Skeleton className="h-40 w-full" />
-                    </CardContent>
-                 </Card>
+            <main className="flex-1 p-4 md:p-6 lg:p-8 space-y-6">
+                 <Skeleton className="h-12 w-full"/>
+                 <Skeleton className="h-[600px] w-full" />
             </main>
         )
     }
 
+    const cantonsForProvince = state.cantons.filter(c => c.provinceId === selectedProvinceId);
+    const districtsForCanton = state.districts.filter(d => d.cantonId === selectedCantonId);
+
     return (
         <main className="flex-1 p-4 md:p-6 lg:p-8">
-            <Accordion type="multiple" defaultValue={['help-topics', 'support-packages']} className="w-full space-y-6">
+            <Accordion type="multiple" defaultValue={['help-topics']} className="w-full space-y-6">
                 <Card>
                     <AccordionItem value="help-topics">
                         <AccordionTrigger className="p-6 text-lg font-semibold">
@@ -77,70 +103,41 @@ export default function TicketSettingsPage() {
                         </AccordionTrigger>
                         <AccordionContent className="p-6 pt-0">
                             <div className="flex items-center justify-between mb-4">
-                                <p className="text-muted-foreground">
+                                <p className="text-muted-foreground text-sm">
                                     Define los diferentes tipos de problemas para automatizar la asignación y priorización.
                                 </p>
                                 <Dialog open={state.isFormOpen} onOpenChange={(open) => { actions.setFormOpen(open); if (!open) actions.resetForm(); }}>
                                     <DialogTrigger asChild>
-                                        <Button><PlusCircle className="mr-2 h-4 w-4"/>Añadir Tema</Button>
+                                        <Button size="sm"><PlusCircle className="mr-2 h-4 w-4"/>Añadir Tema</Button>
                                     </DialogTrigger>
                                     <DialogContent className="sm:max-w-2xl">
                                         <DialogHeader>
                                             <DialogTitle>{state.isEditing ? 'Editar' : 'Añadir'} Tema de Ayuda</DialogTitle>
-                                            <DialogDescription>
-                                                Configura el nombre del tema y sus valores por defecto.
-                                            </DialogDescription>
+                                            <DialogDescription>Configura el nombre del tema y sus valores por defecto.</DialogDescription>
                                         </DialogHeader>
                                         <div className="space-y-4 py-4">
                                             <div className="space-y-2">
-                                                <Label htmlFor="topic-name">Nombre del Tema</Label>
-                                                <Input
-                                                    id="topic-name"
-                                                    value={state.currentTopic.name}
-                                                    onChange={(e) => actions.setCurrentTopic({ ...state.currentTopic, name: e.target.value })}
-                                                />
+                                                <Label>Nombre del Tema</Label>
+                                                <Input value={state.currentTopic.name} onChange={(e) => actions.setCurrentTopic({ ...state.currentTopic, name: e.target.value })} />
                                             </div>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="grid grid-cols-2 gap-4">
                                                 <div className="space-y-2">
-                                                    <Label htmlFor="default-priority">Prioridad por Defecto</Label>
+                                                    <Label>Prioridad por Defecto</Label>
                                                     <Select value={state.currentTopic.defaultPriority || 'medium'} onValueChange={(v) => actions.setCurrentTopic({ ...state.currentTopic, defaultPriority: v as TicketPriority })}>
-                                                        <SelectTrigger id="default-priority"><SelectValue/></SelectTrigger>
-                                                        <SelectContent>
-                                                            {Object.entries(selectors.priorityConfig).map(([key, config]) => (
-                                                                <SelectItem key={key} value={key}>{config.label}</SelectItem>
-                                                            ))}
-                                                        </SelectContent>
+                                                        <SelectTrigger><SelectValue/></SelectTrigger>
+                                                        <SelectContent>{Object.entries(selectors.priorityConfig).map(([key, config]) => (<SelectItem key={key} value={key}>{config.label}</SelectItem>))}</SelectContent>
                                                     </Select>
                                                 </div>
                                                 <div className="space-y-2">
-                                                    <Label htmlFor="default-assignee">Asignar a (Opcional)</Label>
+                                                    <Label>Asignar a</Label>
                                                     <Select value={String(state.currentTopic.defaultAssigneeId || 'null')} onValueChange={(v) => actions.setCurrentTopic({ ...state.currentTopic, defaultAssigneeId: v === 'null' ? null : Number(v) })}>
-                                                        <SelectTrigger id="default-assignee"><SelectValue placeholder="Sin asignar"/></SelectTrigger>
-                                                        <SelectContent>
-                                                            <SelectItem value="null">Sin asignar</SelectItem>
-                                                            {supportUsers && supportUsers.map(u => (
-                                                                <SelectItem key={u.id} value={String(u.id)}>{u.name}</SelectItem>
-                                                            ))}
-                                                        </SelectContent>
+                                                        <SelectTrigger><SelectValue placeholder="Sin asignar"/></SelectTrigger>
+                                                        <SelectContent><SelectItem value="null">Sin asignar</SelectItem>{supportUsers.map(u => (<SelectItem key={u.id} value={String(u.id)}>{u.name}</SelectItem>))}</SelectContent>
                                                     </Select>
                                                 </div>
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label htmlFor="default-service">Servicio por Defecto (Opcional)</Label>
-                                                <Select value={state.currentTopic.defaultServiceId || 'none'} onValueChange={(v) => actions.setCurrentTopic({ ...state.currentTopic, defaultServiceId: v === 'none' ? null : v })}>
-                                                    <SelectTrigger id="default-service"><SelectValue placeholder="Ninguno"/></SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="none">Ninguno</SelectItem>
-                                                        {companyData?.servicesCatalog.map(service => (
-                                                            <SelectItem key={service.id} value={service.id}>{service.name}</SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-                                                <p className="text-xs text-muted-foreground">Si se elige, este servicio se seleccionará automáticamente al crear un ticket con este tema.</p>
                                             </div>
                                         </div>
                                         <DialogFooter>
-                                            <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
                                             <Button onClick={actions.handleSaveTopic}>{state.isEditing ? 'Guardar Cambios' : 'Crear Tema'}</Button>
                                         </DialogFooter>
                                     </DialogContent>
@@ -150,35 +147,24 @@ export default function TicketSettingsPage() {
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
-                                            <TableHead>Nombre del Tema</TableHead>
+                                            <TableHead>Nombre</TableHead>
                                             <TableHead>Prioridad</TableHead>
-                                            <TableHead>Asignado a</TableHead>
-                                            <TableHead>Servicio por Defecto</TableHead>
+                                            <TableHead>Técnico</TableHead>
                                             <TableHead className="text-right">Acciones</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {state.helpTopics.map(topic => {
-                                            const assignee = selectors.allUsers?.find(u => u.id === topic.defaultAssigneeId);
-                                            const service = companyData?.servicesCatalog.find(s => s.id === topic.defaultServiceId);
-                                            return (
-                                                <TableRow key={topic.id}>
-                                                    <TableCell className="font-medium">{topic.name}</TableCell>
-                                                    <TableCell>{selectors.priorityConfig[topic.defaultPriority || 'medium'].label}</TableCell>
-                                                    <TableCell>{assignee?.name || 'Sin asignar'}</TableCell>
-                                                    <TableCell>{service?.name || 'Ninguno'}</TableCell>
-                                                    <TableCell className="text-right">
-                                                        <DropdownMenu>
-                                                            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4"/></Button></DropdownMenuTrigger>
-                                                            <DropdownMenuContent align="end">
-                                                                <DropdownMenuItem onSelect={() => actions.handleEditClick(topic)}>Editar</DropdownMenuItem>
-                                                                <DropdownMenuItem className="text-destructive" onSelect={() => actions.setTopicToDelete(topic)}>Eliminar</DropdownMenuItem>
-                                                            </DropdownMenuContent>
-                                                        </DropdownMenu>
-                                                    </TableCell>
-                                                </TableRow>
-                                            );
-                                        })}
+                                        {state.helpTopics.map(topic => (
+                                            <TableRow key={topic.id}>
+                                                <TableCell className="font-medium">{topic.name}</TableCell>
+                                                <TableCell>{selectors.priorityConfig[topic.defaultPriority || 'medium'].label}</TableCell>
+                                                <TableCell>{selectors.allUsers?.find(u => u.id === topic.defaultAssigneeId)?.name || 'Sin asignar'}</TableCell>
+                                                <TableCell className="text-right">
+                                                    <Button variant="ghost" size="icon" onClick={() => actions.handleEditClick(topic)}><Edit className="h-4 w-4"/></Button>
+                                                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => actions.setTopicToDelete(topic)}><Trash2 className="h-4 w-4"/></Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
                                     </TableBody>
                                 </Table>
                             </div>
@@ -186,135 +172,145 @@ export default function TicketSettingsPage() {
                     </AccordionItem>
                 </Card>
 
-                 <Card>
+                {/* --- MÓDULO GEOGRÁFICO DE COSTA RICA --- */}
+                <Card>
+                    <AccordionItem value="geographic-data">
+                        <AccordionTrigger className="p-6 text-lg font-semibold flex gap-2">
+                            <MapIcon className="h-5 w-5 text-primary" /> División Territorial (Costa Rica)
+                        </AccordionTrigger>
+                        <AccordionContent className="p-6 pt-0 space-y-6">
+                            <CardDescription>Administra las provincias, cantones y distritos para el cálculo de viáticos de proveedores.</CardDescription>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                {/* Columna Provincias */}
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-between">
+                                        <h4 className="text-sm font-bold uppercase tracking-tight">1. Provincias</h4>
+                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openGeoEdit('province')}><PlusCircle className="h-4 w-4"/></Button>
+                                    </div>
+                                    <div className="border rounded-md divide-y max-h-64 overflow-y-auto bg-card">
+                                        {state.provinces.map(p => (
+                                            <div key={p.id} className={cn("p-2 text-sm flex items-center justify-between cursor-pointer group", selectedProvinceId === p.id ? "bg-primary/10 border-l-2 border-primary" : "hover:bg-muted")} onClick={() => { setSelectedProvinceId(p.id); setSelectedCantonId(null); }}>
+                                                <span className={cn(selectedProvinceId === p.id && "font-bold text-primary")}>{p.name}</span>
+                                                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); openGeoEdit('province', p); }}><Edit className="h-3 w-3"/></Button>
+                                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={(e) => { e.stopPropagation(); actions.handleGeoAction('province', 'delete', p); }}><Trash2 className="h-3 w-3"/></Button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Columna Cantones */}
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-between">
+                                        <h4 className="text-sm font-bold uppercase tracking-tight">2. Cantones</h4>
+                                        {selectedProvinceId && (
+                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openGeoEdit('canton')}><PlusCircle className="h-4 w-4"/></Button>
+                                        )}
+                                    </div>
+                                    <div className="border rounded-md divide-y max-h-64 overflow-y-auto bg-card">
+                                        {selectedProvinceId ? (
+                                            cantonsForProvince.length > 0 ? (
+                                                cantonsForProvince.map(c => (
+                                                    <div key={c.id} className={cn("p-2 text-sm flex items-center justify-between cursor-pointer group", selectedCantonId === c.id ? "bg-primary/10 border-l-2 border-primary" : "hover:bg-muted")} onClick={() => setSelectedCantonId(c.id)}>
+                                                        <span className={cn(selectedCantonId === c.id && "font-bold text-primary")}>{c.name}</span>
+                                                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); openGeoEdit('canton', c); }}><Edit className="h-3 w-3"/></Button>
+                                                            <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={(e) => { e.stopPropagation(); actions.handleGeoAction('canton', 'delete', c); }}><Trash2 className="h-3 w-3"/></Button>
+                                                        </div>
+                                                    </div>
+                                                ))
+                                            ) : <div className="p-4 text-xs text-muted-foreground italic text-center">No hay cantones.</div>
+                                        ) : <div className="p-4 text-xs text-muted-foreground italic text-center">Selecciona una provincia.</div>}
+                                    </div>
+                                </div>
+
+                                {/* Columna Distritos */}
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-between">
+                                        <h4 className="text-sm font-bold uppercase tracking-tight">3. Distritos</h4>
+                                        {selectedCantonId && (
+                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openGeoEdit('district')}><PlusCircle className="h-4 w-4"/></Button>
+                                        )}
+                                    </div>
+                                    <div className="border rounded-md divide-y max-h-64 overflow-y-auto bg-card">
+                                        {selectedCantonId ? (
+                                            districtsForCanton.length > 0 ? (
+                                                districtsForCanton.map(d => (
+                                                    <div key={d.id} className="p-2 text-sm flex items-center justify-between group hover:bg-muted">
+                                                        <span>{d.name}</span>
+                                                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => openGeoEdit('district', d)}><Edit className="h-3 w-3"/></Button>
+                                                            <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => actions.handleGeoAction('district', 'delete', d)}><Trash2 className="h-3 w-3"/></Button>
+                                                        </div>
+                                                    </div>
+                                                ))
+                                            ) : <div className="p-4 text-xs text-muted-foreground italic text-center">No hay distritos.</div>
+                                        ) : <div className="p-4 text-xs text-muted-foreground italic text-center">Selecciona un cantón.</div>}
+                                    </div>
+                                </div>
+                            </div>
+                        </AccordionContent>
+                    </AccordionItem>
+                </Card>
+
+                {/* --- OTROS ACORDEONES --- */}
+                <Card>
                     <AccordionItem value="services-catalog">
                         <AccordionTrigger className="p-6 text-lg font-semibold">Catálogo de Servicios</AccordionTrigger>
                         <AccordionContent className="p-6 pt-0">
-                            <CardDescription className="mb-4">Defina la lista maestra de todos los servicios de soporte que su empresa ofrece y sus precios por hora.</CardDescription>
+                            <CardDescription className="mb-4">Precios base por hora para servicios técnicos.</CardDescription>
                             <div className="space-y-2">
                                 {(companyData.servicesCatalog || []).map(service => (
                                     <div key={service.id} className="flex items-center justify-between rounded-lg border p-3">
                                         <div className="flex-1">
                                             <p className="font-medium">{service.name} <span className="font-mono text-xs text-muted-foreground">({service.id})</span></p>
-                                            <p className="text-xs text-green-600 font-bold">Precio por hora: ¢{(service.price || 0).toLocaleString()}</p>
+                                            <p className="text-xs text-green-600 font-bold">Precio/Hora: ¢{(service.price || 0).toLocaleString()}</p>
                                         </div>
-                                        <Button variant="ghost" size="icon" onClick={() => actions.handleDeleteService(service.id)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
+                                        <Button variant="ghost" size="icon" className="text-destructive" onClick={() => actions.handleDeleteService(service.id)}><Trash2 className="h-4 w-4"/></Button>
                                     </div>
                                 ))}
                             </div>
                             <Separator className="my-4"/>
                             <div className="flex flex-col sm:flex-row items-end gap-2">
-                                <div className="flex-1 space-y-1.5"><Label htmlFor="service-id">ID Servicio</Label><Input id="service-id" value={state.newService.id} onChange={e => actions.setNewService({...state.newService, id: e.target.value})} placeholder="Ej: soporte-pc"/></div>
-                                <div className="flex-1 space-y-1.5"><Label htmlFor="service-name">Nombre Servicio</Label><Input id="service-name" value={state.newService.name} onChange={e => actions.setNewService({...state.newService, name: e.target.value})} placeholder="Ej: Soporte a PC"/></div>
-                                <div className="w-full sm:w-32 space-y-1.5">
-                                    <Label htmlFor="service-price">Precio/Hora</Label>
-                                    <div className="relative">
-                                        <DollarSign className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground"/>
-                                        <Input id="service-price" type="number" value={state.newService.price || ''} onChange={e => actions.setNewService({...state.newService, price: Number(e.target.value)})} placeholder="0" className="pl-6"/>
-                                    </div>
-                                </div>
+                                <div className="flex-1 space-y-1.5"><Label className="text-xs">ID</Label><Input value={state.newService.id} onChange={e => actions.setNewService({...state.newService, id: e.target.value})} placeholder="Ej: soporte-remoto"/></div>
+                                <div className="flex-1 space-y-1.5"><Label className="text-xs">Nombre</Label><Input value={state.newService.name} onChange={e => actions.setNewService({...state.newService, name: e.target.value})} placeholder="Ej: Soporte Remoto Básico"/></div>
+                                <div className="w-full sm:w-32 space-y-1.5"><Label className="text-xs">Precio</Label><Input type="number" value={state.newService.price || ''} onChange={e => actions.setNewService({...state.newService, price: Number(e.target.value)})} /></div>
                                 <Button size="icon" onClick={actions.handleAddService}><PlusCircle className="h-4 w-4"/></Button>
                             </div>
                         </AccordionContent>
                     </AccordionItem>
-                 </Card>
-
-                <Card>
-                    <AccordionItem value="support-packages">
-                    <AccordionTrigger className="p-6 text-lg font-semibold">Paquetes de Soporte</AccordionTrigger>
-                    <AccordionContent className="p-6 pt-0">
-                        <CardDescription className="mb-4">Configure los planes, horas incluidas y reglas de redondeo de tiempo.</CardDescription>
-                        <div className="space-y-6">
-                        {(companyData.supportPackages || []).map(pkg => (
-                            <Card key={pkg.id} className="border-primary/20 shadow-sm">
-                            <CardHeader className="flex flex-row items-center justify-between pb-2">
-                                <div>
-                                    <CardTitle className="text-xl">{pkg.name} <span className="font-mono text-sm text-muted-foreground ml-2">({pkg.id})</span></CardTitle>
-                                </div>
-                                <Button variant="ghost" size="icon" onClick={() => actions.handleDeletePackage(pkg.id)}><Trash2 className="h-4 w-4 text-destructive"/></Button>
-                            </CardHeader>
-                            <CardContent className="space-y-6">
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    <div className="space-y-1.5">
-                                        <Label className="text-xs uppercase font-bold text-muted-foreground">Horas Incluidas</Label>
-                                        <Input type="number" value={pkg.defaultHours || 0} onChange={e => actions.handlePackagePropChange(pkg.id, 'defaultHours', Number(e.target.value))} className="h-8" />
-                                    </div>
-                                    <div className="space-y-1.5">
-                                        <Label className="text-xs uppercase font-bold text-muted-foreground flex items-center gap-1"><Clock className="h-3 w-3"/> Redondeo (min)</Label>
-                                        <Select value={String(pkg.roundingMultiple || 1)} onValueChange={v => actions.handlePackagePropChange(pkg.id, 'roundingMultiple', Number(v))}>
-                                            <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="1">Minuto Exacto</SelectItem>
-                                                <SelectItem value="15">Bloques 15 min</SelectItem>
-                                                <SelectItem value="30">Bloques 30 min</SelectItem>
-                                                <SelectItem value="60">Horas Completas</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div className="space-y-1.5">
-                                        <Label className="text-xs uppercase font-bold text-muted-foreground flex items-center gap-1"><Hourglass className="h-3 w-3"/> Gracia (min)</Label>
-                                        <Input type="number" value={pkg.graceMinutes || 0} onChange={e => actions.handlePackagePropChange(pkg.id, 'graceMinutes', Number(e.target.value))} className="h-8" placeholder="Ej: 5" />
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
-                                    <div className="space-y-2">
-                                        <h4 className="text-xs font-bold uppercase text-primary">Servicios Incluidos</h4>
-                                        <div className="grid grid-cols-1 gap-2 p-3 bg-muted/30 rounded-lg border">
-                                        {(companyData.servicesCatalog || []).map(service => (
-                                            <div key={`${pkg.id}-inc-${service.id}`} className="flex items-center space-x-2">
-                                            <Checkbox id={`${pkg.id}-inc-${service.id}`} checked={(pkg.includedServices || []).includes(service.id)} onCheckedChange={(checked) => actions.handlePackageServiceToggle(pkg.id, service.id, 'included', !!checked)} />
-                                            <Label htmlFor={`${pkg.id}-inc-${service.id}`} className="text-sm font-normal cursor-pointer">{service.name}</Label>
-                                            </div>
-                                        ))}
-                                        </div>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <h4 className="text-xs font-bold uppercase text-destructive">Servicios Excluidos</h4>
-                                        <div className="grid grid-cols-1 gap-2 p-3 bg-muted/30 rounded-lg border">
-                                        {(companyData.servicesCatalog || []).map(service => (
-                                            <div key={`${pkg.id}-exc-${service.id}`} className="flex items-center space-x-2">
-                                            <Checkbox id={`${pkg.id}-exc-${service.id}`} checked={(pkg.excludedServices || []).includes(service.id)} onCheckedChange={(checked) => actions.handlePackageServiceToggle(pkg.id, service.id, 'excluded', !!checked)} />
-                                            <Label htmlFor={`${pkg.id}-exc-${service.id}`} className="text-sm font-normal cursor-pointer">{service.name}</Label>
-                                            </div>
-                                        ))}
-                                        </div>
-                                    </div>
-                                </div>
-                            </CardContent>
-                            </Card>
-                        ))}
-                        </div>
-                        <Separator className="my-6"/>
-                        <div className="bg-muted/50 p-4 rounded-lg border border-dashed">
-                            <h4 className="text-sm font-bold mb-4">Añadir Nuevo Paquete</h4>
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                                <div className="space-y-1.5"><Label htmlFor="package-id">ID Único</Label><Input id="package-id" value={state.newPackage.id} onChange={e => actions.setNewPackage({...state.newPackage, id: e.target.value})} placeholder="Ej: alfa"/></div>
-                                <div className="space-y-1.5"><Label htmlFor="package-name">Nombre</Label><Input id="package-name" value={state.newPackage.name} onChange={e => actions.setNewPackage({...state.newPackage, name: e.target.value})} placeholder="Ej: Plan Corporativo"/></div>
-                                <div className="space-y-1.5"><Label htmlFor="package-hours">Horas</Label><Input id="package-hours" type="number" value={state.newPackage.defaultHours || ''} onChange={e => actions.setNewPackage({...state.newPackage, defaultHours: Number(e.target.value)})} placeholder="Ej: 10"/></div>
-                                <Button onClick={actions.handleAddPackage} className="w-full"><PlusCircle className="mr-2 h-4 w-4"/>Crear Paquete</Button>
-                            </div>
-                        </div>
-                    </AccordionContent>
-                    </AccordionItem>
                 </Card>
-
             </Accordion>
             
-            <Card className="mt-6 border-primary bg-primary/5">
-                 <CardContent className="p-6 flex justify-end">
-                    <Button onClick={actions.handleSaveAll} size="lg" className="px-10">Guardar Cambios del Módulo</Button>
-                </CardContent>
-            </Card>
+            <div className="mt-8 flex justify-end">
+                <Button onClick={actions.handleSaveAll} size="lg" className="px-10 shadow-lg">Guardar Configuración General</Button>
+            </div>
 
+            {/* Diálogo de Edición Geográfica */}
+            <Dialog open={isGeoEditOpen} onOpenChange={setGeoEditOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>{geoEditTarget ? 'Editar' : 'Añadir'} {geoEditType === 'province' ? 'Provincia' : geoEditType === 'canton' ? 'Cantón' : 'Distrito'}</DialogTitle>
+                    </DialogHeader>
+                    <div className="py-4 space-y-4">
+                        <div className="space-y-2">
+                            <Label>Nombre</Label>
+                            <Input value={geoGeoEditName} onChange={(e) => setGeoGeoEditName(e.target.value)} placeholder="Ej: Heredia" autoFocus onKeyDown={(e) => e.key === 'Enter' && handleGeoSave()} />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="ghost" onClick={() => setGeoEditOpen(false)}>Cancelar</Button>
+                        <Button onClick={handleGeoSave}>Guardar</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Alerta de eliminación de temas */}
             <AlertDialog open={!!state.topicToDelete} onOpenChange={(open) => !open && actions.setTopicToDelete(null)}>
                 <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>¿Eliminar Tema de Ayuda?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                           Esta acción no se puede deshacer. Se eliminará el tema &quot;{state.topicToDelete?.name}&quot;.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
+                    <AlertDialogHeader><AlertDialogTitle>¿Eliminar Tema?</AlertDialogTitle><AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription></AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
                         <AlertDialogAction onClick={actions.handleDeleteTopic}>Sí, eliminar</AlertDialogAction>

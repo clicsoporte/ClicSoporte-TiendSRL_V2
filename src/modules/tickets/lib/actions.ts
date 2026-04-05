@@ -31,6 +31,15 @@ import {
     saveProviderGeoRate as saveProviderGeoRateServer,
     deleteProviderGeoRate as deleteProviderGeoRateServer,
     getCRGeoData as getCRGeoDataServer,
+    addProvince as addProvinceServer,
+    updateProvince as updateProvinceServer,
+    deleteProvince as deleteProvinceServer,
+    addCanton as addCantonServer,
+    updateCanton as updateCantonServer,
+    deleteCanton as deleteCantonServer,
+    addDistrict as addDistrictServer,
+    updateDistrict as updateDistrictServer,
+    deleteDistrict as deleteDistrictServer,
 } from './db';
 import { triggerNotificationEvent } from '@/modules/notifications/lib/notifications-engine';
 
@@ -210,4 +219,42 @@ export async function deleteProviderGeoRate(id: number): Promise<void> {
 
 export async function getCRGeoData(): Promise<{ provinces: Province[], cantons: Canton[], districts: District[] }> {
     return JSON.parse(JSON.stringify(await getCRGeoDataServer()));
+}
+
+// --- Geographic Management Actions ---
+
+export async function addProvince(name: string): Promise<Province> {
+    return JSON.parse(JSON.stringify(await addProvinceServer(name)));
+}
+
+export async function updateProvince(id: number, name: string): Promise<void> {
+    return await updateProvinceServer(id, name);
+}
+
+export async function deleteProvince(id: number): Promise<void> {
+    return await deleteProvinceServer(id);
+}
+
+export async function addCanton(provinceId: number, name: string): Promise<Canton> {
+    return JSON.parse(JSON.stringify(await addCantonServer(provinceId, name)));
+}
+
+export async function updateCanton(id: number, name: string): Promise<void> {
+    return await updateCantonServer(id, name);
+}
+
+export async function deleteCanton(id: number): Promise<void> {
+    return await deleteCantonServer(id);
+}
+
+export async function addDistrict(cantonId: number, name: string): Promise<District> {
+    return JSON.parse(JSON.stringify(await addDistrictServer(cantonId, name)));
+}
+
+export async function updateDistrict(id: number, name: string): Promise<void> {
+    return await updateDistrictServer(id, name);
+}
+
+export async function deleteDistrict(id: number): Promise<void> {
+    return await deleteDistrictServer(id);
 }

@@ -490,17 +490,65 @@ export async function initializeMainDatabase(db: Database) {
     const insertProvince = db.prepare('INSERT OR IGNORE INTO provinces (id, name) VALUES (?, ?)');
     provinces.forEach(p => insertProvince.run(p.id, p.name));
 
-    // Seed some example cantons
+    // Seed Main Cantons of CR
     const cantons = [
         { id: 101, provinceId: 1, name: 'San José' },
         { id: 102, provinceId: 1, name: 'Escazú' },
         { id: 103, provinceId: 1, name: 'Desamparados' },
+        { id: 104, provinceId: 1, name: 'Puriscal' },
+        { id: 105, provinceId: 1, name: 'Tarrazú' },
+        { id: 106, provinceId: 1, name: 'Aserrí' },
+        { id: 107, provinceId: 1, name: 'Mora' },
+        { id: 108, provinceId: 1, name: 'Goicoechea' },
+        { id: 109, provinceId: 1, name: 'Santa Ana' },
+        { id: 110, provinceId: 1, name: 'Alajuelita' },
+        { id: 111, provinceId: 1, name: 'Vázquez de Coronado' },
+        { id: 112, provinceId: 1, name: 'Acosta' },
+        { id: 113, provinceId: 1, name: 'Tibás' },
+        { id: 114, provinceId: 1, name: 'Moravia' },
+        { id: 115, provinceId: 1, name: 'Montes de Oca' },
+        { id: 116, provinceId: 1, name: 'Turrubares' },
+        { id: 117, provinceId: 1, name: 'Dota' },
+        { id: 118, provinceId: 1, name: 'Curridabat' },
+        { id: 119, provinceId: 1, name: 'Pérez Zeledón' },
+        { id: 120, provinceId: 1, name: 'León Cortés Castro' },
+        
         { id: 201, provinceId: 2, name: 'Alajuela' },
         { id: 202, provinceId: 2, name: 'San Ramón' },
+        { id: 203, provinceId: 2, name: 'Grecia' },
+        { id: 204, provinceId: 2, name: 'San Mateo' },
+        { id: 205, provinceId: 2, name: 'Atenas' },
+        { id: 206, provinceId: 2, name: 'Naranjo' },
+        { id: 207, provinceId: 2, name: 'Palmares' },
+        { id: 208, provinceId: 2, name: 'Poás' },
+        { id: 209, provinceId: 2, name: 'Orotina' },
+        { id: 210, provinceId: 2, name: 'San Carlos' },
+        { id: 211, provinceId: 2, name: 'Zarcero' },
+        { id: 212, provinceId: 2, name: 'Sarchí' },
+        { id: 213, provinceId: 2, name: 'Upala' },
+        { id: 214, provinceId: 2, name: 'Los Chiles' },
+        { id: 215, provinceId: 2, name: 'Guatuso' },
+        { id: 216, provinceId: 2, name: 'Río Cuarto' },
+
         { id: 301, provinceId: 3, name: 'Cartago' },
         { id: 302, provinceId: 3, name: 'Paraíso' },
+        { id: 303, provinceId: 3, name: 'La Unión' },
+        { id: 304, provinceId: 3, name: 'Jiménez' },
+        { id: 305, provinceId: 3, name: 'Turrialba' },
+        { id: 306, provinceId: 3, name: 'Alvarado' },
+        { id: 307, provinceId: 3, name: 'Oreamuno' },
+        { id: 308, provinceId: 3, name: 'El Guarco' },
+
         { id: 401, provinceId: 4, name: 'Heredia' },
-        { id: 402, provinceId: 4, name: 'Barva' }
+        { id: 402, provinceId: 4, name: 'Barva' },
+        { id: 403, provinceId: 4, name: 'Santo Domingo' },
+        { id: 404, provinceId: 4, name: 'Santa Bárbara' },
+        { id: 405, provinceId: 4, name: 'San Rafael' },
+        { id: 406, provinceId: 4, name: 'San Isidro' },
+        { id: 407, provinceId: 4, name: 'Belén' },
+        { id: 408, provinceId: 4, name: 'Flores' },
+        { id: 409, provinceId: 4, name: 'San Pablo' },
+        { id: 410, provinceId: 4, name: 'Sarapiquí' }
     ];
     const insertCanton = db.prepare('INSERT OR IGNORE INTO cantons (id, provinceId, name) VALUES (?, ?, ?)');
     cantons.forEach(c => insertCanton.run(c.id, c.provinceId, c.name));

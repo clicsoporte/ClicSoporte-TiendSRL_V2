@@ -264,7 +264,7 @@ export async function addThirdPartyProvider(payload: Omit<ThirdPartyProvider, 'i
 
 export async function updateThirdPartyProvider(payload: ThirdPartyProvider): Promise<ThirdPartyProvider> {
     const db = await connectTicketsDb();
-    db.prepare(`UPDATE third_party_providers SET name = ?, email = ?, phone = ?, specialty = ?, notes = ?, contacts = ? WHERE id = ?`)
+    db.prepare(`UPDATE third_party_providers SET name = @name, email = @email, phone = @phone, specialty = @specialty, notes = @notes, contacts = @contacts WHERE id = @id`)
         .run(payload.name, payload.email, payload.phone, payload.specialty, payload.notes, JSON.stringify(payload.contacts || []), payload.id);
     return payload;
 }
@@ -303,4 +303,54 @@ export async function getCRGeoData(): Promise<{ provinces: Province[], cantons: 
         cantons: db.prepare('SELECT * FROM cantons ORDER BY name ASC').all() as Canton[],
         districts: db.prepare('SELECT * FROM districts ORDER BY name ASC').all() as District[]
     };
+}
+
+// --- Geographic Management Functions ---
+
+export async function addProvince(name: string): Promise<Province> {
+    const db = await connectTicketsDb();
+    const info = db.prepare('INSERT INTO provinces (name) VALUES (?)').run(name);
+    return { id: Number(info.lastInsertRowid), name };
+}
+
+export async function updateProvince(id: number, name: string): Promise<void> {
+    const db = await connectTicketsDb();
+    db.prepare('UPDATE provinces SET name = ? WHERE id = ?').run(name, id);
+}
+
+export async function deleteProvince(id: number): Promise<void> {
+    const db = await connectTicketsDb();
+    db.prepare('DELETE FROM provinces WHERE id = ?').run(id);
+}
+
+export async function addCanton(provinceId: number, name: string): Promise<Canton> {
+    const db = await connectTicketsDb();
+    const info = db.prepare('INSERT INTO cantons (provinceId, name) VALUES (?, ?)').run(provinceId, name);
+    return { id: Number(info.lastInsertRowid), provinceId, name };
+}
+
+export async function updateCanton(id: number, name: string): Promise<void> {
+    const db = await connectTicketsDb();
+    db.prepare('UPDATE cantons SET name = ? WHERE id = ?').run(name, id);
+}
+
+export async function deleteCanton(id: number): Promise<void> {
+    const db = await connectTicketsDb();
+    db.prepare('DELETE FROM cantons WHERE id = ?').run(id);
+}
+
+export async function addDistrict(cantonId: number, name: string): Promise<District> {
+    const db = await connectTicketsDb();
+    const info = db.prepare('INSERT INTO districts (cantonId, name) VALUES (?, ?)').run(cantonId, name);
+    return { id: Number(info.lastInsertRowid), cantonId, name };
+}
+
+export async function updateDistrict(id: number, name: string): Promise<void> {
+    const db = await connectTicketsDb();
+    db.prepare('UPDATE districts SET name = ? WHERE id = ?').run(name, id);
+}
+
+export async function deleteDistrict(id: number): Promise<void> {
+    const db = await connectTicketsDb();
+    db.prepare('DELETE FROM districts WHERE id = ?').run(id);
 }

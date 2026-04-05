@@ -7,8 +7,13 @@ import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError, logInfo } from '@/modules/core/lib/logger';
-import type { HelpTopic, TicketPriority, Role, User, SupportPackage, Service } from '@/modules/core/types';
-import { getHelpTopics, addHelpTopic, updateHelpTopic, deleteHelpTopic } from '../lib/actions';
+import type { HelpTopic, TicketPriority, Role, User, SupportPackage, Service, Province, Canton, District } from '@/modules/core/types';
+import { 
+    getHelpTopics, addHelpTopic, updateHelpTopic, deleteHelpTopic,
+    getCRGeoData, addProvince, updateProvince, deleteProvince,
+    addCanton, updateCanton, deleteCanton,
+    addDistrict, updateDistrict, deleteDistrict
+} from '../lib/actions';
 import { getAllUsers } from '@/modules/core/lib/auth-client';
 import { getAllRoles } from '@/modules/core/lib/roles-db';
 import { useAuth } from '@/modules/core/hooks/useAuth';
@@ -43,7 +48,12 @@ export const useTicketSettings = () => {
     const [allUsers, setAllUsers] = useState<User[]>([]);
     const [allRoles, setAllRoles] = useState<Role[]>([]);
     
-    // States for services and packages, now managed here
+    // Geographic Data State
+    const [provinces, setProvinces] = useState<Province[]>([]);
+    const [cantons, setCantons] = useState<Canton[]>([]);
+    const [districts, setDistricts] = useState<District[]>([]);
+    
+    // States for services and packages
     const [newService, setNewService] = useState<Service>({ id: "", name: "", price: 0 });
     const [newPackage, setNewPackage] = useState<Omit<SupportPackage, 'includedServices' | 'excludedServices'>>({ 
         id: "", 
@@ -56,16 +66,20 @@ export const useTicketSettings = () => {
     const fetchInitialData = useCallback(async () => {
         setIsLoading(true);
         try {
-            const [topics, users, roles] = await Promise.all([
+            const [topics, users, roles, geo] = await Promise.all([
                 getHelpTopics(),
                 getAllUsers(),
-                getAllRoles()
+                getAllRoles(),
+                getCRGeoData()
             ]);
             setHelpTopics(topics);
             setAllUsers(users);
             setAllRoles(roles);
+            setProvinces(geo.provinces);
+            setCantons(geo.cantons);
+            setDistricts(geo.districts);
         } catch (error) {
-            logError('Failed to fetch help topics', { error });
+            logError('Failed to fetch settings data', { error });
             toast({ title: "Error", description: "No se pudieron cargar los datos de configuración.", variant: "destructive" });
         } finally {
             setIsLoading(false);
@@ -211,6 +225,53 @@ export const useTicketSettings = () => {
         });
         await logInfo("Configuración de soporte técnico guardada.");
     };
+
+    // --- Geographic Actions ---
+    const handleGeoAction = async (type: 'province' | 'canton' | 'district', action: 'add' | 'update' | 'delete', data: any) => {
+        try {
+            switch (`${type}-${action}`) {
+                case 'province-add':
+                    const newProv = await addProvince(data.name);
+                    setProvinces(prev => [...prev, newProv]);
+                    break;
+                case 'province-update':
+                    await updateProvince(data.id, data.name);
+                    setProvinces(prev => prev.map(p => p.id === data.id ? { ...p, name: data.name } : p));
+                    break;
+                case 'province-delete':
+                    await deleteProvince(data.id);
+                    setProvinces(prev => prev.filter(p => p.id !== data.id));
+                    break;
+                case 'canton-add':
+                    const newCant = await addCanton(data.provinceId, data.name);
+                    setCantons(prev => [...prev, newCant]);
+                    break;
+                case 'canton-update':
+                    await updateCanton(data.id, data.name);
+                    setCantons(prev => prev.map(c => c.id === data.id ? { ...c, name: data.name } : c));
+                    break;
+                case 'canton-delete':
+                    await deleteCanton(data.id);
+                    setCantons(prev => prev.filter(c => c.id !== data.id));
+                    break;
+                case 'district-add':
+                    const newDist = await addDistrict(data.cantonId, data.name);
+                    setDistricts(prev => [...prev, newDist]);
+                    break;
+                case 'district-update':
+                    await updateDistrict(data.id, data.name);
+                    setDistricts(prev => prev.map(d => d.id === data.id ? { ...d, name: data.name } : d));
+                    break;
+                case 'district-delete':
+                    await deleteDistrict(data.id);
+                    setDistricts(prev => prev.filter(d => d.id !== data.id));
+                    break;
+            }
+            toast({ title: "Datos Geográficos Actualizados" });
+        } catch (error: unknown) {
+            toast({ title: "Error en Módulo Geográfico", description: (error as Error).message, variant: "destructive" });
+        }
+    };
     
     return {
         state: {
@@ -221,7 +282,10 @@ export const useTicketSettings = () => {
             currentTopic,
             topicToDelete,
             newService,
-            newPackage
+            newPackage,
+            provinces,
+            cantons,
+            districts
         },
         actions: {
             setFormOpen,
@@ -239,7 +303,8 @@ export const useTicketSettings = () => {
             handleDeletePackage,
             handlePackageServiceToggle,
             handlePackagePropChange,
-            handleSaveAll
+            handleSaveAll,
+            handleGeoAction
         },
         selectors: {
             priorityConfig,
