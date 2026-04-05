@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { PlusCircle, Loader2, MoreVertical, Truck, Trash2, MapPin, DollarSign, Briefcase, Users, Mail, Phone, Building2 } from 'lucide-react';
+import { PlusCircle, Loader2, MoreVertical, Truck, Trash2, MapPin, Briefcase, Users, Mail, Phone, Building2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { useToast } from '@/modules/core/hooks/use-toast';
@@ -393,6 +393,12 @@ export default function ProvidersPage() {
                                             <Select value={String(newGeoRate.cantonId)} onValueChange={v => setNewGeoRate({...newGeoRate, cantonId: Number(v), districtId: 0})}>
                                                 <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Cantón"/></SelectTrigger>
                                                 <SelectContent>{cantonsForProvince.map(c => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}</SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="space-y-1"><Label className="text-[10px]">Poblado / Distrito</Label>
+                                            <Select value={String(newGeoRate.districtId)} onValueChange={v => setNewGeoRate({...newGeoRate, districtId: Number(v)})}>
+                                                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Distrito"/></SelectTrigger>
+                                                <SelectContent>{districtsForCanton.map(d => <SelectItem key={d.id} value={String(d.id)}>{d.name}</SelectItem>)}</SelectContent>
                                             </Select>
                                         </div>
                                         <div className="space-y-1"><Label className="text-[10px]">Costo Transporte (¢)</Label><Input type="number" value={newGeoRate.travelPrice} onChange={e => setNewGeoRate({...newGeoRate, travelPrice: Number(e.target.value)})} className="h-8 text-xs" /></div>
