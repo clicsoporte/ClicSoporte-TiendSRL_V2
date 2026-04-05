@@ -113,7 +113,10 @@ export async function initializeMainDatabase(db: Database) {
             isTaxMoroso INTEGER DEFAULT 0,
             isTaxOmiso INTEGER DEFAULT 0,
             taxAdministration TEXT,
-            taxActivities TEXT
+            taxActivities TEXT,
+            provinceId INTEGER,
+            cantonId INTEGER,
+            districtId INTEGER
         );
 
         CREATE TABLE IF NOT EXISTS products (
@@ -587,6 +590,14 @@ export async function runMainMigrations(db: Database) {
         ['isTaxOmiso', 'INTEGER DEFAULT 0'], ['taxAdministration', 'TEXT'], ['taxActivities', 'TEXT']
     ];
     haciendaFields.forEach(([field, type]) => {
+        if (!hasColumn('customers', field)) db.exec(`ALTER TABLE customers ADD COLUMN ${field} ${type};`);
+    });
+
+    // CUSTOMER GEOGRAPHIC Migrations
+    const geoFields = [
+        ['provinceId', 'INTEGER'], ['cantonId', 'INTEGER'], ['districtId', 'INTEGER']
+    ];
+    geoFields.forEach(([field, type]) => {
         if (!hasColumn('customers', field)) db.exec(`ALTER TABLE customers ADD COLUMN ${field} ${type};`);
     });
 

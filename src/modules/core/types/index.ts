@@ -133,6 +133,10 @@ export type Customer = {
     isTaxOmiso?: boolean;
     taxAdministration?: string;
     taxActivities?: string; // JSON array of activities
+    // Geographic data
+    provinceId?: number | null;
+    cantonId?: number | null;
+    districtId?: number | null;
 };
 
 /**

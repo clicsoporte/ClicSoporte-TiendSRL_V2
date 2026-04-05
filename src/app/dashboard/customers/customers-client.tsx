@@ -10,14 +10,16 @@ import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { PlusCircle, Search, Edit, Trash2, Loader2, UserPlus, Users, Building2, Mail, Phone, Briefcase, SearchIcon, CheckCircle2, AlertCircle } from 'lucide-react';
+import { PlusCircle, Search, Edit, Trash2, Loader2, UserPlus, Users, Building2, Mail, Phone, Briefcase, SearchIcon, CheckCircle2, AlertCircle, MapPin } from 'lucide-react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { upsertCustomer, deleteCustomer } from '@/modules/core/lib/data-access-db';
 import { getContributorInfo } from '@/modules/hacienda/lib/actions';
-import type { Customer, CustomerContact, HaciendaContributorInfo } from '@/modules/core/types';
+import { getCRGeoData } from '@/modules/tickets/lib/actions';
+import type { Customer, CustomerContact, HaciendaContributorInfo, Province, Canton, District } from '@/modules/core/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 
@@ -47,7 +49,10 @@ const emptyCustomer: Customer = {
     electronicDocEmail: '',
     isManual: true,
     contacts: [],
-    taxActivities: '[]'
+    taxActivities: '[]',
+    provinceId: null,
+    cantonId: null,
+    districtId: null
 };
 
 export default function CustomersClient() {
@@ -64,8 +69,20 @@ export default function CustomersClient() {
     const [isEditing, setIsEditing] = useState(false);
     const [newContact, setNewContact] = useState<CustomerContact>(emptyContact);
 
+    // Geo Data State
+    const [geoData, setGeoData] = useState<{ provinces: Province[], cantons: Canton[], districts: District[] }>({ provinces: [], cantons: [], districts: [] });
+
     useEffect(() => {
         setTitle("Gestión de Clientes");
+        const fetchGeo = async () => {
+            try {
+                const data = await getCRGeoData();
+                setGeoData(data);
+            } catch (e) {
+                console.error("Failed to load geographic data", e);
+            }
+        };
+        fetchGeo();
     }, [setTitle]);
 
     // Effect to auto-search Hacienda when taxId is entered
@@ -109,6 +126,9 @@ export default function CustomersClient() {
             c.taxId.includes(lowerSearch)
         );
     }, [customers, searchTerm]);
+
+    const cantonsForProvince = useMemo(() => geoData.cantons.filter(c => c.provinceId === currentCustomer.provinceId), [geoData.cantons, currentCustomer.provinceId]);
+    const districtsForCanton = useMemo(() => geoData.districts.filter(d => d.cantonId === currentCustomer.cantonId), [geoData.districts, currentCustomer.cantonId]);
 
     const handleSave = async () => {
         const requiredPermission = isEditing ? 'customers:update' : 'customers:create';
@@ -302,10 +322,6 @@ export default function CustomersClient() {
                                                 </div>
                                             )}
 
-                                            <div className="space-y-2 md:col-span-2">
-                                                <Label htmlFor="cust-address">Dirección de Entrega</Label>
-                                                <Input id="cust-address" value={currentCustomer.address} onChange={e => setCurrentCustomer({...currentCustomer, address: e.target.value})} />
-                                            </div>
                                             <div className="space-y-2">
                                                 <Label htmlFor="cust-phone">Teléfono Empresa</Label>
                                                 <Input id="cust-phone" value={currentCustomer.phone} onChange={e => setCurrentCustomer({...currentCustomer, phone: e.target.value})} />
@@ -314,6 +330,58 @@ export default function CustomersClient() {
                                                 <Label htmlFor="cust-email">Correo para Notificaciones</Label>
                                                 <Input id="cust-email" type="email" value={currentCustomer.email} onChange={e => setCurrentCustomer({...currentCustomer, email: e.target.value})} />
                                             </div>
+                                        </div>
+                                    </section>
+
+                                    <Separator />
+
+                                    <section>
+                                        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                                            <MapPin className="h-5 w-5 text-primary" /> Ubicación Geográfica
+                                        </h3>
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                                            <div className="space-y-2">
+                                                <Label>Provincia</Label>
+                                                <Select 
+                                                    value={String(currentCustomer.provinceId || '')} 
+                                                    onValueChange={v => setCurrentCustomer({...currentCustomer, provinceId: Number(v), cantonId: null, districtId: null})}
+                                                >
+                                                    <SelectTrigger><SelectValue placeholder="Seleccione..."/></SelectTrigger>
+                                                    <SelectContent>
+                                                        {geoData.provinces.map(p => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label>Cantón</Label>
+                                                <Select 
+                                                    value={String(currentCustomer.cantonId || '')} 
+                                                    onValueChange={v => setCurrentCustomer({...currentCustomer, cantonId: Number(v), districtId: null})}
+                                                    disabled={!currentCustomer.provinceId}
+                                                >
+                                                    <SelectTrigger><SelectValue placeholder="Seleccione..."/></SelectTrigger>
+                                                    <SelectContent>
+                                                        {cantonsForProvince.map(c => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label>Distrito</Label>
+                                                <Select 
+                                                    value={String(currentCustomer.districtId || '')} 
+                                                    onValueChange={v => setCurrentCustomer({...currentCustomer, districtId: Number(v)})}
+                                                    disabled={!currentCustomer.cantonId}
+                                                >
+                                                    <SelectTrigger><SelectValue placeholder="Seleccione..."/></SelectTrigger>
+                                                    <SelectContent>
+                                                        {districtsForCanton.map(d => <SelectItem key={d.id} value={String(d.id)}>{d.name}</SelectItem>)}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="cust-address">Dirección Exacta (Señas)</Label>
+                                            <Textarea id="cust-address" value={currentCustomer.address} onChange={e => setCurrentCustomer({...currentCustomer, address: e.target.value})} placeholder="Ej: 100m norte de la escuela, casa color verde..." />
                                         </div>
                                     </section>
 

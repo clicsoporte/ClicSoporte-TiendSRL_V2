@@ -21,7 +21,10 @@ export async function getAllCustomers(): Promise<Customer[]> {
             contacts: JSON.parse((c.contacts as string) || '[]'),
             isManual: !!c.isManual,
             isTaxMoroso: !!c.isTaxMoroso,
-            isTaxOmiso: !!c.isTaxOmiso
+            isTaxOmiso: !!c.isTaxOmiso,
+            provinceId: c.provinceId ? Number(c.provinceId) : null,
+            cantonId: c.cantonId ? Number(c.cantonId) : null,
+            districtId: c.districtId ? Number(c.districtId) : null
         }));
         return JSON.parse(JSON.stringify(enrichedResults));
     } catch (error) {
@@ -39,18 +42,21 @@ export async function upsertCustomer(customer: Customer): Promise<Customer> {
         const stmt = db.prepare(`
             INSERT INTO customers (
                 id, name, address, phone, taxId, currency, creditLimit, paymentCondition, salesperson, active, email, electronicDocEmail, isManual, contacts,
-                taxRegime, taxStatus, isTaxMoroso, isTaxOmiso, taxAdministration, taxActivities
+                taxRegime, taxStatus, isTaxMoroso, isTaxOmiso, taxAdministration, taxActivities,
+                provinceId, cantonId, districtId
             )
             VALUES (
                 @id, @name, @address, @phone, @taxId, @currency, @creditLimit, @paymentCondition, @salesperson, @active, @email, @electronicDocEmail, 1, @contacts,
-                @taxRegime, @taxStatus, @isTaxMoroso, @isTaxOmiso, @taxAdministration, @taxActivities
+                @taxRegime, @taxStatus, @isTaxMoroso, @isTaxOmiso, @taxAdministration, @taxActivities,
+                @provinceId, @cantonId, @districtId
             )
             ON CONFLICT(id) DO UPDATE SET
                 name = excluded.name, address = excluded.address, phone = excluded.phone, taxId = excluded.taxId, currency = excluded.currency,
                 creditLimit = excluded.creditLimit, paymentCondition = excluded.paymentCondition, salesperson = excluded.salesperson, active = excluded.active,
                 email = excluded.email, electronicDocEmail = excluded.electronicDocEmail, contacts = excluded.contacts,
                 taxRegime = excluded.taxRegime, taxStatus = excluded.taxStatus, isTaxMoroso = excluded.isTaxMoroso, isTaxOmiso = excluded.isTaxOmiso,
-                taxAdministration = excluded.taxAdministration, taxActivities = excluded.taxActivities
+                taxAdministration = excluded.taxAdministration, taxActivities = excluded.taxActivities,
+                provinceId = excluded.provinceId, cantonId = excluded.cantonId, districtId = excluded.districtId
         `);
         
         // Clean parameters to ensure no 'undefined' values reach SQLite
@@ -73,7 +79,10 @@ export async function upsertCustomer(customer: Customer): Promise<Customer> {
             isTaxMoroso: customer.isTaxMoroso ? 1 : 0,
             isTaxOmiso: customer.isTaxOmiso ? 1 : 0,
             taxAdministration: customer.taxAdministration || null,
-            taxActivities: customer.taxActivities || '[]'
+            taxActivities: customer.taxActivities || '[]',
+            provinceId: customer.provinceId || null,
+            cantonId: customer.cantonId || null,
+            districtId: customer.districtId || null
         };
 
         stmt.run(params);
