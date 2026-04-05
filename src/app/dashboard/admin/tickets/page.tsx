@@ -14,14 +14,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { MoreHorizontal, PlusCircle, Trash2, Clock, Hourglass, DollarSign, MapPin, Edit, Map as MapIcon } from 'lucide-react';
+import { PlusCircle, Trash2, Map as MapIcon, Edit } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Separator } from '@/components/ui/separator';
-import { Checkbox } from '@/components/ui/checkbox';
+import { cn } from '@/lib/utils';
 import type { TicketPriority } from '@/modules/core/types';
 
 export default function TicketSettingsPage() {
@@ -38,7 +37,7 @@ export default function TicketSettingsPage() {
     // Geographic selection state
     const [selectedProvinceId, setSelectedProvinceId] = useState<number | null>(null);
     const [selectedCantonId, setSelectedCantonId] = useState<number | null>(null);
-    const [geoEditName, setGeoGeoEditName] = useState("");
+    const [geoEditName, setGeoEditName] = useState("");
     const [isGeoEditOpen, setGeoEditOpen] = useState(false);
     const [geoEditType, setGeoEditType] = useState<'province' | 'canton' | 'district'>('province');
     const [geoEditTarget, setGeoEditTarget] = useState<any>(null);
@@ -59,14 +58,14 @@ export default function TicketSettingsPage() {
     const openGeoEdit = (type: 'province' | 'canton' | 'district', target?: any) => {
         setGeoEditType(type);
         setGeoEditTarget(target || null);
-        setGeoGeoEditName(target?.name || "");
+        setGeoEditName(target?.name || "");
         setGeoEditOpen(true);
     };
 
     const handleGeoSave = async () => {
-        if (!geoGeoEditName.trim()) return;
+        if (!geoEditName.trim()) return;
         const action = geoEditTarget ? 'update' : 'add';
-        const data = geoEditTarget ? { ...geoEditTarget, name: geoGeoEditName } : { name: geoGeoEditName };
+        const data = geoEditTarget ? { ...geoEditTarget, name: geoEditName } : { name: geoEditName };
         
         if (action === 'add') {
             if (geoEditType === 'canton') (data as any).provinceId = selectedProvinceId;
@@ -297,7 +296,7 @@ export default function TicketSettingsPage() {
                     <div className="py-4 space-y-4">
                         <div className="space-y-2">
                             <Label>Nombre</Label>
-                            <Input value={geoGeoEditName} onChange={(e) => setGeoGeoEditName(e.target.value)} placeholder="Ej: Heredia" autoFocus onKeyDown={(e) => e.key === 'Enter' && handleGeoSave()} />
+                            <Input value={geoEditName} onChange={(e) => setGeoEditName(e.target.value)} placeholder="Ej: Heredia" autoFocus onKeyDown={(e) => e.key === 'Enter' && handleGeoSave()} />
                         </div>
                     </div>
                     <DialogFooter>
