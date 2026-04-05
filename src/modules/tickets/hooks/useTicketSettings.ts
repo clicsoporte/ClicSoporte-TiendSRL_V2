@@ -12,7 +12,8 @@ import {
     getHelpTopics, addHelpTopic, updateHelpTopic, deleteHelpTopic,
     getCRGeoData, addProvince, updateProvince, deleteProvince,
     addCanton, updateCanton, deleteCanton,
-    addDistrict, updateDistrict, deleteDistrict
+    addDistrict, updateDistrict, deleteDistrict,
+    getTicketSettings, saveTicketSettings
 } from '../lib/actions';
 import { getAllUsers } from '@/modules/core/lib/auth-client';
 import { getAllRoles } from '@/modules/core/lib/roles-db';
@@ -48,6 +49,10 @@ export const useTicketSettings = () => {
     const [allUsers, setAllUsers] = useState<User[]>([]);
     const [allRoles, setAllRoles] = useState<Role[]>([]);
     
+    // Ticket Consecutive Settings
+    const [ticketPrefix, setTicketPrefix] = useState('CAS-');
+    const [nextTicketNumber, setNextTicketNumber] = useState(1);
+
     // Geographic Data State
     const [provinces, setProvinces] = useState<Province[]>([]);
     const [cantons, setCantons] = useState<Canton[]>([]);
@@ -66,11 +71,12 @@ export const useTicketSettings = () => {
     const fetchInitialData = useCallback(async () => {
         setIsLoading(true);
         try {
-            const [topics, users, roles, geo] = await Promise.all([
+            const [topics, users, roles, geo, settings] = await Promise.all([
                 getHelpTopics(),
                 getAllUsers(),
                 getAllRoles(),
-                getCRGeoData()
+                getCRGeoData(),
+                getTicketSettings()
             ]);
             setHelpTopics(topics);
             setAllUsers(users);
@@ -78,6 +84,8 @@ export const useTicketSettings = () => {
             setProvinces(geo.provinces);
             setCantons(geo.cantons);
             setDistricts(geo.districts);
+            if (settings.ticketPrefix) setTicketPrefix(settings.ticketPrefix);
+            if (settings.nextTicketNumber) setNextTicketNumber(settings.nextTicketNumber);
         } catch (error) {
             logError('Failed to fetch settings data', { error });
             toast({ title: "Error", description: "No se pudieron cargar los datos de configuración.", variant: "destructive" });
@@ -218,12 +226,20 @@ export const useTicketSettings = () => {
 
     const handleSaveAll = async () => {
         if (!companyData) return;
-        await saveCompanySettings(companyData);
-        toast({
-          title: "Configuración Guardada",
-          description: "Los ajustes de soporte han sido actualizados.",
-        });
-        await logInfo("Configuración de soporte técnico guardada.");
+        try {
+            await Promise.all([
+                saveCompanySettings(companyData),
+                saveTicketSettings({ ticketPrefix, nextTicketNumber })
+            ]);
+            toast({
+              title: "Configuración Guardada",
+              description: "Los ajustes de soporte han sido actualizados.",
+            });
+            await logInfo("Configuración de soporte técnico guardada.");
+        } catch (e) {
+            logError("Failed to save ticket settings", { error: String(e) });
+            toast({ title: "Error al guardar", variant: "destructive" });
+        }
     };
 
     // --- Geographic Actions ---
@@ -285,7 +301,9 @@ export const useTicketSettings = () => {
             newPackage,
             provinces,
             cantons,
-            districts
+            districts,
+            ticketPrefix,
+            nextTicketNumber
         },
         actions: {
             setFormOpen,
@@ -304,7 +322,9 @@ export const useTicketSettings = () => {
             handlePackageServiceToggle,
             handlePackagePropChange,
             handleSaveAll,
-            handleGeoAction
+            handleGeoAction,
+            setTicketPrefix,
+            setNextTicketNumber
         },
         selectors: {
             priorityConfig,

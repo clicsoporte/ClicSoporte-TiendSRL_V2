@@ -1,6 +1,6 @@
 /**
  * @fileoverview Page for managing support ticket settings.
- * Now includes management for the Costa Rica Geographic Module.
+ * Includes Help Topics, Geographic Data, Support Packages, and Services.
  */
 'use client';
 
@@ -14,12 +14,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { PlusCircle, Trash2, Map as MapIcon, Edit } from 'lucide-react';
+import { PlusCircle, Trash2, Map as MapIcon, Edit, Hash, Package, ShieldCheck, Check } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Separator } from '@/components/ui/separator';
+import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import type { TicketPriority } from '@/modules/core/types';
 
@@ -94,7 +95,44 @@ export default function TicketSettingsPage() {
 
     return (
         <main className="flex-1 p-4 md:p-6 lg:p-8">
-            <Accordion type="multiple" defaultValue={['help-topics']} className="w-full space-y-6">
+            <Accordion type="multiple" defaultValue={['help-topics', 'consecutive-settings']} className="w-full space-y-6">
+                
+                {/* --- CONFIGURACIÓN DE CONSECUTIVOS --- */}
+                <Card>
+                    <AccordionItem value="consecutive-settings">
+                        <AccordionTrigger className="p-6 text-lg font-semibold">
+                            <div className="flex items-center gap-2">
+                                <Hash className="h-5 w-5 text-primary" /> Numeración y Consecutivos
+                            </div>
+                        </AccordionTrigger>
+                        <AccordionContent className="p-6 pt-0">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-2">
+                                    <Label htmlFor="ticketPrefix">Prefijo de Ticket</Label>
+                                    <Input 
+                                        id="ticketPrefix" 
+                                        value={state.ticketPrefix} 
+                                        onChange={(e) => actions.setTicketPrefix(e.target.value)}
+                                        placeholder="Ej: CAS-"
+                                    />
+                                    <p className="text-xs text-muted-foreground">Texto que precede al número (ej: CAS-000001).</p>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="nextTicketNumber">Siguiente Número</Label>
+                                    <Input 
+                                        id="nextTicketNumber" 
+                                        type="number"
+                                        value={state.nextTicketNumber} 
+                                        onChange={(e) => actions.setNextTicketNumber(Number(e.target.value))}
+                                    />
+                                    <p className="text-xs text-muted-foreground">El número correlativo que se asignará al próximo ticket.</p>
+                                </div>
+                            </div>
+                        </AccordionContent>
+                    </AccordionItem>
+                </Card>
+
+                {/* --- TEMAS DE AYUDA --- */}
                 <Card>
                     <AccordionItem value="help-topics">
                         <AccordionTrigger className="p-6 text-lg font-semibold">
@@ -103,7 +141,7 @@ export default function TicketSettingsPage() {
                         <AccordionContent className="p-6 pt-0">
                             <div className="flex items-center justify-between mb-4">
                                 <p className="text-muted-foreground text-sm">
-                                    Define los diferentes tipos de problemas para automatizar la asignación y priorización.
+                                    Define los tipos de problemas para automatizar la asignación y priorización inicial.
                                 </p>
                                 <Dialog open={state.isFormOpen} onOpenChange={(open) => { actions.setFormOpen(open); if (!open) actions.resetForm(); }}>
                                     <DialogTrigger asChild>
@@ -254,29 +292,134 @@ export default function TicketSettingsPage() {
                     </AccordionItem>
                 </Card>
 
-                {/* --- OTROS ACORDEONES --- */}
+                {/* --- PAQUETES DE SOPORTE (SLA / SLA LOGIC) --- */}
+                <Card>
+                    <AccordionItem value="support-packages">
+                        <AccordionTrigger className="p-6 text-lg font-semibold flex gap-2">
+                            <Package className="h-5 w-5 text-primary" /> Paquetes de Soporte (SLA)
+                        </AccordionTrigger>
+                        <AccordionContent className="p-6 pt-0 space-y-6">
+                            <CardDescription className="mb-4">Configura los planes mensuales, periodos de gracia y lógica de redondeo para el cobro de horas.</CardDescription>
+                            
+                            <div className="space-y-6">
+                                {(companyData.supportPackages || []).map(pkg => (
+                                    <div key={pkg.id} className="border rounded-xl p-6 bg-card shadow-sm space-y-6">
+                                        <div className="flex justify-between items-start">
+                                            <div className="space-y-1 flex-1">
+                                                <Input 
+                                                    className="text-lg font-bold border-none p-0 h-auto focus-visible:ring-0 bg-transparent"
+                                                    value={pkg.name}
+                                                    onChange={e => actions.handlePackagePropChange(pkg.id, 'name', e.target.value)}
+                                                />
+                                                <p className="text-xs text-muted-foreground font-mono">ID Interno: {pkg.id}</p>
+                                            </div>
+                                            <Button variant="ghost" size="icon" className="text-destructive" onClick={() => actions.handleDeletePackage(pkg.id)}><Trash2 className="h-4 w-4" /></Button>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                                            <div className="space-y-2">
+                                                <Label className="text-xs font-bold uppercase">Horas Incluidas</Label>
+                                                <Input type="number" value={pkg.defaultHours || ''} onChange={e => actions.handlePackagePropChange(pkg.id, 'defaultHours', Number(e.target.value))} placeholder="Ej: 10" />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label className="text-xs font-bold uppercase">Redondeo (min)</Label>
+                                                <Select value={String(pkg.roundingMultiple)} onValueChange={v => actions.handlePackagePropChange(pkg.id, 'roundingMultiple', Number(v))}>
+                                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="1">Sin Redondeo</SelectItem>
+                                                        <SelectItem value="15">Cada 15 min</SelectItem>
+                                                        <SelectItem value="30">Cada 30 min</SelectItem>
+                                                        <SelectItem value="60">Cada 60 min</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label className="text-xs font-bold uppercase">Gracia (min)</Label>
+                                                <Input type="number" value={pkg.graceMinutes || ''} onChange={e => actions.handlePackagePropChange(pkg.id, 'graceMinutes', Number(e.target.value))} placeholder="Ej: 5" />
+                                            </div>
+                                        </div>
+
+                                        <Separator />
+
+                                        <div className="space-y-3">
+                                            <Label className="text-xs font-bold uppercase flex items-center gap-2">
+                                                <ShieldCheck className="h-3 w-3" /> Cobertura de Servicios
+                                            </Label>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-48 overflow-y-auto pr-2">
+                                                {(companyData.servicesCatalog || []).map(service => {
+                                                    const isIncluded = pkg.includedServices.includes(service.id);
+                                                    const isExcluded = pkg.excludedServices.includes(service.id);
+                                                    return (
+                                                        <div key={service.id} className="p-3 rounded-lg border bg-muted/20 flex flex-col gap-2">
+                                                            <span className="text-xs font-medium truncate" title={service.name}>{service.name}</span>
+                                                            <div className="flex gap-4">
+                                                                <div className="flex items-center space-x-2">
+                                                                    <Checkbox 
+                                                                        id={`inc-${pkg.id}-${service.id}`} 
+                                                                        checked={isIncluded}
+                                                                        onCheckedChange={(checked) => actions.handlePackageServiceToggle(pkg.id, service.id, 'included', !!checked)}
+                                                                    />
+                                                                    <Label htmlFor={`inc-${pkg.id}-${service.id}`} className="text-[10px] font-bold uppercase text-green-600">Incluido</Label>
+                                                                </div>
+                                                                <div className="flex items-center space-x-2">
+                                                                    <Checkbox 
+                                                                        id={`exc-${pkg.id}-${service.id}`}
+                                                                        checked={isExcluded}
+                                                                        onCheckedChange={(checked) => actions.handlePackageServiceToggle(pkg.id, service.id, 'excluded', !!checked)}
+                                                                    />
+                                                                    <Label htmlFor={`exc-${pkg.id}-${service.id}`} className="text-[10px] font-bold uppercase text-red-600">Extra</Label>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+
+                                <Separator className="my-6" />
+                                <div className="bg-muted/30 p-6 rounded-xl border-2 border-dashed space-y-4">
+                                    <h4 className="font-bold text-sm">Nuevo Paquete de Soporte</h4>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+                                        <div className="space-y-1.5"><Label className="text-xs">ID</Label><Input value={state.newPackage.id} onChange={e => actions.setNewPackage({...state.newPackage, id: e.target.value})} placeholder="Ej: GOLD"/></div>
+                                        <div className="space-y-1.5"><Label className="text-xs">Nombre</Label><Input value={state.newPackage.name} onChange={e => actions.setNewPackage({...state.newPackage, name: e.target.value})} placeholder="Ej: Plan Corporativo Oro"/></div>
+                                        <div className="space-y-1.5"><Label className="text-xs">Horas Base</Label><Input type="number" value={state.newPackage.defaultHours || ''} onChange={e => actions.setNewPackage({...state.newPackage, defaultHours: Number(e.target.value)})} /></div>
+                                        <Button onClick={actions.handleAddPackage} className="w-full"><PlusCircle className="mr-2 h-4 w-4" /> Crear Paquete</Button>
+                                    </div>
+                                </div>
+                            </div>
+                        </AccordionContent>
+                    </AccordionItem>
+                </Card>
+
+                {/* --- CATÁLOGO DE SERVICIOS --- */}
                 <Card>
                     <AccordionItem value="services-catalog">
                         <AccordionTrigger className="p-6 text-lg font-semibold">Catálogo de Servicios</AccordionTrigger>
                         <AccordionContent className="p-6 pt-0">
-                            <CardDescription className="mb-4">Precios base por hora para servicios técnicos.</CardDescription>
-                            <div className="space-y-2">
+                            <CardDescription className="mb-4">Precios base por hora para servicios técnicos. Estos precios se usan como referencia cuando el servicio no está cubierto por contrato.</CardDescription>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {(companyData.servicesCatalog || []).map(service => (
-                                    <div key={service.id} className="flex items-center justify-between rounded-lg border p-3">
+                                    <div key={service.id} className="flex items-center justify-between rounded-lg border p-4 bg-card group hover:border-primary transition-colors">
                                         <div className="flex-1">
-                                            <p className="font-medium">{service.name} <span className="font-mono text-xs text-muted-foreground">({service.id})</span></p>
-                                            <p className="text-xs text-green-600 font-bold">Precio/Hora: ¢{(service.price || 0).toLocaleString()}</p>
+                                            <p className="font-bold text-sm">{service.name}</p>
+                                            <p className="font-mono text-[10px] text-muted-foreground">{service.id}</p>
+                                            <p className="text-xs text-green-600 font-black mt-1">¢{(service.price || 0).toLocaleString()}/h</p>
                                         </div>
-                                        <Button variant="ghost" size="icon" className="text-destructive" onClick={() => actions.handleDeleteService(service.id)}><Trash2 className="h-4 w-4"/></Button>
+                                        <Button variant="ghost" size="icon" className="text-destructive opacity-0 group-hover:opacity-100" onClick={() => actions.handleDeleteService(service.id)}><Trash2 className="h-4 w-4"/></Button>
                                     </div>
                                 ))}
                             </div>
-                            <Separator className="my-4"/>
-                            <div className="flex flex-col sm:flex-row items-end gap-2">
-                                <div className="flex-1 space-y-1.5"><Label className="text-xs">ID</Label><Input value={state.newService.id} onChange={e => actions.setNewService({...state.newService, id: e.target.value})} placeholder="Ej: soporte-remoto"/></div>
-                                <div className="flex-1 space-y-1.5"><Label className="text-xs">Nombre</Label><Input value={state.newService.name} onChange={e => actions.setNewService({...state.newService, name: e.target.value})} placeholder="Ej: Soporte Remoto Básico"/></div>
-                                <div className="w-full sm:w-32 space-y-1.5"><Label className="text-xs">Precio</Label><Input type="number" value={state.newService.price || ''} onChange={e => actions.setNewService({...state.newService, price: Number(e.target.value)})} /></div>
-                                <Button size="icon" onClick={actions.handleAddService}><PlusCircle className="h-4 w-4"/></Button>
+                            <Separator className="my-6"/>
+                            <div className="bg-muted/30 p-6 rounded-xl border-2 border-dashed space-y-4">
+                                <h4 className="font-bold text-sm">Añadir Servicio al Catálogo</h4>
+                                <div className="flex flex-col sm:flex-row items-end gap-4">
+                                    <div className="flex-1 space-y-1.5"><Label className="text-xs">ID Único</Label><Input value={state.newService.id} onChange={e => actions.setNewService({...state.newService, id: e.target.value})} placeholder="Ej: soporte-remoto"/></div>
+                                    <div className="flex-[2] space-y-1.5"><Label className="text-xs">Nombre Comercial</Label><Input value={state.newService.name} onChange={e => actions.setNewService({...state.newService, name: e.target.value})} placeholder="Ej: Soporte Remoto Nivel 1"/></div>
+                                    <div className="w-full sm:w-32 space-y-1.5"><Label className="text-xs">Precio/Hora</Label><Input type="number" value={state.newService.price || ''} onChange={e => actions.setNewService({...state.newService, price: Number(e.target.value)})} /></div>
+                                    <Button size="icon" onClick={actions.handleAddService} className="h-10 w-10"><PlusCircle className="h-5 w-5"/></Button>
+                                </div>
                             </div>
                         </AccordionContent>
                     </AccordionItem>
@@ -284,7 +427,10 @@ export default function TicketSettingsPage() {
             </Accordion>
             
             <div className="mt-8 flex justify-end">
-                <Button onClick={actions.handleSaveAll} size="lg" className="px-10 shadow-lg">Guardar Configuración General</Button>
+                <Button onClick={actions.handleSaveAll} size="lg" className="px-10 shadow-lg gap-2">
+                    <Check className="h-5 w-5" />
+                    Guardar Configuración General
+                </Button>
             </div>
 
             {/* Diálogo de Edición Geográfica */}
