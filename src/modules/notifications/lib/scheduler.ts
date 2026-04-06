@@ -1,9 +1,8 @@
-
 'use server';
 
 /**
  * @fileoverview Scheduler service for executing background tasks.
- * Uses node-cron to manage the execution of tasks defined in notifications.db.
+ * Uses node-cron to manage the execution of tasks defined in intratool.db.
  */
 
 import cron from 'node-cron';
@@ -14,7 +13,7 @@ import { triggerNotificationEvent } from './notifications-engine';
 import { connectDb } from '@/modules/core/lib/db';
 import { backupAllForUpdate } from '@/modules/core/lib/maintenance-db';
 import type { Contract, License, Customer } from '@/modules/core/types';
-import { differenceInDays, parseISO, isSameDay } from 'date-fns';
+import { differenceInDays, parseISO, isSameDay, format } from 'date-fns';
 import { autoRenewContract } from '@/modules/contracts/lib/db';
 
 const runningJobs: Map<number, cron.ScheduledTask> = new Map();

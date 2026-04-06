@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Client Component for the Analytics module.
  * Redesigned for comprehensive Management Reporting (Volume, Profitability, and Operations).
@@ -21,6 +20,7 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import type { VolumeKpi } from '@/modules/core/types';
 
 const StatCard = ({ title, value, icon: Icon, isLoading, color = "text-muted-foreground" }: { title: string, value: string | number, icon: React.ElementType, isLoading: boolean, color?: string }) => (
     <Card>
@@ -141,7 +141,7 @@ export default function AnalyticsClient() {
                                             nameKey="label"
                                             label={({ label }) => label}
                                         >
-                                            {state.kpis?.byTopic.map((entry, index) => (
+                                            {state.kpis?.byTopic.map((_entry: VolumeKpi, index: number) => (
                                                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                             ))}
                                         </Pie>
@@ -177,7 +177,7 @@ export default function AnalyticsClient() {
                                             dataKey="value"
                                             label
                                         >
-                                            {state.kpis?.byBillingType.map((entry, index) => (
+                                            {state.kpis?.byBillingType.map((_entry: VolumeKpi, index: number) => (
                                                 <Cell key={`cell-${index}`} fill={index === 0 ? '#3B82F6' : '#10B981'} />
                                             ))}
                                         </Pie>
@@ -204,7 +204,7 @@ export default function AnalyticsClient() {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {state.kpis?.timeTracking.byUser.map(user => (
+                                        {state.kpis?.timeTracking.byUser.map((user: any) => (
                                             <TableRow key={user.userId}>
                                                 <TableCell className="font-medium">{user.userName}</TableCell>
                                                 <TableCell className="text-right font-mono">{user.billable.toFixed(2)} h</TableCell>
@@ -235,7 +235,7 @@ export default function AnalyticsClient() {
                                             <YAxis />
                                             <Tooltip content={<ChartTooltipContent />} />
                                             <Legend />
-                                            <Bar dataKey="billable" fill="#10B981" radius={4} name="Contrato" />
+                                            <Bar dataKey="billable" fill="#10B981" radius={4} name="Bajo Contrato" />
                                             <Bar dataKey="nonBillable" fill="#F97316" radius={4} name="Fuera de Contrato" />
                                         </BarChart>
                                     </ResponsiveContainer>

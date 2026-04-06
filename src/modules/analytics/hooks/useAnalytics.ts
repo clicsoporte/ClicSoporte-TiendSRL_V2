@@ -6,7 +6,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
-import { getAnalyticsData, type AnalyticsData } from '../lib/actions';
+import { getAnalyticsData } from '../lib/actions';
+import type { AnalyticsData } from '@/modules/core/types';
 import { logError } from '@/modules/core/lib/logger';
 import { DateRange } from 'react-day-picker';
 import { subDays } from 'date-fns';
