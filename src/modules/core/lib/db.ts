@@ -7,6 +7,7 @@
 import type { Database } from 'better-sqlite3';
 import { connectDb as baseConnectDb } from './db-connection';
 import { initialUsers, initialRoles } from './db-constants';
+import { COSTA_RICA_GEO_DATA } from './geo-seed-data';
 import bcrypt from 'bcryptjs';
 import type { LogEntry, DateRange } from '../types';
 
@@ -274,19 +275,6 @@ export async function initializeMainDatabase(db: Database) {
             createdAt TEXT NOT NULL
         );
 
-        CREATE TABLE IF NOT EXISTS provider_services (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            providerId INTEGER NOT NULL,
-            serviceId TEXT NOT NULL,
-            buyPriceRemote REAL DEFAULT 0,
-            marginRemote REAL DEFAULT 0,
-            sellPriceRemote REAL DEFAULT 0,
-            buyPriceOnSite REAL DEFAULT 0,
-            marginOnSite REAL DEFAULT 0,
-            sellPriceOnSite REAL DEFAULT 0,
-            FOREIGN KEY (providerId) REFERENCES third_party_providers(id) ON DELETE CASCADE
-        );
-
         CREATE TABLE IF NOT EXISTS provinces (
             id INTEGER PRIMARY KEY,
             name TEXT NOT NULL
@@ -304,6 +292,19 @@ export async function initializeMainDatabase(db: Database) {
             cantonId INTEGER NOT NULL,
             name TEXT NOT NULL,
             FOREIGN KEY (cantonId) REFERENCES cantons(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS provider_services (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            providerId INTEGER NOT NULL,
+            serviceId TEXT NOT NULL,
+            buyPriceRemote REAL DEFAULT 0,
+            marginRemote REAL DEFAULT 0,
+            sellPriceRemote REAL DEFAULT 0,
+            buyPriceOnSite REAL DEFAULT 0,
+            marginOnSite REAL DEFAULT 0,
+            sellPriceOnSite REAL DEFAULT 0,
+            FOREIGN KEY (providerId) REFERENCES third_party_providers(id) ON DELETE CASCADE
         );
 
         CREATE TABLE IF NOT EXISTS provider_geo_rates (
@@ -486,81 +487,8 @@ export async function initializeMainDatabase(db: Database) {
     db.prepare(`INSERT OR IGNORE INTO cost_assistant_settings (key, value) VALUES ('nextDraftNumber', '1'), ('draftPrefix', 'AC-')`).run();
     db.prepare(`INSERT OR IGNORE INTO notification_settings (service, config) VALUES ('telegram', ?)`).run(JSON.stringify({ botToken: '', chatId: '' }));
 
-    // Seed Costa Rica Provinces
-    const provinces = [
-        { id: 1, name: 'San José' },
-        { id: 2, name: 'Alajuela' },
-        { id: 3, name: 'Cartago' },
-        { id: 4, name: 'Heredia' },
-        { id: 5, name: 'Guanacaste' },
-        { id: 6, name: 'Puntarenas' },
-        { id: 7, name: 'Limón' }
-    ];
-    const insertProvince = db.prepare('INSERT OR IGNORE INTO provinces (id, name) VALUES (?, ?)');
-    provinces.forEach(p => insertProvince.run(p.id, p.name));
-
-    // Seed Main Cantons of CR
-    const cantons = [
-        { id: 101, provinceId: 1, name: 'San José' },
-        { id: 102, provinceId: 1, name: 'Escazú' },
-        { id: 103, provinceId: 1, name: 'Desamparados' },
-        { id: 104, provinceId: 1, name: 'Puriscal' },
-        { id: 105, provinceId: 1, name: 'Tarrazú' },
-        { id: 106, provinceId: 1, name: 'Aserrí' },
-        { id: 107, provinceId: 1, name: 'Mora' },
-        { id: 108, provinceId: 1, name: 'Goicoechea' },
-        { id: 109, provinceId: 1, name: 'Santa Ana' },
-        { id: 110, provinceId: 1, name: 'Alajuelita' },
-        { id: 111, provinceId: 1, name: 'Vázquez de Coronado' },
-        { id: 112, provinceId: 1, name: 'Acosta' },
-        { id: 113, provinceId: 1, name: 'Tibás' },
-        { id: 114, provinceId: 1, name: 'Moravia' },
-        { id: 115, provinceId: 1, name: 'Montes de Oca' },
-        { id: 116, provinceId: 1, name: 'Turrubares' },
-        { id: 117, provinceId: 1, name: 'Dota' },
-        { id: 118, provinceId: 1, name: 'Curridabat' },
-        { id: 119, provinceId: 1, name: 'Pérez Zeledón' },
-        { id: 120, provinceId: 1, name: 'León Cortés Castro' },
-        
-        { id: 201, provinceId: 2, name: 'Alajuela' },
-        { id: 202, provinceId: 2, name: 'San Ramón' },
-        { id: 203, provinceId: 2, name: 'Grecia' },
-        { id: 204, provinceId: 2, name: 'San Mateo' },
-        { id: 205, provinceId: 2, name: 'Atenas' },
-        { id: 206, provinceId: 2, name: 'Naranjo' },
-        { id: 207, provinceId: 2, name: 'Palmares' },
-        { id: 208, provinceId: 2, name: 'Poás' },
-        { id: 209, provinceId: 2, name: 'Orotina' },
-        { id: 210, provinceId: 2, name: 'San Carlos' },
-        { id: 211, provinceId: 2, name: 'Zarcero' },
-        { id: 212, provinceId: 2, name: 'Sarchí' },
-        { id: 213, provinceId: 2, name: 'Upala' },
-        { id: 214, provinceId: 2, name: 'Los Chiles' },
-        { id: 215, provinceId: 2, name: 'Guatuso' },
-        { id: 216, provinceId: 2, name: 'Río Cuarto' },
-
-        { id: 301, provinceId: 3, name: 'Cartago' },
-        { id: 302, provinceId: 3, name: 'Paraíso' },
-        { id: 303, provinceId: 3, name: 'La Unión' },
-        { id: 304, provinceId: 3, name: 'Jiménez' },
-        { id: 305, provinceId: 3, name: 'Turrialba' },
-        { id: 306, provinceId: 3, name: 'Alvarado' },
-        { id: 307, provinceId: 3, name: 'Oreamuno' },
-        { id: 308, provinceId: 3, name: 'El Guarco' },
-
-        { id: 401, provinceId: 4, name: 'Heredia' },
-        { id: 402, provinceId: 4, name: 'Barva' },
-        { id: 403, provinceId: 4, name: 'Santo Domingo' },
-        { id: 404, provinceId: 4, name: 'Santa Bárbara' },
-        { id: 405, provinceId: 4, name: 'San Rafael' },
-        { id: 406, provinceId: 4, name: 'San Isidro' },
-        { id: 407, provinceId: 4, name: 'Belén' },
-        { id: 408, provinceId: 4, name: 'Flores' },
-        { id: 409, provinceId: 4, name: 'San Pablo' },
-        { id: 410, provinceId: 4, name: 'Sarapiquí' }
-    ];
-    const insertCanton = db.prepare('INSERT OR IGNORE INTO cantons (id, provinceId, name) VALUES (?, ?, ?)');
-    cantons.forEach(c => insertCanton.run(c.id, c.provinceId, c.name));
+    // Seeding geographic data
+    seedGeographicData(db);
 
     // Default Help Topics
     const topics = [
@@ -581,9 +509,41 @@ export async function initializeMainDatabase(db: Database) {
     software.forEach(p => insertSoftware.run(p));
 }
 
+/**
+ * Robust seeding function for geographic data.
+ * Overwrites official names but preserves hierarchical integrity.
+ */
+function seedGeographicData(db: Database) {
+    const insertProv = db.prepare('INSERT OR REPLACE INTO provinces (id, name) VALUES (?, ?)');
+    const insertCant = db.prepare('INSERT OR REPLACE INTO cantons (id, provinceId, name) VALUES (?, ?, ?)');
+    const insertDist = db.prepare('INSERT OR REPLACE INTO districts (id, cantonId, name) VALUES (?, ?, ?)');
+
+    db.transaction(() => {
+        for (const [pId, pData] of Object.entries(COSTA_RICA_GEO_DATA.provincias)) {
+            const provinceId = parseInt(pId, 10);
+            insertProv.run(provinceId, pData.nombre);
+
+            for (const [cId, cData] of Object.entries(pData.cantones)) {
+                // Stable unique ID for cantons: ProvinceID + Code
+                const cantonId = provinceId * 100 + parseInt(cId, 10);
+                insertCant.run(cantonId, provinceId, cData.nombre);
+
+                for (const [dId, dName] of Object.entries(cData.distritos)) {
+                    // Stable unique ID for districts: CantonID + Code
+                    const districtId = cantonId * 100 + parseInt(dId, 10);
+                    insertDist.run(districtId, cantonId, dName);
+                }
+            }
+        }
+    })();
+}
+
 export async function runMainMigrations(db: Database) {
     const tableInfo = (table: string) => db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
     const hasColumn = (table: string, col: string) => new Set(tableInfo(table).map(c => c.name)).has(col);
+
+    // Ensure geo data is always up to date with the latest official file
+    seedGeographicData(db);
 
     // CORE Migrations
     if (!hasColumn('users', 'forcePasswordChange')) db.exec(`ALTER TABLE users ADD COLUMN forcePasswordChange INTEGER DEFAULT 0;`);

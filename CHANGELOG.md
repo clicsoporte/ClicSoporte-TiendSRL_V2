@@ -2,6 +2,12 @@
 
 Registro de cambios y evolución de la plataforma Clic-Tools para gestión de MSP.
 
+## [2.1.2] - 2024-05-24
+### Añadido
+- **Base Geográfica Oficial**: Carga completa de las 7 provincias, 82 cantones y ~480 distritos de Costa Rica.
+- **Sistema de Seeding**: Implementación de un motor de semillas automático que asegura que los datos geográficos estén siempre actualizados y sean consistentes en todas las instalaciones.
+- **IDs Estables**: Generación de identificadores geográficos únicos basados en códigos provinciales y cantonales para garantizar la integridad referencial a largo plazo.
+
 ## [2.1.1] - 2024-05-23
 ### Añadido
 - **Modalidades de Cobro en Servicios**: Soporte para servicios facturables "Por Hora" o "Por Tarea" (monto fijo).
