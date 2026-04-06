@@ -12,7 +12,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
 import { Button } from '@/components/ui/button';
 import { Calendar as CalendarIcon } from 'lucide-react';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -204,7 +204,7 @@ export default function AnalyticsClient() {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {state.kpis?.timeTracking.byUser.map((user: any) => (
+                                        {state.kpis?.timeTracking.byUser.map((user: { userId: number; userName: string; billable: number; nonBillable: number; amount: number }) => (
                                             <TableRow key={user.userId}>
                                                 <TableCell className="font-medium">{user.userName}</TableCell>
                                                 <TableCell className="text-right font-mono">{user.billable.toFixed(2)} h</TableCell>

@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Client-side component for TI Project Manager.
  * Handles project creation and listing with robust validation.
@@ -16,7 +15,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { PlusCircle, Calendar as CalendarIcon, Users, FileText, ChevronRight, Loader2, Briefcase, Truck, Network, Radio, Monitor, Zap, Lock, AlertCircle, ShieldCheck, Coins } from 'lucide-react';
+import { PlusCircle, Calendar as CalendarIcon, FileText, ChevronRight, Loader2, Briefcase, Network, Radio, Monitor, Zap, Lock, ShieldCheck, Coins } from 'lucide-react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { getProjects, createProject } from '@/modules/planner/lib/actions';
 import type { TIProject, ProjectStatus, ProjectPriority, ProjectCategory, ThirdPartyProvider } from '@/modules/core/types';

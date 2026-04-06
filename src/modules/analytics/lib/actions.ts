@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Server-side functions for aggregating analytics data.
  * Unified for single database architecture.
@@ -31,11 +30,11 @@ export async function getAnalyticsData(range?: DateRange): Promise<AnalyticsData
     const tF = applyDateFilter('SELECT * FROM tickets {{WHERE}}', range, 'createdAt');
     const tickets = db.prepare(tF.filteredQuery).all(...tF.params) as Ticket[];
     
-    const ticketKpi = tickets.reduce((acc, t) => { 
-        acc.total++; 
+    const ticketKpi = tickets.reduce((acc: Record<string, number>, t) => { 
+        acc.total = (acc.total || 0) + 1; 
         acc[t.status] = (acc[t.status] || 0) + 1; 
         return acc; 
-    }, { total: 0 } as any);
+    }, { total: 0 });
 
     // Grouping Logics
     const customerMapCount = new Map<string, number>();
@@ -74,7 +73,7 @@ export async function getAnalyticsData(range?: DateRange): Promise<AnalyticsData
     // Projects
     const pF = applyDateFilter('SELECT status FROM projects {{WHERE}}', range, 'createdAt');
     const projects = db.prepare(pF.filteredQuery).all(...pF.params) as Pick<TIProject, 'status'>[];
-    const projectKpi = projects.reduce((acc, p) => { acc.total++; acc[p.status] = (acc[p.status] || 0) + 1; return acc; }, { total: 0 } as any);
+    const projectKpi = projects.reduce((acc: Record<string, number>, p) => { acc.total = (acc.total || 0) + 1; acc[p.status] = (acc[p.status] || 0) + 1; return acc; }, { total: 0 });
 
     // Time Tracking 
     const tsF = applyDateFilter(`
@@ -93,7 +92,7 @@ export async function getAnalyticsData(range?: DateRange): Promise<AnalyticsData
         totalNonBillable: 0, 
         totalAmountInvoiced: 0,
         totalAmountPending: 0,
-        byUser: [] as any[]
+        byUser: [] as { userId: number; userName: string; billable: number; nonBillable: number; amount: number }[]
     };
     const byUserMap = new Map<number, { userId: number; userName: string; billable: number; nonBillable: number; amount: number }>();
 
@@ -139,8 +138,8 @@ export async function getAnalyticsData(range?: DateRange): Promise<AnalyticsData
     })).sort((a,b) => (b.billable + b.nonBillable) - (a.billable + a.nonBillable));
 
     return { 
-        tickets: ticketKpi, 
-        projects: projectKpi, 
+        tickets: { total: ticketKpi.total, ...ticketKpi }, 
+        projects: { total: projectKpi.total, ...projectKpi }, 
         timeTracking: timeKpi,
         byCustomer: formatVolume(customerMapCount).slice(0, 10),
         byTopic: formatVolume(topicMapCount, topicIdToName),

@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Detailed project view for advancement tracking and documentation.
  * Improved with Profitability Shield to prevent financial losses.
@@ -26,16 +25,11 @@ import {
 import { getThirdPartyProviders } from '@/modules/tickets/lib/actions';
 import type { TIProject, ProjectAdvance, ProjectAttachment, ProjectItem, ProjectStatus, ProjectPriority, ThirdPartyProvider } from '@/modules/core/types';
 import { format, parseISO } from 'date-fns';
-import { es } from 'date-fns/locale';
-import { Loader2, Send, Paperclip, Plus, Trash2, FileDown, ArrowLeft, History, Truck, UserCircle, Package, Briefcase, Info, CheckCircle2, Edit, Phone, Mail, FileText, AlertTriangle, TrendingUp, TrendingDown, Target, Wallet } from 'lucide-react';
+import { Loader2, Send, Paperclip, Plus, Trash2, FileDown, ArrowLeft, History, Truck, UserCircle, Package, Briefcase, FileText, AlertTriangle, TrendingUp, TrendingDown, Wallet } from 'lucide-react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { generateDocument } from '@/modules/core/lib/pdf-generator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Checkbox } from '@/components/ui/checkbox';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import type { RowInput } from 'jspdf-autotable';
@@ -75,9 +69,6 @@ export default function ProjectDetailsPage() {
     const [newItem, setNewItem] = useState<{ description: string; quantity: number; unitPrice: number; type: 'material' | 'service' }>({ description: '', quantity: 1, unitPrice: 0, type: 'material' });
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const [isEditTeamOpen, setEditTeamOpen] = useState(false);
-    const [teamForm, setTeamForm] = useState<{ coordinatorId: number; subcontractorIds: number[] }>({ coordinatorId: 0, subcontractorIds: [] });
-
     const loadProjectData = useCallback(async (silent = false) => {
         if (!silent) setIsLoading(true);
         try {
@@ -93,7 +84,6 @@ export default function ProjectDetailsPage() {
             setAttachments(att);
             setItems(its);
             setProviders(provs);
-            if (p) setTeamForm({ coordinatorId: p.coordinatorId, subcontractorIds: p.subcontractorIds || [] });
         } catch (error) {
             console.error("Failed to load project data:", error);
             toast({ title: "Error de carga", description: "No se pudo obtener la información del proyecto.", variant: "destructive" });
@@ -209,26 +199,6 @@ export default function ProjectDetailsPage() {
             toast({ title: "Estado Actualizado" });
         } catch {
             toast({ title: "Error", description: "No se pudo actualizar el estado del proyecto.", variant: "destructive" });
-        }
-    };
-
-    const handleUpdateTeam = async () => {
-        if (!project || !user) return;
-        setIsSubmitting(true);
-        try {
-            const updated = { 
-                ...project, 
-                coordinatorId: Number(teamForm.coordinatorId), 
-                subcontractorIds: teamForm.subcontractorIds.map(id => Number(id))
-            };
-            await updateProject(updated);
-            setEditTeamOpen(false);
-            toast({ title: "Equipo Actualizado" });
-            loadProjectData(true);
-        } catch {
-            toast({ title: "Error", variant: "destructive" });
-        } finally {
-            setIsSubmitting(false);
         }
     };
 
