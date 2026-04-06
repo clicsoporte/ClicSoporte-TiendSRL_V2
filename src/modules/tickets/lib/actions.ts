@@ -40,6 +40,8 @@ import {
     addDistrict as addDistrictServer,
     updateDistrict as updateDistrictServer,
     deleteDistrict as deleteDistrictServer,
+    getTicketSettings as getTicketSettingsServer,
+    saveTicketSettings as saveTicketSettingsServer
 } from './db';
 import { triggerNotificationEvent } from '@/modules/notifications/lib/notifications-engine';
 
@@ -257,4 +259,12 @@ export async function updateDistrict(id: number, name: string): Promise<void> {
 
 export async function deleteDistrict(id: number): Promise<void> {
     return await deleteDistrictServer(id);
+}
+
+export async function getTicketSettings(): Promise<{ ticketPrefix: string; nextTicketNumber: number }> {
+    return await getTicketSettingsServer();
+}
+
+export async function saveTicketSettings(settings: { ticketPrefix: string; nextTicketNumber: number }): Promise<void> {
+    return await saveTicketSettingsServer(settings);
 }

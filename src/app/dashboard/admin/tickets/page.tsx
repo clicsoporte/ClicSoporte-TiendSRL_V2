@@ -21,8 +21,9 @@ import { useAuth } from '@/modules/core/hooks/useAuth';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import type { TicketPriority, Service } from '@/modules/core/types';
+import type { TicketPriority } from '@/modules/core/types';
 
 export default function TicketSettingsPage() {
     const { setTitle } = usePageTitle();

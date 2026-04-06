@@ -24,7 +24,7 @@ export async function connectTicketsDb(): Promise<Database> {
     return connectDb();
 }
 
-async function getNextTicketNumber(db: Database): Promise<{ prefix: string; number: number }> {
+async function getNextTicketNumberInternal(db: Database): Promise<{ prefix: string; number: number }> {
     const prefixRow = db.prepare("SELECT value FROM ticket_settings WHERE key = 'ticketPrefix'").get() as { value: string } | undefined;
     const numberRow = db.prepare("SELECT value FROM ticket_settings WHERE key = 'nextTicketNumber'").get() as { value: string } | undefined;
     return { prefix: prefixRow?.value || 'CAS-', number: numberRow ? parseInt(numberRow.value, 10) : 1 };
@@ -33,7 +33,7 @@ async function getNextTicketNumber(db: Database): Promise<{ prefix: string; numb
 export async function addTicket(payload: NewTicketPayload, user: User): Promise<Ticket> {
     try {
         const db = await connectTicketsDb();
-        const { prefix, number } = await getNextTicketNumber(db);
+        const { prefix, number } = await getNextTicketNumberInternal(db);
 
         const transaction = db.transaction(() => {
             const consecutive = `${prefix}${number.toString().padStart(6, '0')}`;
@@ -371,4 +371,20 @@ export async function updateDistrict(id: number, name: string): Promise<void> {
 export async function deleteDistrict(id: number): Promise<void> {
     const db = await connectTicketsDb();
     db.prepare('DELETE FROM districts WHERE id = ?').run(id);
+}
+
+export async function getTicketSettings(): Promise<{ ticketPrefix: string; nextTicketNumber: number }> {
+    const db = await connectTicketsDb();
+    const prefix = db.prepare("SELECT value FROM ticket_settings WHERE key = 'ticketPrefix'").get() as { value: string } | undefined;
+    const next = db.prepare("SELECT value FROM ticket_settings WHERE key = 'nextTicketNumber'").get() as { value: string } | undefined;
+    return {
+        ticketPrefix: prefix?.value || 'CAS-',
+        nextTicketNumber: next ? parseInt(next.value, 10) : 1
+    };
+}
+
+export async function saveTicketSettings(settings: { ticketPrefix: string; nextTicketNumber: number }): Promise<void> {
+    const db = await connectTicketsDb();
+    db.prepare("INSERT OR REPLACE INTO ticket_settings (key, value) VALUES ('ticketPrefix', ?)").run(settings.ticketPrefix);
+    db.prepare("INSERT OR REPLACE INTO ticket_settings (key, value) VALUES ('nextTicketNumber', ?)").run(String(settings.nextTicketNumber));
 }
