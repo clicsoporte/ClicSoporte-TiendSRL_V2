@@ -276,7 +276,17 @@ export async function deleteThirdPartyProvider(id: number): Promise<void> {
 
 export async function saveProviderService(payload: Omit<ProviderService, 'id'>): Promise<ProviderService> {
     const db = await connectTicketsDb();
-    const info = db.prepare('INSERT INTO provider_services (providerId, serviceId, priceRemote, priceOnSite) VALUES (?, ?, ?, ?)').run(payload.providerId, payload.serviceId, payload.priceRemote, payload.priceOnSite);
+    const info = db.prepare(`
+        INSERT INTO provider_services (
+            providerId, serviceId, 
+            buyPriceRemote, marginRemote, sellPriceRemote,
+            buyPriceOnSite, marginOnSite, sellPriceOnSite
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+        payload.providerId, payload.serviceId, 
+        payload.buyPriceRemote, payload.marginRemote, payload.sellPriceRemote,
+        payload.buyPriceOnSite, payload.marginOnSite, payload.sellPriceOnSite
+    );
     return { ...payload, id: Number(info.lastInsertRowid) } as ProviderService;
 }
 
@@ -287,7 +297,15 @@ export async function deleteProviderService(id: number): Promise<void> {
 
 export async function saveProviderGeoRate(payload: Omit<ProviderGeoRate, 'id'>): Promise<ProviderGeoRate> {
     const db = await connectTicketsDb();
-    const info = db.prepare('INSERT INTO provider_geo_rates (providerId, provinceId, cantonId, districtId, travelPrice, locationName) VALUES (?, ?, ?, ?, ?, ?)').run(payload.providerId, payload.provinceId, payload.cantonId || null, payload.districtId || null, payload.travelPrice, payload.locationName);
+    const info = db.prepare(`
+        INSERT INTO provider_geo_rates (
+            providerId, provinceId, cantonId, districtId, 
+            buyTravelPrice, marginTravel, sellTravelPrice, locationName
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+        payload.providerId, payload.provinceId, payload.cantonId || null, payload.districtId || null, 
+        payload.buyTravelPrice, payload.marginTravel, payload.sellTravelPrice, payload.locationName
+    );
     return { ...payload, id: Number(info.lastInsertRowid) } as ProviderGeoRate;
 }
 

@@ -278,8 +278,12 @@ export async function initializeMainDatabase(db: Database) {
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             providerId INTEGER NOT NULL,
             serviceId TEXT NOT NULL,
-            priceRemote REAL DEFAULT 0,
-            priceOnSite REAL DEFAULT 0,
+            buyPriceRemote REAL DEFAULT 0,
+            marginRemote REAL DEFAULT 0,
+            sellPriceRemote REAL DEFAULT 0,
+            buyPriceOnSite REAL DEFAULT 0,
+            marginOnSite REAL DEFAULT 0,
+            sellPriceOnSite REAL DEFAULT 0,
             FOREIGN KEY (providerId) REFERENCES third_party_providers(id) ON DELETE CASCADE
         );
 
@@ -308,7 +312,9 @@ export async function initializeMainDatabase(db: Database) {
             provinceId INTEGER NOT NULL,
             cantonId INTEGER,
             districtId INTEGER,
-            travelPrice REAL DEFAULT 0,
+            buyTravelPrice REAL DEFAULT 0,
+            marginTravel REAL DEFAULT 0,
+            sellTravelPrice REAL DEFAULT 0,
             locationName TEXT NOT NULL,
             FOREIGN KEY (providerId) REFERENCES third_party_providers(id) ON DELETE CASCADE
         );
@@ -628,6 +634,22 @@ export async function runMainMigrations(db: Database) {
     // PROVIDERS Migrations
     if (!hasColumn('third_party_providers', 'contacts')) db.exec(`ALTER TABLE third_party_providers ADD COLUMN contacts TEXT;`);
 
+    // PROVIDER PRICING Migrations
+    const providerServiceFields = [
+        ['buyPriceRemote', 'REAL DEFAULT 0'], ['marginRemote', 'REAL DEFAULT 0'], ['sellPriceRemote', 'REAL DEFAULT 0'],
+        ['buyPriceOnSite', 'REAL DEFAULT 0'], ['marginOnSite', 'REAL DEFAULT 0'], ['sellPriceOnSite', 'REAL DEFAULT 0']
+    ];
+    providerServiceFields.forEach(([field, type]) => {
+        if (!hasColumn('provider_services', field)) db.exec(`ALTER TABLE provider_services ADD COLUMN ${field} ${type};`);
+    });
+
+    const providerGeoFields = [
+        ['buyTravelPrice', 'REAL DEFAULT 0'], ['marginTravel', 'REAL DEFAULT 0'], ['sellTravelPrice', 'REAL DEFAULT 0']
+    ];
+    providerGeoFields.forEach(([field, type]) => {
+        if (!hasColumn('provider_geo_rates', field)) db.exec(`ALTER TABLE provider_geo_rates ADD COLUMN ${field} ${type};`);
+    });
+
     // New M-M table for subcontractors
     db.exec(`
         CREATE TABLE IF NOT EXISTS project_subcontractors (
@@ -645,8 +667,12 @@ export async function runMainMigrations(db: Database) {
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             providerId INTEGER NOT NULL,
             serviceId TEXT NOT NULL,
-            priceRemote REAL DEFAULT 0,
-            priceOnSite REAL DEFAULT 0,
+            buyPriceRemote REAL DEFAULT 0,
+            marginRemote REAL DEFAULT 0,
+            sellPriceRemote REAL DEFAULT 0,
+            buyPriceOnSite REAL DEFAULT 0,
+            marginOnSite REAL DEFAULT 0,
+            sellPriceOnSite REAL DEFAULT 0,
             FOREIGN KEY (providerId) REFERENCES third_party_providers(id) ON DELETE CASCADE
         );
 
@@ -675,7 +701,9 @@ export async function runMainMigrations(db: Database) {
             provinceId INTEGER NOT NULL,
             cantonId INTEGER,
             districtId INTEGER,
-            travelPrice REAL DEFAULT 0,
+            buyTravelPrice REAL DEFAULT 0,
+            marginTravel REAL DEFAULT 0,
+            sellTravelPrice REAL DEFAULT 0,
             locationName TEXT NOT NULL,
             FOREIGN KEY (providerId) REFERENCES third_party_providers(id) ON DELETE CASCADE
         );

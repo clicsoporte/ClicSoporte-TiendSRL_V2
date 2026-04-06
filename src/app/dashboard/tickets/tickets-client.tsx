@@ -7,7 +7,7 @@ import { useTickets } from "@/modules/tickets/hooks/useTickets";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
-import { FilePlus, Loader2, FilterX, ShieldCheck, ShieldAlert, UserCircle, Clock, Info } from "lucide-react";
+import { FilePlus, Loader2, FilterX, ShieldCheck, ShieldAlert, UserCircle, Clock, Info, EyeOff } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -21,14 +21,15 @@ import { useRouter } from "next/navigation";
 import { useAuthorization } from "@/modules/core/hooks/useAuthorization";
 import Link from "next/link";
 import { useAuth } from "@/modules/core/hooks/useAuth";
-import type { Ticket, CustomerContact } from '@/modules/core/types';
+import type { Ticket, CustomerContact, ThirdPartyProvider } from '@/modules/core/types';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
 import { useMemo } from "react";
 
 export default function TicketsClient() {
     const { state, actions, selectors } = useTickets();
-    const { hasPermission } = useAuthorization(['tickets:admin:settings']);
+    const { hasPermission } = useAuthorization(['tickets:admin:settings', 'view:provider:costs']);
+    const canViewCosts = hasPermission('view:provider:costs');
     const router = useRouter();
     const { companyData, customers } = useAuth();
     
@@ -50,7 +51,7 @@ export default function TicketsClient() {
     const selectedCustomer = customers.find(c => c.id === selectedCustomerId);
     const customerContacts = selectedCustomer?.contacts || [];
 
-    // Intelligence: Provider rate matching
+    // Intelligence: Provider rate matching with Margin & VAT logic
     const providerRateInfo = useMemo(() => {
         if (!newTicket.providerId || !newTicket.serviceId) return null;
         const provider = providers.find(p => p.id === Number(newTicket.providerId));
@@ -61,8 +62,16 @@ export default function TicketsClient() {
 
         return {
             providerName: provider.name,
-            remote: serviceRate.priceRemote,
-            onSite: serviceRate.priceOnSite,
+            remote: {
+                buy: serviceRate.buyPriceRemote,
+                margin: serviceRate.marginRemote,
+                sell: serviceRate.sellPriceRemote
+            },
+            onSite: {
+                buy: serviceRate.buyPriceOnSite,
+                margin: serviceRate.marginOnSite,
+                sell: serviceRate.sellPriceOnSite
+            },
         };
     }, [newTicket.providerId, newTicket.serviceId, providers]);
 
@@ -220,16 +229,33 @@ export default function TicketsClient() {
                                             </div>
 
                                             {providerRateInfo && (
-                                                <div className="bg-blue-50 p-3 rounded-lg border border-blue-200 space-y-2">
-                                                    <p className="text-[10px] font-bold text-blue-700 uppercase flex items-center gap-1"><Info className="h-3 w-3"/> Tarifas del Especialista</p>
-                                                    <div className="grid grid-cols-2 gap-2 text-[10px]">
-                                                        <div className="flex flex-col">
-                                                            <span className="text-muted-foreground uppercase">Remoto</span>
-                                                            <span className="font-bold text-blue-900">¢{providerRateInfo.remote.toLocaleString()}</span>
+                                                <div className="bg-blue-50 p-3 rounded-lg border border-blue-200 space-y-3">
+                                                    <p className="text-[10px] font-bold text-blue-700 uppercase flex items-center gap-1"><Info className="h-3 w-3"/> Tarifas Sugeridas</p>
+                                                    
+                                                    <div className="space-y-2">
+                                                        <div className="flex flex-col border-b border-blue-100 pb-2">
+                                                            <span className="text-[9px] text-muted-foreground uppercase font-bold">Labor Remota</span>
+                                                            <div className="flex justify-between items-end">
+                                                                <span className="text-xs font-black text-blue-900">¢{providerRateInfo.remote.sell.toLocaleString()}</span>
+                                                                {canViewCosts && (
+                                                                    <div className="text-[9px] text-blue-600/70 italic flex items-center gap-1">
+                                                                        <EyeOff className="h-2 w-2" />
+                                                                        ¢{providerRateInfo.remote.buy.toLocaleString()} (+{providerRateInfo.remote.margin}%)
+                                                                    </div>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                         <div className="flex flex-col">
-                                                            <span className="text-muted-foreground uppercase">En Sitio (Labor)</span>
-                                                            <span className="font-bold text-blue-900">¢{providerRateInfo.onSite.toLocaleString()}</span>
+                                                            <span className="text-[9px] text-muted-foreground uppercase font-bold">Labor en Sitio</span>
+                                                            <div className="flex justify-between items-end">
+                                                                <span className="text-xs font-black text-blue-900">¢{providerRateInfo.onSite.sell.toLocaleString()}</span>
+                                                                {canViewCosts && (
+                                                                    <div className="text-[9px] text-blue-600/70 italic flex items-center gap-1">
+                                                                        <EyeOff className="h-2 w-2" />
+                                                                        ¢{providerRateInfo.onSite.buy.toLocaleString()} (+{providerRateInfo.onSite.margin}%)
+                                                                    </div>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>

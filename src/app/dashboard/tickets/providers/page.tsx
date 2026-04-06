@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { PlusCircle, Loader2, MoreVertical, Truck, Trash2, MapPin, Briefcase, Users, Mail, Phone, Building2 } from 'lucide-react';
+import { PlusCircle, Loader2, MoreVertical, Truck, Trash2, MapPin, Briefcase, Users, Mail, Phone, Building2, EyeOff } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { useToast } from '@/modules/core/hooks/use-toast';
@@ -28,6 +28,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
 
 const emptyContact: CustomerContact = {
     id: '',
@@ -49,7 +50,8 @@ const emptyProvider: Omit<ThirdPartyProvider, 'id' | 'createdAt' | 'services' | 
 };
 
 export default function ProvidersPage() {
-    const { isAuthorized } = useAuthorization(['tickets:admin:settings']);
+    const { isAuthorized, hasPermission } = useAuthorization(['tickets:admin:settings']);
+    const canViewCosts = hasPermission('view:provider:costs');
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
     const { companyData } = useAuth();
@@ -66,8 +68,15 @@ export default function ProvidersPage() {
     const [newContact, setNewContact] = useState<CustomerContact>(emptyContact);
 
     // Rate Management States
-    const [newServiceRate, setNewServiceRate] = useState<Omit<ProviderService, 'id'>>({ providerId: 0, serviceId: '', priceRemote: 0, priceOnSite: 0 });
-    const [newGeoRate, setNewGeoRate] = useState<Omit<ProviderGeoRate, 'id'>>({ providerId: 0, provinceId: 0, cantonId: 0, districtId: 0, travelPrice: 0, locationName: '' });
+    const [newServiceRate, setNewServiceRate] = useState<Omit<ProviderService, 'id'>>({ 
+        providerId: 0, serviceId: '', 
+        buyPriceRemote: 0, marginRemote: 0, sellPriceRemote: 0,
+        buyPriceOnSite: 0, marginOnSite: 0, sellPriceOnSite: 0 
+    });
+    const [newGeoRate, setNewGeoRate] = useState<Omit<ProviderGeoRate, 'id'>>({ 
+        providerId: 0, provinceId: 0, cantonId: 0, districtId: 0, 
+        buyTravelPrice: 0, marginTravel: 0, sellTravelPrice: 0, locationName: '' 
+    });
 
     const fetchInitialData = async () => {
         setIsLoading(true);
@@ -86,6 +95,23 @@ export default function ProvidersPage() {
         setTitle("Proveedores de Servicios Externos");
         if(isAuthorized) fetchInitialData();
     }, [setTitle, isAuthorized]);
+
+    // Lógica de cálculo de precios
+    useEffect(() => {
+        const remoteVenta = newServiceRate.buyPriceRemote * (1 + (newServiceRate.marginRemote / 100));
+        const onsiteVenta = newServiceRate.buyPriceOnSite * (1 + (newServiceRate.marginOnSite / 100));
+        
+        if (remoteVenta !== newServiceRate.sellPriceRemote || onsiteVenta !== newServiceRate.sellPriceOnSite) {
+            setNewServiceRate(prev => ({ ...prev, sellPriceRemote: remoteVenta, sellPriceOnSite: onsiteVenta }));
+        }
+    }, [newServiceRate.buyPriceRemote, newServiceRate.marginRemote, newServiceRate.buyPriceOnSite, newServiceRate.marginOnSite, newServiceRate.sellPriceRemote, newServiceRate.sellPriceOnSite]);
+
+    useEffect(() => {
+        const travelVenta = newGeoRate.buyTravelPrice * (1 + (newGeoRate.marginTravel / 100));
+        if (travelVenta !== newGeoRate.sellTravelPrice) {
+            setNewGeoRate(prev => ({ ...prev, sellTravelPrice: travelVenta }));
+        }
+    }, [newGeoRate.buyTravelPrice, newGeoRate.marginTravel, newGeoRate.sellTravelPrice]);
 
     const handleSaveProvider = async () => {
         if (!currentProvider.name) { toast({ title: "Nombre requerido", variant: "destructive" }); return; }
@@ -116,7 +142,11 @@ export default function ProvidersPage() {
                 ...prev, 
                 services: [...(prev.services || []), saved] 
             } as ThirdPartyProvider));
-            setNewServiceRate({ providerId: 0, serviceId: '', priceRemote: 0, priceOnSite: 0 });
+            setNewServiceRate({ 
+                providerId: 0, serviceId: '', 
+                buyPriceRemote: 0, marginRemote: 0, sellPriceRemote: 0,
+                buyPriceOnSite: 0, marginOnSite: 0, sellPriceOnSite: 0 
+            });
             toast({ title: "Tarifa de Servicio Agregada" });
         } catch (e) { console.error(e); }
     };
@@ -145,7 +175,10 @@ export default function ProvidersPage() {
                 ...prev, 
                 geoRates: [...(prev.geoRates || []), saved] 
             } as ThirdPartyProvider));
-            setNewGeoRate({ providerId: 0, provinceId: 0, cantonId: 0, districtId: 0, travelPrice: 0, locationName: '' });
+            setNewGeoRate({ 
+                providerId: 0, provinceId: 0, cantonId: 0, districtId: 0, 
+                buyTravelPrice: 0, marginTravel: 0, sellTravelPrice: 0, locationName: '' 
+            });
             toast({ title: "Tarifa Geográfica Agregada" });
         } catch (e) { console.error(e); }
     };
@@ -182,6 +215,8 @@ export default function ProvidersPage() {
 
     const cantonsForProvince = useMemo(() => geoData.cantons.filter(c => c.provinceId === newGeoRate.provinceId), [geoData.cantons, newGeoRate.provinceId]);
     const districtsForCanton = useMemo(() => geoData.districts.filter(d => d.cantonId === newGeoRate.cantonId), [geoData.districts, newGeoRate.cantonId]);
+
+    const formatPrice = (val: number) => `¢${val.toLocaleString('es-CR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
     if (!isAuthorized) return null;
     if (isLoading) return <div className="p-8"><Skeleton className="h-full w-full" /></div>;
@@ -344,33 +379,73 @@ export default function ProvidersPage() {
                             </TabsContent>
 
                             <TabsContent value="rates" className="space-y-6 m-0">
-                                <div className="bg-muted/30 p-4 rounded-lg border border-dashed">
-                                    <h4 className="text-sm font-bold mb-4 flex items-center gap-2"><Briefcase className="h-4 w-4"/> Vincular Servicio del Catálogo</h4>
-                                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                                        <div className="md:col-span-1 space-y-1.5">
-                                            <Label className="text-xs">Servicio</Label>
+                                <div className="bg-muted/30 p-4 rounded-lg border border-dashed space-y-4">
+                                    <h4 className="text-sm font-bold mb-4 flex items-center gap-2"><Briefcase className="h-4 w-4"/> Matriz de Precios por Servicio</h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                                        <div className="space-y-1.5 md:col-span-3">
+                                            <Label className="text-xs">Servicio del Catálogo</Label>
                                             <Select value={newServiceRate.serviceId} onValueChange={v => setNewServiceRate({...newServiceRate, serviceId: v})}>
-                                                <SelectTrigger className="h-8"><SelectValue placeholder="Seleccione..."/></SelectTrigger>
+                                                <SelectTrigger className="h-8"><SelectValue placeholder="Seleccione un servicio para asignar tarifas..."/></SelectTrigger>
                                                 <SelectContent>
                                                     {companyData?.servicesCatalog.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
                                                 </SelectContent>
                                             </Select>
                                         </div>
-                                        <div className="space-y-1.5"><Label className="text-xs">Precio Remoto</Label><Input type="number" value={newServiceRate.priceRemote} onChange={e => setNewServiceRate({...newServiceRate, priceRemote: Number(e.target.value)})} className="h-8" /></div>
-                                        <div className="space-y-1.5"><Label className="text-xs">Precio Sitio (Labor)</Label><Input type="number" value={newServiceRate.priceOnSite} onChange={e => setNewServiceRate({...newServiceRate, priceOnSite: Number(e.target.value)})} className="h-8" /></div>
-                                        <Button onClick={handleAddServiceRate} size="sm" className="h-8"><PlusCircle className="h-4 w-4 mr-2" />Añadir</Button>
+                                        
+                                        <div className="space-y-4 border p-3 rounded-lg bg-background">
+                                            <p className="text-[10px] font-bold uppercase text-primary">Tarifa Remota</p>
+                                            {canViewCosts && (
+                                                <>
+                                                    <div className="space-y-1"><Label className="text-[10px]">Costo Compra (¢)</Label><Input type="number" value={newServiceRate.buyPriceRemote} onChange={e => setNewServiceRate({...newServiceRate, buyPriceRemote: Number(e.target.value)})} className="h-8 text-xs" /></div>
+                                                    <div className="space-y-1"><Label className="text-[10px]">Margen Ganancia (%)</Label><Input type="number" value={newServiceRate.marginRemote} onChange={e => setNewServiceRate({...newServiceRate, marginRemote: Number(e.target.value)})} className="h-8 text-xs" /></div>
+                                                </>
+                                            )}
+                                            <div className="space-y-1"><Label className="text-[10px] font-bold">Venta Sugerida (IVA Inc)</Label><Input type="number" value={newServiceRate.sellPriceRemote} readOnly={canViewCosts} onChange={e => !canViewCosts && setNewServiceRate({...newServiceRate, sellPriceRemote: Number(e.target.value)})} className={cn("h-8 text-xs font-bold", canViewCosts && "bg-muted")} /></div>
+                                        </div>
+
+                                        <div className="space-y-4 border p-3 rounded-lg bg-background">
+                                            <p className="text-[10px] font-bold uppercase text-primary">Tarifa en Sitio (Labor)</p>
+                                            {canViewCosts && (
+                                                <>
+                                                    <div className="space-y-1"><Label className="text-[10px]">Costo Compra (¢)</Label><Input type="number" value={newServiceRate.buyPriceOnSite} onChange={e => setNewServiceRate({...newServiceRate, buyPriceOnSite: Number(e.target.value)})} className="h-8 text-xs" /></div>
+                                                    <div className="space-y-1"><Label className="text-[10px]">Margen Ganancia (%)</Label><Input type="number" value={newServiceRate.marginOnSite} onChange={e => setNewServiceRate({...newServiceRate, marginOnSite: Number(e.target.value)})} className="h-8 text-xs" /></div>
+                                                </>
+                                            )}
+                                            <div className="space-y-1"><Label className="text-[10px] font-bold">Venta Sugerida (IVA Inc)</Label><Input type="number" value={newServiceRate.sellPriceOnSite} readOnly={canViewCosts} onChange={e => !canViewCosts && setNewServiceRate({...newServiceRate, sellPriceOnSite: Number(e.target.value)})} className={cn("h-8 text-xs font-bold", canViewCosts && "bg-muted")} /></div>
+                                        </div>
+
+                                        <Button onClick={handleAddServiceRate} className="h-10 w-full"><PlusCircle className="h-4 w-4 mr-2" />Añadir Tarifa</Button>
                                     </div>
                                 </div>
 
                                 <div className="border rounded-md">
                                     <Table>
-                                        <TableHeader className="bg-muted/50"><TableRow><TableHead>Servicio</TableHead><TableHead className="text-right">Remoto</TableHead><TableHead className="text-right">Sitio</TableHead><TableHead className="w-10"></TableHead></TableRow></TableHeader>
+                                        <TableHeader className="bg-muted/50">
+                                            <TableRow>
+                                                <TableHead>Servicio</TableHead>
+                                                {canViewCosts && <TableHead className="text-right">Compra (R/S)</TableHead>}
+                                                {canViewCosts && <TableHead className="text-right">Margen</TableHead>}
+                                                <TableHead className="text-right">Venta Remota</TableHead>
+                                                <TableHead className="text-right">Venta Sitio</TableHead>
+                                                <TableHead className="w-10"></TableHead>
+                                            </TableRow>
+                                        </TableHeader>
                                         <TableBody>
                                             {(currentProvider as ThirdPartyProvider).services?.map(s => (
                                                 <TableRow key={s.id}>
                                                     <TableCell className="text-sm font-medium">{companyData?.servicesCatalog.find(cat => cat.id === s.serviceId)?.name || s.serviceId}</TableCell>
-                                                    <TableCell className="text-right text-xs">¢{s.priceRemote.toLocaleString()}</TableCell>
-                                                    <TableCell className="text-right text-xs">¢{s.priceOnSite.toLocaleString()}</TableCell>
+                                                    {canViewCosts && (
+                                                        <TableCell className="text-right text-[10px] font-mono">
+                                                            {formatPrice(s.buyPriceRemote)} / {formatPrice(s.buyPriceOnSite)}
+                                                        </TableCell>
+                                                    )}
+                                                    {canViewCosts && (
+                                                        <TableCell className="text-right text-[10px] font-mono">
+                                                            {s.marginRemote}% / {s.marginOnSite}%
+                                                        </TableCell>
+                                                    )}
+                                                    <TableCell className="text-right text-xs font-bold text-green-600">{formatPrice(s.sellPriceRemote)}</TableCell>
+                                                    <TableCell className="text-right text-xs font-bold text-blue-600">{formatPrice(s.sellPriceOnSite)}</TableCell>
                                                     <TableCell><Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDeleteServiceRate(s.id)}><Trash2 className="h-4 w-4"/></Button></TableCell>
                                                 </TableRow>
                                             ))}
@@ -380,8 +455,8 @@ export default function ProvidersPage() {
                             </TabsContent>
 
                             <TabsContent value="geo" className="space-y-6 m-0">
-                                <div className="bg-muted/30 p-4 rounded-lg border border-dashed">
-                                    <h4 className="text-sm font-bold mb-4 flex items-center gap-2"><MapPin className="h-4 w-4"/> Definir Tarifas de Visita (Costa Rica)</h4>
+                                <div className="bg-muted/30 p-4 rounded-lg border border-dashed space-y-4">
+                                    <h4 className="text-sm font-bold mb-4 flex items-center gap-2"><MapPin className="h-4 w-4"/> Definir Tarifas de Visita (Viáticos)</h4>
                                     <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
                                         <div className="space-y-1"><Label className="text-[10px]">Provincia</Label>
                                             <Select value={String(newGeoRate.provinceId)} onValueChange={v => setNewGeoRate({...newGeoRate, provinceId: Number(v), cantonId: 0, districtId: 0})}>
@@ -401,19 +476,40 @@ export default function ProvidersPage() {
                                                 <SelectContent>{districtsForCanton.map(d => <SelectItem key={d.id} value={String(d.id)}>{d.name}</SelectItem>)}</SelectContent>
                                             </Select>
                                         </div>
-                                        <div className="space-y-1"><Label className="text-[10px]">Costo Transporte (¢)</Label><Input type="number" value={newGeoRate.travelPrice} onChange={e => setNewGeoRate({...newGeoRate, travelPrice: Number(e.target.value)})} className="h-8 text-xs" /></div>
-                                        <Button onClick={handleAddGeoRate} size="sm" className="h-8"><PlusCircle className="h-4 w-4 mr-2" />Añadir</Button>
+                                        <div className="space-y-1"></div>
+
+                                        <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-3 border p-3 rounded-lg bg-background">
+                                            {canViewCosts && (
+                                                <>
+                                                    <div className="space-y-1"><Label className="text-[10px]">Costo Compra (¢)</Label><Input type="number" value={newGeoRate.buyTravelPrice} onChange={e => setNewGeoRate({...newGeoRate, buyTravelPrice: Number(e.target.value)})} className="h-8 text-xs" /></div>
+                                                    <div className="space-y-1"><Label className="text-[10px]">Ganancia (%)</Label><Input type="number" value={newGeoRate.marginTravel} onChange={e => setNewGeoRate({...newGeoRate, marginTravel: Number(e.target.value)})} className="h-8 text-xs" /></div>
+                                                </>
+                                            )}
+                                            <div className="space-y-1"><Label className="text-[10px] font-bold">Venta Viático (¢)</Label><Input type="number" value={newGeoRate.sellTravelPrice} readOnly={canViewCosts} onChange={e => !canViewCosts && setNewGeoRate({...newGeoRate, sellTravelPrice: Number(e.target.value)})} className={cn("h-8 text-xs font-bold", canViewCosts && "bg-muted")} /></div>
+                                        </div>
+
+                                        <Button onClick={handleAddGeoRate} className="h-10 w-full md:col-span-2"><PlusCircle className="h-4 w-4 mr-2" />Añadir Viático</Button>
                                     </div>
                                 </div>
 
                                 <div className="border rounded-md">
                                     <Table>
-                                        <TableHeader className="bg-muted/50"><TableRow><TableHead>Zona de Cobertura</TableHead><TableHead className="text-right">Viático</TableHead><TableHead className="w-10"></TableHead></TableRow></TableHeader>
+                                        <TableHeader className="bg-muted/50">
+                                            <TableRow>
+                                                <TableHead>Zona de Cobertura</TableHead>
+                                                {canViewCosts && <TableHead className="text-right">Compra</TableHead>}
+                                                {canViewCosts && <TableHead className="text-right">Margen</TableHead>}
+                                                <TableHead className="text-right">Venta Viático</TableHead>
+                                                <TableHead className="w-10"></TableHead>
+                                            </TableRow>
+                                        </TableHeader>
                                         <TableBody>
                                             {(currentProvider as ThirdPartyProvider).geoRates?.map(g => (
                                                 <TableRow key={g.id}>
                                                     <TableCell className="text-xs">{g.locationName}</TableCell>
-                                                    <TableCell className="text-right font-bold text-xs">¢{g.travelPrice.toLocaleString()}</TableCell>
+                                                    {canViewCosts && <TableCell className="text-right text-[10px] font-mono">{formatPrice(g.buyTravelPrice)}</TableCell>}
+                                                    {canViewCosts && <TableCell className="text-right text-[10px] font-mono">{g.marginTravel}%</TableCell>}
+                                                    <TableCell className="text-right font-bold text-xs text-orange-600">{formatPrice(g.sellTravelPrice)}</TableCell>
                                                     <TableCell><Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDeleteGeoRate(g.id)}><Trash2 className="h-4 w-4"/></Button></TableCell>
                                                 </TableRow>
                                             ))}

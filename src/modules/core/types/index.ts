@@ -180,8 +180,12 @@ export type ProviderService = {
     id: number;
     providerId: number;
     serviceId: string;
-    priceRemote: number;
-    priceOnSite: number;
+    buyPriceRemote: number;
+    marginRemote: number;
+    sellPriceRemote: number;
+    buyPriceOnSite: number;
+    marginOnSite: number;
+    sellPriceOnSite: number;
 };
 
 export type ProviderGeoRate = {
@@ -190,7 +194,9 @@ export type ProviderGeoRate = {
     provinceId: number;
     cantonId?: number;
     districtId?: number;
-    travelPrice: number;
+    buyTravelPrice: number;
+    marginTravel: number;
+    sellTravelPrice: number;
     locationName: string; // Flattened name for UI
 };
 

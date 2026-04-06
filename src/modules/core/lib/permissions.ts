@@ -34,7 +34,8 @@ export const permissionGroups = {
   ],
   "Proveedores": [
     "providers:read", 
-    "providers:manage"
+    "providers:manage",
+    "view:provider:costs"
   ],
   "Facturación": [
     "billing:manage"
@@ -63,12 +64,13 @@ export const permissionTree: Record<string, string[]> = {
     'licenses:admin:keys', 'tickets:admin:settings', 'billing:manage',
     'customers:create', 'customers:update', 'customers:delete',
     'contracts:create', 'contracts:update', 'contracts:delete',
-    'cost-assistant:margins', 'cost-assistant:export'
+    'cost-assistant:margins', 'cost-assistant:export',
+    'view:provider:costs'
   ],
   'users:manage': ['users:read', 'users:create', 'users:update', 'users:delete'],
   'roles:manage': ['roles:read', 'roles:create', 'roles:update', 'roles:delete'],
   'customers:manage': ['customers:read', 'customers:create', 'customers:update', 'customers:delete'],
-  'contracts:manage': ['contracts:read', 'contracts:create', 'contracts:update', 'contracts:delete'],
+  'contracts:manage': ['contracts:read', 'customers:create', 'customers:update', 'customers:delete'],
   'tickets:manage': ['tickets:reply', 'tickets:time-tracking'],
   'cost-assistant:access': ['cost-assistant:view', 'cost-assistant:process']
 };
@@ -89,5 +91,6 @@ export const permissionTranslations: Record<string, string> = {
   "customers:update": "Clientes: Editar",
   "contracts:create": "Contratos: Crear",
   "admin:all": "Control Total del Sistema",
-  "admin:import:run": "Ejecutar Sincronización ERP"
+  "admin:import:run": "Ejecutar Sincronización ERP",
+  "view:provider:costs": "Ver Costos y Márgenes de Proveedores"
 };
