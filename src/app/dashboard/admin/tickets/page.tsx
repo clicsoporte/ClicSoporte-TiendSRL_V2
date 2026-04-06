@@ -14,7 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { PlusCircle, Trash2, Map as MapIcon, Edit, Hash, Package, ShieldCheck, Check } from 'lucide-react';
+import { PlusCircle, Trash2, Map as MapIcon, Edit, Hash, Package, ShieldCheck, Check, Clock, Zap } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useAuth } from '@/modules/core/hooks/useAuth';
@@ -22,7 +22,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
-import type { TicketPriority } from '@/modules/core/types';
+import type { TicketPriority, Service } from '@/modules/core/types';
 
 export default function TicketSettingsPage() {
     const { setTitle } = usePageTitle();
@@ -95,7 +95,7 @@ export default function TicketSettingsPage() {
 
     return (
         <main className="flex-1 p-4 md:p-6 lg:p-8">
-            <Accordion type="multiple" defaultValue={['help-topics', 'consecutive-settings']} className="w-full space-y-6">
+            <Accordion type="multiple" defaultValue={['help-topics', 'consecutive-settings', 'services-catalog']} className="w-full space-y-6">
                 
                 {/* --- CONFIGURACIÓN DE CONSECUTIVOS --- */}
                 <Card>
@@ -398,14 +398,23 @@ export default function TicketSettingsPage() {
                     <AccordionItem value="services-catalog">
                         <AccordionTrigger className="p-6 text-lg font-semibold">Catálogo de Servicios</AccordionTrigger>
                         <AccordionContent className="p-6 pt-0">
-                            <CardDescription className="mb-4">Precios base por hora para servicios técnicos. Estos precios se usan como referencia cuando el servicio no está cubierto por contrato.</CardDescription>
+                            <CardDescription className="mb-4">Gestiona los servicios técnicos disponibles y sus modalidades de cobro.</CardDescription>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {(companyData.servicesCatalog || []).map(service => (
                                     <div key={service.id} className="flex items-center justify-between rounded-lg border p-4 bg-card group hover:border-primary transition-colors">
                                         <div className="flex-1">
-                                            <p className="font-bold text-sm">{service.name}</p>
+                                            <div className="flex items-center gap-2">
+                                                <p className="font-bold text-sm">{service.name}</p>
+                                                <Badge variant="outline" className="text-[10px] uppercase">
+                                                    {service.billingType === 'task' ? <Zap className="h-2 w-2 mr-1"/> : <Clock className="h-2 w-2 mr-1"/>}
+                                                    {service.billingType === 'task' ? 'Por Tarea' : 'Por Hora'}
+                                                </Badge>
+                                            </div>
                                             <p className="font-mono text-[10px] text-muted-foreground">{service.id}</p>
-                                            <p className="text-xs text-green-600 font-black mt-1">¢{(service.price || 0).toLocaleString()}/h</p>
+                                            <p className="text-xs text-green-600 font-black mt-1">
+                                                ¢{(service.price || 0).toLocaleString()}
+                                                <span className="text-[10px] font-normal text-muted-foreground"> {service.billingType === 'task' ? '/tarea' : '/hora'}</span>
+                                            </p>
                                         </div>
                                         <Button variant="ghost" size="icon" className="text-destructive opacity-0 group-hover:opacity-100" onClick={() => actions.handleDeleteService(service.id)}><Trash2 className="h-4 w-4"/></Button>
                                     </div>
@@ -414,11 +423,21 @@ export default function TicketSettingsPage() {
                             <Separator className="my-6"/>
                             <div className="bg-muted/30 p-6 rounded-xl border-2 border-dashed space-y-4">
                                 <h4 className="font-bold text-sm">Añadir Servicio al Catálogo</h4>
-                                <div className="flex flex-col sm:flex-row items-end gap-4">
-                                    <div className="flex-1 space-y-1.5"><Label className="text-xs">ID Único</Label><Input value={state.newService.id} onChange={e => actions.setNewService({...state.newService, id: e.target.value})} placeholder="Ej: soporte-remoto"/></div>
-                                    <div className="flex-[2] space-y-1.5"><Label className="text-xs">Nombre Comercial</Label><Input value={state.newService.name} onChange={e => actions.setNewService({...state.newService, name: e.target.value})} placeholder="Ej: Soporte Remoto Nivel 1"/></div>
-                                    <div className="w-full sm:w-32 space-y-1.5"><Label className="text-xs">Precio/Hora</Label><Input type="number" value={state.newService.price || ''} onChange={e => actions.setNewService({...state.newService, price: Number(e.target.value)})} /></div>
-                                    <Button size="icon" onClick={actions.handleAddService} className="h-10 w-10"><PlusCircle className="h-5 w-5"/></Button>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+                                    <div className="space-y-1.5 lg:col-span-1"><Label className="text-xs">ID Único</Label><Input value={state.newService.id} onChange={e => actions.setNewService({...state.newService, id: e.target.value})} placeholder="Ej: soporte-remoto"/></div>
+                                    <div className="space-y-1.5 lg:col-span-1"><Label className="text-xs">Nombre Comercial</Label><Input value={state.newService.name} onChange={e => actions.setNewService({...state.newService, name: e.target.value})} placeholder="Ej: Soporte Remoto Nivel 1"/></div>
+                                    <div className="space-y-1.5 lg:col-span-1">
+                                        <Label className="text-xs">Tipo de Cobro</Label>
+                                        <Select value={state.newService.billingType} onValueChange={(v: 'hour' | 'task') => actions.setNewService({...state.newService, billingType: v})}>
+                                            <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="hour">Por Hora</SelectItem>
+                                                <SelectItem value="task">Por Tarea (Fijo)</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-1.5 lg:col-span-1"><Label className="text-xs">Precio Sugerido</Label><Input type="number" value={state.newService.price || ''} onChange={e => actions.setNewService({...state.newService, price: Number(e.target.value)})} /></div>
+                                    <Button onClick={actions.handleAddService} className="h-10"><PlusCircle className="mr-2 h-4 w-4"/> Añadir</Button>
                                 </div>
                             </div>
                         </AccordionContent>

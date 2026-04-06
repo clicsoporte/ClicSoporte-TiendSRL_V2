@@ -5,7 +5,7 @@
  */
 
 import { connectDb } from '@/modules/core/lib/db';
-import type { TimeEntry } from '@/modules/core/types';
+import type { TimeEntry, Service } from '@/modules/core/types';
 import { getCompanySettings } from '@/modules/core/lib/settings-db';
 import { logInfo, logError } from '@/modules/core/lib/logger';
 import { revalidatePath } from 'next/cache';
@@ -34,7 +34,7 @@ interface DbBillingRow extends TimeEntry {
 export async function getCustomersWithPendingBilling(): Promise<PendingCustomer[]> {
     const db = await connectDb();
     const settings = await getCompanySettings();
-    const serviceMap = new Map(settings.servicesCatalog.map(s => [s.id, s.price || 0]));
+    const serviceMap = new Map(settings.servicesCatalog.map(s => [s.id, s]));
 
     try {
         // Query all pending billable entries joined with tickets and customers
@@ -56,9 +56,17 @@ export async function getCustomersWithPendingBilling(): Promise<PendingCustomer[
         const customerMap = new Map<string, PendingCustomer>();
 
         rows.forEach(row => {
-            const price = serviceMap.get(row.serviceId) || 0;
-            const durationMs = row.billableDuration !== null ? row.billableDuration : (row.duration || 0);
-            const amount = (durationMs / 3600000) * price;
+            const service = serviceMap.get(row.serviceId);
+            const price = service?.price || 0;
+            const billingType = service?.billingType || 'hour';
+            
+            let amount = 0;
+            if (billingType === 'task') {
+                amount = price; // Flat fee
+            } else {
+                const durationMs = row.billableDuration !== null ? row.billableDuration : (row.duration || 0);
+                amount = (durationMs / 3600000) * price;
+            }
 
             if (!customerMap.has(row.customerId)) {
                 customerMap.set(row.customerId, {
@@ -89,8 +97,7 @@ export async function getCustomersWithPendingBilling(): Promise<PendingCustomer[
 export async function getPendingEntriesForCustomer(customerId: string): Promise<(TimeEntry & { ticketConsecutive: string, serviceName: string, price: number, amount: number })[]> {
     const db = await connectDb();
     const settings = await getCompanySettings();
-    const servicePriceMap = new Map(settings.servicesCatalog.map(s => [s.id, s.price || 0]));
-    const serviceNameMap = new Map(settings.servicesCatalog.map(s => [s.id, s.name]));
+    const serviceMap = new Map(settings.servicesCatalog.map(s => [s.id, s]));
 
     try {
         const rows = db.prepare(`
@@ -106,14 +113,22 @@ export async function getPendingEntriesForCustomer(customerId: string): Promise<
         `).all(customerId) as (TimeEntry & { ticketConsecutive: string, serviceId: string })[];
 
         return rows.map(row => {
-            const price = servicePriceMap.get(row.serviceId) || 0;
-            const durationMs = row.billableDuration !== null ? row.billableDuration : (row.duration || 0);
-            const amount = (durationMs / 3600000) * price;
+            const service = serviceMap.get(row.serviceId);
+            const price = service?.price || 0;
+            const billingType = service?.billingType || 'hour';
+            
+            let amount = 0;
+            if (billingType === 'task') {
+                amount = price;
+            } else {
+                const durationMs = row.billableDuration !== null ? row.billableDuration : (row.duration || 0);
+                amount = (durationMs / 3600000) * price;
+            }
 
             return {
                 ...row,
                 isBillable: !!row.isBillable,
-                serviceName: serviceNameMap.get(row.serviceId) || 'Servicio General',
+                serviceName: service?.name || 'Servicio General',
                 price,
                 amount
             };

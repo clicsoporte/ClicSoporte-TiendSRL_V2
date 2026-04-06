@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { PlusCircle, Loader2, MoreVertical, Truck, Trash2, MapPin, Briefcase, Users, Mail, Phone, Building2, EyeOff } from 'lucide-react';
+import { PlusCircle, Loader2, MoreVertical, Truck, Trash2, MapPin, Briefcase, Users, Mail, Phone, Building2, EyeOff, Clock, Zap } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { useToast } from '@/modules/core/hooks/use-toast';
@@ -387,32 +387,40 @@ export default function ProvidersPage() {
                                             <Select value={newServiceRate.serviceId} onValueChange={v => setNewServiceRate({...newServiceRate, serviceId: v})}>
                                                 <SelectTrigger className="h-8"><SelectValue placeholder="Seleccione un servicio para asignar tarifas..."/></SelectTrigger>
                                                 <SelectContent>
-                                                    {companyData?.servicesCatalog.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                                                    {companyData?.servicesCatalog.map(s => <SelectItem key={s.id} value={s.id}>{s.name} ({s.billingType === 'task' ? 'Tarea' : 'Hora'})</SelectItem>)}
                                                 </SelectContent>
                                             </Select>
                                         </div>
                                         
-                                        <div className="space-y-4 border p-3 rounded-lg bg-background">
-                                            <p className="text-[10px] font-bold uppercase text-primary">Tarifa Remota</p>
-                                            {canViewCosts && (
+                                        {(() => {
+                                            const selectedSvc = companyData?.servicesCatalog.find(s => s.id === newServiceRate.serviceId);
+                                            const suffix = selectedSvc?.billingType === 'task' ? 'Tarea' : 'Hora';
+                                            return (
                                                 <>
-                                                    <div className="space-y-1"><Label className="text-[10px]">Costo Compra (¢)</Label><Input type="number" value={newServiceRate.buyPriceRemote} onChange={e => setNewServiceRate({...newServiceRate, buyPriceRemote: Number(e.target.value)})} className="h-8 text-xs" /></div>
-                                                    <div className="space-y-1"><Label className="text-[10px]">Margen Ganancia (%)</Label><Input type="number" value={newServiceRate.marginRemote} onChange={e => setNewServiceRate({...newServiceRate, marginRemote: Number(e.target.value)})} className="h-8 text-xs" /></div>
-                                                </>
-                                            )}
-                                            <div className="space-y-1"><Label className="text-[10px] font-bold">Venta Sugerida (IVA Inc)</Label><Input type="number" value={newServiceRate.sellPriceRemote} readOnly={canViewCosts} onChange={e => !canViewCosts && setNewServiceRate({...newServiceRate, sellPriceRemote: Number(e.target.value)})} className={cn("h-8 text-xs font-bold", canViewCosts && "bg-muted")} /></div>
-                                        </div>
+                                                    <div className="space-y-4 border p-3 rounded-lg bg-background">
+                                                        <p className="text-[10px] font-bold uppercase text-primary">Tarifa Remota (Por {suffix})</p>
+                                                        {canViewCosts && (
+                                                            <>
+                                                                <div className="space-y-1"><Label className="text-[10px]">Costo Compra (¢)</Label><Input type="number" value={newServiceRate.buyPriceRemote} onChange={e => setNewServiceRate({...newServiceRate, buyPriceRemote: Number(e.target.value)})} className="h-8 text-xs" /></div>
+                                                                <div className="space-y-1"><Label className="text-[10px]">Margen Ganancia (%)</Label><Input type="number" value={newServiceRate.marginRemote} onChange={e => setNewServiceRate({...newServiceRate, marginRemote: Number(e.target.value)})} className="h-8 text-xs" /></div>
+                                                            </>
+                                                        )}
+                                                        <div className="space-y-1"><Label className="text-[10px] font-bold">Venta Sugerida (IVA Inc)</Label><Input type="number" value={newServiceRate.sellPriceRemote} readOnly={canViewCosts} onChange={e => !canViewCosts && setNewServiceRate({...newServiceRate, sellPriceRemote: Number(e.target.value)})} className={cn("h-8 text-xs font-bold", canViewCosts && "bg-muted")} /></div>
+                                                    </div>
 
-                                        <div className="space-y-4 border p-3 rounded-lg bg-background">
-                                            <p className="text-[10px] font-bold uppercase text-primary">Tarifa en Sitio (Labor)</p>
-                                            {canViewCosts && (
-                                                <>
-                                                    <div className="space-y-1"><Label className="text-[10px]">Costo Compra (¢)</Label><Input type="number" value={newServiceRate.buyPriceOnSite} onChange={e => setNewServiceRate({...newServiceRate, buyPriceOnSite: Number(e.target.value)})} className="h-8 text-xs" /></div>
-                                                    <div className="space-y-1"><Label className="text-[10px]">Margen Ganancia (%)</Label><Input type="number" value={newServiceRate.marginOnSite} onChange={e => setNewServiceRate({...newServiceRate, marginOnSite: Number(e.target.value)})} className="h-8 text-xs" /></div>
+                                                    <div className="space-y-4 border p-3 rounded-lg bg-background">
+                                                        <p className="text-[10px] font-bold uppercase text-primary">Tarifa en Sitio (Por {suffix})</p>
+                                                        {canViewCosts && (
+                                                            <>
+                                                                <div className="space-y-1"><Label className="text-[10px]">Costo Compra (¢)</Label><Input type="number" value={newServiceRate.buyPriceOnSite} onChange={e => setNewServiceRate({...newServiceRate, buyPriceOnSite: Number(e.target.value)})} className="h-8 text-xs" /></div>
+                                                                <div className="space-y-1"><Label className="text-[10px]">Margen Ganancia (%)</Label><Input type="number" value={newServiceRate.marginOnSite} onChange={e => setNewServiceRate({...newServiceRate, marginOnSite: Number(e.target.value)})} className="h-8 text-xs" /></div>
+                                                            </>
+                                                        )}
+                                                        <div className="space-y-1"><Label className="text-[10px] font-bold">Venta Sugerida (IVA Inc)</Label><Input type="number" value={newServiceRate.sellPriceOnSite} readOnly={canViewCosts} onChange={e => !canViewCosts && setNewServiceRate({...newServiceRate, sellPriceOnSite: Number(e.target.value)})} className={cn("h-8 text-xs font-bold", canViewCosts && "bg-muted")} /></div>
+                                                    </div>
                                                 </>
-                                            )}
-                                            <div className="space-y-1"><Label className="text-[10px] font-bold">Venta Sugerida (IVA Inc)</Label><Input type="number" value={newServiceRate.sellPriceOnSite} readOnly={canViewCosts} onChange={e => !canViewCosts && setNewServiceRate({...newServiceRate, sellPriceOnSite: Number(e.target.value)})} className={cn("h-8 text-xs font-bold", canViewCosts && "bg-muted")} /></div>
-                                        </div>
+                                            );
+                                        })()}
 
                                         <Button onClick={handleAddServiceRate} className="h-10 w-full"><PlusCircle className="h-4 w-4 mr-2" />Añadir Tarifa</Button>
                                     </div>
@@ -423,6 +431,7 @@ export default function ProvidersPage() {
                                         <TableHeader className="bg-muted/50">
                                             <TableRow>
                                                 <TableHead>Servicio</TableHead>
+                                                <TableHead>Modalidad</TableHead>
                                                 {canViewCosts && <TableHead className="text-right">Compra (R/S)</TableHead>}
                                                 {canViewCosts && <TableHead className="text-right">Margen</TableHead>}
                                                 <TableHead className="text-right">Venta Remota</TableHead>
@@ -431,24 +440,33 @@ export default function ProvidersPage() {
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
-                                            {(currentProvider as ThirdPartyProvider).services?.map(s => (
-                                                <TableRow key={s.id}>
-                                                    <TableCell className="text-sm font-medium">{companyData?.servicesCatalog.find(cat => cat.id === s.serviceId)?.name || s.serviceId}</TableCell>
-                                                    {canViewCosts && (
-                                                        <TableCell className="text-right text-[10px] font-mono">
-                                                            {formatPrice(s.buyPriceRemote)} / {formatPrice(s.buyPriceOnSite)}
+                                            {(currentProvider as ThirdPartyProvider).services?.map(s => {
+                                                const svc = companyData?.servicesCatalog.find(cat => cat.id === s.serviceId);
+                                                return (
+                                                    <TableRow key={s.id}>
+                                                        <TableCell className="text-sm font-medium">{svc?.name || s.serviceId}</TableCell>
+                                                        <TableCell>
+                                                            <Badge variant="outline" className="text-[9px] uppercase">
+                                                                {svc?.billingType === 'task' ? <Zap className="h-2 w-2 mr-1"/> : <Clock className="h-2 w-2 mr-1"/>}
+                                                                {svc?.billingType === 'task' ? 'Tarea' : 'Hora'}
+                                                            </Badge>
                                                         </TableCell>
-                                                    )}
-                                                    {canViewCosts && (
-                                                        <TableCell className="text-right text-[10px] font-mono">
-                                                            {s.marginRemote}% / {s.marginOnSite}%
-                                                        </TableCell>
-                                                    )}
-                                                    <TableCell className="text-right text-xs font-bold text-green-600">{formatPrice(s.sellPriceRemote)}</TableCell>
-                                                    <TableCell className="text-right text-xs font-bold text-blue-600">{formatPrice(s.sellPriceOnSite)}</TableCell>
-                                                    <TableCell><Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDeleteServiceRate(s.id)}><Trash2 className="h-4 w-4"/></Button></TableCell>
-                                                </TableRow>
-                                            ))}
+                                                        {canViewCosts && (
+                                                            <TableCell className="text-right text-[10px] font-mono">
+                                                                {formatPrice(s.buyPriceRemote)} / {formatPrice(s.buyPriceOnSite)}
+                                                            </TableCell>
+                                                        )}
+                                                        {canViewCosts && (
+                                                            <TableCell className="text-right text-[10px] font-mono">
+                                                                {s.marginRemote}% / {s.marginOnSite}%
+                                                            </TableCell>
+                                                        )}
+                                                        <TableCell className="text-right text-xs font-bold text-green-600">{formatPrice(s.sellPriceRemote)}</TableCell>
+                                                        <TableCell className="text-right text-xs font-bold text-blue-600">{formatPrice(s.sellPriceOnSite)}</TableCell>
+                                                        <TableCell><Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDeleteServiceRate(s.id)}><Trash2 className="h-4 w-4"/></Button></TableCell>
+                                                    </TableRow>
+                                                );
+                                            })}
                                         </TableBody>
                                     </Table>
                                 </div>

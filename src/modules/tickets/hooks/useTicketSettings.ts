@@ -59,7 +59,7 @@ export const useTicketSettings = () => {
     const [districts, setDistricts] = useState<District[]>([]);
     
     // States for services and packages
-    const [newService, setNewService] = useState<Service>({ id: "", name: "", price: 0 });
+    const [newService, setNewService] = useState<Service>({ id: "", name: "", price: 0, billingType: 'hour' });
     const [newPackage, setNewPackage] = useState<Omit<SupportPackage, 'includedServices' | 'excludedServices'>>({ 
         id: "", 
         name: "", 
@@ -155,7 +155,7 @@ export const useTicketSettings = () => {
         if (!companyData || !newService.id || !newService.name) return;
         const updatedCatalog = [...(companyData.servicesCatalog || []), newService];
         setCompanyData({ ...companyData, servicesCatalog: updatedCatalog });
-        setNewService({ id: "", name: "", price: 0 });
+        setNewService({ id: "", name: "", price: 0, billingType: 'hour' });
       };
     
       const handleDeleteService = (serviceId: string) => {

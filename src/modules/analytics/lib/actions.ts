@@ -34,7 +34,7 @@ export async function getAnalyticsData(range?: DateRange): Promise<AnalyticsData
     // Config for prices
     const companyRow = db.prepare('SELECT servicesCatalog FROM company_settings WHERE id = 1').get() as { servicesCatalog: string };
     const catalog = JSON.parse(companyRow.servicesCatalog || '[]') as Service[];
-    const priceMap = new Map<string, number>(catalog.map((s) => [s.id, s.price || 0]));
+    const serviceMap = new Map<string, Service>(catalog.map((s) => [s.id, s]));
 
     // Tickets
     const tF = applyDateFilter('SELECT status FROM tickets {{WHERE}}', range, 'createdAt');
@@ -68,10 +68,18 @@ export async function getAnalyticsData(range?: DateRange): Promise<AnalyticsData
     const byUserMap = new Map<number, { userId: number; userName: string; billable: number; nonBillable: number; amount: number }>();
 
     timeEntries.forEach(entry => {
+        const service = serviceMap.get(entry.serviceId);
+        const price = service?.price || 0;
+        const billingType = service?.billingType || 'hour';
         const effectiveDuration = entry.billableDuration !== null ? entry.billableDuration : (entry.duration || 0);
         const hours = effectiveDuration / 3600000;
-        const price = priceMap.get(entry.serviceId) || 0;
-        const amount = hours * price;
+        
+        let amount = 0;
+        if (billingType === 'task') {
+            amount = price;
+        } else {
+            amount = hours * price;
+        }
         
         timeKpi.totalHours += hours;
         if (!byUserMap.has(entry.userId)) byUserMap.set(entry.userId, { userId: entry.userId, userName: userMap.get(entry.userId) || 'Desconocido', billable: 0, nonBillable: 0, amount: 0 });

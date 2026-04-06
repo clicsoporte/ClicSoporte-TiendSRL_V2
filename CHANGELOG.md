@@ -2,6 +2,12 @@
 
 Registro de cambios y evolución de la plataforma Clic-Tools para gestión de MSP.
 
+## [2.1.1] - 2024-05-23
+### Añadido
+- **Modalidades de Cobro en Servicios**: Soporte para servicios facturables "Por Hora" o "Por Tarea" (monto fijo).
+- **Inteligencia Financiera**: Los cálculos de facturación y analíticas ahora discriminan automáticamente si un servicio debe multiplicarse por el tiempo trabajado o si aplica una tarifa plana.
+- **Labels Dinámicos**: La interfaz de proveedores y tickets ahora muestra claramente el tipo de unidad de cobro (¢/h vs ¢/tarea).
+
 ## [2.1.0] - 2024-05-22
 ### Añadido
 - **Módulo Geográfico de Costa Rica**: Implementación de la jerarquía Provincias, Cantones y Distritos administrable en `Administración > Soporte Técnico`.

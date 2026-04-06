@@ -67,7 +67,8 @@ export type SupportPackage = {
 export type Service = {
   id: string;
   name: string;
-  price?: number; // Base price per hour
+  price?: number; // Base price
+  billingType: 'hour' | 'task';
 };
 
 /**

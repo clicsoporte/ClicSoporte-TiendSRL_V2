@@ -7,7 +7,7 @@ import { useTickets } from "@/modules/tickets/hooks/useTickets";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
-import { FilePlus, Loader2, FilterX, ShieldCheck, ShieldAlert, Clock, Info, EyeOff, MapPin } from "lucide-react";
+import { FilePlus, Loader2, FilterX, ShieldCheck, ShieldAlert, Clock, Info, EyeOff, MapPin, Zap } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -57,7 +57,10 @@ export default function TicketsClient() {
         const provider = providers.find(p => p.id === Number(newTicket.providerId));
         if (!provider) return null;
 
+        const serviceDefinition = companyData?.servicesCatalog.find(s => s.id === newTicket.serviceId);
         const serviceRate = provider.services?.find(s => s.serviceId === newTicket.serviceId);
+        const billingType = serviceDefinition?.billingType || 'hour';
+        const unitSuffix = billingType === 'task' ? 'Tarea' : 'Hora';
         
         // Find travel rate matching customer location
         let travelRate = null;
@@ -84,6 +87,8 @@ export default function TicketsClient() {
 
         return {
             providerName: provider.name,
+            billingType,
+            unitSuffix,
             service: serviceRate ? {
                 remote: { buy: serviceRate.buyPriceRemote, margin: serviceRate.marginRemote, sell: serviceRate.sellPriceRemote },
                 onSite: { buy: serviceRate.buyPriceOnSite, margin: serviceRate.marginOnSite, sell: serviceRate.sellPriceOnSite }
@@ -95,7 +100,7 @@ export default function TicketsClient() {
                 location: travelRate.locationName
             } : null
         };
-    }, [newTicket.providerId, newTicket.serviceId, providers, selectedCustomerId, customers]);
+    }, [newTicket.providerId, newTicket.serviceId, providers, selectedCustomerId, customers, companyData]);
 
     const formatDuration = (ms: number | undefined) => {
         if (!ms) return "00:00";
@@ -185,7 +190,7 @@ export default function TicketsClient() {
                                                         <SelectTrigger className="h-8"><SelectValue placeholder="Seleccione un servicio..."/></SelectTrigger>
                                                         <SelectContent>
                                                             <SelectItem value="none">Ninguno</SelectItem>
-                                                            {companyData?.servicesCatalog.map(service => (<SelectItem key={service.id} value={service.id}>{service.name}</SelectItem>))}
+                                                            {companyData?.servicesCatalog.map(service => (<SelectItem key={service.id} value={service.id}>{service.name} ({service.billingType === 'task' ? 'Tarea' : 'Hora'})</SelectItem>))}
                                                         </SelectContent>
                                                     </Select>
                                                 </div>
@@ -252,12 +257,18 @@ export default function TicketsClient() {
 
                                             {providerRateInfo && (
                                                 <div className="bg-blue-50 p-3 rounded-lg border border-blue-200 space-y-3">
-                                                    <p className="text-[10px] font-bold text-blue-700 uppercase flex items-center gap-1"><Info className="h-3 w-3"/> Tarifas Sugeridas</p>
+                                                    <div className="flex items-center justify-between">
+                                                        <p className="text-[10px] font-bold text-blue-700 uppercase flex items-center gap-1"><Info className="h-3 w-3"/> Tarifas Sugeridas</p>
+                                                        <Badge variant="outline" className="text-[8px] h-4 uppercase">
+                                                            {providerRateInfo.billingType === 'task' ? <Zap className="h-2 w-2 mr-1"/> : <Clock className="h-2 w-2 mr-1"/>}
+                                                            {providerRateInfo.billingType === 'task' ? 'Tarea' : 'Hora'}
+                                                        </Badge>
+                                                    </div>
                                                     
                                                     {providerRateInfo.service && (
                                                         <div className="space-y-2">
                                                             <div className="flex flex-col border-b border-blue-100 pb-2">
-                                                                <span className="text-[9px] text-muted-foreground uppercase font-bold">Labor Remota</span>
+                                                                <span className="text-[9px] text-muted-foreground uppercase font-bold">Labor Remota (Por {providerRateInfo.unitSuffix})</span>
                                                                 <div className="flex justify-between items-end">
                                                                     <span className="text-xs font-black text-blue-900">¢{providerRateInfo.service.remote.sell.toLocaleString()}</span>
                                                                     {canViewCosts && (
@@ -269,7 +280,7 @@ export default function TicketsClient() {
                                                                 </div>
                                                             </div>
                                                             <div className="flex flex-col">
-                                                                <span className="text-[9px] text-muted-foreground uppercase font-bold">Labor en Sitio</span>
+                                                                <span className="text-[9px] text-muted-foreground uppercase font-bold">Labor en Sitio (Por {providerRateInfo.unitSuffix})</span>
                                                                 <div className="flex justify-between items-end">
                                                                     <span className="text-xs font-black text-blue-900">¢{providerRateInfo.service.onSite.sell.toLocaleString()}</span>
                                                                     {canViewCosts && (
