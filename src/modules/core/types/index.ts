@@ -44,6 +44,7 @@ export type Company = {
     quoterShowTaxId?: boolean;
     searchDebounceTime?: number;
     syncWarningHours?: number;
+    internalHourCost?: number; // Cost to the company for 1 hour of internal labor
     importMode: 'file' | 'sql';
     lastSyncTimestamp?: string | null;
     customerFilePath?: string;
@@ -397,6 +398,7 @@ export type TIProject = {
   subcontractorIds: number[]; // New field (multiple)
   description: string;
   notes?: string;
+  estimatedBudget: number; // Total amount billed to client
   billingStatus: 'pending' | 'invoiced';
   createdAt: string;
   updatedAt: string;

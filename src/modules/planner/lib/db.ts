@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Server-side functions for the planner module.
  * Unified into intratool.db. Handles TI project tracking and materials.
@@ -24,7 +25,8 @@ function mapProjectRow(db: Database, row: Record<string, unknown>): TIProject {
         id: Number(row.id),
         coordinatorId: Number(row.coordinatorId),
         subcontractorId: row.subcontractorId ? Number(row.subcontractorId) : null,
-        subcontractorIds: (subcontractorIds || []).map(s => Number(s.providerId))
+        subcontractorIds: (subcontractorIds || []).map(s => Number(s.providerId)),
+        estimatedBudget: Number(row.estimatedBudget || 0)
     } as TIProject;
 }
 
@@ -82,8 +84,8 @@ export async function addProject(project: Omit<TIProject, 'id' | 'consecutive' |
 
         const transaction = db.transaction(() => {
             const info = db.prepare(`
-                INSERT INTO projects (consecutive, name, customerId, customerName, category, status, priority, startDate, endDate, coordinatorId, subcontractorId, description, notes, createdAt, updatedAt)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO projects (consecutive, name, customerId, customerName, category, status, priority, startDate, endDate, coordinatorId, subcontractorId, description, notes, estimatedBudget, createdAt, updatedAt)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `).run(
                 consecutive, 
                 project.name, 
@@ -98,6 +100,7 @@ export async function addProject(project: Omit<TIProject, 'id' | 'consecutive' |
                 project.subcontractorId ? Number(project.subcontractorId) : null, 
                 project.description, 
                 project.notes || null, 
+                project.estimatedBudget || 0,
                 now, 
                 now
             );
@@ -137,7 +140,7 @@ export async function updateProject(project: TIProject): Promise<TIProject> {
             UPDATE projects SET
                 name = ?, category = ?, status = ?, priority = ?, startDate = ?, endDate = ?,
                 coordinatorId = ?, subcontractorId = ?, description = ?, notes = ?,
-                billingStatus = ?, updatedAt = ?
+                estimatedBudget = ?, billingStatus = ?, updatedAt = ?
             WHERE id = ?
         `).run(
             project.name, 
@@ -150,6 +153,7 @@ export async function updateProject(project: TIProject): Promise<TIProject> {
             project.subcontractorId ? Number(project.subcontractorId) : null, 
             project.description, 
             project.notes || null, 
+            project.estimatedBudget || 0,
             project.billingStatus, 
             now, 
             project.id

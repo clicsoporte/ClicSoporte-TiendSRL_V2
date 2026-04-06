@@ -55,7 +55,8 @@ export async function initializeMainDatabase(db: Database) {
             searchDebounceTime INTEGER, syncWarningHours INTEGER, importMode TEXT, lastSyncTimestamp TEXT,
             customerFilePath TEXT, productFilePath TEXT, exemptionFilePath TEXT,
             stockFilePath TEXT, cabysFilePath TEXT,
-            supportPackages TEXT, servicesCatalog TEXT
+            supportPackages TEXT, servicesCatalog TEXT,
+            internalHourCost REAL DEFAULT 0
         );
         
         CREATE TABLE IF NOT EXISTS api_settings (
@@ -346,6 +347,7 @@ export async function initializeMainDatabase(db: Database) {
             subcontractorId INTEGER,
             description TEXT NOT NULL,
             notes TEXT,
+            estimatedBudget REAL DEFAULT 0,
             billingStatus TEXT DEFAULT 'pending',
             createdAt TEXT NOT NULL,
             updatedAt TEXT NOT NULL
@@ -608,6 +610,7 @@ export async function runMainMigrations(db: Database) {
     if (!hasColumn('users', 'forcePasswordChange')) db.exec(`ALTER TABLE users ADD COLUMN forcePasswordChange INTEGER DEFAULT 0;`);
     if (!hasColumn('company_settings', 'systemVersion')) db.exec(`ALTER TABLE company_settings ADD COLUMN systemVersion TEXT;`);
     if (!hasColumn('company_settings', 'publicUrl')) db.exec(`ALTER TABLE company_settings ADD COLUMN publicUrl TEXT;`);
+    if (!hasColumn('company_settings', 'internalHourCost')) db.exec(`ALTER TABLE company_settings ADD COLUMN internalHourCost REAL DEFAULT 0;`);
 
     // HACIENDA Migrations
     const haciendaFields = [
@@ -648,6 +651,7 @@ export async function runMainMigrations(db: Database) {
 
     // PLANNER Migrations
     if (!hasColumn('projects', 'category')) db.exec(`ALTER TABLE projects ADD COLUMN category TEXT NOT NULL DEFAULT 'other';`);
+    if (!hasColumn('projects', 'estimatedBudget')) db.exec(`ALTER TABLE projects ADD COLUMN estimatedBudget REAL DEFAULT 0;`);
     
     // LICENSES Migrations
     if (!hasColumn('licenses', 'hardwareId')) db.exec(`ALTER TABLE licenses ADD COLUMN hardwareId TEXT;`);

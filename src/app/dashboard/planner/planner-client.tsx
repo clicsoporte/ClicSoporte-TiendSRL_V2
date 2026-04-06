@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Client-side component for TI Project Manager.
  * Handles project creation and listing with robust validation.
@@ -15,7 +16,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { PlusCircle, Calendar as CalendarIcon, Users, FileText, ChevronRight, Loader2, Briefcase, Truck, Network, Radio, Monitor, Zap, Lock, AlertCircle, ShieldCheck } from 'lucide-react';
+import { PlusCircle, Calendar as CalendarIcon, Users, FileText, ChevronRight, Loader2, Briefcase, Truck, Network, Radio, Monitor, Zap, Lock, AlertCircle, ShieldCheck, Coins } from 'lucide-react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { getProjects, createProject } from '@/modules/planner/lib/actions';
 import type { TIProject, ProjectStatus, ProjectPriority, ProjectCategory, ThirdPartyProvider } from '@/modules/core/types';
@@ -40,7 +41,7 @@ const categoryConfig: { [key in ProjectCategory]: { label: string, icon: React.E
     wireless: { label: 'Redes Inalámbricas', icon: Radio, color: 'text-cyan-600' },
     pos: { label: 'Puntos de Venta (POS)', icon: Briefcase, color: 'text-orange-600' },
     fencing: { label: 'Cercados Perimetrales', icon: Zap, color: 'text-yellow-600' },
-    server: { label: 'Infraestructura Servidores', icon: Network, color: 'text-indigo-600' },
+    server: { label: 'Infraestructura Servidores', icon: Network, color: 'text-indigo-Indi600' },
     networking: { label: 'Cableado Estructurado', icon: Network, color: 'text-emerald-600' },
     telephony: { label: 'Telefonía IP', icon: Network, color: 'text-violet-600' },
     other: { label: 'Otro Servicio TI', icon: FileText, color: 'text-gray-600' },
@@ -71,6 +72,7 @@ const initialNewProject: NewProjectState = {
     subcontractorIds: [],
     description: '',
     notes: '',
+    estimatedBudget: 0,
 };
 
 export default function PlannerClient() {
@@ -138,6 +140,10 @@ export default function PlannerClient() {
         }
         if (newProject.coordinatorId === null || newProject.coordinatorId === 0) {
             toast({ title: "Falta Coordinador", description: "Debe asignar a un técnico responsable del proyecto.", variant: "destructive" });
+            return;
+        }
+        if (newProject.estimatedBudget <= 0) {
+            toast({ title: "Presupuesto Requerido", description: "Debe indicar el monto total cobrado al cliente para el control de pérdidas.", variant: "destructive" });
             return;
         }
 
@@ -222,15 +228,24 @@ export default function PlannerClient() {
                                         onOpenChange={setCustomerSearchOpen}
                                         placeholder="Escribe para buscar cliente..."
                                     />
-                                    {newProject.customerId && (
-                                        <p className="text-[10px] text-green-600 font-bold flex items-center gap-1">
-                                            <AlertCircle className="h-3 w-3" /> Cliente seleccionado correctamente
-                                        </p>
-                                    )}
                                 </div>
                                 <div className="space-y-2">
                                     <Label className="text-xs font-bold uppercase text-muted-foreground">Nombre del Proyecto</Label>
                                     <Input value={newProject.name} onChange={e => setNewProject({...newProject, name: e.target.value})} placeholder="Ej: Sistema Paradox Central" />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label className="text-xs font-bold uppercase text-primary">Presupuesto Venta (¢)</Label>
+                                    <div className="relative">
+                                        <Coins className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                        <Input 
+                                            type="number" 
+                                            className="pl-9 font-bold text-primary" 
+                                            value={newProject.estimatedBudget || ''} 
+                                            onChange={e => setNewProject({...newProject, estimatedBudget: Number(e.target.value)})} 
+                                            placeholder="Monto cobrado al cliente..." 
+                                        />
+                                    </div>
+                                    <p className="text-[10px] text-muted-foreground italic">Este monto se usará para alertar sobre pérdidas de rentabilidad.</p>
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
@@ -275,7 +290,6 @@ export default function PlannerClient() {
                                                     <Label htmlFor={`sub-${p.id}`} className="text-xs cursor-pointer">{p.name}</Label>
                                                 </div>
                                             ))}
-                                            {providers.length === 0 && <p className="text-[10px] text-muted-foreground italic">No hay proveedores registrados.</p>}
                                         </div>
                                     </div>
                                 </div>
@@ -324,17 +338,9 @@ export default function PlannerClient() {
                                         <CalendarIcon className="h-3 w-3" />
                                         <span>{format(parseISO(project.startDate), 'dd/MM/yy')} al {format(parseISO(project.endDate), 'dd/MM/yy')}</span>
                                     </div>
-                                    <div className="flex items-center gap-4">
-                                        <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold text-muted-foreground bg-muted/50 px-2 py-1 rounded">
-                                            <Users className="h-3 w-3" /> 
-                                            {users.find(u => u.id === project.coordinatorId)?.name.split(' ')[0] || 'Técnico'}
-                                        </div>
-                                        {(project.subcontractorIds?.length > 0) && (
-                                            <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold text-amber-700 bg-amber-50 px-2 py-1 rounded border border-amber-100">
-                                                <Truck className="h-3 w-3" /> 
-                                                {project.subcontractorIds.length} Externos
-                                            </div>
-                                        )}
+                                    <div className="flex items-center gap-2">
+                                        <Coins className="h-3 w-3 text-primary" />
+                                        <span className="text-xs font-black">Presupuesto: ¢{project.estimatedBudget?.toLocaleString()}</span>
                                     </div>
                                 </CardContent>
                                 <CardFooter className="pt-2 border-t text-[10px] flex justify-between items-center bg-muted/5">
@@ -347,13 +353,6 @@ export default function PlannerClient() {
                         </Link>
                     )
                 })}
-                {projects.length === 0 && (
-                    <div className="col-span-full py-32 text-center border-2 border-dashed rounded-xl bg-muted/20">
-                        <Network className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-20" />
-                        <h3 className="text-lg font-bold text-muted-foreground">Sin Proyectos Activos</h3>
-                        <p className="text-sm text-muted-foreground max-w-xs mx-auto">Comienza registrando un nuevo proyecto TI llave en mano para dar seguimiento a tus ejecuciones.</p>
-                    </div>
-                )}
             </div>
         </main>
     );

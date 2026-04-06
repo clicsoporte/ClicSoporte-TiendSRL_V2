@@ -1,3 +1,4 @@
+
 'use client';
 
 /**
@@ -126,6 +127,9 @@ export const useTickets = () => {
             if (contract.excludedServices.includes(serviceId)) {
                 return { isBillable: true, message: `Servicio EXCLUIDO del contrato. Se generará cobro adicional.` };
             }
+        } else if (customerId) {
+            // Check for customer without any active contract
+            return { isBillable: true, message: '¡ATENCIÓN! El cliente NO tiene contrato vigente. El servicio es de ALTO RIESGO FINANCIERO.' };
         }
 
         // Priority 2: Check support package linked to customer profile
@@ -144,7 +148,7 @@ export const useTickets = () => {
             }
         }
 
-        return { isBillable: true, message: 'Sin cobertura detectada (No tiene contrato ni plan mensual que incluya este servicio). FACTURABLE.' };
+        return { isBillable: true, message: 'Sin cobertura detectada. FACTURABLE.' };
     }, [customers, companyData]);
 
     const handleNewTicketChange = useCallback((field: keyof NewTicketPayload, value: string | number | boolean | null) => {

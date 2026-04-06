@@ -1,7 +1,7 @@
+
 /**
  * @fileoverview Detailed project view for advancement tracking and documentation.
- * Improved with support for multiple subcontractors and contact info popovers.
- * Optimized to prevent UI flickering on updates.
+ * Improved with Profitability Shield to prevent financial losses.
  */
 'use client';
 
@@ -9,7 +9,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { useAuth } from '@/modules/core/hooks/useAuth';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -27,7 +27,7 @@ import { getThirdPartyProviders } from '@/modules/tickets/lib/actions';
 import type { TIProject, ProjectAdvance, ProjectAttachment, ProjectItem, ProjectStatus, ProjectPriority, ThirdPartyProvider } from '@/modules/core/types';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Loader2, Send, Paperclip, Plus, Trash2, FileDown, ArrowLeft, History, Truck, UserCircle, Package, Briefcase, Info, CheckCircle2, Edit, Phone, Mail, FileText } from 'lucide-react';
+import { Loader2, Send, Paperclip, Plus, Trash2, FileDown, ArrowLeft, History, Truck, UserCircle, Package, Briefcase, Info, CheckCircle2, Edit, Phone, Mail, FileText, AlertTriangle, TrendingUp, TrendingDown, Target, Wallet } from 'lucide-react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { generateDocument } from '@/modules/core/lib/pdf-generator';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -37,6 +37,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import type { RowInput } from 'jspdf-autotable';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 
@@ -74,7 +75,6 @@ export default function ProjectDetailsPage() {
     const [newItem, setNewItem] = useState<{ description: string; quantity: number; unitPrice: number; type: 'material' | 'service' }>({ description: '', quantity: 1, unitPrice: 0, type: 'material' });
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // Edit Team State
     const [isEditTeamOpen, setEditTeamOpen] = useState(false);
     const [teamForm, setTeamForm] = useState<{ coordinatorId: number; subcontractorIds: number[] }>({ coordinatorId: 0, subcontractorIds: [] });
 
@@ -106,6 +106,30 @@ export default function ProjectDetailsPage() {
         setTitle("Detalles del Proyecto");
         loadProjectData();
     }, [loadProjectData, setTitle]);
+
+    // Financial Analysis Logic
+    const financials = useMemo(() => {
+        if (!project) return null;
+        
+        const totalMaterials = items.reduce((acc, i) => acc + (i.quantity * i.unitPrice), 0);
+        const internalLaborCost = (advances.length * 0.5) * (companyData?.internalHourCost || 5000); // 30 min per advance estimate
+        
+        // Sum subcontractor estimated buy prices from provider data
+        let subcontractorCosts = 0;
+        const assignedSubcontractors = providers.filter(p => (project.subcontractorIds || []).includes(p.id));
+        assignedSubcontractors.forEach(sub => {
+            const onsiteRate = sub.services?.find(s => s.serviceId.includes('sitio'))?.buyPriceOnSite || 0;
+            subcontractorCosts += onsiteRate;
+        });
+
+        const totalCost = totalMaterials + internalLaborCost + subcontractorCosts;
+        const budget = project.estimatedBudget || 0;
+        const margin = budget - totalCost;
+        const marginPercentage = budget > 0 ? (margin / budget) * 100 : 0;
+        const burnRate = budget > 0 ? (totalCost / budget) * 100 : 0;
+
+        return { totalMaterials, internalLaborCost, subcontractorCosts, totalCost, budget, margin, marginPercentage, burnRate };
+    }, [project, items, advances, companyData, providers]);
 
     const handleAddAdvance = async () => {
         if (!newAdvance.trim() || !user) return;
@@ -152,6 +176,13 @@ export default function ProjectDetailsPage() {
             toast({ title: "Descripción requerida", variant: "destructive" });
             return;
         }
+        
+        // Loss prevention check
+        if (financials && financials.burnRate >= 100) {
+            toast({ title: "Presupuesto Agotado", description: "El proyecto ha superado el 100% de los costos. Requiere aprobación gerencial para más materiales.", variant: "destructive" });
+            return;
+        }
+
         try {
             const saved = await saveProjectItem({ ...newItem, projectId });
             setItems(prev => [...prev, saved]);
@@ -174,33 +205,11 @@ export default function ProjectDetailsPage() {
                 userId: user.id, 
                 userName: user.name 
             });
-            await loadProjectData(true); // Silent refresh
+            await loadProjectData(true); 
             toast({ title: "Estado Actualizado" });
         } catch {
             toast({ title: "Error", description: "No se pudo actualizar el estado del proyecto.", variant: "destructive" });
         }
-    };
-
-    const handlePriorityChange = async (newPriority: ProjectPriority) => {
-        if (!project) return;
-        const updated = { ...project, priority: newPriority };
-        try {
-            await updateProject(updated);
-            setProject(updated);
-            await loadProjectData(true); // Silent refresh
-            toast({ title: "Prioridad Actualizada" });
-        } catch {
-            toast({ title: "Error", description: "No se pudo actualizar la prioridad.", variant: "destructive" });
-        }
-    };
-
-    const toggleSubcontractor = (id: number) => {
-        setTeamForm(prev => {
-            const ids = prev.subcontractorIds.includes(id) 
-                ? prev.subcontractorIds.filter(i => i !== id)
-                : [...prev.subcontractorIds, id];
-            return { ...prev, subcontractorIds: ids };
-        });
     };
 
     const handleUpdateTeam = async () => {
@@ -213,29 +222,9 @@ export default function ProjectDetailsPage() {
                 subcontractorIds: teamForm.subcontractorIds.map(id => Number(id))
             };
             await updateProject(updated);
-            
-            const oldCoordinator = users.find(u => u.id === project.coordinatorId)?.name || 'N/A';
-            const newCoordinator = users.find(u => u.id === teamForm.coordinatorId)?.name || 'N/A';
-            
-            const oldSubs = providers.filter(p => (project.subcontractorIds || []).includes(p.id)).map(p => p.name).join(', ') || 'Ninguno';
-            const newSubs = providers.filter(p => teamForm.subcontractorIds.includes(p.id)).map(p => p.name).join(', ') || 'Ninguno';
-
-            let logMsg = '';
-            if (oldCoordinator !== newCoordinator) logMsg += `Coordinador (${oldCoordinator} -> ${newCoordinator}). `;
-            if (oldSubs !== newSubs) logMsg += `Subcontratistas (${oldSubs} -> ${newSubs}).`;
-
-            if (logMsg) {
-                await addProjectAdvance({ 
-                    projectId, 
-                    content: `ACTUALIZACIÓN DE EQUIPO: ${logMsg}`, 
-                    userId: user.id, 
-                    userName: user.name 
-                });
-            }
-
-            await loadProjectData(true); // Silent refresh
             setEditTeamOpen(false);
             toast({ title: "Equipo Actualizado" });
+            loadProjectData(true);
         } catch {
             toast({ title: "Error", variant: "destructive" });
         } finally {
@@ -243,18 +232,9 @@ export default function ProjectDetailsPage() {
         }
     };
 
-    const projectTotals = useMemo(() => {
-        const subtotal = items.reduce((acc, i) => acc + (i.quantity * i.unitPrice), 0);
-        const tax = subtotal * 0.13;
-        const total = subtotal + tax;
-        return { subtotal, tax, total };
-    }, [items]);
-
     const handleGenerateDeliveryPDF = async () => {
         if (!project || !companyData) return;
         
-        const { subtotal, tax, total } = projectTotals;
-
         const tableRows: RowInput[] = items.map(item => [
             item.type === 'material' ? '[M]' : '[S]',
             item.description,
@@ -273,52 +253,28 @@ export default function ProjectDetailsPage() {
             ],
             blocks: [
                 { title: "Proyecto", content: project.name },
-                { title: "Alcance Ejecutado", content: project.description },
-                { title: "Coordinador", content: user?.name || 'Gestión Interna' }
+                { title: "Alcance Ejecutado", content: project.description }
             ],
             table: {
                 columns: ["Tipo", "Descripción", "Cant.", "Precio Unit.", "Subtotal"],
                 rows: tableRows,
                 columnStyles: { 0: { cellWidth: 30 }, 2: { halign: 'center' }, 3: { halign: 'right' }, 4: { halign: 'right' } }
             },
-            notes: "Al firmar este documento, el cliente manifiesta su entera satisfacción con la instalación y configuración de los equipos detallados. Se entrega manual de usuario y capacitación básica.",
+            notes: "Al firmar este documento, el cliente manifiesta su entera satisfacción con la instalación y configuración de los equipos detallados.",
             totals: [
-                { label: "Subtotal:", value: `¢${subtotal.toLocaleString('es-CR', { minimumFractionDigits: 2 })}` },
-                { label: "I.V.A (13%):", value: `¢${tax.toLocaleString('es-CR', { minimumFractionDigits: 2 })}` },
-                { label: "Monto Total:", value: `¢${total.toLocaleString('es-CR', { minimumFractionDigits: 2 })}` }
+                { label: "Monto Total Invertido:", value: `¢${items.reduce((acc, i) => acc + (i.quantity * i.unitPrice), 0).toLocaleString('es-CR')}` }
             ]
         });
 
         doc.save(`acta_entrega_${project.consecutive}.pdf`);
-        toast({ title: "Acta de Entrega Generada", description: "El archivo PDF ha sido descargado." });
+        toast({ title: "Acta de Entrega Generada" });
     };
 
-    if (isLoading) {
-        return (
-            <div className="flex-1 p-4 md:p-6 lg:p-8 space-y-6 bg-muted/10 min-h-screen">
-                <Skeleton className="h-10 w-24" />
-                <Card><CardContent className="p-10"><Skeleton className="h-40 w-full" /></CardContent></Card>
-                <div className="grid grid-cols-3 gap-6">
-                    <Skeleton className="h-96 col-span-2" />
-                    <Skeleton className="h-96 col-span-1" />
-                </div>
-            </div>
-        );
-    }
-
-    if (!project) {
-        return (
-            <div className="flex h-screen flex-col items-center justify-center gap-4">
-                <Info className="h-16 w-16 text-muted-foreground opacity-20" />
-                <h2 className="text-xl font-bold">Proyecto no encontrado</h2>
-                <Button onClick={() => router.push('/dashboard/planner')}>Ir al listado</Button>
-            </div>
-        );
-    }
+    if (isLoading) return <div className="p-8"><Skeleton className="h-[600px] w-full" /></div>;
+    if (!project || !financials) return <div>No se encontró el proyecto.</div>;
 
     const assignedCoordinator = users.find(u => u.id === project.coordinatorId);
     const assignedSubcontractors = providers.filter(p => (project.subcontractorIds || []).includes(p.id));
-    const supportUsers = users.filter(u => u.role === 'admin' || u.role === 'support-agent');
 
     return (
         <main className="flex-1 p-4 md:p-6 lg:p-8 space-y-6 bg-muted/20 min-h-screen">
@@ -327,18 +283,6 @@ export default function ProjectDetailsPage() {
                     <ArrowLeft className="mr-2 h-4 w-4" /> Volver
                 </Button>
                 <div className="flex flex-wrap items-center gap-4">
-                    <div className="flex flex-col">
-                        <Label className="text-[10px] uppercase font-black text-muted-foreground mb-1">Prioridad</Label>
-                        <Select value={project.priority} onValueChange={(v: ProjectPriority) => handlePriorityChange(v)}>
-                            <SelectTrigger className="w-[120px] h-8 text-xs font-bold"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="low">Baja</SelectItem>
-                                <SelectItem value="medium">Media</SelectItem>
-                                <SelectItem value="high">Alta</SelectItem>
-                                <SelectItem value="urgent">Urgente</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
                     <div className="flex flex-col">
                         <Label className="text-[10px] uppercase font-black text-muted-foreground mb-1">Estado Fase</Label>
                         <Select value={project.status} onValueChange={(v: ProjectStatus) => handleStatusChange(v)}>
@@ -358,6 +302,21 @@ export default function ProjectDetailsPage() {
                 </div>
             </div>
 
+            {/* --- Profitability Shield Alerts --- */}
+            {financials.burnRate > 80 && (
+                <Alert variant={financials.burnRate >= 100 ? "destructive" : "default"} className={cn("border-2 shadow-md", financials.burnRate < 100 && "bg-amber-50 border-amber-200")}>
+                    <AlertTriangle className={cn("h-5 w-5", financials.burnRate >= 100 ? "text-white" : "text-amber-600")} />
+                    <AlertTitle className="font-black uppercase tracking-wider">
+                        {financials.burnRate >= 100 ? "¡Pérdida Crítica Detectada!" : "Alerta de Rentabilidad (Umbral 80%)"}
+                    </AlertTitle>
+                    <AlertDescription className="text-xs">
+                        {financials.burnRate >= 100 
+                            ? `Los costos reales (¢${financials.totalCost.toLocaleString()}) han superado el presupuesto de venta (¢${financials.budget.toLocaleString()}). Cada gasto adicional es pérdida directa.`
+                            : `Se ha consumido el ${financials.burnRate.toFixed(1)}% del presupuesto. Revise el inventario y horas pendientes.`}
+                    </AlertDescription>
+                </Alert>
+            )}
+
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2 space-y-6">
                     <Card className="shadow-md border-none overflow-hidden">
@@ -376,19 +335,15 @@ export default function ProjectDetailsPage() {
                                         <Briefcase className="h-4 w-4" /> {project.customerName}
                                     </CardDescription>
                                 </div>
-                                <div className="text-right hidden sm:block">
-                                    <p className="text-[10px] font-bold uppercase text-muted-foreground">Inicio</p>
-                                    <p className="text-sm font-black">{format(parseISO(project.startDate), 'dd MMM, yyyy', { locale: es })}</p>
+                                <div className="text-right">
+                                    <p className="text-[10px] font-bold uppercase text-muted-foreground">Presupuesto Venta</p>
+                                    <p className="text-xl font-black text-primary">¢{financials.budget.toLocaleString()}</p>
                                 </div>
                             </div>
                         </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="p-4 bg-muted/30 rounded-lg border text-sm italic leading-relaxed text-muted-foreground">
-                                &quot;{project.description}&quot;
-                            </div>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t">
-                                <div className="flex flex-col"><span className="text-[10px] uppercase font-black text-muted-foreground">Estado</span><Badge className={cn("w-fit mt-1 text-white", statusConfig[project.status].color)}>{statusConfig[project.status].label}</Badge></div>
-                                <div className="flex flex-col"><span className="text-[10px] uppercase font-black text-muted-foreground">Entrega Estimada</span><span className="text-sm font-black text-destructive mt-1">{format(parseISO(project.endDate), 'dd/MM/yyyy')}</span></div>
+                        <CardContent>
+                            <div className="p-4 bg-muted/30 rounded-lg border text-sm text-muted-foreground leading-relaxed">
+                                {project.description}
                             </div>
                         </CardContent>
                     </Card>
@@ -422,9 +377,7 @@ export default function ProjectDetailsPage() {
                                                         <UserCircle className="h-4 w-4 text-primary" />
                                                         <span className="text-xs font-black text-primary uppercase">{adv.userName}</span>
                                                     </div>
-                                                    <span className="text-[10px] font-bold text-muted-foreground">
-                                                        {format(parseISO(adv.timestamp), 'dd/MM HH:mm')}
-                                                    </span>
+                                                    <span className="text-[10px] font-bold text-muted-foreground">{format(parseISO(adv.timestamp), 'dd/MM HH:mm')}</span>
                                                 </div>
                                                 <p className="text-sm">{adv.content}</p>
                                             </div>
@@ -439,18 +392,18 @@ export default function ProjectDetailsPage() {
                                 <CardContent className="p-4 space-y-4">
                                     <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end bg-muted/30 p-4 rounded-lg border">
                                         <div className="md:col-span-2 space-y-1">
-                                            <Label className="text-[10px] font-bold uppercase">Descripción</Label>
-                                            <input value={newItem.description} onChange={e => setNewItem({...newItem, description: e.target.value})} placeholder="Item o Servicio..." className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" />
+                                            <Label className="text-[10px] font-bold uppercase">Descripción de Material/Servicio</Label>
+                                            <Input value={newItem.description} onChange={e => setNewItem({...newItem, description: e.target.value})} placeholder="Item..." />
                                         </div>
                                         <div className="space-y-1">
                                             <Label className="text-[10px] font-bold uppercase">Cant.</Label>
                                             <Input type="number" value={newItem.quantity} onChange={e => setNewItem({...newItem, quantity: Number(e.target.value)})} />
                                         </div>
                                         <div className="space-y-1">
-                                            <Label className="text-[10px] font-bold uppercase">Precio (s/IVA)</Label>
+                                            <Label className="text-[10px] font-bold uppercase">Costo Compra</Label>
                                             <Input type="number" value={newItem.unitPrice} onChange={e => setNewItem({...newItem, unitPrice: Number(e.target.value)})} />
                                         </div>
-                                        <Button onClick={handleAddItem} className="w-full"><Plus className="h-4 w-4 mr-2" /> Agregar</Button>
+                                        <Button onClick={handleAddItem} className="w-full h-10"><Plus className="h-4 w-4 mr-2" /> Agregar</Button>
                                     </div>
                                     <div className="rounded-md border overflow-hidden">
                                         <Table>
@@ -458,7 +411,7 @@ export default function ProjectDetailsPage() {
                                                 <TableRow>
                                                     <TableHead>Descripción</TableHead>
                                                     <TableHead className="text-center">Cant.</TableHead>
-                                                    <TableHead className="text-right">Unitario</TableHead>
+                                                    <TableHead className="text-right">Costo Unit.</TableHead>
                                                     <TableHead className="text-right">Subtotal</TableHead>
                                                     <TableHead className="w-10"></TableHead>
                                                 </TableRow>
@@ -517,122 +470,71 @@ export default function ProjectDetailsPage() {
                     </Tabs>
                 </div>
 
+                {/* --- Financial Sidebar --- */}
                 <div className="space-y-6">
-                    <Card className="shadow-md border-none overflow-hidden">
-                        <CardHeader className="bg-primary/10 pb-4 flex flex-row items-center justify-between">
-                            <CardTitle className="text-xs font-black uppercase text-primary tracking-widest flex items-center gap-2">
+                    <Card className={cn("shadow-md border-none overflow-hidden", financials.burnRate >= 100 ? "bg-destructive text-destructive-foreground" : "bg-primary text-primary-foreground")}>
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-[10px] font-black uppercase opacity-80 tracking-widest flex items-center gap-2">
+                                <Wallet className="h-3 w-3"/> Salud Financiera del Proyecto
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div>
+                                <p className="text-4xl font-black">¢{financials.margin.toLocaleString()}</p>
+                                <p className="text-[10px] uppercase font-bold opacity-80">Margen de Contribución Real</p>
+                            </div>
+                            
+                            <div className="space-y-1.5">
+                                <div className="flex justify-between text-[10px] font-black uppercase">
+                                    <span>Consumo de Presupuesto</span>
+                                    <span>{financials.burnRate.toFixed(1)}%</span>
+                                </div>
+                                <div className="h-2 w-full bg-black/20 rounded-full overflow-hidden">
+                                    <div 
+                                        className={cn("h-full transition-all duration-500", financials.burnRate > 90 ? "bg-red-400" : "bg-white")} 
+                                        style={{ width: `${Math.min(financials.burnRate, 100)}%` }} 
+                                    />
+                                </div>
+                            </div>
+
+                            <Separator className="bg-white/20" />
+                            
+                            <div className="grid grid-cols-2 gap-4 text-[10px] font-bold uppercase opacity-90">
+                                <div><p className="opacity-60">Materiales</p><p>¢{financials.totalMaterials.toLocaleString()}</p></div>
+                                <div><p className="opacity-60">Subcontratos</p><p>¢{financials.subcontractorCosts.toLocaleString()}</p></div>
+                                <div><p className="opacity-60">Mano de Obra</p><p>¢{financials.internalLaborCost.toLocaleString()}</p></div>
+                                <div><p className="opacity-60">Gasto Total</p><p>¢{financials.totalCost.toLocaleString()}</p></div>
+                            </div>
+                        </CardContent>
+                        <CardFooter className="bg-black/10 py-3">
+                            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-tighter">
+                                {financials.margin > 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
+                                {financials.marginPercentage.toFixed(1)}% Rentabilidad Neta
+                            </div>
+                        </CardFooter>
+                    </Card>
+
+                    <Card>
+                        <CardHeader className="pb-4">
+                            <CardTitle className="text-xs font-black uppercase text-muted-foreground tracking-widest flex items-center gap-2">
                                 <UserCircle className="h-4 w-4"/> Equipo Responsable
                             </CardTitle>
-                            <Dialog open={isEditTeamOpen} onOpenChange={setEditTeamOpen}>
-                                <DialogTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-primary"><Edit className="h-3 w-3"/></Button>
-                                </DialogTrigger>
-                                <DialogContent className="sm:max-w-md">
-                                    <DialogHeader>
-                                        <DialogTitle>Editar Equipo de Trabajo</DialogTitle>
-                                        <DialogDescription>Modifica los responsables técnicos y subcontratistas.</DialogDescription>
-                                    </DialogHeader>
-                                    <div className="space-y-6 py-4">
-                                        <div className="space-y-2">
-                                            <Label className="text-xs font-bold uppercase">Técnico Coordinador Interno</Label>
-                                            <Select value={String(teamForm.coordinatorId)} onValueChange={v => setTeamForm({...teamForm, coordinatorId: Number(v)})}>
-                                                <SelectTrigger><SelectValue/></SelectTrigger>
-                                                <SelectContent>
-                                                    {supportUsers.map(u => <SelectItem key={u.id} value={String(u.id)}>{u.name}</SelectItem>)}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label className="text-xs font-bold uppercase">Subcontratistas Externos</Label>
-                                            <ScrollArea className="h-48 border rounded-md p-2">
-                                                <div className="space-y-2">
-                                                    {providers.map(p => (
-                                                        <div key={p.id} className="flex items-center space-x-2 p-2 hover:bg-muted/50 rounded cursor-pointer" onClick={() => toggleSubcontractor(p.id)}>
-                                                            <Checkbox 
-                                                                checked={teamForm.subcontractorIds.includes(p.id)} 
-                                                                onCheckedChange={() => toggleSubcontractor(p.id)}
-                                                            />
-                                                            <div className="flex-1">
-                                                                <p className="text-sm font-bold leading-none">{p.name}</p>
-                                                                <p className="text-[10px] text-muted-foreground mt-1">{p.specialty}</p>
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </ScrollArea>
-                                        </div>
-                                    </div>
-                                    <DialogFooter>
-                                        <DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose>
-                                        <Button onClick={handleUpdateTeam} disabled={isSubmitting}>
-                                            {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <CheckCircle2 className="mr-2 h-4 w-4"/>}
-                                            Guardar Cambios
-                                        </Button>
-                                    </DialogFooter>
-                                </DialogContent>
-                            </Dialog>
                         </CardHeader>
-                        <CardContent className="space-y-4 pt-4">
+                        <CardContent className="space-y-4">
                             <div className="flex items-center gap-3 p-3 rounded-lg border bg-card">
                                 <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary border border-primary/20"><UserCircle className="h-6 w-6" /></div>
                                 <div><p className="text-[10px] font-bold uppercase text-muted-foreground">Coordinador</p><p className="text-sm font-black">{assignedCoordinator?.name || 'Técnico Asignado'}</p></div>
                             </div>
-                            
-                            <Separator className="my-2" />
                             <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest px-1">Subcontratistas</p>
-                            
-                            {assignedSubcontractors.length > 0 ? (
-                                <div className="space-y-2">
-                                    {assignedSubcontractors.map(sub => (
-                                        <Popover key={sub.id}>
-                                            <PopoverTrigger asChild>
-                                                <div className="flex items-center gap-3 p-3 rounded-lg border bg-amber-50 cursor-pointer hover:bg-amber-100 transition-colors">
-                                                    <div className="h-8 w-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-600"><Truck className="h-4 w-4" /></div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className="text-sm font-black truncate">{sub.name}</p>
-                                                        <p className="text-[9px] text-amber-600 font-bold uppercase">{sub.specialty}</p>
-                                                    </div>
-                                                    <Info className="h-4 w-4 text-amber-400" />
-                                                </div>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="w-64" align="end">
-                                                <div className="space-y-3">
-                                                    <h4 className="font-bold text-sm border-b pb-1">Datos de Contacto</h4>
-                                                    <div className="space-y-2">
-                                                        <div className="flex items-center gap-2 text-xs">
-                                                            <Phone className="h-3 w-3 text-primary"/>
-                                                            <span>{sub.phone || 'No registrado'}</span>
-                                                        </div>
-                                                        <div className="flex items-center gap-2 text-xs">
-                                                            <Mail className="h-3 w-3 text-primary"/>
-                                                            <span className="truncate">{sub.email || 'No registrado'}</span>
-                                                        </div>
-                                                        <div className="bg-muted p-2 rounded text-[10px] text-muted-foreground mt-2 italic">
-                                                            &quot;{sub.notes || 'Servicios TI'}&quot;
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </PopoverContent>
-                                        </Popover>
-                                    ))}
+                            {assignedSubcontractors.map(sub => (
+                                <div key={sub.id} className="flex items-center gap-3 p-3 rounded-lg border bg-amber-50">
+                                    <div className="h-8 w-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-600"><Truck className="h-4 w-4" /></div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-black truncate">{sub.name}</p>
+                                        <p className="text-[9px] text-amber-600 font-bold uppercase">{sub.specialty}</p>
+                                    </div>
                                 </div>
-                            ) : (
-                                <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/20 opacity-50 italic">
-                                    <Truck className="h-6 w-6 text-muted-foreground" />
-                                    <p className="text-xs">Sin subcontratos asignados</p>
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
-
-                    <Card className="bg-primary text-primary-foreground shadow-xl border-none">
-                        <CardHeader className="pb-2"><CardTitle className="text-xs font-black uppercase opacity-80 tracking-widest">Inversión Proyectada</CardTitle></CardHeader>
-                        <CardContent>
-                            <p className="text-4xl font-black">¢{projectTotals.total.toLocaleString('es-CR')}</p>
-                            <div className="mt-4 pt-4 border-t border-white/20 space-y-1 text-[10px] font-bold uppercase opacity-80">
-                                <div className="flex justify-between"><span>Subtotal:</span><span>¢{projectTotals.subtotal.toLocaleString()}</span></div>
-                                <div className="flex justify-between"><span>I.V.A (13%):</span><span>¢{projectTotals.tax.toLocaleString()}</span></div>
-                            </div>
+                            ))}
                         </CardContent>
                     </Card>
                 </div>
