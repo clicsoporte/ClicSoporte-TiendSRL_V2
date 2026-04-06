@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Main tool definitions for the application dashboards.
  */
@@ -65,15 +66,6 @@ export const mainTools: Tool[] = [
     bgColor: "bg-indigo-500",
     textColor: "text-white",
   },
-     {
-      id: "hacienda-query",
-      name: "Consultas Hacienda",
-      description: "Verificar situación tributaria y exoneraciones.",
-      href: "/dashboard/hacienda",
-      icon: Search,
-      bgColor: "bg-blue-600",
-      textColor: "text-white",
-    },
     {
       id: "analytics",
       name: "Analíticas",
@@ -127,5 +119,15 @@ export const financeTools: (Tool & { permission: string })[] = [
         bgColor: "bg-orange-600",
         textColor: "text-white",
         permission: "cost-assistant:access"
+    },
+    {
+      id: "hacienda-query",
+      name: "Consultas Hacienda",
+      description: "Verificar situación tributaria y exoneraciones.",
+      href: "/dashboard/hacienda",
+      icon: Search,
+      bgColor: "bg-blue-600",
+      textColor: "text-white",
+      permission: "hacienda:query"
     },
 ];

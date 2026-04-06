@@ -84,6 +84,7 @@ export type Tool = {
   bgColor: string;
   textColor: string;
   adminOnly?: boolean;
+  permission?: string;
 };
 
 /**
@@ -348,6 +349,30 @@ export type TimeEntry = {
     notes?: string | null;
     isBillable: boolean;
     createdAt: string;
+};
+
+export type Kpi = { total: number; [key: string]: number; };
+
+export type VolumeKpi = {
+    label: string;
+    value: number;
+};
+
+export type AnalyticsData = {
+    tickets: Kpi;
+    projects: Kpi;
+    timeTracking: {
+        totalHours: number;
+        totalBillable: number;
+        totalNonBillable: number;
+        totalAmountInvoiced: number;
+        totalAmountPending: number;
+        byUser: { userId: number; userName: string; billable: number; nonBillable: number; amount: number }[];
+    };
+    byCustomer: VolumeKpi[];
+    byTopic: VolumeKpi[];
+    byService: VolumeKpi[];
+    byBillingType: VolumeKpi[];
 };
 
 // --- TI Project Management Types ---

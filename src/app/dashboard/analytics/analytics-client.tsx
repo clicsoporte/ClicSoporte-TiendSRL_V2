@@ -1,14 +1,15 @@
+
 /**
  * @fileoverview Client Component for the Analytics module.
- * Extracted from the main page to support server-side guarding.
+ * Redesigned for comprehensive Management Reporting (Volume, Profitability, and Operations).
  */
 'use client';
 
 import { useAnalytics } from '@/modules/analytics/hooks/useAnalytics';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AreaChart, CalendarCheck, Hourglass, Ticket, FileText, BadgeAlert, Coins, Receipt, CheckCircle2 } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { AreaChart, CalendarCheck, Hourglass, Ticket, FileText, BadgeAlert, Coins, Receipt, CheckCircle2, PieChart as PieIcon, BarChart3, Users, Wrench } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
 import { Button } from '@/components/ui/button';
 import { Calendar as CalendarIcon } from 'lucide-react';
@@ -33,6 +34,8 @@ const StatCard = ({ title, value, icon: Icon, isLoading, color = "text-muted-for
     </Card>
 );
 
+const COLORS = ['#F97316', '#3B82F6', '#10B981', '#8B5CF6', '#EF4444', '#06B6D4', '#F59E0B', '#6366F1'];
+
 export default function AnalyticsClient() {
     const { state, actions } = useAnalytics();
     const { isAuthReady } = useAuth();
@@ -44,10 +47,7 @@ export default function AnalyticsClient() {
                 <Skeleton className="h-10 w-48" />
             </div>
             <div className="grid gap-4 md:grid-cols-4">
-                <Skeleton className="h-32 w-full" />
-                <Skeleton className="h-32 w-full" />
-                <Skeleton className="h-32 w-full" />
-                <Skeleton className="h-32 w-full" />
+                {[1,2,3,4].map(i => <Skeleton key={i} className="h-32 w-full" />)}
             </div>
             <Skeleton className="h-[400px] w-full" />
         </div>;
@@ -57,12 +57,13 @@ export default function AnalyticsClient() {
 
     return (
         <main className="flex-1 p-4 md:p-6 lg:p-8 space-y-6">
+            {/* Header / Date Filter */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div className="flex items-center gap-4">
                     <AreaChart className="h-8 w-8 text-primary" />
                     <div>
                         <h1 className="text-2xl font-bold">Inteligencia de Negocio</h1>
-                        <p className="text-xs text-muted-foreground">Monitoreo de carga de trabajo y facturación.</p>
+                        <p className="text-xs text-muted-foreground">Desempeño operativo y métricas financieras.</p>
                     </div>
                 </div>
                  <div className="flex items-center gap-2">
@@ -86,92 +87,189 @@ export default function AnalyticsClient() {
             </div>
 
             <Tabs defaultValue="overview" className="space-y-6">
-                <TabsList>
-                    <TabsTrigger value="overview">Resumen Operativo</TabsTrigger>
-                    <TabsTrigger value="billing">Métricas de Facturación</TabsTrigger>
+                <TabsList className="bg-muted p-1">
+                    <TabsTrigger value="overview" className="flex items-center gap-2"><PieIcon className="h-4 w-4"/> Casos y Volumen</TabsTrigger>
+                    <TabsTrigger value="billing" className="flex items-center gap-2"><Coins className="h-4 w-4"/> Rentabilidad</TabsTrigger>
+                    <TabsTrigger value="efficiency" className="flex items-center gap-2"><BarChart3 className="h-4 w-4"/> Eficiencia Técnica</TabsTrigger>
                 </TabsList>
 
+                {/* --- TAB 1: CASOS Y VOLUMEN --- */}
                 <TabsContent value="overview" className="space-y-6">
                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                        <StatCard title="Tickets Abiertos" value={state.kpis?.tickets.open || 0} icon={Ticket} isLoading={state.isLoading} color="text-green-600" />
-                        <StatCard title="En Progreso" value={state.kpis?.tickets.in_progress || 0} icon={Hourglass} isLoading={state.isLoading} color="text-blue-600" />
-                        <StatCard title="Proyectos Activos" value={state.kpis?.projects.in_progress || 0} icon={CalendarCheck} isLoading={state.isLoading} color="text-purple-600" />
-                        <StatCard title="Facturables Pendientes" value={state.kpis?.tickets.billable_pending || 0} icon={BadgeAlert} isLoading={state.isLoading} color="text-destructive" />
+                        <StatCard title="Total de Casos" value={state.kpis?.tickets.total || 0} icon={Ticket} isLoading={state.isLoading} color="text-primary" />
+                        <StatCard title="Proyectos TI" value={state.kpis?.projects.total || 0} icon={CalendarCheck} isLoading={state.isLoading} color="text-purple-600" />
+                        <StatCard title="Tickets Abiertos" value={state.kpis?.tickets.open || 0} icon={BadgeAlert} isLoading={state.isLoading} color="text-blue-600" />
+                        <StatCard title="Casos Resueltos" value={state.kpis?.tickets.completed || 0} icon={CheckCircle2} isLoading={state.isLoading} color="text-green-600" />
                     </div>
 
-                    <div className="grid gap-4 md:grid-cols-7">
-                        <Card className="col-span-4">
+                    <div className="grid gap-6 md:grid-cols-2">
+                        {/* Top Clientes */}
+                        <Card>
                             <CardHeader>
-                                <CardTitle>Carga de Trabajo por Técnico (Horas)</CardTitle>
+                                <CardTitle className="flex items-center gap-2 text-base"><Users className="h-4 w-4 text-primary"/> Top 10 Clientes por Volumen</CardTitle>
+                                <CardDescription>Empresas con mayor demanda de soporte.</CardDescription>
                             </CardHeader>
-                            <CardContent className="h-80">
-                                <ChartContainer config={{}} className="h-full w-full">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart data={state.kpis?.timeTracking.byUser}>
-                                            <CartesianGrid vertical={false} />
-                                            <XAxis dataKey="userName" tickLine={false} tickMargin={10} axisLine={false} />
-                                            <YAxis />
-                                            <Tooltip content={<ChartTooltipContent />} />
-                                            <Legend />
-                                            <Bar dataKey="billable" fill="var(--color-chart-2)" radius={4} name="Contrato" />
-                                            <Bar dataKey="nonBillable" fill="var(--color-chart-5)" radius={4} name="Fuera de Contrato" />
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                </ChartContainer>
+                            <CardContent className="h-[300px]">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={state.kpis?.byCustomer} layout="vertical">
+                                        <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                                        <XAxis type="number" hide />
+                                        <YAxis dataKey="label" type="category" width={120} tick={{ fontSize: 10 }} />
+                                        <Tooltip />
+                                        <Bar dataKey="value" fill="#F97316" radius={[0, 4, 4, 0]} name="Tickets" />
+                                    </BarChart>
+                                </ResponsiveContainer>
                             </CardContent>
                         </Card>
-                        <Card className="col-span-3">
-                            <CardHeader><CardTitle>Distribución de Tiempo</CardTitle></CardHeader>
-                            <CardContent className="space-y-4">
-                                <div className="p-4 border rounded-lg flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600"><FileText className="h-5 w-5" /></div>
-                                        <div><p className="text-xs text-muted-foreground uppercase font-bold">Total Bajo Contrato</p><p className="text-xl font-bold">{(state.kpis?.timeTracking.totalBillable || 0).toFixed(1)} h</p></div>
-                                    </div>
-                                </div>
-                                <div className="p-4 border rounded-lg flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <div className="h-10 w-10 rounded-full bg-destructive/10 flex items-center justify-center text-destructive"><Coins className="h-5 w-5" /></div>
-                                        <div><p className="text-xs text-muted-foreground uppercase font-bold">Total Facturable Extra</p><p className="text-xl font-bold">{(state.kpis?.timeTracking.totalNonBillable || 0).toFixed(1)} h</p></div>
-                                    </div>
-                                </div>
+
+                        {/* Distribución por Tema */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2 text-base"><Wrench className="h-4 w-4 text-primary"/> Distribución por Tema de Ayuda</CardTitle>
+                                <CardDescription>Categorías de problemas más comunes.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="h-[300px]">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <PieChart>
+                                        <Pie
+                                            data={state.kpis?.byTopic}
+                                            cx="50%" cy="50%"
+                                            innerRadius={60}
+                                            outerRadius={80}
+                                            paddingAngle={5}
+                                            dataKey="value"
+                                            nameKey="label"
+                                            label={({ label }) => label}
+                                        >
+                                            {state.kpis?.byTopic.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip />
+                                    </PieChart>
+                                </ResponsiveContainer>
                             </CardContent>
                         </Card>
                     </div>
                 </TabsContent>
 
+                {/* --- TAB 2: RENTABILIDAD --- */}
                 <TabsContent value="billing" className="space-y-6">
                     <div className="grid gap-4 md:grid-cols-2">
-                        <StatCard title="Total Facturado (Periodo)" value={formatCurrency(state.kpis?.timeTracking.totalAmountInvoiced || 0)} icon={CheckCircle2} isLoading={state.isLoading} color="text-green-600" />
-                        <StatCard title="Total por Cobrar (Pendiente)" value={formatCurrency(state.kpis?.timeTracking.totalAmountPending || 0)} icon={Receipt} isLoading={state.isLoading} color="text-orange-600" />
+                        <StatCard title="Facturación Realizada" value={formatCurrency(state.kpis?.timeTracking.totalAmountInvoiced || 0)} icon={CheckCircle2} isLoading={state.isLoading} color="text-green-600" />
+                        <StatCard title="Pendiente por Cobrar" value={formatCurrency(state.kpis?.timeTracking.totalAmountPending || 0)} icon={Receipt} isLoading={state.isLoading} color="text-orange-600" />
                     </div>
 
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Facturación por Técnico</CardTitle>
-                            <CardDescription>Monto generado por cada técnico basado en horas fuera de contrato.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Técnico</TableHead>
-                                        <TableHead className="text-right">Horas Facturables</TableHead>
-                                        <TableHead className="text-right">Monto Generado</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {state.kpis?.timeTracking.byUser.map(user => (
-                                        <TableRow key={user.userId}>
-                                            <TableCell className="font-medium">{user.userName}</TableCell>
-                                            <TableCell className="text-right">{user.billable.toFixed(2)} h</TableCell>
-                                            <TableCell className="text-right font-bold text-primary">{formatCurrency(user.amount)}</TableCell>
+                    <div className="grid gap-6 md:grid-cols-3">
+                        {/* Mix de Cobro */}
+                        <Card className="md:col-span-1">
+                            <CardHeader>
+                                <CardTitle className="text-base">Mix de Modalidades</CardTitle>
+                                <CardDescription>Proporción Hora vs Tarea.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="h-[250px]">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <PieChart>
+                                        <Pie
+                                            data={state.kpis?.byBillingType}
+                                            cx="50%" cy="50%"
+                                            outerRadius={80}
+                                            dataKey="value"
+                                            label
+                                        >
+                                            {state.kpis?.byBillingType.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={index === 0 ? '#3B82F6' : '#10B981'} />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip />
+                                        <Legend verticalAlign="bottom" />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            </CardContent>
+                        </Card>
+
+                        {/* Facturación por Técnico */}
+                        <Card className="md:col-span-2">
+                            <CardHeader>
+                                <CardTitle className="text-base">Productividad Financiera por Técnico</CardTitle>
+                                <CardDescription>Monto facturable generado por cada colaborador.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Técnico</TableHead>
+                                            <TableHead className="text-right">Horas Bajo Contrato</TableHead>
+                                            <TableHead className="text-right">Monto Facturable (Extra)</TableHead>
                                         </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </CardContent>
-                    </Card>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {state.kpis?.timeTracking.byUser.map(user => (
+                                            <TableRow key={user.userId}>
+                                                <TableCell className="font-medium">{user.userName}</TableCell>
+                                                <TableCell className="text-right font-mono">{user.billable.toFixed(2)} h</TableCell>
+                                                <TableCell className="text-right font-bold text-primary">{formatCurrency(user.amount)}</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </TabsContent>
+
+                {/* --- TAB 3: EFICIENCIA TÉCNICA --- */}
+                <TabsContent value="efficiency" className="space-y-6">
+                    <div className="grid gap-4 md:grid-cols-7">
+                        <Card className="col-span-4">
+                            <CardHeader>
+                                <CardTitle className="text-base">Consumo de Horas por Técnico</CardTitle>
+                                <CardDescription>Comparativa de tiempo invertido.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="h-80">
+                                <ChartContainer config={{}} className="h-full w-full">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart data={state.kpis?.timeTracking.byUser}>
+                                            <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                                            <XAxis dataKey="userName" tick={{ fontSize: 10 }} axisLine={false} />
+                                            <YAxis />
+                                            <Tooltip content={<ChartTooltipContent />} />
+                                            <Legend />
+                                            <Bar dataKey="billable" fill="#10B981" radius={4} name="Contrato" />
+                                            <Bar dataKey="nonBillable" fill="#F97316" radius={4} name="Fuera de Contrato" />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </ChartContainer>
+                            </CardContent>
+                        </Card>
+                        
+                        <Card className="col-span-3">
+                            <CardHeader>
+                                <CardTitle className="text-base">Desglose de Tiempo Global</CardTitle>
+                                <CardDescription>Total de la operación en el periodo.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="p-4 border rounded-lg bg-green-50/50 flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center text-green-600"><FileText className="h-5 w-5" /></div>
+                                        <div><p className="text-[10px] text-muted-foreground uppercase font-black">Bajo Contrato</p><p className="text-xl font-black">{(state.kpis?.timeTracking.totalBillable || 0).toFixed(1)} h</p></div>
+                                    </div>
+                                </div>
+                                <div className="p-4 border rounded-lg bg-orange-50/50 flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <div className="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-600"><Hourglass className="h-5 w-5" /></div>
+                                        <div><p className="text-[10px] text-muted-foreground uppercase font-black">Fuera de Contrato</p><p className="text-xl font-black">{(state.kpis?.timeTracking.totalNonBillable || 0).toFixed(1)} h</p></div>
+                                    </div>
+                                </div>
+                                <div className="p-4 border rounded-lg bg-blue-50/50 flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600"><AreaChart className="h-5 w-5" /></div>
+                                        <div><p className="text-[10px] text-muted-foreground uppercase font-black">Total Invertido</p><p className="text-xl font-black">{(state.kpis?.timeTracking.totalHours || 0).toFixed(1)} h</p></div>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
                 </TabsContent>
             </Tabs>
         </main>

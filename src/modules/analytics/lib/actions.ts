@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Server-side functions for aggregating analytics data.
  * Unified for single database architecture.
@@ -5,19 +6,9 @@
 'use server';
 
 import { connectDb } from "@/modules/core/lib/db";
-import type { Ticket, TIProject, User, Service, TimeEntry } from "@/modules/core/types";
+import type { Ticket, TIProject, User, Service, TimeEntry, AnalyticsData, DashboardStats, VolumeKpi } from "@/modules/core/types";
 import { DateRange } from 'react-day-picker';
 import { differenceInDays, parseISO } from 'date-fns';
-
-export type Kpi = { total: number; [key: string]: number; };
-export type TimeTrackingKpi = {
-    totalHours: number; totalBillable: number; totalNonBillable: number;
-    totalAmountInvoiced: number;
-    totalAmountPending: number;
-    byUser: { userId: number; userName: string; billable: number; nonBillable: number; amount: number }[];
-};
-export type AnalyticsData = { tickets: Kpi; projects: Kpi; timeTracking: TimeTrackingKpi; };
-export type DashboardStats = { activeTickets: number; activeProjects: number; expiringContracts: number; urgentTickets: number; };
 
 function applyDateFilter(query: string, range?: DateRange, dateColumn: string = 'createdAt'): { filteredQuery: string, params: string[] } {
     const whereClauses = [];
@@ -36,15 +27,54 @@ export async function getAnalyticsData(range?: DateRange): Promise<AnalyticsData
     const catalog = JSON.parse(companyRow.servicesCatalog || '[]') as Service[];
     const serviceMap = new Map<string, Service>(catalog.map((s) => [s.id, s]));
 
-    // Tickets
-    const tF = applyDateFilter('SELECT status FROM tickets {{WHERE}}', range, 'createdAt');
-    const tickets = db.prepare(tF.filteredQuery).all(...tF.params) as Pick<Ticket, 'status'>[];
-    const ticketKpi = tickets.reduce((acc, t) => { acc.total++; acc[t.status] = (acc[t.status] || 0) + 1; return acc; }, { total: 0 } as Kpi);
+    // Tickets Base
+    const tF = applyDateFilter('SELECT * FROM tickets {{WHERE}}', range, 'createdAt');
+    const tickets = db.prepare(tF.filteredQuery).all(...tF.params) as Ticket[];
+    
+    const ticketKpi = tickets.reduce((acc, t) => { 
+        acc.total++; 
+        acc[t.status] = (acc[t.status] || 0) + 1; 
+        return acc; 
+    }, { total: 0 } as any);
+
+    // Grouping Logics
+    const customerMapCount = new Map<string, number>();
+    const topicMapCount = new Map<string, number>();
+    const serviceMapCount = new Map<string, number>();
+    const billingTypeMapCount = new Map<string, number>();
+
+    tickets.forEach(t => {
+        customerMapCount.set(t.customerName, (customerMapCount.get(t.customerName) || 0) + 1);
+        
+        // Topic (needs lookup if ID)
+        if (t.helpTopicId) {
+            topicMapCount.set(String(t.helpTopicId), (topicMapCount.get(String(t.helpTopicId)) || 0) + 1);
+        }
+
+        if (t.serviceId) {
+            const svc = serviceMap.get(t.serviceId);
+            const svcLabel = svc?.name || t.serviceId;
+            serviceMapCount.set(svcLabel, (serviceMapCount.get(svcLabel) || 0) + 1);
+            
+            const bType = svc?.billingType === 'task' ? 'Monto Fijo (Tarea)' : 'Por Hora';
+            billingTypeMapCount.set(bType, (billingTypeMapCount.get(bType) || 0) + 1);
+        }
+    });
+
+    // Lookup topic names
+    const allTopics = db.prepare('SELECT id, name FROM help_topics').all() as {id: number, name: string}[];
+    const topicIdToName = new Map(allTopics.map(t => [String(t.id), t.name]));
+
+    const formatVolume = (map: Map<string, number>, lookup?: Map<string, string>): VolumeKpi[] => {
+        return Array.from(map.entries())
+            .map(([k, v]) => ({ label: lookup?.get(k) || k, value: v }))
+            .sort((a, b) => b.value - a.value);
+    };
 
     // Projects
     const pF = applyDateFilter('SELECT status FROM projects {{WHERE}}', range, 'createdAt');
     const projects = db.prepare(pF.filteredQuery).all(...pF.params) as Pick<TIProject, 'status'>[];
-    const projectKpi = projects.reduce((acc, p) => { acc.total++; acc[p.status] = (acc[p.status] || 0) + 1; return acc; }, { total: 0 } as Kpi);
+    const projectKpi = projects.reduce((acc, p) => { acc.total++; acc[p.status] = (acc[p.status] || 0) + 1; return acc; }, { total: 0 } as any);
 
     // Time Tracking 
     const tsF = applyDateFilter(`
@@ -57,13 +87,13 @@ export async function getAnalyticsData(range?: DateRange): Promise<AnalyticsData
     const users = db.prepare('SELECT id, name FROM users').all() as Pick<User, 'id' | 'name'>[];
     const userMap = new Map(users.map(u => [u.id, u.name]));
 
-    const timeKpi: TimeTrackingKpi = { 
+    const timeKpi = { 
         totalHours: 0, 
         totalBillable: 0, 
         totalNonBillable: 0, 
         totalAmountInvoiced: 0,
         totalAmountPending: 0,
-        byUser: [] 
+        byUser: [] as any[]
     };
     const byUserMap = new Map<number, { userId: number; userName: string; billable: number; nonBillable: number; amount: number }>();
 
@@ -108,7 +138,15 @@ export async function getAnalyticsData(range?: DateRange): Promise<AnalyticsData
         amount: parseFloat(u.amount.toFixed(2))
     })).sort((a,b) => (b.billable + b.nonBillable) - (a.billable + a.nonBillable));
 
-    return { tickets: ticketKpi, projects: projectKpi, timeTracking: timeKpi };
+    return { 
+        tickets: ticketKpi, 
+        projects: projectKpi, 
+        timeTracking: timeKpi,
+        byCustomer: formatVolume(customerMapCount).slice(0, 10),
+        byTopic: formatVolume(topicMapCount, topicIdToName),
+        byService: formatVolume(serviceMapCount),
+        byBillingType: formatVolume(billingTypeMapCount)
+    };
 }
 
 export async function getDashboardStats(): Promise<DashboardStats> {
