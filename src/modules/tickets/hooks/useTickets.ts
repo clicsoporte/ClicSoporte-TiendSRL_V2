@@ -315,7 +315,7 @@ export const useTickets = () => {
         resetNewTicketForm: () => {
             updateState({ newTicket: emptyTicket, selectedCustomerId: null, customerSearchTerm: '', activeContract: null });
         }
-    }), [updateState, toast, users, handleNewTicketChange, handleSelectCompany, validateCoverage, providers]);
+    }), [updateState, toast, users, handleNewTicketChange, handleSelectCompany, validateCoverage, state.providers]);
 
     const selectors = useMemo(() => ({
         priorityConfig,
