@@ -47,12 +47,12 @@ export const initialCompany: Company = {
 export const initialRoles: Role[] = [
   {
     id: "admin",
-    name: "Admin",
+    name: "Administrador",
     permissions: ["admin:all"],
   },
   {
     id: "viewer",
-    name: "Viewer",
+    name: "Solo Lectura",
     permissions: [
         "dashboard:access", 
         "quotes:create", 
@@ -64,7 +64,7 @@ export const initialRoles: Role[] = [
   },
   {
     id: 'planner-user',
-    name: 'Planificador',
+    name: 'Planificador de Proyectos',
     permissions: [
         "dashboard:access", "planner:read", "planner:create", "planner:status:approve", 
         "planner:status:in-progress", "planner:status:completed", "planner:priority:update",
@@ -73,7 +73,7 @@ export const initialRoles: Role[] = [
   },
   {
     id: 'support-agent',
-    name: 'Soporte Técnico',
+    name: 'Técnico de Soporte',
     permissions: [
         "dashboard:access", "tickets:create", "tickets:read:all", "tickets:reply", 
         "tickets:time-tracking", "customers:read", "contracts:read", "providers:read", "hacienda:query"

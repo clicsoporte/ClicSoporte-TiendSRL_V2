@@ -1,5 +1,3 @@
-
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -98,7 +96,7 @@ export default function LogViewerPage() {
   const handleDownloadLogs = () => {
     const logContent = logs
       .map(log => {
-        const detailsString = log.details ? `\nDETAILS: ${JSON.stringify(log.details, null, 2)}` : '';
+        const detailsString = log.details ? `\nDETALLES: ${JSON.stringify(log.details, null, 2)}` : '';
         return `[${log.type}] ${format(new Date(log.timestamp), 'yyyy-MM-dd HH:mm:ss', { locale: es })} - ${log.message}${detailsString}`;
       })
       .join('\n\n' + '-'.repeat(80) + '\n\n');
@@ -107,7 +105,7 @@ export default function LogViewerPage() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `system-logs-${new Date().toISOString().split('T')[0]}.txt`;
+    link.download = `logs-sistema-${new Date().toISOString().split('T')[0]}.txt`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
