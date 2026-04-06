@@ -514,11 +514,13 @@ export async function initializeMainDatabase(db: Database) {
     const insertTopic = db.prepare('INSERT OR IGNORE INTO help_topics (id, name, defaultPriority) VALUES (@id, @name, @defaultPriority)');
     topics.forEach(t => insertTopic.run(t));
 
-    // Default Software Products
+    // Default Software Products (Enhanced for Third Party)
     const software = [
-        { name: 'Clic-Soporte SaaS', isInternal: 1 },
+        { name: 'Clic-Soporte SaaS (Propio)', isInternal: 1 },
+        { name: 'Microsoft Office 365', isInternal: 0 },
         { name: 'Antivirus Kaspersky', isInternal: 0 },
-        { name: 'Microsoft Office 365', isInternal: 0 }
+        { name: 'Antivirus ESET NOD32', isInternal: 0 },
+        { name: 'PowerBI Pro', isInternal: 0 }
     ];
     const insertSoftware = db.prepare('INSERT OR IGNORE INTO software_products (name, isInternal) VALUES (@name, @isInternal)');
     software.forEach(p => insertSoftware.run(p));
@@ -552,10 +554,10 @@ function seedNotificationTemplates(db: Database) {
         },
         {
             eventId: 'onLicenseExpiring',
-            subject: '[ALERTA] Licencia Offline vence en {{daysLeft}} días',
-            body: '<div style="font-family: sans-serif;"><h2>Aviso de Expiración de Licencia</h2><p>La licencia para el Hardware ID <b>{{hardwareId}}</b> vencerá el <b>{{expirationDate}}</b> ({{daysLeft}} días restantes).</p></div>',
-            telegram: '🔑 <b>LICENCIA POR VENCER</b>\n\n<b>HWID:</b> {{hardwareId}}\n<b>Vence:</b> {{expirationDate}}\n<b>Restan:</b> {{daysLeft}} días',
-            internal: 'Licencia {{hardwareId}} vence en {{daysLeft}} días.'
+            subject: '[RENOVACIÓN] Tu licencia de {{softwareName}} vence pronto',
+            body: '<div style="font-family: sans-serif; color: #333;"><h2 style="color: #2563eb;">Aviso de Renovación de Software</h2><p>Estimado(a) <b>{{customerName}}</b>,</p><p>Le informamos que su licencia de <b>{{softwareName}}</b> está próxima a vencer.</p><div style="border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; margin: 20px 0;"><p><b>Software:</b> {{softwareName}}</p><p><b>Vencimiento:</b> {{expirationDate}}</p><p><b>Días restantes:</b> {{daysLeft}}</p></div><p>Por favor, póngase en contacto con nosotros para gestionar su renovación y evitar interrupciones en el servicio.</p></div>',
+            telegram: '🔑 <b>LICENCIA POR VENCER</b>\n\n<b>Cliente:</b> {{customerName}}\n<b>Software:</b> {{softwareName}}\n<b>Vence:</b> {{expirationDate}}\n<b>Restan:</b> {{daysLeft}} días',
+            internal: 'Licencia {{softwareName}} de {{customerName}} vence en {{daysLeft}} días.'
         },
         {
             eventId: 'onContractAutoRenewed',

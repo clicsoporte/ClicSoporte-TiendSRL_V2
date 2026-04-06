@@ -76,19 +76,36 @@ async function executeExpirationCheck() {
             }
         }
 
-        // 2. Check Licenses
-        const licenses = db.prepare("SELECT * FROM licenses WHERE status = 'active' AND isPerpetual = 0").all() as License[];
+        // 2. Check Licenses (Enriched with Customer and Software data)
+        const licenses = db.prepare(`
+            SELECT l.*, s.name as softwareName, c.name as customerName, c.email as customerEmail
+            FROM licenses l
+            JOIN software_products s ON l.softwareId = s.id
+            LEFT JOIN client_companies c ON l.clientCompanyId = c.id
+            WHERE l.status = 'active' AND l.isPerpetual = 0
+        `).all() as (License & { softwareName: string, customerName: string, customerEmail: string })[];
+
         for (const license of licenses) {
             if (!license.expirationDate) continue;
             const expiryDate = parseISO(license.expirationDate);
             const daysLeft = differenceInDays(expiryDate, now);
             
-            if ([30, 15, 7].includes(daysLeft)) {
+            // Notification thresholds
+            if ([30, 15, 7, 1].includes(daysLeft)) {
                 await triggerNotificationEvent('onLicenseExpiring', { 
                     hardwareId: license.hardwareId,
-                    expirationDate: license.expirationDate,
+                    softwareName: license.softwareName,
+                    customerName: license.customerName,
+                    customerEmail: license.customerEmail,
+                    expirationDate: format(expiryDate, 'dd/MM/yyyy'),
                     daysLeft 
                 });
+            }
+
+            // Auto-expire if daysLeft < 0
+            if (daysLeft < 0) {
+                db.prepare("UPDATE licenses SET status = 'expired' WHERE id = ?").run(license.id);
+                await logInfo(`Licencia expirada automáticamente: ${license.softwareName} para ${license.customerName}`);
             }
         }
 

@@ -12,7 +12,7 @@ import { sendTelegramMessage } from './telegram-service';
 import { logInfo, logError } from '../../core/lib/logger';
 import { getAllUsers } from '../../core/lib/auth';
 import { connectDb } from '../../core/lib/db';
-import type { NotificationEventId, Customer } from '../../core/types';
+import type { NotificationEventId, Customer, ClientCompany } from '../../core/types';
 
 /**
  * Replaces placeholders in a template string using data from a payload.
@@ -69,16 +69,26 @@ export async function triggerNotificationEvent(eventId: NotificationEventId, pay
         // --- External/Rule-Based Notifications ---
         if (matchingRules.length === 0) return;
 
-        // Cache customer data if needed for placeholders
+        // Resolve client data for placeholders
         let resolvedClientTelegramId = null;
         let resolvedClientEmail = null;
 
-        if (payload.customerName) {
-            const mainDb = await connectDb();
+        const mainDb = await connectDb();
+        
+        if (payload.customerName || payload.customerId) {
             const customer = mainDb.prepare('SELECT email, telegramChatId FROM customers WHERE name = ? OR id = ?').get(payload.customerName, payload.customerId) as Customer | undefined;
             if (customer) {
                 resolvedClientTelegramId = customer.telegramChatId;
                 resolvedClientEmail = customer.email;
+            }
+        }
+
+        // Fallback to client_companies (used in Licenses and manual Tickets)
+        if (!resolvedClientEmail && payload.clientCompanyId) {
+            const company = mainDb.prepare('SELECT email, telegramChatId FROM client_companies WHERE id = ?').get(payload.clientCompanyId) as ClientCompany | undefined;
+            if (company) {
+                resolvedClientEmail = company.email;
+                resolvedClientTelegramId = company.telegramChatId;
             }
         }
 
@@ -88,7 +98,7 @@ export async function triggerNotificationEvent(eventId: NotificationEventId, pay
             // Handle special recipient placeholders
             const processedRecipients = rule.recipients.map(r => {
                 if (r === '[CORREO_CLIENTE]') return String(payload.customerEmail || resolvedClientEmail || '');
-                if (r === '[TELEGRAM_CLIENTE]') return String(resolvedClientTelegramId || '');
+                if (r === '[TELEGRAM_CLIENTE]') return String(payload.customerTelegramId || resolvedClientTelegramId || '');
                 return r;
             }).filter(Boolean);
 
