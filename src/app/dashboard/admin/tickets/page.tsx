@@ -8,7 +8,7 @@ import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useEffect, useMemo, useState } from 'react';
 import { useTicketSettings } from '@/modules/tickets/hooks/useTicketSettings';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,7 +22,7 @@ import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import type { TicketPriority, Province, Canton, District, SupportPackage } from '@/modules/core/types';
+import type { TicketPriority, Province, Canton, District } from '@/modules/core/types';
 
 export default function TicketSettingsPage() {
     const { setTitle } = usePageTitle();
@@ -67,16 +67,24 @@ export default function TicketSettingsPage() {
         if (!geoEditName.trim()) return;
         const action = geoEditTarget ? 'update' : 'add';
         
-        // Construct basic data object
-        const data: any = geoEditTarget ? { ...geoEditTarget, name: geoEditName } : { name: geoEditName };
-        
-        // Add parent IDs for 'add' action
+        // Construct basic data object with specific fields to avoid 'any'
+        const baseData = geoEditTarget ? { ...geoEditTarget, name: geoEditName } : { name: geoEditName };
+        let finalData: Province | Canton | District;
+
+        // Ensure IDs are correctly passed for 'add' action
         if (action === 'add') {
-            if (geoEditType === 'canton') data.provinceId = selectedProvinceId;
-            if (geoEditType === 'district') data.cantonId = selectedCantonId;
+            if (geoEditType === 'canton') {
+                finalData = { ...baseData, provinceId: selectedProvinceId || 0 } as Canton;
+            } else if (geoEditType === 'district') {
+                finalData = { ...baseData, cantonId: selectedCantonId || 0 } as District;
+            } else {
+                finalData = baseData as Province;
+            }
+        } else {
+            finalData = baseData as Province | Canton | District;
         }
 
-        await actions.handleGeoAction(geoEditType, action, data);
+        await actions.handleGeoAction(geoEditType, action, finalData);
         setGeoEditOpen(false);
     };
 
