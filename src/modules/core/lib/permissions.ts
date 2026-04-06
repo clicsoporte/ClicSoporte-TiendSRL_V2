@@ -70,7 +70,7 @@ export const permissionTree: Record<string, string[]> = {
   'users:manage': ['users:read', 'users:create', 'users:update', 'users:delete'],
   'roles:manage': ['roles:read', 'roles:create', 'roles:update', 'roles:delete'],
   'customers:manage': ['customers:read', 'customers:create', 'customers:update', 'customers:delete'],
-  'contracts:manage': ['contracts:read', 'customers:create', 'customers:update', 'customers:delete'],
+  'contracts:manage': ['customers:read', 'customers:create', 'customers:update', 'customers:delete'],
   'tickets:manage': ['tickets:reply', 'tickets:time-tracking'],
   'cost-assistant:access': ['cost-assistant:view', 'cost-assistant:process']
 };
@@ -92,5 +92,5 @@ export const permissionTranslations: Record<string, string> = {
   "contracts:create": "Contratos: Crear",
   "admin:all": "Control Total del Sistema",
   "admin:import:run": "Ejecutar Sincronización ERP",
-  "view:provider:costs": "Ver Costos y Márgenes de Proveedores"
+  "view:provider:costs": "Ver Costos, Márgenes y Rentabilidad (Supervisor)"
 };

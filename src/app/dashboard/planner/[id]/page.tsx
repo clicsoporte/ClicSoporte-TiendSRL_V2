@@ -34,6 +34,7 @@ import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import type { RowInput } from 'jspdf-autotable';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
+import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 
 const statusConfig: { [key in ProjectStatus]: { label: string, color: string } } = {
     planning: { label: 'Planeación', color: 'bg-yellow-500' },
@@ -55,6 +56,7 @@ export default function ProjectDetailsPage() {
     const router = useRouter();
     const projectId = Number(params.id);
     const { user, companyData, users } = useAuth();
+    const { hasPermission } = useAuthorization();
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
 
@@ -68,6 +70,8 @@ export default function ProjectDetailsPage() {
     const [newAdvance, setNewAdvance] = useState("");
     const [newItem, setNewItem] = useState<{ description: string; quantity: number; unitPrice: number; type: 'material' | 'service' }>({ description: '', quantity: 1, unitPrice: 0, type: 'material' });
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const canViewFinancials = hasPermission('view:provider:costs');
 
     const loadProjectData = useCallback(async (silent = false) => {
         if (!silent) setIsLoading(true);
@@ -272,8 +276,8 @@ export default function ProjectDetailsPage() {
                 </div>
             </div>
 
-            {/* --- Profitability Shield Alerts --- */}
-            {financials.burnRate > 80 && (
+            {/* --- Profitability Shield Alerts (Only for Managers) --- */}
+            {canViewFinancials && financials.burnRate > 80 && (
                 <Alert variant={financials.burnRate >= 100 ? "destructive" : "default"} className={cn("border-2 shadow-md", financials.burnRate < 100 && "bg-amber-50 border-amber-200")}>
                     <AlertTriangle className={cn("h-5 w-5", financials.burnRate >= 100 ? "text-white" : "text-amber-600")} />
                     <AlertTitle className="font-black uppercase tracking-wider">
@@ -305,10 +309,12 @@ export default function ProjectDetailsPage() {
                                         <Briefcase className="h-4 w-4" /> {project.customerName}
                                     </CardDescription>
                                 </div>
-                                <div className="text-right">
-                                    <p className="text-[10px] font-bold uppercase text-muted-foreground">Presupuesto Venta</p>
-                                    <p className="text-xl font-black text-primary">¢{financials.budget.toLocaleString()}</p>
-                                </div>
+                                {canViewFinancials && (
+                                    <div className="text-right">
+                                        <p className="text-[10px] font-bold uppercase text-muted-foreground">Presupuesto Venta</p>
+                                        <p className="text-xl font-black text-primary">¢{financials.budget.toLocaleString()}</p>
+                                    </div>
+                                )}
                             </div>
                         </CardHeader>
                         <CardContent>
@@ -370,8 +376,8 @@ export default function ProjectDetailsPage() {
                                             <Input type="number" value={newItem.quantity} onChange={e => setNewItem({...newItem, quantity: Number(e.target.value)})} />
                                         </div>
                                         <div className="space-y-1">
-                                            <Label className="text-[10px] font-bold uppercase">Costo Compra</Label>
-                                            <Input type="number" value={newItem.unitPrice} onChange={e => setNewItem({...newItem, unitPrice: Number(e.target.value)})} />
+                                            <Label className="text-[10px] font-bold uppercase">{canViewFinancials ? 'Costo Compra' : 'Unidad'}</Label>
+                                            <Input type="number" value={newItem.unitPrice} onChange={e => setNewItem({...newItem, unitPrice: Number(e.target.value)})} disabled={!canViewFinancials} />
                                         </div>
                                         <Button onClick={handleAddItem} className="w-full h-10"><Plus className="h-4 w-4 mr-2" /> Agregar</Button>
                                     </div>
@@ -381,8 +387,8 @@ export default function ProjectDetailsPage() {
                                                 <TableRow>
                                                     <TableHead>Descripción</TableHead>
                                                     <TableHead className="text-center">Cant.</TableHead>
-                                                    <TableHead className="text-right">Costo Unit.</TableHead>
-                                                    <TableHead className="text-right">Subtotal</TableHead>
+                                                    {canViewFinancials && <TableHead className="text-right">Costo Unit.</TableHead>}
+                                                    {canViewFinancials && <TableHead className="text-right">Subtotal</TableHead>}
                                                     <TableHead className="w-10"></TableHead>
                                                 </TableRow>
                                             </TableHeader>
@@ -391,8 +397,8 @@ export default function ProjectDetailsPage() {
                                                     <TableRow key={i.id} className="group">
                                                         <TableCell className="font-bold text-sm">{i.description}</TableCell>
                                                         <TableCell className="text-center">{i.quantity}</TableCell>
-                                                        <TableCell className="text-right">¢{i.unitPrice.toLocaleString()}</TableCell>
-                                                        <TableCell className="text-right font-bold">¢{(i.quantity * i.unitPrice).toLocaleString()}</TableCell>
+                                                        {canViewFinancials && <TableCell className="text-right">¢{i.unitPrice.toLocaleString()}</TableCell>}
+                                                        {canViewFinancials && <TableCell className="text-right font-bold">¢{(i.quantity * i.unitPrice).toLocaleString()}</TableCell>}
                                                         <TableCell>
                                                             <Button variant="ghost" size="icon" onClick={() => deleteProjectItem(i.id).then(() => loadProjectData(true))} className="text-destructive">
                                                                 <Trash2 className="h-4 w-4" />
@@ -440,49 +446,51 @@ export default function ProjectDetailsPage() {
                     </Tabs>
                 </div>
 
-                {/* --- Financial Sidebar --- */}
+                {/* --- Financial Sidebar (Restricted to Managers) --- */}
                 <div className="space-y-6">
-                    <Card className={cn("shadow-md border-none overflow-hidden", financials.burnRate >= 100 ? "bg-destructive text-destructive-foreground" : "bg-primary text-primary-foreground")}>
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-[10px] font-black uppercase opacity-80 tracking-widest flex items-center gap-2">
-                                <Wallet className="h-3 w-3"/> Salud Financiera del Proyecto
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div>
-                                <p className="text-4xl font-black">¢{financials.margin.toLocaleString()}</p>
-                                <p className="text-[10px] uppercase font-bold opacity-80">Margen de Contribución Real</p>
-                            </div>
-                            
-                            <div className="space-y-1.5">
-                                <div className="flex justify-between text-[10px] font-black uppercase">
-                                    <span>Consumo de Presupuesto</span>
-                                    <span>{financials.burnRate.toFixed(1)}%</span>
+                    {canViewFinancials && (
+                        <Card className={cn("shadow-md border-none overflow-hidden", financials.burnRate >= 100 ? "bg-destructive text-destructive-foreground" : "bg-primary text-primary-foreground")}>
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-[10px] font-black uppercase opacity-80 tracking-widest flex items-center gap-2">
+                                    <Wallet className="h-3 w-3"/> Salud Financiera del Proyecto
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div>
+                                    <p className="text-4xl font-black">¢{financials.margin.toLocaleString()}</p>
+                                    <p className="text-[10px] uppercase font-bold opacity-80">Margen de Contribución Real</p>
                                 </div>
-                                <div className="h-2 w-full bg-black/20 rounded-full overflow-hidden">
-                                    <div 
-                                        className={cn("h-full transition-all duration-500", financials.burnRate > 90 ? "bg-red-400" : "bg-white")} 
-                                        style={{ width: `${Math.min(financials.burnRate, 100)}%` }} 
-                                    />
+                                
+                                <div className="space-y-1.5">
+                                    <div className="flex justify-between text-[10px] font-black uppercase">
+                                        <span>Consumo de Presupuesto</span>
+                                        <span>{financials.burnRate.toFixed(1)}%</span>
+                                    </div>
+                                    <div className="h-2 w-full bg-black/20 rounded-full overflow-hidden">
+                                        <div 
+                                            className={cn("h-full transition-all duration-500", financials.burnRate > 90 ? "bg-red-400" : "bg-white")} 
+                                            style={{ width: `${Math.min(financials.burnRate, 100)}%` }} 
+                                        />
+                                    </div>
                                 </div>
-                            </div>
 
-                            <Separator className="bg-white/20" />
-                            
-                            <div className="grid grid-cols-2 gap-4 text-[10px] font-bold uppercase opacity-90">
-                                <div><p className="opacity-60">Materiales</p><p>¢{financials.totalMaterials.toLocaleString()}</p></div>
-                                <div><p className="opacity-60">Subcontratos</p><p>¢{financials.subcontractorCosts.toLocaleString()}</p></div>
-                                <div><p className="opacity-60">Mano de Obra</p><p>¢{financials.internalLaborCost.toLocaleString()}</p></div>
-                                <div><p className="opacity-60">Gasto Total</p><p>¢{financials.totalCost.toLocaleString()}</p></div>
-                            </div>
-                        </CardContent>
-                        <CardFooter className="bg-black/10 py-3">
-                            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-tighter">
-                                {financials.margin > 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
-                                {financials.marginPercentage.toFixed(1)}% Rentabilidad Neta
-                            </div>
-                        </CardFooter>
-                    </Card>
+                                <Separator className="bg-white/20" />
+                                
+                                <div className="grid grid-cols-2 gap-4 text-[10px] font-bold uppercase opacity-90">
+                                    <div><p className="opacity-60">Materiales</p><p>¢{financials.totalMaterials.toLocaleString()}</p></div>
+                                    <div><p className="opacity-60">Subcontratos</p><p>¢{financials.subcontractorCosts.toLocaleString()}</p></div>
+                                    <div><p className="opacity-60">Mano de Obra</p><p>¢{financials.internalLaborCost.toLocaleString()}</p></div>
+                                    <div><p className="opacity-60">Gasto Total</p><p>¢{financials.totalCost.toLocaleString()}</p></div>
+                                </div>
+                            </CardContent>
+                            <CardFooter className="bg-black/10 py-3">
+                                <div className="flex items-center gap-2 text-xs font-black uppercase tracking-tighter">
+                                    {financials.margin > 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
+                                    {financials.marginPercentage.toFixed(1)}% Rentabilidad Neta
+                                </div>
+                            </CardFooter>
+                        </Card>
+                    )}
 
                     <Card>
                         <CardHeader className="pb-4">

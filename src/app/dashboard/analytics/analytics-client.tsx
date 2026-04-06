@@ -21,6 +21,7 @@ import { useAuth } from '@/modules/core/hooks/useAuth';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { VolumeKpi } from '@/modules/core/types';
+import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 
 const StatCard = ({ title, value, icon: Icon, isLoading, color = "text-muted-foreground" }: { title: string, value: string | number, icon: React.ElementType, isLoading: boolean, color?: string }) => (
     <Card>
@@ -39,6 +40,7 @@ const COLORS = ['#F97316', '#3B82F6', '#10B981', '#8B5CF6', '#EF4444', '#06B6D4'
 export default function AnalyticsClient() {
     const { state, actions } = useAnalytics();
     const { isAuthReady } = useAuth();
+    const { hasPermission } = useAuthorization();
     
     if (!isAuthReady || state.isLoading) {
         return <div className="p-8 space-y-6">
@@ -53,6 +55,7 @@ export default function AnalyticsClient() {
         </div>;
     }
 
+    const canViewFinancials = hasPermission('view:provider:costs');
     const formatCurrency = (val: number) => `¢${val.toLocaleString('es-CR', { minimumFractionDigits: 2 })}`;
 
     return (
@@ -89,7 +92,7 @@ export default function AnalyticsClient() {
             <Tabs defaultValue="overview" className="space-y-6">
                 <TabsList className="bg-muted p-1">
                     <TabsTrigger value="overview" className="flex items-center gap-2"><PieIcon className="h-4 w-4"/> Casos y Volumen</TabsTrigger>
-                    <TabsTrigger value="billing" className="flex items-center gap-2"><Coins className="h-4 w-4"/> Rentabilidad</TabsTrigger>
+                    {canViewFinancials && <TabsTrigger value="billing" className="flex items-center gap-2"><Coins className="h-4 w-4"/> Rentabilidad</TabsTrigger>}
                     <TabsTrigger value="efficiency" className="flex items-center gap-2"><BarChart3 className="h-4 w-4"/> Eficiencia Técnica</TabsTrigger>
                 </TabsList>
 
@@ -153,70 +156,72 @@ export default function AnalyticsClient() {
                     </div>
                 </TabsContent>
 
-                {/* --- TAB 2: RENTABILIDAD --- */}
-                <TabsContent value="billing" className="space-y-6">
-                    <div className="grid gap-4 md:grid-cols-2">
-                        <StatCard title="Facturación Realizada" value={formatCurrency(state.kpis?.timeTracking.totalAmountInvoiced || 0)} icon={CheckCircle2} isLoading={state.isLoading} color="text-green-600" />
-                        <StatCard title="Pendiente por Cobrar" value={formatCurrency(state.kpis?.timeTracking.totalAmountPending || 0)} icon={Receipt} isLoading={state.isLoading} color="text-orange-600" />
-                    </div>
+                {/* --- TAB 2: RENTABILIDAD (Only for Managers) --- */}
+                {canViewFinancials && (
+                    <TabsContent value="billing" className="space-y-6">
+                        <div className="grid gap-4 md:grid-cols-2">
+                            <StatCard title="Facturación Realizada" value={formatCurrency(state.kpis?.timeTracking.totalAmountInvoiced || 0)} icon={CheckCircle2} isLoading={state.isLoading} color="text-green-600" />
+                            <StatCard title="Pendiente por Cobrar" value={formatCurrency(state.kpis?.timeTracking.totalAmountPending || 0)} icon={Receipt} isLoading={state.isLoading} color="text-orange-600" />
+                        </div>
 
-                    <div className="grid gap-6 md:grid-cols-3">
-                        {/* Mix de Cobro */}
-                        <Card className="md:col-span-1">
-                            <CardHeader>
-                                <CardTitle className="text-base">Mix de Modalidades</CardTitle>
-                                <CardDescription>Proporción Hora vs Tarea.</CardDescription>
-                            </CardHeader>
-                            <CardContent className="h-[250px]">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <PieChart>
-                                        <Pie
-                                            data={state.kpis?.byBillingType}
-                                            cx="50%" cy="50%"
-                                            outerRadius={80}
-                                            dataKey="value"
-                                            label
-                                        >
-                                            {state.kpis?.byBillingType.map((_entry: VolumeKpi, index: number) => (
-                                                <Cell key={`cell-${index}`} fill={index === 0 ? '#3B82F6' : '#10B981'} />
-                                            ))}
-                                        </Pie>
-                                        <Tooltip />
-                                        <Legend verticalAlign="bottom" />
-                                    </PieChart>
-                                </ResponsiveContainer>
-                            </CardContent>
-                        </Card>
+                        <div className="grid gap-6 md:grid-cols-3">
+                            {/* Mix de Cobro */}
+                            <Card className="md:col-span-1">
+                                <CardHeader>
+                                    <CardTitle className="text-base">Mix de Modalidades</CardTitle>
+                                    <CardDescription>Proporción Hora vs Tarea.</CardDescription>
+                                </CardHeader>
+                                <CardContent className="h-[250px]">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <PieChart>
+                                            <Pie
+                                                data={state.kpis?.byBillingType}
+                                                cx="50%" cy="50%"
+                                                outerRadius={80}
+                                                dataKey="value"
+                                                label
+                                            >
+                                                {state.kpis?.byBillingType.map((_entry: VolumeKpi, index: number) => (
+                                                    <Cell key={`cell-${index}`} fill={index === 0 ? '#3B82F6' : '#10B981'} />
+                                                ))}
+                                            </Pie>
+                                            <Tooltip />
+                                            <Legend verticalAlign="bottom" />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                </CardContent>
+                            </Card>
 
-                        {/* Facturación por Técnico */}
-                        <Card className="md:col-span-2">
-                            <CardHeader>
-                                <CardTitle className="text-base">Productividad Financiera por Técnico</CardTitle>
-                                <CardDescription>Monto facturable generado por cada colaborador.</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Técnico</TableHead>
-                                            <TableHead className="text-right">Horas Bajo Contrato</TableHead>
-                                            <TableHead className="text-right">Monto Facturable (Extra)</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {state.kpis?.timeTracking.byUser.map((user: { userId: number; userName: string; billable: number; nonBillable: number; amount: number }) => (
-                                            <TableRow key={user.userId}>
-                                                <TableCell className="font-medium">{user.userName}</TableCell>
-                                                <TableCell className="text-right font-mono">{user.billable.toFixed(2)} h</TableCell>
-                                                <TableCell className="text-right font-bold text-primary">{formatCurrency(user.amount)}</TableCell>
+                            {/* Facturación por Técnico */}
+                            <Card className="md:col-span-2">
+                                <CardHeader>
+                                    <CardTitle className="text-base">Productividad Financiera por Técnico</CardTitle>
+                                    <CardDescription>Monto facturable generado por cada colaborador.</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>Técnico</TableHead>
+                                                <TableHead className="text-right">Horas Bajo Contrato</TableHead>
+                                                <TableHead className="text-right">Monto Facturable (Extra)</TableHead>
                                             </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            </CardContent>
-                        </Card>
-                    </div>
-                </TabsContent>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {state.kpis?.timeTracking.byUser.map((user: { userId: number; userName: string; billable: number; nonBillable: number; amount: number }) => (
+                                                <TableRow key={user.userId}>
+                                                    <TableCell className="font-medium">{user.userName}</TableCell>
+                                                    <TableCell className="text-right font-mono">{user.billable.toFixed(2)} h</TableCell>
+                                                    <TableCell className="text-right font-bold text-primary">{formatCurrency(user.amount)}</TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </CardContent>
+                            </Card>
+                        </div>
+                    </TabsContent>
+                )}
 
                 {/* --- TAB 3: EFICIENCIA TÉCNICA --- */}
                 <TabsContent value="efficiency" className="space-y-6">
