@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -11,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { PlusCircle, Search, Edit, Trash2, Loader2, UserPlus, Users, Building2, Mail, Phone, Briefcase, SearchIcon, CheckCircle2, AlertCircle, MapPin, ShieldCheck } from 'lucide-react';
+import { PlusCircle, Search, Edit, Trash2, Loader2, UserPlus, Users, Building2, Mail, Phone, Briefcase, SearchIcon, CheckCircle2, AlertCircle, MapPin, ShieldCheck, Send } from 'lucide-react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { upsertCustomer, deleteCustomer } from '@/modules/core/lib/data-access-db';
 import { getContributorInfo } from '@/modules/hacienda/lib/actions';
@@ -54,7 +55,8 @@ const emptyCustomer: Customer = {
     provinceId: null,
     cantonId: null,
     districtId: null,
-    supportPackageId: null
+    supportPackageId: null,
+    telegramChatId: ''
 };
 
 export default function CustomersClient() {
@@ -162,7 +164,8 @@ export default function CustomersClient() {
             ...customer,
             contacts: Array.isArray(customer.contacts) ? customer.contacts : [],
             taxActivities: customer.taxActivities || '[]',
-            supportPackageId: customer.supportPackageId || null
+            supportPackageId: customer.supportPackageId || null,
+            telegramChatId: customer.telegramChatId || ''
         });
         setIsEditing(true);
         setFormOpen(true);
@@ -310,6 +313,24 @@ export default function CustomersClient() {
                                             <div className="space-y-2">
                                                 <Label htmlFor="cust-email">Correo para Notificaciones</Label>
                                                 <Input id="cust-email" type="email" value={currentCustomer.email} onChange={e => setCurrentCustomer({...currentCustomer, email: e.target.value})} />
+                                            </div>
+                                        </div>
+                                    </section>
+
+                                    <Separator />
+
+                                    <section>
+                                        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                                            <Send className="h-5 w-5 text-primary" /> Notificaciones Directas
+                                        </h3>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <Label htmlFor="cust-telegram">Telegram Chat ID (Personal o Grupo)</Label>
+                                                <div className="relative">
+                                                    <Input id="cust-telegram" value={currentCustomer.telegramChatId || ''} onChange={e => setCurrentCustomer({...currentCustomer, telegramChatId: e.target.value})} placeholder="Ej: 123456789" />
+                                                    <Badge variant="outline" className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] uppercase font-bold">OPCIONAL</Badge>
+                                                </div>
+                                                <p className="text-[10px] text-muted-foreground">Si se completa, el sistema podrá enviar alertas automáticas vía Telegram a este destino.</p>
                                             </div>
                                         </div>
                                     </section>

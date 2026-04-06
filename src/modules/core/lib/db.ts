@@ -118,7 +118,8 @@ export async function initializeMainDatabase(db: Database) {
             taxActivities TEXT,
             provinceId INTEGER,
             cantonId INTEGER,
-            districtId INTEGER
+            districtId INTEGER,
+            telegramChatId TEXT
         );
 
         CREATE TABLE IF NOT EXISTS products (
@@ -218,6 +219,7 @@ export async function initializeMainDatabase(db: Database) {
             address TEXT,
             phone TEXT,
             email TEXT,
+            telegramChatId TEXT,
             createdAt TEXT NOT NULL
         );
 
@@ -618,7 +620,7 @@ export async function runMainMigrations(db: Database) {
 
     // CUSTOMER GEOGRAPHIC Migrations
     const geoFields = [
-        ['provinceId', 'INTEGER'], ['cantonId', 'INTEGER'], ['districtId', 'INTEGER']
+        ['provinceId', 'INTEGER'], ['cantonId', 'INTEGER'], ['districtId', 'INTEGER'], ['telegramChatId', 'TEXT']
     ];
     geoFields.forEach(([field, type]) => {
         if (!hasColumn('customers', field)) db.exec(`ALTER TABLE customers ADD COLUMN ${field} ${type};`);
@@ -633,6 +635,8 @@ export async function runMainMigrations(db: Database) {
     ticketFields.forEach(([field, type]) => {
         if (!hasColumn('tickets', field)) db.exec(`ALTER TABLE tickets ADD COLUMN ${field} ${type};`);
     });
+
+    if (!hasColumn('client_companies', 'telegramChatId')) db.exec(`ALTER TABLE client_companies ADD COLUMN telegramChatId TEXT;`);
 
     // TIMESHEET Migrations
     if (!hasColumn('time_entries', 'billableDuration')) db.exec(`ALTER TABLE time_entries ADD COLUMN billableDuration INTEGER;`);

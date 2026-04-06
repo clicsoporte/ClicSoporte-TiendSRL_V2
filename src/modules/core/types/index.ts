@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview This file defines the core TypeScript types used throughout the application.
  */
@@ -138,6 +139,7 @@ export type Customer = {
     provinceId?: number | null;
     cantonId?: number | null;
     districtId?: number | null;
+    telegramChatId?: string | null;
 };
 
 /**
@@ -605,6 +607,7 @@ export type ClientCompany = {
     address: string;
     phone: string;
     email: string;
+    telegramChatId?: string | null;
     createdAt: string;
 };
 

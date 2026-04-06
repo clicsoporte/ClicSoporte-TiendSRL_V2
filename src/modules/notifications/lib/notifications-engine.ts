@@ -11,7 +11,8 @@ import { sendEmail } from '../../core/lib/email-service';
 import { sendTelegramMessage } from './telegram-service';
 import { logInfo, logError } from '../../core/lib/logger';
 import { getAllUsers } from '../../core/lib/auth';
-import type { NotificationEventId } from '../../core/types';
+import { connectDb } from '../../core/lib/db';
+import type { NotificationEventId, Customer } from '../../core/types';
 
 /**
  * Replaces placeholders in a template string using data from a payload.
@@ -68,16 +69,28 @@ export async function triggerNotificationEvent(eventId: NotificationEventId, pay
         // --- External/Rule-Based Notifications ---
         if (matchingRules.length === 0) return;
 
+        // Cache customer data if needed for placeholders
+        let resolvedClientTelegramId = null;
+        let resolvedClientEmail = null;
+
+        if (payload.customerName) {
+            const mainDb = await connectDb();
+            const customer = mainDb.prepare('SELECT email, telegramChatId FROM customers WHERE name = ? OR id = ?').get(payload.customerName, payload.customerId) as Customer | undefined;
+            if (customer) {
+                resolvedClientTelegramId = customer.telegramChatId;
+                resolvedClientEmail = customer.email;
+            }
+        }
+
         for (const rule of matchingRules) {
             const finalSubject = rule.subject || subject;
 
             // Handle special recipient placeholders
             const processedRecipients = rule.recipients.map(r => {
-                if (r === '[CORREO_CLIENTE]' && payload.customerEmail) {
-                    return String(payload.customerEmail);
-                }
+                if (r === '[CORREO_CLIENTE]') return String(payload.customerEmail || resolvedClientEmail || '');
+                if (r === '[TELEGRAM_CLIENTE]') return String(resolvedClientTelegramId || '');
                 return r;
-            });
+            }).filter(Boolean);
 
             if (rule.action === 'sendEmail' && processedRecipients.length > 0) {
                 await sendEmail({

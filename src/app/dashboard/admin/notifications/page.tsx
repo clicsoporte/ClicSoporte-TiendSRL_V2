@@ -19,7 +19,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { PlusCircle, Trash2, Save, BellRing, Clock, Send, Loader2, Mail, MailCheck } from 'lucide-react';
+import { PlusCircle, Trash2, Save, BellRing, Clock, Send, Loader2, Mail } from 'lucide-react';
 import type { NotificationRule, ScheduledTask, NotificationServiceConfig, EmailSettings } from '@/modules/core/types';
 import { 
     getAllNotificationRules, saveNotificationRule, deleteNotificationRule,
@@ -300,7 +300,6 @@ export default function AutomationManagerPage() {
                 </TabsContent>
 
                 <TabsContent value="services" className="space-y-6 pt-4">
-                    {/* (Email and Telegram Settings sections remain the same) */}
                     <Card>
                         <CardHeader>
                             <div className="flex items-center gap-4">
@@ -375,7 +374,7 @@ export default function AutomationManagerPage() {
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label>Chat ID Predeterminado</Label>
+                                    <Label>Chat ID Predeterminado (Staff)</Label>
                                     <Input 
                                         value={telegramSettings?.chatId || ''} 
                                         onChange={e => setTelegramSettings({...telegramSettings!, chatId: e.target.value})} 
@@ -435,7 +434,9 @@ export default function AutomationManagerPage() {
                         </div>
                         <div className="space-y-2">
                             <Label>Destinatarios (uno por línea)</Label>
-                            <p className="text-[10px] text-muted-foreground mb-1">Usa <b>[CORREO_CLIENTE]</b> para enviar al contacto del ticket.</p>
+                            <p className="text-[10px] text-muted-foreground mb-1">
+                                Usa <b>[CORREO_CLIENTE]</b> para Email o <b>[TELEGRAM_CLIENTE]</b> para Telegram del cliente.
+                            </p>
                             <textarea 
                                 className="w-full min-h-[100px] border rounded-md p-2 text-sm" 
                                 value={currentRule.recipients?.join('\n')}
