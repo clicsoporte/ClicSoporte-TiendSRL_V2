@@ -1,7 +1,7 @@
+
 /**
  * @fileoverview The main login page for the application.
- * This is a Server Component that fetches request headers (IP, hostname)
- * and passes them to the client-side AuthForm component for secure logging.
+ * Enhanced with Setup Wizard logic for the first start.
  */
 
 import { headers } from "next/headers";
@@ -11,6 +11,7 @@ import { Suspense } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Network } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getInitialPageData } from "./actions";
 
 async function CompanyInfo() {
   const companyData = await getCompanySettings();
@@ -21,7 +22,7 @@ async function CompanyInfo() {
       </div>
       <CardTitle className="text-3xl font-bold">{companyData?.systemName || "Clic-Soporte"}</CardTitle>
       <CardDescription>
-        Inicia sesión para acceder al centro de comando
+        Centro de comando operativo y financiero
       </CardDescription>
     </CardHeader>
   );
@@ -37,17 +38,14 @@ function CompanyInfoSkeleton() {
     )
 }
 
-/**
- * Renders the login page.
- * It fetches server-side data (company info, request headers) and passes it
- * to the client component responsible for handling user interaction.
- */
 export default async function LoginPage() {
-  // En Next.js 15+, headers() devuelve una Promesa y debe ser esperada con await.
   const requestHeaders = await headers();
   const clientIp = requestHeaders.get('x-forwarded-for') ?? 'Unknown IP';
   const clientHost = requestHeaders.get('host') ?? 'Unknown Host';
   const clientInfo = { ip: clientIp, host: clientHost };
+
+  // Fetch setup requirements
+  const { hasUsers } = await getInitialPageData();
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
@@ -56,7 +54,7 @@ export default async function LoginPage() {
             <CompanyInfo />
         </Suspense>
         <CardContent>
-             <AuthForm clientInfo={clientInfo} />
+             <AuthForm clientInfo={clientInfo} initialHasUsers={hasUsers} />
         </CardContent>
       </Card>
     </div>

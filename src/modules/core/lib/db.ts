@@ -61,9 +61,9 @@ export async function initializeMainDatabase(db: Database) {
         
         CREATE TABLE IF NOT EXISTS api_settings (
             id INTEGER PRIMARY KEY DEFAULT 1,
-            exchangeRateApi TEXT,
-            haciendaExemptionApi TEXT,
-            haciendaTributariaApi TEXT
+            exchange_rate_api TEXT,
+            hacienda_exemption_api TEXT,
+            hacienda_tributaria_api TEXT
         );
 
         CREATE TABLE IF NOT EXISTS email_settings (
@@ -485,12 +485,15 @@ export async function initializeMainDatabase(db: Database) {
 
     db.exec(mainSchema);
 
-    // Initial data seeding
-    const userInsert = db.prepare('INSERT OR IGNORE INTO users (id, name, email, password, phone, whatsapp, role, forcePasswordChange) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
-    initialUsers.forEach(user => {
-        const hashedPassword = bcrypt.hashSync(user.password!, SALT_ROUNDS);
-        userInsert.run(user.id, user.name, user.email, hashedPassword, user.phone, user.whatsapp, user.role, 0);
-    });
+    // Initial data seeding - only if users table is empty
+    const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number };
+    if (userCount.count === 0) {
+        const userInsert = db.prepare('INSERT OR IGNORE INTO users (id, name, email, password, phone, whatsapp, role, forcePasswordChange) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+        initialUsers.forEach(user => {
+            const hashedPassword = bcrypt.hashSync(user.password!, SALT_ROUNDS);
+            userInsert.run(user.id, user.name, user.email, hashedPassword, user.phone, user.whatsapp, user.role, 0);
+        });
+    }
 
     const roleInsert = db.prepare('INSERT OR IGNORE INTO roles (id, name, permissions) VALUES (?, ?, ?)');
     initialRoles.forEach(role => roleInsert.run(role.id, role.name, JSON.stringify(role.permissions)));
@@ -690,6 +693,12 @@ export async function runMainMigrations(db: Database) {
         );
     `);
     seedNotificationTemplates(db);
+}
+
+export async function getUserCount(): Promise<number> {
+    const db = await connectDb();
+    const result = db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number };
+    return result.count;
 }
 
 export async function getLogs(filters: { type?: string; search?: string; dateRange?: DateRange }): Promise<LogEntry[]> {

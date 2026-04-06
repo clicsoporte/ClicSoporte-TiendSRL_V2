@@ -1,8 +1,7 @@
+
 /**
  * @fileoverview System maintenance page for administrators.
- * This page provides critical, high-risk functionalities such as database
- * backup, restore, and factory reset. It is designed to be modular to support
- * future tools with separate databases.
+ * Enhanced with the "Centro de Actualización y Verificación" (Database Audit).
  */
 "use client";
 
@@ -25,7 +24,7 @@ import {
   } from "../../../../components/ui/select"
 import { useToast } from "../../../../modules/core/hooks/use-toast";
 import { logError, logInfo, logWarn } from "../../../../modules/core/lib/logger";
-import { UploadCloud, RotateCcw, Loader2, Save, LifeBuoy, Trash2 as TrashIcon, Download, Skull, AlertTriangle } from "lucide-react";
+import { UploadCloud, RotateCcw, Loader2, Save, LifeBuoy, Trash2 as TrashIcon, Download, Skull, AlertTriangle, ShieldCheck, DatabaseZap, SearchCheck, CheckCircle2, XCircle } from "lucide-react";
 import { useDropzone } from 'react-dropzone';
 import { usePageTitle } from "../../../../modules/core/hooks/usePageTitle";
 import { Checkbox } from '../../../../components/ui/checkbox';
@@ -41,6 +40,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/modules/core/hooks/useAuth';
+import { runDatabaseAudit, type AuditResult } from '@/modules/core/lib/maintenance-actions';
+import { Badge } from '@/components/ui/badge';
 
 
 export default function MaintenancePage() {
@@ -51,6 +52,10 @@ export default function MaintenancePage() {
     const [isLoading, setIsLoading] = useState(true);
     const [processingAction, setProcessingAction] = useState<string | null>(null);
     const { setTitle } = usePageTitle();
+
+    // Audit State
+    const [auditResults, setAuditResults] = useState<AuditResult[] | null>(null);
+    const [isAuditing, setIsAuditing] = useState(false);
 
     // State for update backups
     const [updateBackups, setUpdateBackups] = useState<UpdateBackupInfo[]>([]);
@@ -100,6 +105,24 @@ export default function MaintenancePage() {
             fetchMaintenanceData();
         }
     }, [setTitle, fetchMaintenanceData, isAuthorized]);
+
+    const handleRunAudit = async () => {
+        setIsAuditing(true);
+        try {
+            const results = await runDatabaseAudit();
+            setAuditResults(results);
+            const issues = results.filter(r => r.status !== 'ok').length;
+            if (issues === 0) {
+                toast({ title: "Auditoría Exitosa", description: "La base de datos está íntegra y actualizada." });
+            } else {
+                toast({ title: "Problemas detectados", description: `Se encontraron ${issues} discrepancias en el esquema.`, variant: "destructive" });
+            }
+        } catch {
+            toast({ title: "Error en Auditoría", variant: "destructive" });
+        } finally {
+            setIsAuditing(false);
+        }
+    };
 
     const onDrop = useCallback(async (acceptedFiles: File[]) => {
         if (acceptedFiles.length === 0) return;
@@ -287,6 +310,57 @@ export default function MaintenancePage() {
     return (
         <main className="flex-1 p-4 md:p-6 lg:p-8">
             <div className="mx-auto max-w-4xl space-y-8">
+
+                {/* --- Centro de Actualización y Verificación --- */}
+                <Card className="border-blue-200 bg-blue-50/20">
+                    <CardHeader>
+                        <div className="flex items-center gap-4">
+                            <SearchCheck className="h-8 w-8 text-blue-600" />
+                            <div>
+                                <CardTitle>Centro de Actualización y Verificación</CardTitle>
+                                <CardDescription>Auditoría de integridad de base de datos y esquema maestro.</CardDescription>
+                            </div>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        <div className="flex flex-col sm:flex-row gap-4">
+                            <Button onClick={handleRunAudit} disabled={isAuditing} className="bg-blue-600 hover:bg-blue-700">
+                                {isAuditing ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <DatabaseZap className="mr-2 h-4 w-4" />}
+                                Ejecutar Auditoría de Sistema
+                            </Button>
+                            <p className="text-xs text-muted-foreground self-center">
+                                Compara la estructura actual contra el diseño oficial v{user?.recentActivity?.includes('v') ? '2.2.0' : 'Actual'}.
+                            </p>
+                        </div>
+
+                        {auditResults && (
+                            <div className="space-y-4 pt-4 border-t">
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                                    {auditResults.map(r => (
+                                        <div key={r.table} className={cn(
+                                            "p-3 rounded-lg border text-xs flex flex-col justify-between h-full",
+                                            r.status === 'ok' ? 'bg-green-50 border-green-100 text-green-800' : 'bg-red-50 border-red-100 text-red-800'
+                                        )}>
+                                            <div className="flex items-center justify-between font-bold mb-1">
+                                                <span className="uppercase">{r.table}</span>
+                                                {r.status === 'ok' ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
+                                            </div>
+                                            {r.status !== 'ok' && (
+                                                <div className="mt-2 space-y-1">
+                                                    <p className="font-bold">Faltan:</p>
+                                                    <div className="flex flex-wrap gap-1">
+                                                        {r.missingColumns.map(c => <Badge key={c} variant="destructive" className="text-[8px] h-4">{c}</Badge>)}
+                                                    </div>
+                                                </div>
+                                            )}
+                                            {r.status === 'ok' && <p className="text-[10px] opacity-70">Esquema correcto.</p>}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
 
                  <Card className="border-primary/50">
                     <CardHeader>

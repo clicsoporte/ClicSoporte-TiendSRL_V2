@@ -1,6 +1,8 @@
+
 /**
  * @fileoverview Client component for handling the authentication form,
  * including login, forced password change, and password recovery.
+ * Integrated with SetupWizard for first-time configuration.
  */
 "use client";
 
@@ -25,15 +27,17 @@ import {
   DialogTrigger,
   DialogClose,
 } from "@/components/ui/dialog";
+import { SetupWizard } from "./setup-wizard";
 
 interface AuthFormProps {
   clientInfo: {
     ip: string;
     host: string;
   };
+  initialHasUsers: boolean;
 }
 
-export function AuthForm({ }: AuthFormProps) {
+export function AuthForm({ initialHasUsers }: AuthFormProps) {
   const { toast } = useToast();
   const { refreshAuth } = useAuth();
   
@@ -41,16 +45,19 @@ export function AuthForm({ }: AuthFormProps) {
   const [password, setPassword] = useState("");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   
-  // State for forced password change
   const [mustChangePassword, setMustChangePassword] = useState(false);
   const [userToUpdate, setUserToUpdate] = useState<User | null>(null);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
-  // State for recovery dialog
   const [isRecoveryOpen, setIsRecoveryOpen] = useState(false);
   const [recoveryEmail, setRecoveryEmail] = useState("");
   const [isSendingRecovery, setIsSendingRecovery] = useState(false);
+
+  // If no users exist, we are in setup mode
+  if (!initialHasUsers) {
+      return <SetupWizard />;
+  }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

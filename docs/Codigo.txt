@@ -1,0 +1,184 @@
+
+# Documentación Técnica y Guía de Funcionamiento - Clic-Tools
+
+Este documento desglosa el funcionamiento interno de varios módulos y características clave del sistema. Su propósito es servir como una guía de referencia técnica para entender la arquitectura, el flujo de datos y la lógica de negocio implementada.
+
+---
+
+## 1. Gestión de Roles y Permisos
+
+Este sistema es el núcleo de la seguridad y el control de acceso de la aplicación. Permite una granularidad total sobre qué acciones puede realizar cada usuario.
+
+### Cómo Funciona
+
+1.  **Definición de Permisos (`permissions.ts`):** Todos los permisos posibles en la aplicación están definidos como constantes en `src/modules/core/lib/permissions.ts`. Están agrupados por módulo y traducidos a un formato legible para el usuario.
+2.  **Jerarquía de Permisos (`permissionTree`):** En el mismo archivo, un objeto `permissionTree` define las dependencias. Por ejemplo, si otorgas el permiso `requests:status:approve`, el sistema sabe que automáticamente debe otorgar `requests:read`, ya que no puedes aprobar algo que no puedes ver.
+3.  **Interfaz de Roles (`roles-client.tsx`):** La interfaz de administración permite crear "Roles" (ej: "Bodeguero", "Supervisor de Compras"). Al editar un rol, la UI utiliza la `permissionTree` para marcar automáticamente los permisos dependientes, asegurando una configuración lógica y sin errores.
+4.  **Almacenamiento:** Los roles, con su lista de permisos asociados (en formato JSON), se guardan en la tabla `roles` de la base de datos central.
+5.  **Asignación a Usuarios:** En la "Gestión de Usuarios", a cada usuario se le asigna un único ID de rol.
+6.  **Verificación en el Servidor (`auth-guard.ts`):** Las funciones `authorizeAction` y `authorizePage` son los "guardianes" del sistema. Antes de ejecutar cualquier acción crítica (ej: guardar, eliminar) o renderizar una página protegida, estas funciones verifican en la base de datos si el rol del usuario actual contiene el permiso requerido. Si no lo tiene, la acción se bloquea con un error o se redirige al usuario.
+7.  **Verificación en el Cliente (`useAuthorization.tsx`):** Para la UI (ej: ocultar un botón), el hook `useAuthorization` consulta el rol del usuario (cargado en el `AuthContext`) y determina si tiene permiso, permitiendo una experiencia de usuario dinámica y segura.
+
+### Archivos Clave
+
+-   `src/modules/core/lib/permissions.ts`: Define todos los permisos y su jerarquía. La "constitución" del sistema.
+-   `src/app/dashboard/admin/roles/roles-client.tsx`: Componente de cliente que renderiza la interfaz y maneja la lógica de la UI.
+-   `src/modules/core/lib/roles-actions.ts`: Acciones de servidor que el cliente llama para leer y guardar roles.
+-   `src/modules/core/lib/db.ts`: Contiene la lógica final para interactuar con la tabla `roles` en la base de datos.
+-   `src/modules/core/lib/auth-guard.ts`: Implementa la protección del backend (`authorizeAction`).
+
+---
+
+## 2. Gestión de Usuarios y Autenticación
+
+Este módulo maneja la creación, edición y eliminación de las cuentas que acceden al sistema, así como el flujo de inicio de sesión y la creación del primer administrador.
+
+### Creación del Primer Usuario (Asistente de Configuración)
+
+El sistema está diseñado para autoconfigurarse en el primer arranque.
+
+1.  **Verificación Inicial (`app/page.tsx`):** Cuando alguien accede a la aplicación, la página principal ejecuta una Acción de Servidor `getInitialPageData`. Esta acción llama a `getUserCount()` en `db.ts` para verificar si existe algún usuario en la tabla `users`.
+2.  **Renderizado Condicional (`AuthForm.tsx`):**
+    *   Si `getUserCount()` devuelve `0`, la página le pasa la prop `initialHasUsers={false}` al componente `AuthForm`.
+    *   `AuthForm` detecta esta prop y, en lugar de mostrar el formulario de login, renderiza el componente `SetupWizard`.
+3.  **El Asistente (`SetupWizard.tsx`):** Este es un formulario simple que solicita nombre, correo y contraseña. Al enviarlo, llama a la Acción de Servidor `createFirstUser`.
+4.  **Creación Segura (`user-actions.ts`):** La función `createFirstUser` vuelve a verificar que no existan usuarios. Si la base de datos está vacía, crea el nuevo usuario asignándole el rol de **'admin'** por defecto y hashea su contraseña con `bcrypt`. Si ya existe un usuario, lanza un error para prevenir la creación de múltiples administradores por esta vía.
+5.  **Recarga y Login:** Una vez creado el usuario, el `SetupWizard` recarga la página. Ahora, `getUserCount()` devolverá un número mayor a cero, y `AuthForm` mostrará el formulario de login normal para que el nuevo administrador pueda iniciar sesión.
+
+### Flujo de Autenticación Regular
+
+1.  **Creación Segura de Contraseña:** Al crear un nuevo usuario, la contraseña que se ingresa en el formulario viaja al servidor, donde se "hashea" usando `bcrypt`. Solo el hash (una cadena de texto irreversible) se guarda en la base de datos. Nunca se almacena la contraseña en texto plano.
+2.  **Verificación de Login:** Cuando un usuario inicia sesión, su contraseña viaja al servidor, se hashea de nuevo y se compara con el hash guardado. Si coinciden, el login es exitoso.
+3.  **Sesión Segura (`auth.ts`):** Tras un login exitoso, el servidor crea una cookie segura, `httpOnly`, llamada `clic-tools-session`. Esta cookie contiene el ID del usuario y es enviada al navegador. Al ser `httpOnly`, es inaccesible mediante JavaScript en el navegador, previniendo ataques de Cross-Site Scripting (XSS). En cada petición subsecuente, el servidor lee esta cookie para identificar al usuario autenticado.
+4.  **Contexto de Autenticación (`useAuth.tsx`):** Un proveedor global (`AuthProvider`) se encarga de obtener los datos del usuario logueado, su rol, y otros datos maestros (productos, clientes) una sola vez al cargar la aplicación. El hook `useAuth` permite a cualquier componente acceder a esta información sin tener que volver a solicitarla, optimizando el rendimiento.
+
+### Archivos Clave
+
+-   `src/app/page.tsx`: Componente de servidor que inicia la verificación.
+-   `src/app/actions.ts`: Contiene `getInitialPageData`.
+-   `src/components/auth/auth-form.tsx`: Componente cliente que decide si mostrar el login o el asistente.
+-   `src/components/auth/setup-wizard.tsx`: Formulario para el primer usuario.
+-   `src/modules/core/lib/user-actions.ts`: Contiene la lógica segura `createFirstUser`.
+-   `src/modules/core/lib/auth.ts`: Lógica de servidor para login, logout, y gestión de la cookie de sesión.
+-   `src/modules/core/lib/db.ts`: Funciones para `SELECT`, `INSERT`, `UPDATE` en la tabla `users`.
+
+---
+
+## 3. Recuperación de Contraseña y Notificaciones por Correo (SMTP)
+
+Permite al sistema enviar correos electrónicos para notificaciones y para que los usuarios puedan recuperar el acceso a sus cuentas de forma segura.
+
+### Configuración (Administrador)
+
+1.  **Ingresar Credenciales SMTP:** Un administrador debe ir a **Administración > Configuración de Correo**. Allí, debe ingresar los datos del servidor de correo de la empresa (Host, Puerto, Usuario, Contraseña) y el tipo de seguridad (TLS/STARTTLS). Estas credenciales se guardan en la base de datos.
+2.  **Personalizar Plantilla:** En la misma pantalla, se puede editar el asunto y el cuerpo del correo de recuperación. Es crucial mantener los `placeholders` `[NOMBRE_USUARIO]` y `[CLAVE_TEMPORAL]`, que el sistema reemplazará automáticamente.
+3.  **Verificar Conexión:** El botón **"Enviar Correo de Prueba"** utiliza la configuración guardada para enviar un correo de prueba al administrador y al correo configurado como usuario SMTP, confirmando que todo funciona.
+
+### Flujo de Recuperación (Usuario)
+
+1.  **Solicitud:** En la pantalla de login, el usuario hace clic en "¿Olvidaste tu contraseña?", ingresa su correo y el sistema llama a la acción `sendRecoveryEmail`.
+2.  **Generación de Clave Temporal (`auth.ts`):**
+    *   El servidor busca al usuario por su correo. Si no existe, no hace nada para no revelar si un correo está registrado.
+    *   Si el usuario existe, genera una contraseña temporal aleatoria (ej: `a7b3c9d2`).
+    *   "Hashea" esta nueva contraseña y actualiza el registro del usuario en la base de datos, activando también el campo `forcePasswordChange = 1`.
+3.  **Envío de Correo (`email-service.ts`):** Usando `nodemailer` y la configuración SMTP guardada, el sistema envía la plantilla de correo al usuario, reemplazando `[CLAVE_TEMPORAL]` por la contraseña generada.
+4.  **Login con Clave Temporal:** El usuario ingresa con la clave temporal. El servidor la valida y, al ser correcta, la función `login` devuelve la propiedad `forcePasswordChange: true`.
+5.  **Cambio Forzado (`AuthForm.tsx`):** El componente de login recibe esta propiedad y, en lugar de redirigir al dashboard, transforma su propia interfaz para mostrar un formulario que pide "Nueva Contraseña" y "Confirmar Nueva Contraseña".
+6.  **Actualización Final:** Al enviar el nuevo formulario, la contraseña del usuario se actualiza (hasheada de nuevo) y el flag `forcePasswordChange` se desactiva. El sistema muestra un mensaje de éxito y redirige al usuario a la pantalla de login para que ingrese con sus nuevas credenciales.
+
+### Archivos Clave
+
+-   `src/app/dashboard/admin/email/page.tsx`: Interfaz de configuración SMTP.
+-   `src/modules/core/lib/email-service.ts`: Lógica central para la conexión SMTP y el envío de correos.
+-   `src/modules/core/lib/auth.ts`: Implementa la lógica de negocio del flujo de recuperación (`sendPasswordRecoveryEmail`).
+-   `src/components/auth/auth-form.tsx`: Orquesta el flujo visual para el usuario, cambiando entre login y cambio de contraseña forzado.
+-   `src/modules/core/lib/db.ts`: Almacenamiento y recuperación de la configuración de correo.
+
+---
+
+## 4. Panel de Mantenimiento y Centro de Actualización y Verificación
+
+Centraliza las operaciones más críticas y delicadas del sistema. Se encuentra en **Administración > Mantenimiento**.
+
+### Centro de Actualización y Verificación
+
+Esta es la primera herramienta que debes usar después de actualizar la aplicación a una nueva versión.
+
+1.  **Auditoría del Sistema (`runDatabaseAudit`):** Al hacer clic en "Ejecutar Auditoría", el sistema lee la estructura actual de todas las tablas en la base de datos única (`intratool.db`) usando la instrucción `PRAGMA table_info`.
+2.  **Comparación con Esquema Maestro:** Compara la estructura leída con el esquema "ideal" definido en `src/modules/core/lib/schema.ts`.
+3.  **Reporte de Problemas:** Si faltan tablas o columnas (algo común después de una actualización), las reporta en la interfaz, marcando en rojo los módulos con problemas. Esto te da una visibilidad clara de qué necesita ser reparado.
+4.  **Reparación (No implementado aún):** El botón de "Reparar" está preparado para ejecutar automáticamente las sentencias `ALTER TABLE` necesarias, pero por ahora la migración de esquema se maneja en el arranque del servidor.
+
+### Backups y Puntos de Restauración
+
+Esta sección es tu seguro de vida antes de cualquier cambio mayor.
+
+1.  **Crear Punto de Restauración (`backupAllForUpdate`):**
+    *   **Paso Clave - `Checkpoint`:** Primero, ejecuta una consolidación de la base de datos (ver sección `Forzar Consolidación`). Esto asegura que todos los datos, incluyendo los que están en el archivo temporal `.db-wal`, se escriban en el archivo principal `.db`.
+    *   **Copia de Seguridad:** Luego, crea una copia del archivo `intratool.db` en la carpeta `dbs/update_backups/`. El nombre del archivo incluye la fecha y la versión del sistema (ej: `2024-07-30T12-30-00.123Z_v3.0.0_intratool.db`), facilitando la identificación.
+2.  **Restaurar Sistema (`restoreAllFromUpdateBackup`):**
+    *   **Peligro:** Esta es una acción de alto riesgo.
+    *   **Proceso:** Cierra la conexión a la base de datos actual, busca el archivo de backup que seleccionaste y lo usa para **sobrescribir** el archivo `intratool.db` activo.
+    *   **¡REINICIO MANUAL REQUERIDO!** Después de la restauración, el servidor de la aplicación debe ser reiniciado manualmente para que reconecte y cargue la base de datos restaurada. La aplicación te notificará de esto.
+
+### Zona de Peligro
+
+Acciones que deben usarse con extremo cuidado.
+
+1.  **Forzar Consolidación de Datos (`forceWalCheckpoint`):**
+    *   **Concepto Clave (WAL):** SQLite, en su modo por defecto ("Write-Ahead Log"), no escribe los cambios directamente en el archivo `.db`. Los escribe primero en un archivo temporal (`.db-wal`). Periódicamente, SQLite transfiere ("hace checkpoint") estos cambios del archivo `.db-wal` al `.db` principal.
+    *   **Función:** Este botón fuerza la ejecución inmediata de ese "checkpoint". Es crucial usarlo antes de hacer una copia de seguridad manual de los archivos `.db` para asegurar que la copia contenga absolutamente todos los datos hasta ese instante.
+2.  **Restaurar Base de Datos desde Archivo (`restoreDatabase`):** Permite subir un archivo `.db` desde tu computadora para reemplazar la base de datos activa. Es útil para migraciones o recuperaciones de desastres si los puntos de restauración no están disponibles. También requiere un reinicio manual del servidor.
+3.  **Resetear Todo el Sistema (`factoryReset`):** La acción más destructiva. Elimina por completo el archivo `intratool.db` y lo recrea desde cero. Se perderán TODOS los datos, incluyendo usuarios y configuraciones.
+
+### Archivos Clave
+
+-   `src/app/dashboard/admin/maintenance/page.tsx`: Interfaz de usuario.
+-   `src/modules/core/lib/maintenance-actions.ts`: Acciones de servidor que la UI llama.
+-   `src/modules/core/lib/db.ts`: Implementa la lógica de backup, restauración, auditoría y el checkpoint.
+
+---
+
+## 5. Botón para Ocultar Panel Lateral
+
+Mejora la experiencia de usuario permitiendo maximizar el espacio de trabajo.
+
+### Cómo Funciona
+
+1.  **Proveedor de Contexto (`SidebarProvider`):** En `src/components/ui/sidebar.tsx`, este componente envuelve la aplicación y gestiona el estado del panel (abierto o colapsado) a través de un Contexto de React.
+2.  **Detección de Dispositivo (`useIsMobile`):** El sistema detecta si el usuario está en un dispositivo móvil o de escritorio.
+3.  **Disparador (`SidebarTrigger`):** El botón con el icono `PanelLeft` que se encuentra en el `Header` llama a la función `toggleSidebar` del contexto.
+4.  **Lógica de Colapso:**
+    *   **En Escritorio:** La función `toggleSidebar` cambia el estado de `open` a `collapsed`. El componente principal del sidebar tiene atributos `data-state="collapsed"` y `data-collapsible="icon"`. Las clases de Tailwind CSS se aplican selectivamente basadas en estos atributos para cambiar el ancho del panel de `16rem` a `3.5rem`, ocultando el texto y mostrando solo los iconos.
+    *   **En Móvil:** En lugar de colapsar, el panel se comporta como un "off-canvas". El `SidebarTrigger` abre o cierra una `Sheet` (un panel que se desliza desde el lateral), proporcionando una experiencia nativa para móviles.
+5.  **Persistencia:** El estado del panel (abierto/colapsado) se guarda en una cookie del navegador (`sidebar_state`), por lo que tu preferencia se mantiene entre sesiones.
+
+### Archivos Clave
+
+-   `src/components/ui/sidebar.tsx`: Contiene toda la lógica del panel, el proveedor de contexto y los componentes.
+-   `src/components/layout/header.tsx`: Implementa el `SidebarTrigger` (el botón).
+-   `src/components/layout/sidebar.tsx`: Implementa la estructura del menú dentro del panel.
+
+---
+
+## 6. Agrupación de Módulos en /dashboard/analytics
+
+La página de "Analíticas" organiza los reportes en categorías lógicas para una navegación más intuitiva.
+
+### Cómo Funciona
+
+1.  **Definición de Listas de Herramientas (`data.ts`):** En `src/modules/core/lib/data.ts`, se han creado arreglos separados para cada categoría de reporte. Por ejemplo: `consignmentsReportTools`, `purchasingReportTools`, `inventoryReportTools`, etc. Cada arreglo contiene los objetos que definen cada "ToolCard".
+2.  **Renderizado por Secciones (`analytics/page.tsx`):**
+    *   La página de analíticas importa todas estas listas de herramientas.
+    *   Utiliza un componente `Section` reutilizable.
+    *   Crea una estructura de datos (`visibleSections`) que mapea un título (ej: "Reportes de Consignaciones") a su respectivo arreglo de herramientas (ej: `consignmentsReportTools`).
+    *   Antes de renderizar, filtra cada lista de herramientas basándose en los permisos del usuario actual (`hasPermission(tool.id)`).
+    *   Finalmente, itera sobre `visibleSections` y renderiza un componente `Section` solo si este contiene al menos una herramienta visible para el usuario.
+
+Este enfoque permite añadir o reorganizar reportes y categorías de forma muy sencilla, simplemente modificando los arreglos en el archivo `data.ts`.
+
+### Archivos Clave
+
+-   `src/app/dashboard/analytics/page.tsx`: Componente principal que renderiza las secciones y las tarjetas.
+-   `src/modules/core/lib/data.ts`: Archivo central donde se definen y agrupan todas las herramientas de la aplicación.
+-   `src/components/dashboard/tool-card.tsx`: Componente que renderiza una tarjeta individual para cada herramienta.
