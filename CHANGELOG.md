@@ -2,45 +2,35 @@
 
 Registro de cambios y evolución de la plataforma Clic-Tools para gestión de MSP.
 
+## [2.2.0] - 2024-05-25
+### Añadido
+- **Escudo de Rentabilidad**: Nuevo sistema de monitorización financiera en Proyectos TI. Calcula el margen de contribución real restando materiales, subcontratos y mano de obra interna del presupuesto de venta.
+- **Vigilancia Proactiva (Scheduler)**: Tareas automáticas que escanean el sistema diariamente buscando vencimientos de contratos y licencias (alertas a 30, 15 y 7 días).
+- **Inteligencia Gerencial (Analytics)**: Reportes BI con desgloses de tickets por cliente, por tema de ayuda y por tipo de servicio.
+- **Mensajería Híbrida**: Soporte para el placeholder `[TELEGRAM_CLIENTE]` en el motor de notificaciones, permitiendo alertas directas a clientes vía bot de Telegram.
+- **Traducción 100%**: Localización total al español de todos los permisos granulares y roles del sistema.
+
+### Mejoras
+- **Seguridad Financiera**: Los costos de compra y márgenes netos ahora están estrictamente ocultos para roles técnicos en todo el sistema (Proyectos y Analíticas).
+- **Fórmula de Venta de Proveedores**: Se corrigió el cálculo de precios sugeridos para incluir el IVA digitalizado manualmente.
+- **Eliminación de Flickering**: Optimización de estados de carga en el AuthProvider para evitar parpadeos de interfaz durante la navegación.
+- **Limpieza Estructural**: Eliminación masiva de código muerto e importaciones huérfanas detectadas por ESLint.
+
 ## [2.1.2] - 2024-05-24
 ### Añadido
 - **Base Geográfica Oficial**: Carga completa de las 7 provincias, 82 cantones y ~480 distritos de Costa Rica.
-- **Sistema de Seeding**: Implementación de un motor de semillas automático que asegura que los datos geográficos estén siempre actualizados y sean consistentes en todas las instalaciones.
-- **IDs Estables**: Generación de identificadores geográficos únicos basados en códigos provinciales y cantonales para garantizar la integridad referencial a largo plazo.
+- **Sistema de Seeding**: Implementación de un motor de semillas automático que asegura que los datos geográficos estén siempre actualizados.
 
 ## [2.1.1] - 2024-05-23
 ### Añadido
 - **Modalidades de Cobro en Servicios**: Soporte para servicios facturables "Por Hora" o "Por Tarea" (monto fijo).
-- **Inteligencia Financiera**: Los cálculos de facturación y analíticas ahora discriminan automáticamente si un servicio debe multiplicarse por el tiempo trabajado o si aplica una tarifa plana.
-- **Labels Dinámicos**: La interfaz de proveedores y tickets ahora muestra claramente el tipo de unidad de cobro (¢/h vs ¢/tarea).
 
 ## [2.1.0] - 2024-05-22
 ### Añadido
-- **Módulo Geográfico de Costa Rica**: Implementación de la jerarquía Provincias, Cantones y Distritos administrable en `Administración > Soporte Técnico`.
-- **Inteligencia de Proveedores**: Matriz de servicios y precios (Remoto/Sitio) vinculada al catálogo de la empresa.
-- **Gestión Avanzada de Márgenes**: Lógica de "Precio de Compra + Margen + IVA = Precio de Venta" para especialistas externos.
-- **Seguridad Financiera**: Nuevo permiso `view:provider:costs` para ocultar costos de compra y márgenes a técnicos de nivel 1.
-- **Zonificación de Viáticos**: Tarifario geográfico por proveedor para cálculo automático de transporte según la ubicación del cliente.
-- **Gestión de Contactos**: Soporte para múltiples contactos en el registro de proveedores externos, igualando la funcionalidad de clientes.
-- **Ubicación Geográfica en Clientes**: Los clientes ahora se vinculan a la división territorial oficial para automatizar la logística.
-
-### Restaurado
-- **Paquetes de Soporte**: Se recuperó la gestión de planes de soporte, lógica de redondeo y periodos de gracia (SLA).
-- **Consecutivos de Tickets**: Configuración de prefijos y numeración manual para soporte técnico.
-
-### Mejoras
-- **Panel de Inteligencia en Tickets**: Ahora muestra el costo sugerido de labor y transporte al seleccionar un especialista.
-- **Centro de Ayuda**: Actualización masiva con mini-tutoriales sobre SLAs, Cobertura y Módulo Geográfico.
+- **Módulo Geográfico de Costa Rica**: Jerarquía territorial administrable para viáticos.
+- **Inteligencia de Proveedores**: Matriz de servicios y precios (Remoto/Sitio) vinculada al catálogo.
 
 ## [2.0.0] - 2024-05-20
 ### Cambios Mayores
 - **Arquitectura Single-DB**: Consolidación de 8 bases de datos fragmentadas en `intratool.db`.
-- **Integridad Referencial**: Implementación de llaves foráneas globales para mejorar la consistencia de datos.
-- **Migraciones Automáticas**: Sistema centralizado de actualización de esquema al iniciar la aplicación.
-
-### Mejoras
-- **Flicker-Free UI**: Optimización de estados de carga en Proyectos y Tickets para evitar parpadeos de interfaz.
-- **Estandarización de Tipos**: Limpieza masiva de errores TypeScript y ESLint en todos los módulos.
-
-## [1.5.0] - Anterior
-- Versiones iniciales con múltiples archivos SQLite y módulos de Cotización, Costos y Soporte básico.
+- **Integridad Referencial**: Implementación de llaves foráneas globales.

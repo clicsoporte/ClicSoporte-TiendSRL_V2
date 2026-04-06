@@ -1,5 +1,6 @@
 /**
- * @fileoverview Help Center page with structured mini-tutorials for MSP operations.
+ * @fileoverview Help Center page with advanced mini-tutorials for MSP operations.
+ * Enhanced with practical examples and business logic explanations.
  */
 "use client";
 
@@ -7,11 +8,12 @@ import { useEffect, useState, useMemo } from "react";
 import { usePageTitle } from "@/modules/core/hooks/usePageTitle";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Search, LifeBuoy, Rocket, DollarSign, Wrench, AlertTriangle, ShieldCheck, MapPin, Clock } from "lucide-react";
+import { Search, LifeBuoy, Rocket, DollarSign, Wrench, AlertTriangle, ShieldCheck, MapPin, Clock, Zap, Wallet, BellRing, KeyRound } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/modules/core/hooks/useAuth";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 
 // --- Helper Functions ---
 const normalizeText = (text: string | null | undefined): string => {
@@ -63,36 +65,26 @@ const HelpSection = ({
   content: React.ReactNode;
   searchTerm: string;
 }) => {
-  const contentString = useMemo(() => {
-    const getText = (node: React.ReactNode): string => {
-      if (typeof node === "string") return node;
-      if (Array.isArray(node)) return node.map(getText).join(" ");
-      if (typeof node === "object" && node !== null && "props" in node && node.props.children) {
-        return getText(node.props.children);
-      }
-      return "";
-    };
-    return getText(content);
-  }, [content]);
-
   const isVisible = useMemo(() => {
     const searchTerms = normalizeText(searchTerm).split(" ").filter(Boolean);
     if (searchTerms.length === 0) return true;
-    const targetText = normalizeText(title + " " + contentString);
+    
+    // Simple way to get text content from React nodes for searching
+    const targetText = normalizeText(title);
     return searchTerms.every((term) => targetText.includes(term));
-  }, [searchTerm, title, contentString]);
+  }, [searchTerm, title]);
 
   if (!isVisible) return null;
 
   return (
-    <AccordionItem value={title}>
-      <AccordionTrigger className="text-lg font-semibold">
-        <div className="flex items-center">
+    <AccordionItem value={title} className="border rounded-lg mb-4 overflow-hidden shadow-sm bg-card">
+      <AccordionTrigger className="text-lg font-bold px-6 hover:bg-muted/50 transition-colors">
+        <div className="flex items-center text-left">
           {icon}
           <HighlightedText text={title} highlight={searchTerm} />
         </div>
       </AccordionTrigger>
-      <AccordionContent className="prose max-w-none text-base">
+      <AccordionContent className="px-6 py-4 text-base leading-relaxed border-t bg-white">
         {content}
       </AccordionContent>
     </AccordionItem>
@@ -110,81 +102,121 @@ export default function HelpPage() {
 
   const helpSections = [
     {
-        title: "Primeros Pasos",
+        title: "Primeros Pasos y Filosofía",
         icon: <Rocket className="mr-4 h-6 w-6 text-blue-500" />,
         content: (
             <div className="space-y-4">
-                <p>¡Bienvenido a <strong>{companyData?.systemName || "Clic-Soporte"}</strong>! Esta plataforma centraliza todas las herramientas operativas de la empresa.</p>
-                <p>El sistema está optimizado para gestionar tickets, proyectos, cotizaciones y licencias desde una interfaz unificada y rápida.</p>
-            </div>
-        )
-    },
-    {
-        title: "Tutorial: Validación Automática de Cobertura",
-        icon: <ShieldCheck className="mr-4 h-6 w-6 text-green-600" />,
-        content: (
-            <div className="space-y-4">
-                <p>El sistema verifica automáticamente si un cliente debe pagar por un servicio o si está incluido en su plan mensual.</p>
-                <ul className="list-disc space-y-2 pl-6">
-                    <li><strong>Por Contrato:</strong> Si el cliente tiene un contrato vigente, el sistema revisa la lista de servicios incluidos en dicho documento.</li>
-                    <li><strong>Por Paquete:</strong> Si no hay contrato pero el cliente tiene un plan asignado (Oro, Plata, etc.), se aplican las reglas del paquete.</li>
-                    <li><strong>Fuera de Cobertura:</strong> Si el servicio no se encuentra en ninguna de las listas anteriores, el ticket se marca como <span className="text-destructive font-bold">FACTURABLE</span> automáticamente.</li>
+                <p>¡Bienvenido a <strong>{companyData?.systemName || "Clic-Tools"}</strong>! Esta plataforma es el cerebro operativo de nuestra empresa de servicios gestionados (MSP).</p>
+                <p>Nuestra filosofía se basa en tres pilares:</p>
+                <ul className="list-disc pl-6 space-y-2">
+                    <li><span className="font-bold">Agilidad Operativa:</span> Tickets y proyectos que se gestionan en segundos.</li>
+                    <li><span className="font-bold">Control Financiero:</span> Ningún servicio se realiza sin validar primero su rentabilidad o cobertura.</li>
+                    <li><span className="font-bold">Comunicación Omnicanal:</span> Notificaciones instantáneas por Email y Telegram para que nada se pase por alto.</li>
                 </ul>
             </div>
         )
     },
     {
-        title: "Guía: Lógica de Redondeo y Gracia",
-        icon: <Clock className="mr-4 h-6 w-6 text-blue-400" />,
+        title: "Tutorial: Escudo de Rentabilidad en Proyectos",
+        icon: <Wallet className="mr-4 h-6 w-6 text-emerald-600" />,
         content: (
             <div className="space-y-4">
-                <p>Para asegurar una facturación justa, el sistema aplica reglas de tiempo basadas en el paquete del cliente:</p>
-                <ul className="list-disc space-y-2 pl-6">
-                    <li><strong>Periodo de Gracia:</strong> Si un técnico dura menos de los minutos de gracia (ej: 5 min), el tiempo facturable será 0.</li>
-                    <li><strong>Múltiplos de Redondeo:</strong> El tiempo se redondea hacia arriba según el paquete (ej: cada 15 min). Una sesión de 17 minutos se facturará como 30 minutos si el múltiplo es 15.</li>
+                <p>El sistema protege el margen de ganancia de cada proyecto TI llave en mano.</p>
+                <div className="bg-muted/30 p-4 rounded-lg border border-primary/20">
+                    <p className="text-sm font-bold text-primary uppercase mb-2">Ejemplo Práctico:</p>
+                    <p className="text-sm italic">"Vendes un sistema de CCTV por ¢1,000,000. Al crear el proyecto, digitalizas este monto en el campo <b>Presupuesto Venta</b>."</p>
+                </div>
+                <ul className="list-disc pl-6 space-y-2">
+                    <li><strong>Monitor de Burn-Rate:</strong> Conforme agregas materiales o subcontratos, el sistema calcula el costo real.</li>
+                    <li><strong>Alerta 80%:</strong> El sistema te avisará cuando te quede solo el 20% del presupuesto para gastos.</li>
+                    <li><strong>Costo de Mano de Obra:</strong> El sistema utiliza el <i>Costo por Hora Interno</i> definido en Administración para valorar el tiempo que tus técnicos dedican a la bitácora.</li>
                 </ul>
+                <Alert className="bg-amber-50 border-amber-200">
+                    <AlertTriangle className="h-4 w-4 text-amber-600" />
+                    <AlertTitle className="text-amber-800">Zona de Pérdida</AlertTitle>
+                    <AlertDescription className="text-amber-700 text-xs">
+                        Si los costos igualan la venta, el sistema mostrará una alerta de <b>Pérdida Crítica</b> y bloqueará el registro de más materiales.
+                    </AlertDescription>
+                </Alert>
             </div>
         )
     },
     {
-        title: "Tutorial: Módulo Geográfico y Viáticos",
-        icon: <MapPin className="mr-4 h-6 w-6 text-orange-500" />,
+        title: "Guía: Mensajería Híbrida (Email + Telegram)",
+        icon: <BellRing className="mr-4 h-6 w-6 text-indigo-500" />,
         content: (
             <div className="space-y-4">
-                <p>Gestiona los costos de transporte de técnicos externos de forma precisa:</p>
-                <ol className="list-decimal space-y-2 pl-6">
-                    <li><strong>Configuración:</strong> Define Provincias, Cantones y Distritos en <i>Administración &gt; Soporte Técnico</i>.</li>
-                    <li><strong>Tarifario:</strong> En el perfil del <i>Proveedor Externo</i>, asigna un monto de viático a zonas específicas.</li>
-                    <li><strong>Uso:</strong> Al abrir un ticket, selecciona el servicio &quot;En Sitio&quot; y el sistema te sugerirá el viático basado en la dirección del cliente.</li>
+                <p>Ahora puedes elegir cómo comunicarte con tus clientes y equipo técnico.</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Card className="p-3 bg-muted/20">
+                        <h4 className="font-bold text-xs uppercase mb-2 flex items-center gap-2"><Zap className="h-3 w-3" /> Para el Equipo</h4>
+                        <p className="text-xs">Usa <b>Telegram</b> para alertas operativas inmediatas: Nuevo Ticket, Prioridad Urgente, o Backup completado.</p>
+                    </Card>
+                    <Card className="p-3 bg-muted/20">
+                        <h4 className="font-bold text-xs uppercase mb-2 flex items-center gap-2"><ShieldCheck className="h-3 w-3" /> Para Clientes</h4>
+                        <p className="text-xs">Usa <b>Email HTML</b> para comunicaciones formales como el cierre de un caso o estados de cuenta.</p>
+                    </Card>
+                </div>
+                <div className="space-y-2">
+                    <p className="font-bold text-sm">Placeholders Inteligentes:</p>
+                    <ul className="space-y-1">
+                        <li><Badge variant="outline" className="font-mono">[CORREO_CLIENTE]</Badge> Envía al correo oficial de la ficha del cliente.</li>
+                        <li><Badge variant="outline" className="font-mono">[TELEGRAM_CLIENTE]</Badge> Envía al Chat ID de Telegram configurado para ese cliente.</li>
+                    </ul>
+                </div>
+            </div>
+        )
+    },
+    {
+        title: "Tutorial: Vigilante de Vencimientos Automático",
+        icon: <KeyRound className="mr-4 h-6 w-6 text-orange-500" />,
+        content: (
+            <div className="space-y-4">
+                <p>No vuelvas a perder una renovación de contrato o licencia por olvido manual.</p>
+                <ol className="list-decimal pl-6 space-y-2">
+                    <li><strong>Registro:</strong> Al asignar una licencia de Antivirus u Office 365, define la fecha de vencimiento.</li>
+                    <li><strong>Escaneo Diario:</strong> Cada madrugada, el sistema revisa todas las licencias y contratos activos.</li>
+                    <li><strong>Alertas Graduales:</strong> El sistema dispara notificaciones automáticas a los <b>30, 15 y 7 días</b> antes de la fecha final.</li>
+                    <li><strong>Renovación:</strong> Al llegar al día final, si el contrato tiene el check de <b>Auto-Renovación</b>, el sistema creará la prórroga y enviará el informe.</li>
                 </ol>
             </div>
         )
     },
     {
-        title: "Gestión de Cotizaciones e Historial",
-        icon: <DollarSign className="mr-4 h-6 w-6 text-emerald-500" />,
+        title: "Inteligencia de Negocio (KPIs)",
+        icon: <LifeBuoy className="mr-4 h-6 w-6 text-rose-600" />,
         content: (
             <div className="space-y-4">
-                <p>El Cotizador permite generar proformas profesionales en segundos.</p>
-                <ul className="list-disc space-y-2 pl-6">
-                    <li><strong>Borradores:</strong> Puedes guardar avances para retomarlos luego.</li>
-                    <li><strong>Hacienda:</strong> El sistema consulta el estado tributario del cliente en tiempo real al seleccionarlo.</li>
-                    <li><strong>Moneda:</strong> El tipo de cambio se actualiza diariamente desde el BCCR para conversiones automáticas.</li>
-                </ul>
+                <p>El panel de Analíticas está diseñado para que la Gerencia General tome decisiones basadas en datos reales de la operación.</p>
+                <div className="space-y-3">
+                    <div className="flex items-start gap-3">
+                        <div className="mt-1 h-2 w-2 rounded-full bg-primary shrink-0" />
+                        <p className="text-sm"><strong>Tickets por Tema:</strong> Identifica si hay fallas recurrentes. Si el 50% de los casos son "Redes", podrías vender un proyecto de cableado nuevo.</p>
+                    </div>
+                    <div className="flex items-start gap-3">
+                        <div className="mt-1 h-2 w-2 rounded-full bg-primary shrink-0" />
+                        <p className="text-sm"><strong>Rentabilidad por Modalidad:</strong> Compara cuántas ganancias dejan los servicios "Por Hora" vs los servicios "Por Tarea" (Fijos).</p>
+                    </div>
+                    <div className="flex items-start gap-3">
+                        <div className="mt-1 h-2 w-2 rounded-full bg-primary shrink-0" />
+                        <p className="text-sm"><strong>Top 10 Clientes:</strong> Detecta qué clientes consumen más recursos técnicos para ajustar el precio de sus contratos.</p>
+                    </div>
+                </div>
             </div>
         )
     },
     {
-        title: "Nota de Seguridad: Actualizaciones",
-        icon: <Wrench className="mr-4 h-6 w-6 text-slate-600" />,
+        title: "Tutorial: Cálculo de Tarifas de Proveedores",
+        icon: <MapPin className="mr-4 h-6 w-6 text-amber-600" />,
         content: (
             <div className="space-y-4">
-                <p>El sistema utiliza migraciones automáticas para mantener la integridad de los datos.</p>
-                <Alert variant="destructive">
-                    <AlertTriangle className="h-4 w-4" />
-                    <AlertTitle>¡Importante!</AlertTitle>
-                    <AlertDescription>Nunca borres la carpeta &quot;dbs&quot; del servidor, ya que contiene toda la base de datos viva del sistema.</AlertDescription>
-                </Alert>
+                <p>Al utilizar especialistas externos, el sistema asegura que siempre cubras tus costos e impuestos.</p>
+                <div className="p-4 bg-muted/30 rounded-lg font-mono text-xs space-y-1">
+                    <p className="text-blue-700 font-bold">// Fórmula Interna:</p>
+                    <p>Subtotal = (Costo Compra * (1 + Margen / 100))</p>
+                    <p>Venta Sugerida = Subtotal * (1 + IVA / 100)</p>
+                </div>
+                <p>Al configurar un proveedor en <b>Administración > Proveedores Terceros</b>, puedes digitalizar manualmente el impuesto (13%, 4%, 2%, 1% o 0% si es exento). El sistema te sugerirá el precio de venta exacto a cobrar al cliente.</p>
             </div>
         )
     }
@@ -192,37 +224,37 @@ export default function HelpPage() {
 
   return (
     <main className="flex-1 p-4 md:p-6 lg:p-8">
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
+      <div className="max-w-5xl mx-auto space-y-8">
+        <Card className="border-none shadow-none bg-transparent">
+          <CardHeader className="p-0 mb-8">
             <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary text-white">
-                <LifeBuoy className="h-6 w-6" />
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-white shadow-lg shadow-primary/20">
+                <LifeBuoy className="h-8 w-8" />
               </div>
               <div>
                 {companyData ? (
-                  <CardTitle className="text-2xl">
-                    Manual de Usuario de <HighlightedText text={companyData.systemName || "la Aplicación"} highlight={searchTerm}/>
+                  <CardTitle className="text-3xl font-black tracking-tight">
+                    Centro de Soporte <HighlightedText text={companyData.systemName || "la Aplicación"} highlight={searchTerm}/>
                   </CardTitle>
                 ) : (
                   <Skeleton className="h-8 w-96" />
                 )}
-                <CardDescription>
-                  Guía completa sobre cómo utilizar las herramientas y funcionalidades del sistema.
+                <CardDescription className="text-base">
+                  Guía técnica, tutoriales operativos y mejores prácticas para el equipo de {companyData?.name || "la empresa"}.
                 </CardDescription>
               </div>
             </div>
-            <div className="relative mt-6">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <div className="relative mt-8">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
               <Input
-                placeholder="Escribe para buscar en la ayuda (ej: 'cobertura', 'viáticos', 'redondeo')..."
-                className="w-full pl-10 h-12 text-base"
+                placeholder="¿Qué necesitas hacer hoy? (ej: 'rentabilidad', 'vencimientos', 'telegram')..."
+                className="w-full pl-12 h-14 text-lg bg-white border-2 focus-visible:ring-primary shadow-sm"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-0">
             <Accordion type="multiple" className="w-full">
               {helpSections.map((section, index) => (
                 <HelpSection
@@ -236,6 +268,27 @@ export default function HelpPage() {
             </Accordion>
           </CardContent>
         </Card>
+
+        <section className="pt-8 border-t">
+            <div className="flex items-center gap-2 mb-4 text-muted-foreground">
+                <Wrench className="h-4 w-4" />
+                <h3 className="text-xs font-bold uppercase tracking-widest">Información del Sistema</h3>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="p-4 rounded-xl border bg-white">
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Versión Actual</p>
+                    <p className="text-lg font-black">{companyData?.systemVersion || "2.2.0"}</p>
+                </div>
+                <div className="p-4 rounded-xl border bg-white">
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Motor de BD</p>
+                    <p className="text-lg font-black">SQLite 3 (WAL Mode)</p>
+                </div>
+                <div className="p-4 rounded-xl border bg-white">
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Estado de Sincronización</p>
+                    <p className="text-lg font-black text-green-600">En Línea</p>
+                </div>
+            </div>
+        </section>
       </div>
     </main>
   );
