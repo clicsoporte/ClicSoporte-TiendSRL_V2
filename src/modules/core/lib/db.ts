@@ -300,6 +300,7 @@ export async function initializeMainDatabase(db: Database) {
             serviceId TEXT NOT NULL,
             buyPriceRemote REAL DEFAULT 0,
             marginRemote REAL DEFAULT 0,
+            taxRate REAL DEFAULT 13,
             sellPriceRemote REAL DEFAULT 0,
             buyPriceOnSite REAL DEFAULT 0,
             marginOnSite REAL DEFAULT 0,
@@ -315,6 +316,7 @@ export async function initializeMainDatabase(db: Database) {
             districtId INTEGER,
             buyTravelPrice REAL DEFAULT 0,
             marginTravel REAL DEFAULT 0,
+            taxRate REAL DEFAULT 13,
             sellTravelPrice REAL DEFAULT 0,
             locationName TEXT NOT NULL,
             FOREIGN KEY (providerId) REFERENCES third_party_providers(id) ON DELETE CASCADE
@@ -597,14 +599,16 @@ export async function runMainMigrations(db: Database) {
     // PROVIDER PRICING Migrations
     const providerServiceFields = [
         ['buyPriceRemote', 'REAL DEFAULT 0'], ['marginRemote', 'REAL DEFAULT 0'], ['sellPriceRemote', 'REAL DEFAULT 0'],
-        ['buyPriceOnSite', 'REAL DEFAULT 0'], ['marginOnSite', 'REAL DEFAULT 0'], ['sellPriceOnSite', 'REAL DEFAULT 0']
+        ['buyPriceOnSite', 'REAL DEFAULT 0'], ['marginOnSite', 'REAL DEFAULT 0'], ['sellPriceOnSite', 'REAL DEFAULT 0'],
+        ['taxRate', 'REAL DEFAULT 13']
     ];
     providerServiceFields.forEach(([field, type]) => {
         if (!hasColumn('provider_services', field)) db.exec(`ALTER TABLE provider_services ADD COLUMN ${field} ${type};`);
     });
 
     const providerGeoFields = [
-        ['buyTravelPrice', 'REAL DEFAULT 0'], ['marginTravel', 'REAL DEFAULT 0'], ['sellTravelPrice', 'REAL DEFAULT 0']
+        ['buyTravelPrice', 'REAL DEFAULT 0'], ['marginTravel', 'REAL DEFAULT 0'], ['sellTravelPrice', 'REAL DEFAULT 0'],
+        ['taxRate', 'REAL DEFAULT 13']
     ];
     providerGeoFields.forEach(([field, type]) => {
         if (!hasColumn('provider_geo_rates', field)) db.exec(`ALTER TABLE provider_geo_rates ADD COLUMN ${field} ${type};`);
@@ -629,6 +633,7 @@ export async function runMainMigrations(db: Database) {
             serviceId TEXT NOT NULL,
             buyPriceRemote REAL DEFAULT 0,
             marginRemote REAL DEFAULT 0,
+            taxRate REAL DEFAULT 13,
             sellPriceRemote REAL DEFAULT 0,
             buyPriceOnSite REAL DEFAULT 0,
             marginOnSite REAL DEFAULT 0,
@@ -663,6 +668,7 @@ export async function runMainMigrations(db: Database) {
             districtId INTEGER,
             buyTravelPrice REAL DEFAULT 0,
             marginTravel REAL DEFAULT 0,
+            taxRate REAL DEFAULT 13,
             sellTravelPrice REAL DEFAULT 0,
             locationName TEXT NOT NULL,
             FOREIGN KEY (providerId) REFERENCES third_party_providers(id) ON DELETE CASCADE

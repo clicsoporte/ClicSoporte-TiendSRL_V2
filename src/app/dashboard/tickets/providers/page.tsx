@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { PlusCircle, Loader2, MoreVertical, Truck, Trash2, MapPin, Briefcase, Users, Mail, Phone, Building2, Clock, Zap } from 'lucide-react';
+import { PlusCircle, Loader2, MoreVertical, Truck, Trash2, MapPin, Briefcase, Users, Mail, Phone, Building2, Clock, Zap, Percent } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { useToast } from '@/modules/core/hooks/use-toast';
@@ -50,7 +50,7 @@ const emptyProvider: Omit<ThirdPartyProvider, 'id' | 'createdAt' | 'services' | 
 };
 
 export default function ProvidersPage() {
-    const { isAuthorized, hasPermission } = useAuthorization(['tickets:admin:settings']);
+    const { isAuthorized, hasPermission } = useAuthorization(['tickets:admin:settings', 'view:provider:costs']);
     const canViewCosts = hasPermission('view:provider:costs');
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
@@ -70,12 +70,12 @@ export default function ProvidersPage() {
     // Rate Management States
     const [newServiceRate, setNewServiceRate] = useState<Omit<ProviderService, 'id'>>({ 
         providerId: 0, serviceId: '', 
-        buyPriceRemote: 0, marginRemote: 0, sellPriceRemote: 0,
+        buyPriceRemote: 0, marginRemote: 0, taxRate: 13, sellPriceRemote: 0,
         buyPriceOnSite: 0, marginOnSite: 0, sellPriceOnSite: 0 
     });
     const [newGeoRate, setNewGeoRate] = useState<Omit<ProviderGeoRate, 'id'>>({ 
         providerId: 0, provinceId: 0, cantonId: 0, districtId: 0, 
-        buyTravelPrice: 0, marginTravel: 0, sellTravelPrice: 0, locationName: '' 
+        buyTravelPrice: 0, marginTravel: 0, taxRate: 13, sellTravelPrice: 0, locationName: '' 
     });
 
     const fetchInitialData = async () => {
@@ -96,22 +96,28 @@ export default function ProvidersPage() {
         if(isAuthorized) fetchInitialData();
     }, [setTitle, isAuthorized]);
 
-    // Lógica de cálculo de precios
+    // Lógica de cálculo de precios revisada: (Costo * (1+Margen)) * (1+IVA)
     useEffect(() => {
-        const remoteVenta = newServiceRate.buyPriceRemote * (1 + (newServiceRate.marginRemote / 100));
-        const onsiteVenta = newServiceRate.buyPriceOnSite * (1 + (newServiceRate.marginOnSite / 100));
+        const factorMargen = 1 + (newServiceRate.marginRemote / 100);
+        const factorIVA = 1 + (newServiceRate.taxRate / 100);
         
-        if (remoteVenta !== newServiceRate.sellPriceRemote || onsiteVenta !== newServiceRate.sellPriceOnSite) {
+        const remoteVenta = (newServiceRate.buyPriceRemote * factorMargen) * factorIVA;
+        const onsiteVenta = (newServiceRate.buyPriceOnSite * factorMargen) * factorIVA;
+        
+        if (Math.abs(remoteVenta - newServiceRate.sellPriceRemote) > 0.01 || Math.abs(onsiteVenta - newServiceRate.sellPriceOnSite) > 0.01) {
             setNewServiceRate(prev => ({ ...prev, sellPriceRemote: remoteVenta, sellPriceOnSite: onsiteVenta }));
         }
-    }, [newServiceRate.buyPriceRemote, newServiceRate.marginRemote, newServiceRate.buyPriceOnSite, newServiceRate.marginOnSite, newServiceRate.sellPriceRemote, newServiceRate.sellPriceOnSite]);
+    }, [newServiceRate.buyPriceRemote, newServiceRate.marginRemote, newServiceRate.buyPriceOnSite, newServiceRate.marginOnSite, newServiceRate.taxRate, newServiceRate.sellPriceRemote, newServiceRate.sellPriceOnSite]);
 
     useEffect(() => {
-        const travelVenta = newGeoRate.buyTravelPrice * (1 + (newGeoRate.marginTravel / 100));
-        if (travelVenta !== newGeoRate.sellTravelPrice) {
+        const factorMargen = 1 + (newGeoRate.marginTravel / 100);
+        const factorIVA = 1 + (newGeoRate.taxRate / 100);
+        const travelVenta = (newGeoRate.buyTravelPrice * factorMargen) * factorIVA;
+        
+        if (Math.abs(travelVenta - newGeoRate.sellTravelPrice) > 0.01) {
             setNewGeoRate(prev => ({ ...prev, sellTravelPrice: travelVenta }));
         }
-    }, [newGeoRate.buyTravelPrice, newGeoRate.marginTravel, newGeoRate.sellTravelPrice]);
+    }, [newGeoRate.buyTravelPrice, newGeoRate.marginTravel, newGeoRate.taxRate, newGeoRate.sellTravelPrice]);
 
     const handleSaveProvider = async () => {
         if (!currentProvider.name) { toast({ title: "Nombre requerido", variant: "destructive" }); return; }
@@ -144,7 +150,7 @@ export default function ProvidersPage() {
             } as ThirdPartyProvider));
             setNewServiceRate({ 
                 providerId: 0, serviceId: '', 
-                buyPriceRemote: 0, marginRemote: 0, sellPriceRemote: 0,
+                buyPriceRemote: 0, marginRemote: 0, taxRate: 13, sellPriceRemote: 0,
                 buyPriceOnSite: 0, marginOnSite: 0, sellPriceOnSite: 0 
             });
             toast({ title: "Tarifa de Servicio Agregada" });
@@ -177,7 +183,7 @@ export default function ProvidersPage() {
             } as ThirdPartyProvider));
             setNewGeoRate({ 
                 providerId: 0, provinceId: 0, cantonId: 0, districtId: 0, 
-                buyTravelPrice: 0, marginTravel: 0, sellTravelPrice: 0, locationName: '' 
+                buyTravelPrice: 0, marginTravel: 0, taxRate: 13, sellTravelPrice: 0, locationName: '' 
             });
             toast({ title: "Tarifa Geográfica Agregada" });
         } catch (e) { console.error(e); }
@@ -382,7 +388,7 @@ export default function ProvidersPage() {
                                 <div className="bg-muted/30 p-4 rounded-lg border border-dashed space-y-4">
                                     <h4 className="text-sm font-bold mb-4 flex items-center gap-2"><Briefcase className="h-4 w-4"/> Matriz de Precios por Servicio</h4>
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                                        <div className="space-y-1.5 md:col-span-3">
+                                        <div className="space-y-1.5 md:col-span-2">
                                             <Label className="text-xs">Servicio del Catálogo</Label>
                                             <Select value={newServiceRate.serviceId} onValueChange={v => setNewServiceRate({...newServiceRate, serviceId: v})}>
                                                 <SelectTrigger className="h-8"><SelectValue placeholder="Seleccione un servicio para asignar tarifas..."/></SelectTrigger>
@@ -390,6 +396,13 @@ export default function ProvidersPage() {
                                                     {companyData?.servicesCatalog.map(s => <SelectItem key={s.id} value={s.id}>{s.name} ({s.billingType === 'task' ? 'Tarea' : 'Hora'})</SelectItem>)}
                                                 </SelectContent>
                                             </Select>
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <Label className="text-xs">Impuesto / IVA (%)</Label>
+                                            <div className="relative">
+                                                <Input type="number" value={newServiceRate.taxRate} onChange={e => setNewServiceRate({...newServiceRate, taxRate: Number(e.target.value)})} className="h-8 text-xs pr-8" />
+                                                <Percent className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+                                            </div>
                                         </div>
                                         
                                         {(() => {
@@ -431,7 +444,7 @@ export default function ProvidersPage() {
                                         <TableHeader className="bg-muted/50">
                                             <TableRow>
                                                 <TableHead>Servicio</TableHead>
-                                                <TableHead>Modalidad</TableHead>
+                                                <TableHead>IVA</TableHead>
                                                 {canViewCosts && <TableHead className="text-right">Compra (R/S)</TableHead>}
                                                 {canViewCosts && <TableHead className="text-right">Margen</TableHead>}
                                                 <TableHead className="text-right">Venta Remota</TableHead>
@@ -444,13 +457,15 @@ export default function ProvidersPage() {
                                                 const svc = companyData?.servicesCatalog.find(cat => cat.id === s.serviceId);
                                                 return (
                                                     <TableRow key={s.id}>
-                                                        <TableCell className="text-sm font-medium">{svc?.name || s.serviceId}</TableCell>
-                                                        <TableCell>
-                                                            <Badge variant="outline" className="text-[9px] uppercase">
-                                                                {svc?.billingType === 'task' ? <Zap className="h-2 w-2 mr-1"/> : <Clock className="h-2 w-2 mr-1"/>}
-                                                                {svc?.billingType === 'task' ? 'Tarea' : 'Hora'}
-                                                            </Badge>
+                                                        <TableCell className="text-sm font-medium">
+                                                            <div className="flex flex-col">
+                                                                <span>{svc?.name || s.serviceId}</span>
+                                                                <Badge variant="outline" className="text-[8px] uppercase w-fit">
+                                                                    {svc?.billingType === 'task' ? 'Por Tarea' : 'Por Hora'}
+                                                                </Badge>
+                                                            </div>
                                                         </TableCell>
+                                                        <TableCell><span className="text-xs font-bold text-muted-foreground">{s.taxRate || 13}%</span></TableCell>
                                                         {canViewCosts && (
                                                             <TableCell className="text-right text-[10px] font-mono">
                                                                 {formatPrice(s.buyPriceRemote)} / {formatPrice(s.buyPriceOnSite)}
@@ -494,7 +509,13 @@ export default function ProvidersPage() {
                                                 <SelectContent>{districtsForCanton.map(d => <SelectItem key={d.id} value={String(d.id)}>{d.name}</SelectItem>)}</SelectContent>
                                             </Select>
                                         </div>
-                                        <div className="space-y-1"></div>
+                                        <div className="space-y-1.5">
+                                            <Label className="text-[10px]">IVA (%)</Label>
+                                            <div className="relative">
+                                                <Input type="number" value={newGeoRate.taxRate} onChange={e => setNewGeoRate({...newGeoRate, taxRate: Number(e.target.value)})} className="h-8 text-xs pr-8" />
+                                                <Percent className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+                                            </div>
+                                        </div>
 
                                         <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-3 border p-3 rounded-lg bg-background">
                                             {canViewCosts && (
@@ -515,6 +536,7 @@ export default function ProvidersPage() {
                                         <TableHeader className="bg-muted/50">
                                             <TableRow>
                                                 <TableHead>Zona de Cobertura</TableHead>
+                                                <TableHead>IVA</TableHead>
                                                 {canViewCosts && <TableHead className="text-right">Compra</TableHead>}
                                                 {canViewCosts && <TableHead className="text-right">Margen</TableHead>}
                                                 <TableHead className="text-right">Venta Viático</TableHead>
@@ -525,6 +547,7 @@ export default function ProvidersPage() {
                                             {(currentProvider as ThirdPartyProvider).geoRates?.map(g => (
                                                 <TableRow key={g.id}>
                                                     <TableCell className="text-xs">{g.locationName}</TableCell>
+                                                    <TableCell><span className="text-xs font-bold text-muted-foreground">{g.taxRate || 13}%</span></TableCell>
                                                     {canViewCosts && <TableCell className="text-right text-[10px] font-mono">{formatPrice(g.buyTravelPrice)}</TableCell>}
                                                     {canViewCosts && <TableCell className="text-right text-[10px] font-mono">{g.marginTravel}%</TableCell>}
                                                     <TableCell className="text-right font-bold text-xs text-orange-600">{formatPrice(g.sellTravelPrice)}</TableCell>

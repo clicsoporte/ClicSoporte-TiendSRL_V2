@@ -183,6 +183,7 @@ export type ProviderService = {
     serviceId: string;
     buyPriceRemote: number;
     marginRemote: number;
+    taxRate: number;
     sellPriceRemote: number;
     buyPriceOnSite: number;
     marginOnSite: number;
@@ -197,6 +198,7 @@ export type ProviderGeoRate = {
     districtId?: number;
     buyTravelPrice: number;
     marginTravel: number;
+    taxRate: number;
     sellTravelPrice: number;
     locationName: string; // Flattened name for UI
 };

@@ -279,12 +279,12 @@ export async function saveProviderService(payload: Omit<ProviderService, 'id'>):
     const info = db.prepare(`
         INSERT INTO provider_services (
             providerId, serviceId, 
-            buyPriceRemote, marginRemote, sellPriceRemote,
+            buyPriceRemote, marginRemote, taxRate, sellPriceRemote,
             buyPriceOnSite, marginOnSite, sellPriceOnSite
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
         payload.providerId, payload.serviceId, 
-        payload.buyPriceRemote, payload.marginRemote, payload.sellPriceRemote,
+        payload.buyPriceRemote, payload.marginRemote, payload.taxRate || 13, payload.sellPriceRemote,
         payload.buyPriceOnSite, payload.marginOnSite, payload.sellPriceOnSite
     );
     return { ...payload, id: Number(info.lastInsertRowid) } as ProviderService;
@@ -300,11 +300,11 @@ export async function saveProviderGeoRate(payload: Omit<ProviderGeoRate, 'id'>):
     const info = db.prepare(`
         INSERT INTO provider_geo_rates (
             providerId, provinceId, cantonId, districtId, 
-            buyTravelPrice, marginTravel, sellTravelPrice, locationName
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            buyTravelPrice, marginTravel, taxRate, sellTravelPrice, locationName
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
         payload.providerId, payload.provinceId, payload.cantonId || null, payload.districtId || null, 
-        payload.buyTravelPrice, payload.marginTravel, payload.sellTravelPrice, payload.locationName
+        payload.buyTravelPrice, payload.marginTravel, payload.taxRate || 13, payload.sellTravelPrice, payload.locationName
     );
     return { ...payload, id: Number(info.lastInsertRowid) } as ProviderGeoRate;
 }
