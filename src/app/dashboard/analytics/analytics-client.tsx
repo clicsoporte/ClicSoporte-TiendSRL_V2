@@ -7,12 +7,12 @@
 import { useAnalytics } from '@/modules/analytics/hooks/useAnalytics';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AreaChart, CalendarCheck, Hourglass, Ticket, FileText, BadgeAlert, Coins, Receipt, CheckCircle2, PieChart as PieIcon, BarChart3, Users, Wrench } from 'lucide-react';
+import { AreaChart, CalendarCheck, Ticket, FileText, Coins, Receipt, CheckCircle2, PieChart as PieIcon, BarChart3, Users, Wrench } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
 import { Button } from '@/components/ui/button';
 import { Calendar as CalendarIcon } from 'lucide-react';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/popover';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -98,7 +98,7 @@ export default function AnalyticsClient() {
                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                         <StatCard title="Total de Casos" value={state.kpis?.tickets.total || 0} icon={Ticket} isLoading={state.isLoading} color="text-primary" />
                         <StatCard title="Proyectos TI" value={state.kpis?.projects.total || 0} icon={CalendarCheck} isLoading={state.isLoading} color="text-purple-600" />
-                        <StatCard title="Tickets Abiertos" value={state.kpis?.tickets.open || 0} icon={BadgeAlert} isLoading={state.isLoading} color="text-blue-600" />
+                        <StatCard title="Tickets Abiertos" value={state.kpis?.tickets.open || 0} icon={CheckCircle2} isLoading={state.isLoading} color="text-blue-600" />
                         <StatCard title="Casos Resueltos" value={state.kpis?.tickets.completed || 0} icon={CheckCircle2} isLoading={state.isLoading} color="text-green-600" />
                     </div>
 
@@ -139,7 +139,7 @@ export default function AnalyticsClient() {
                                             paddingAngle={5}
                                             dataKey="value"
                                             nameKey="label"
-                                            label={({ label }) => label}
+                                            label={({ label }: VolumeKpi) => label}
                                         >
                                             {state.kpis?.byTopic.map((_entry: VolumeKpi, index: number) => (
                                                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -257,7 +257,7 @@ export default function AnalyticsClient() {
                                 </div>
                                 <div className="p-4 border rounded-lg bg-orange-50/50 flex items-center justify-between">
                                     <div className="flex items-center gap-3">
-                                        <div className="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-600"><Hourglass className="h-5 w-5" /></div>
+                                        <div className="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-600"><FileText className="h-5 w-5" /></div>
                                         <div><p className="text-[10px] text-muted-foreground uppercase font-black">Fuera de Contrato</p><p className="text-xl font-black">{(state.kpis?.timeTracking.totalNonBillable || 0).toFixed(1)} h</p></div>
                                     </div>
                                 </div>
