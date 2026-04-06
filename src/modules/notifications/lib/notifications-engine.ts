@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -24,7 +25,6 @@ function applyTemplate(template: string, payload: Record<string, unknown>): stri
 
 /**
  * Main entry point to trigger a notification flow.
- * Now fetches templates from the central database.
  * @param eventId - The ID of the event
  * @param payload - The data object associated with the event.
  */
@@ -51,7 +51,7 @@ export async function triggerNotificationEvent(eventId: NotificationEventId, pay
         const telegram = applyTemplate(template.telegram, payload);
         const internal = applyTemplate(template.internal, payload);
 
-        // --- Internal App Notifications ---
+        // --- Internal App Notifications (Bell icon) ---
         const allUsers = await getAllUsers();
         const targetUsers = allUsers.filter(u => u.role === 'admin' || u.role === 'support-agent');
         
@@ -65,7 +65,7 @@ export async function triggerNotificationEvent(eventId: NotificationEventId, pay
             });
         }
 
-        // --- External Notifications (Rules Based) ---
+        // --- External/Rule-Based Notifications ---
         if (matchingRules.length === 0) return;
 
         for (const rule of matchingRules) {
@@ -92,7 +92,7 @@ export async function triggerNotificationEvent(eventId: NotificationEventId, pay
             }
         }
 
-        await logInfo(`Event '${eventId}' processed using DB template. Internal alerts and ${matchingRules.length} rule(s) executed.`);
+        await logInfo(`Notification Engine: Event '${eventId}' processed. Rules executed: ${matchingRules.length}`);
     } catch (error: unknown) {
         const err = error as Error;
         await logError('Notification Engine failed to process event', { event: eventId, error: err.message });
@@ -111,7 +111,8 @@ function getHrefForEvent(eventId: string, p: Record<string, unknown>): string {
         case 'onProjectCompleted': 
         case 'onProjectAdvanceAdded': return `/dashboard/planner/${v.id || v.projectId}`;
         case 'onNewSuggestion': return '/dashboard/admin/suggestions';
-        case 'onContractExpiring': return '/dashboard/contracts';
+        case 'onContractExpiring': 
+        case 'onContractAutoRenewed': return '/dashboard/contracts';
         case 'onLicenseExpiring': return '/dashboard/licenses';
         default: return '/dashboard';
     }
@@ -120,6 +121,8 @@ function getHrefForEvent(eventId: string, p: Record<string, unknown>): string {
 function getEntityTypeForEvent(eventId: string): string {
     if (eventId.startsWith('onTicket')) return 'ticket';
     if (eventId.startsWith('onProject')) return 'project';
+    if (eventId.startsWith('onContract')) return 'contract';
+    if (eventId.startsWith('onLicense')) return 'license';
     if (eventId === 'onNewSuggestion') return 'suggestion';
     return 'system';
 }

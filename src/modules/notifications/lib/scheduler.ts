@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -12,7 +13,7 @@ import { logInfo, logError } from '@/modules/core/lib/logger';
 import { triggerNotificationEvent } from './notifications-engine';
 import { connectDb } from '@/modules/core/lib/db';
 import { backupAllForUpdate } from '@/modules/core/lib/maintenance-db';
-import type { Contract, License } from '@/modules/core/types';
+import type { Contract, License, Customer } from '@/modules/core/types';
 import { differenceInDays, parseISO, isSameDay } from 'date-fns';
 import { autoRenewContract } from '@/modules/contracts/lib/db';
 
@@ -20,7 +21,6 @@ const runningJobs: Map<number, cron.ScheduledTask> = new Map();
 
 /**
  * Task: Full ERP Synchronization.
- * Fetches latest data from the ERP if configured.
  */
 async function executeErpSync() {
     try {
@@ -35,7 +35,6 @@ async function executeErpSync() {
 
 /**
  * Task: System Backup.
- * Creates a restore point for all databases.
  */
 async function executeBackup() {
     try {
@@ -60,19 +59,30 @@ async function executeExpirationCheck() {
 
         // 1. Check Contracts
         const contracts = db.prepare("SELECT * FROM contracts WHERE status = 'active'").all() as Contract[];
+        const customers = db.prepare("SELECT id, name FROM customers").all() as Pick<Customer, 'id' | 'name'>[];
+        const customerMap = new Map(customers.map(c => [c.id, c.name]));
+
         for (const contract of contracts) {
-            const daysLeft = differenceInDays(parseISO(contract.endDate), now);
+            const expiryDate = parseISO(contract.endDate);
+            const daysLeft = differenceInDays(expiryDate, now);
+            
             // Alert at 30, 15, and 7 days
             if ([30, 15, 7].includes(daysLeft)) {
-                await triggerNotificationEvent('onContractExpiring', { ...contract, daysLeft });
+                await triggerNotificationEvent('onContractExpiring', { 
+                    ...contract, 
+                    customerName: customerMap.get(contract.customerId) || 'Desconocido',
+                    daysLeft 
+                });
             }
         }
 
         // 2. Check Licenses
         const licenses = db.prepare("SELECT * FROM licenses WHERE status = 'active' AND isPerpetual = 0").all() as License[];
         for (const license of licenses) {
-            const daysLeft = differenceInDays(parseISO(license.expirationDate), now);
-            // Alert at 30, 15, and 7 days as requested
+            if (!license.expirationDate) continue;
+            const expiryDate = parseISO(license.expirationDate);
+            const daysLeft = differenceInDays(expiryDate, now);
+            
             if ([30, 15, 7].includes(daysLeft)) {
                 await triggerNotificationEvent('onLicenseExpiring', { 
                     hardwareId: license.hardwareId,
@@ -91,7 +101,6 @@ async function executeExpirationCheck() {
 
 /**
  * Task: Automatic Contract Renewal.
- * Identifies contracts set for auto-renewal that expire today and extends them.
  */
 async function executeAutoRenewals() {
     try {
@@ -99,19 +108,24 @@ async function executeAutoRenewals() {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         
-        // Find contracts that expire today and have autoRenew enabled
         const toRenew = db.prepare(`
             SELECT * FROM contracts 
             WHERE status = 'active' 
             AND autoRenew = 1 
         `).all() as (Omit<Contract, 'autoRenew'> & { autoRenew: number })[];
 
+        const customers = db.prepare("SELECT id, name FROM customers").all() as Pick<Customer, 'id' | 'name'>[];
+        const customerMap = new Map(customers.map(c => [c.id, c.name]));
+
         let renewalCount = 0;
         for (const contract of toRenew) {
             const expiryDate = parseISO(contract.endDate);
             if (isSameDay(expiryDate, today)) {
                 const renewed = await autoRenewContract(contract.id);
-                await triggerNotificationEvent('onContractAutoRenewed', renewed);
+                await triggerNotificationEvent('onContractAutoRenewed', {
+                    ...renewed,
+                    customerName: customerMap.get(renewed.customerId) || 'Desconocido'
+                });
                 renewalCount++;
             }
         }
@@ -154,10 +168,8 @@ export async function initScheduler() {
             });
             runningJobs.set(task.id, job);
             console.log(`TASK SCHEDULED: [${task.name}] with frequency [${task.schedule}]`);
-        } else {
-            console.warn(`TASK FAILED TO SCHEDULE: [${task.name}] - Task ID not found or invalid cron expression.`);
         }
     }
     
-    await logInfo('Scheduler initialized', { totalTasks: runningJobs.size });
+    await logInfo('Scheduler re-initialized', { totalActiveTasks: runningJobs.size });
 }

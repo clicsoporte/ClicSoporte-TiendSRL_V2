@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Main database initialization and shared utility functions.
  * Unified into a single source of truth: intratool.db
@@ -537,10 +538,31 @@ function seedNotificationTemplates(db: Database) {
             body: '<div style="font-family: sans-serif; color: #333;"><h2 style="color: #16a34a;">Caso de Soporte Finalizado</h2><p>Tu solicitud <b>{{consecutive}}</b> ha sido resuelta.</p><div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; padding: 15px; border-radius: 8px; margin: 20px 0;"><h4>Solución:</h4><p>{{content}}</p></div></div>',
             telegram: '✅ <b>TICKET COMPLETADO</b>\n\n<b>ID:</b> {{consecutive}}\n<b>Resuelto por:</b> {{userName}}',
             internal: 'Ticket {{consecutive}} completado con éxito.'
+        },
+        {
+            eventId: 'onContractExpiring',
+            subject: '[ALERTA] Contrato por vencer: {{name}}',
+            body: '<div style="font-family: sans-serif;"><h2 style="color: #ea580c;">Vencimiento de Contrato Próximo</h2><p>El contrato <b>{{name}}</b> del cliente <b>{{customerName}}</b> vencerá en <b>{{daysLeft}} días</b>.</p><p>Fecha de vencimiento: {{endDate}}</p></div>',
+            telegram: '⚠️ <b>CONTRATO POR VENCER</b>\n\n<b>Cliente:</b> {{customerName}}\n<b>Contrato:</b> {{name}}\n<b>Días restantes:</b> {{daysLeft}}\n<b>Vence:</b> {{endDate}}',
+            internal: 'El contrato {{name}} de {{customerName}} vence en {{daysLeft}} días.'
+        },
+        {
+            eventId: 'onLicenseExpiring',
+            subject: '[ALERTA] Licencia Offline vence en {{daysLeft}} días',
+            body: '<div style="font-family: sans-serif;"><h2>Aviso de Expiración de Licencia</h2><p>La licencia para el Hardware ID <b>{{hardwareId}}</b> vencerá el <b>{{expirationDate}}</b> ({{daysLeft}} días restantes).</p></div>',
+            telegram: '🔑 <b>LICENCIA POR VENCER</b>\n\n<b>HWID:</b> {{hardwareId}}\n<b>Vence:</b> {{expirationDate}}\n<b>Restan:</b> {{daysLeft}} días',
+            internal: 'Licencia {{hardwareId}} vence en {{daysLeft}} días.'
+        },
+        {
+            eventId: 'onContractAutoRenewed',
+            subject: '[INFO] Renovación Automática: {{consecutive}}',
+            body: '<div style="font-family: sans-serif;"><h2>Contrato Renovado Automáticamente</h2><p>El contrato de <b>{{customerName}}</b> ha sido renovado bajo la cláusula de prórroga automática.</p><p>Nueva vigencia hasta: <b>{{endDate}}</b></p></div>',
+            telegram: '🔄 <b>CONTRATO RENOVADO</b>\n\n<b>ID:</b> {{consecutive}}\n<b>Cliente:</b> {{customerName}}\n<b>Nueva fecha fin:</b> {{endDate}}',
+            internal: 'Contrato {{consecutive}} renovado automáticamente.'
         }
     ];
 
-    const insert = db.prepare('INSERT OR IGNORE INTO notification_templates (eventId, subject, body, telegram, internal) VALUES (@eventId, @subject, @body, @telegram, @internal)');
+    const insert = db.prepare('INSERT OR REPLACE INTO notification_templates (eventId, subject, body, telegram, internal) VALUES (@eventId, @subject, @body, @telegram, @internal)');
     templates.forEach(t => insert.run(t));
 }
 

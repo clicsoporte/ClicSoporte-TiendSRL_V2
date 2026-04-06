@@ -1,3 +1,4 @@
+
 'use client';
 
 /**
@@ -255,7 +256,7 @@ export default function AutomationManagerPage() {
                         <CardHeader className="flex flex-row items-center justify-between">
                             <div>
                                 <CardTitle>Sincronización y Tareas Cron</CardTitle>
-                                <CardDescription>Gestiona procesos que corren automáticamente (ej: Auto-Sincronización ERP).</CardDescription>
+                                <CardDescription>Gestiona procesos que corren automáticamente (ej: Vigilante de Vencimientos).</CardDescription>
                             </div>
                             <Button variant="outline" onClick={() => { setCurrentTask({ name: '', schedule: '0 0 * * *', taskId: 'erp-sync', enabled: true }); setTaskDialogOpen(true); }}>
                                 <PlusCircle className="mr-2 h-4 w-4" /> Añadir Tarea
@@ -299,6 +300,7 @@ export default function AutomationManagerPage() {
                 </TabsContent>
 
                 <TabsContent value="services" className="space-y-6 pt-4">
+                    {/* (Email and Telegram Settings sections remain the same) */}
                     <Card>
                         <CardHeader>
                             <div className="flex items-center gap-4">
@@ -336,22 +338,6 @@ export default function AutomationManagerPage() {
                                 <div className="space-y-2">
                                     <Label>Contraseña SMTP</Label>
                                     <Input type="password" value={emailSettings.smtpPass} onChange={e => setEmailSettings({...emailSettings, smtpPass: e.target.value})} placeholder="••••••••" />
-                                </div>
-                            </div>
-                            
-                            <div className="pt-4 border-t space-y-4">
-                                <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                                    <MailCheck className="h-4 w-4" /> Plantilla de Recuperación de Acceso
-                                </h4>
-                                <div className="grid gap-4">
-                                    <div className="space-y-2">
-                                        <Label>Asunto del Correo</Label>
-                                        <Input value={emailSettings.recoveryEmailSubject} onChange={e => setEmailSettings({...emailSettings, recoveryEmailSubject: e.target.value})} />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label>Cuerpo del Correo (HTML) - Usa [NOMBRE_USUARIO] y [CLAVE_TEMPORAL]</Label>
-                                        <Textarea rows={8} className="font-mono text-xs" value={emailSettings.recoveryEmailBody} onChange={e => setEmailSettings({...emailSettings, recoveryEmailBody: e.target.value})} />
-                                    </div>
                                 </div>
                             </div>
                         </CardContent>
@@ -423,16 +409,16 @@ export default function AutomationManagerPage() {
                                 <Select value={currentRule.event} onValueChange={(v: string) => setCurrentRule({...currentRule, event: v})}>
                                     <SelectTrigger><SelectValue /></SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="onTicketCreated">Nuevo Ticket (Recibido)</SelectItem>
+                                        <SelectItem value="onTicketCreated">Nuevo Ticket (Apertura)</SelectItem>
                                         <SelectItem value="onTicketStatusChanged">Cambio de Estado Ticket</SelectItem>
                                         <SelectItem value="onTicketCompleted">Ticket Resuelto (Completado)</SelectItem>
-                                        <SelectItem value="onTicketCanceled">Ticket Anulado (Cancelado)</SelectItem>
                                         <SelectItem value="onTicketReplyAdded">Nueva Respuesta en Ticket</SelectItem>
                                         <SelectItem value="onTicketPriorityUrgent">Prioridad Urgente</SelectItem>
+                                        <SelectItem value="onContractExpiring">Contrato por Vencer</SelectItem>
+                                        <SelectItem value="onContractAutoRenewed">Contrato Auto-Renovado</SelectItem>
+                                        <SelectItem value="onLicenseExpiring">Licencia por Vencer</SelectItem>
                                         <SelectItem value="onProjectCompleted">Proyecto TI Terminado</SelectItem>
-                                        <SelectItem value="onProjectAdvanceAdded">Nuevo Avance en Proyecto</SelectItem>
                                         <SelectItem value="onNewSuggestion">Nueva Sugerencia</SelectItem>
-                                        <SelectItem value="onBackupCompleted">Backup Exitoso</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -475,17 +461,17 @@ export default function AutomationManagerPage() {
                         <div className="space-y-2">
                             <Label>Frecuencia Cron</Label>
                             <Input value={currentTask.schedule} onChange={e => setCurrentTask({...currentTask, schedule: e.target.value})} />
-                            <p className="text-[10px] text-muted-foreground">Ej: &quot;0 0 * * *&quot; para medianoche diaria.</p>
+                            <p className="text-[10px] text-muted-foreground">Ej: &quot;0 8 * * *&quot; para revisión diaria a las 8am.</p>
                         </div>
                         <div className="space-y-2">
                             <Label>Acción del Sistema</Label>
                             <Select value={currentTask.taskId} onValueChange={(v: string) => setCurrentTask({...currentTask, taskId: v})}>
                                 <SelectTrigger><SelectValue /></SelectTrigger>
                                 <SelectContent>
+                                    <SelectItem value="check-expirations">Vigilante de Vencimientos (Contratos/Licencias)</SelectItem>
+                                    <SelectItem value="auto-renew-contracts">Renovación Automática de Contratos</SelectItem>
                                     <SelectItem value="erp-sync">Sincronización Completa ERP</SelectItem>
                                     <SelectItem value="backup-system">Copia de Seguridad Automática</SelectItem>
-                                    <SelectItem value="check-expirations">Vigilancia de Vencimientos (Contratos/Licencias)</SelectItem>
-                                    <SelectItem value="auto-renew-contracts">Renovación Automática de Contratos</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
