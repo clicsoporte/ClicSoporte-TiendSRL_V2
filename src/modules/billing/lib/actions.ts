@@ -5,7 +5,7 @@
  */
 
 import { connectDb } from '@/modules/core/lib/db';
-import type { TimeEntry, Service } from '@/modules/core/types';
+import type { TimeEntry } from '@/modules/core/types';
 import { getCompanySettings } from '@/modules/core/lib/settings-db';
 import { logInfo, logError } from '@/modules/core/lib/logger';
 import { revalidatePath } from 'next/cache';

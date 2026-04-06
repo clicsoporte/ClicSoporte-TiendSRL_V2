@@ -243,7 +243,7 @@ export const useTicketSettings = () => {
     };
 
     // --- Geographic Actions ---
-    const handleGeoAction = async (type: 'province' | 'canton' | 'district', action: 'add' | 'update' | 'delete', data: any) => {
+    const handleGeoAction = async (type: 'province' | 'canton' | 'district', action: 'add' | 'update' | 'delete', data: Province | Canton | District) => {
         try {
             switch (`${type}-${action}`) {
                 case 'province-add':
@@ -259,7 +259,8 @@ export const useTicketSettings = () => {
                     setProvinces(prev => prev.filter(p => p.id !== data.id));
                     break;
                 case 'canton-add':
-                    const newCant = await addCanton(data.provinceId, data.name);
+                    const cData = data as Canton;
+                    const newCant = await addCanton(cData.provinceId, cData.name);
                     setCantons(prev => [...prev, newCant]);
                     break;
                 case 'canton-update':
@@ -271,7 +272,8 @@ export const useTicketSettings = () => {
                     setCantons(prev => prev.filter(c => c.id !== data.id));
                     break;
                 case 'district-add':
-                    const newDist = await addDistrict(data.cantonId, data.name);
+                    const dData = data as District;
+                    const newDist = await addDistrict(dData.cantonId, dData.name);
                     setDistricts(prev => [...prev, newDist]);
                     break;
                 case 'district-update':

@@ -8,8 +8,7 @@ import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useEffect, useMemo, useState } from 'react';
 import { useTicketSettings } from '@/modules/tickets/hooks/useTicketSettings';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -23,7 +22,7 @@ import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import type { TicketPriority } from '@/modules/core/types';
+import type { TicketPriority, Province, Canton, District, SupportPackage } from '@/modules/core/types';
 
 export default function TicketSettingsPage() {
     const { setTitle } = usePageTitle();
@@ -42,7 +41,7 @@ export default function TicketSettingsPage() {
     const [geoEditName, setGeoEditName] = useState("");
     const [isGeoEditOpen, setGeoEditOpen] = useState(false);
     const [geoEditType, setGeoEditType] = useState<'province' | 'canton' | 'district'>('province');
-    const [geoEditTarget, setGeoEditTarget] = useState<any>(null);
+    const [geoEditTarget, setGeoEditTarget] = useState<Province | Canton | District | null>(null);
 
     const supportUsers = useMemo(() => {
         if (!selectors.allUsers) return [];
@@ -57,7 +56,7 @@ export default function TicketSettingsPage() {
         setTitle("Configuración de Tickets");
     }, [setTitle]);
 
-    const openGeoEdit = (type: 'province' | 'canton' | 'district', target?: any) => {
+    const openGeoEdit = (type: 'province' | 'canton' | 'district', target?: Province | Canton | District) => {
         setGeoEditType(type);
         setGeoEditTarget(target || null);
         setGeoEditName(target?.name || "");
@@ -67,11 +66,14 @@ export default function TicketSettingsPage() {
     const handleGeoSave = async () => {
         if (!geoEditName.trim()) return;
         const action = geoEditTarget ? 'update' : 'add';
-        const data = geoEditTarget ? { ...geoEditTarget, name: geoEditName } : { name: geoEditName };
         
+        // Construct basic data object
+        const data: any = geoEditTarget ? { ...geoEditTarget, name: geoEditName } : { name: geoEditName };
+        
+        // Add parent IDs for 'add' action
         if (action === 'add') {
-            if (geoEditType === 'canton') (data as any).provinceId = selectedProvinceId;
-            if (geoEditType === 'district') (data as any).cantonId = selectedCantonId;
+            if (geoEditType === 'canton') data.provinceId = selectedProvinceId;
+            if (geoEditType === 'district') data.cantonId = selectedCantonId;
         }
 
         await actions.handleGeoAction(geoEditType, action, data);
@@ -99,7 +101,7 @@ export default function TicketSettingsPage() {
             <Accordion type="multiple" defaultValue={['help-topics', 'consecutive-settings', 'services-catalog']} className="w-full space-y-6">
                 
                 {/* --- CONFIGURACIÓN DE CONSECUTIVOS --- */}
-                <Card>
+                <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
                     <AccordionItem value="consecutive-settings">
                         <AccordionTrigger className="p-6 text-lg font-semibold">
                             <div className="flex items-center gap-2">
@@ -131,10 +133,10 @@ export default function TicketSettingsPage() {
                             </div>
                         </AccordionContent>
                     </AccordionItem>
-                </Card>
+                </div>
 
                 {/* --- TEMAS DE AYUDA --- */}
-                <Card>
+                <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
                     <AccordionItem value="help-topics">
                         <AccordionTrigger className="p-6 text-lg font-semibold">
                             Gestión de Temas de Ayuda
@@ -208,16 +210,16 @@ export default function TicketSettingsPage() {
                             </div>
                         </AccordionContent>
                     </AccordionItem>
-                </Card>
+                </div>
 
                 {/* --- MÓDULO GEOGRÁFICO DE COSTA RICA --- */}
-                <Card>
+                <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
                     <AccordionItem value="geographic-data">
                         <AccordionTrigger className="p-6 text-lg font-semibold flex gap-2">
                             <MapIcon className="h-5 w-5 text-primary" /> División Territorial (Costa Rica)
                         </AccordionTrigger>
                         <AccordionContent className="p-6 pt-0 space-y-6">
-                            <CardDescription>Administra las provincias, cantones y distritos para el cálculo de viáticos de proveedores.</CardDescription>
+                            <p className="text-sm text-muted-foreground">Administra las provincias, cantones y distritos para el cálculo de viáticos de proveedores.</p>
                             
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                 {/* Columna Provincias */}
@@ -291,16 +293,16 @@ export default function TicketSettingsPage() {
                             </div>
                         </AccordionContent>
                     </AccordionItem>
-                </Card>
+                </div>
 
                 {/* --- PAQUETES DE SOPORTE (SLA / SLA LOGIC) --- */}
-                <Card>
+                <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
                     <AccordionItem value="support-packages">
                         <AccordionTrigger className="p-6 text-lg font-semibold flex gap-2">
                             <Package className="h-5 w-5 text-primary" /> Paquetes de Soporte (SLA)
                         </AccordionTrigger>
                         <AccordionContent className="p-6 pt-0 space-y-6">
-                            <CardDescription className="mb-4">Configura los planes mensuales, periodos de gracia y lógica de redondeo para el cobro de horas.</CardDescription>
+                            <p className="text-sm text-muted-foreground mb-4">Configura los planes mensuales, periodos de gracia y lógica de redondeo para el cobro de horas.</p>
                             
                             <div className="space-y-6">
                                 {(companyData.supportPackages || []).map(pkg => (
@@ -392,14 +394,14 @@ export default function TicketSettingsPage() {
                             </div>
                         </AccordionContent>
                     </AccordionItem>
-                </Card>
+                </div>
 
                 {/* --- CATÁLOGO DE SERVICIOS --- */}
-                <Card>
+                <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
                     <AccordionItem value="services-catalog">
                         <AccordionTrigger className="p-6 text-lg font-semibold">Catálogo de Servicios</AccordionTrigger>
                         <AccordionContent className="p-6 pt-0">
-                            <CardDescription className="mb-4">Gestiona los servicios técnicos disponibles y sus modalidades de cobro.</CardDescription>
+                            <p className="text-sm text-muted-foreground mb-4">Gestiona los servicios técnicos disponibles y sus modalidades de cobro.</p>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {(companyData.servicesCatalog || []).map(service => (
                                     <div key={service.id} className="flex items-center justify-between rounded-lg border p-4 bg-card group hover:border-primary transition-colors">
@@ -443,7 +445,7 @@ export default function TicketSettingsPage() {
                             </div>
                         </AccordionContent>
                     </AccordionItem>
-                </Card>
+                </div>
             </Accordion>
             
             <div className="mt-8 flex justify-end">

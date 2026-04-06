@@ -7,7 +7,7 @@ import { useEffect, useState, useMemo } from "react";
 import { usePageTitle } from "@/modules/core/hooks/usePageTitle";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Search, LifeBuoy, Rocket, MessageSquare, DollarSign, CalendarCheck, Ticket, Wrench, AlertTriangle, ShieldCheck, MapPin, Clock } from "lucide-react";
+import { Search, LifeBuoy, Rocket, DollarSign, Wrench, AlertTriangle, ShieldCheck, MapPin, Clock } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/modules/core/hooks/useAuth";
 import { Input } from "@/components/ui/input";
@@ -155,7 +155,7 @@ export default function HelpPage() {
                 <ol className="list-decimal space-y-2 pl-6">
                     <li><strong>Configuración:</strong> Define Provincias, Cantones y Distritos en <i>Administración &gt; Soporte Técnico</i>.</li>
                     <li><strong>Tarifario:</strong> En el perfil del <i>Proveedor Externo</i>, asigna un monto de viático a zonas específicas.</li>
-                    <li><strong>Uso:</strong> Al abrir un ticket, selecciona el servicio "En Sitio" y el sistema te sugerirá el viático basado en la dirección del cliente.</li>
+                    <li><strong>Uso:</strong> Al abrir un ticket, selecciona el servicio &quot;En Sitio&quot; y el sistema te sugerirá el viático basado en la dirección del cliente.</li>
                 </ol>
             </div>
         )
@@ -183,7 +183,7 @@ export default function HelpPage() {
                 <Alert variant="destructive">
                     <AlertTriangle className="h-4 w-4" />
                     <AlertTitle>¡Importante!</AlertTitle>
-                    <AlertDescription>Nunca borres la carpeta "dbs" del servidor, ya que contiene toda la base de datos viva del sistema.</AlertDescription>
+                    <AlertDescription>Nunca borres la carpeta &quot;dbs&quot; del servidor, ya que contiene toda la base de datos viva del sistema.</AlertDescription>
                 </Alert>
             </div>
         )

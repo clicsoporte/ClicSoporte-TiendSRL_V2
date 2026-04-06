@@ -10,7 +10,7 @@ import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError } from '@/modules/core/lib/logger';
 import { useAuth } from '@/modules/core/hooks/useAuth';
-import type { NewTicketPayload, Ticket, TicketPriority, TicketStatus, TicketThread, User, HelpTopic, Contract, ThirdPartyProvider, CustomerContact, SupportPackage } from '@/modules/core/types';
+import type { NewTicketPayload, Ticket, TicketPriority, TicketStatus, TicketThread, User, HelpTopic, Contract, ThirdPartyProvider, CustomerContact } from '@/modules/core/types';
 import {
     saveTicket, getTickets, getTicketById as getTicketByIdServer,
     getTicketThread as getTicketThreadServer,
@@ -315,7 +315,7 @@ export const useTickets = () => {
         resetNewTicketForm: () => {
             updateState({ newTicket: emptyTicket, selectedCustomerId: null, customerSearchTerm: '', activeContract: null });
         }
-    }), [updateState, toast, users, handleNewTicketChange, handleSelectCompany]);
+    }), [updateState, toast, users, handleNewTicketChange, handleSelectCompany, validateCoverage, providers]);
 
     const selectors = useMemo(() => ({
         priorityConfig,

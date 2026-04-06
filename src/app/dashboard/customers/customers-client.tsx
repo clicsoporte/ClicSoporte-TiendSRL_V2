@@ -16,7 +16,7 @@ import { useToast } from '@/modules/core/hooks/use-toast';
 import { upsertCustomer, deleteCustomer } from '@/modules/core/lib/data-access-db';
 import { getContributorInfo } from '@/modules/hacienda/lib/actions';
 import { getCRGeoData } from '@/modules/tickets/lib/actions';
-import type { Customer, CustomerContact, HaciendaContributorInfo, Province, Canton, District, SupportPackage } from '@/modules/core/types';
+import type { Customer, CustomerContact, HaciendaContributorInfo, Province, Canton, District } from '@/modules/core/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -206,14 +206,6 @@ export default function CustomersClient() {
         }));
     };
 
-    const taxActivities = useMemo(() => {
-        try {
-            return JSON.parse(currentCustomer.taxActivities || '[]');
-        } catch {
-            return [];
-        }
-    }, [currentCustomer.taxActivities]);
-
     if (!isAuthReady) {
         return (
             <main className="flex-1 p-4 md:p-6 lg:p-8">
@@ -240,7 +232,7 @@ export default function CustomersClient() {
                         </DialogTrigger>
                         <DialogContent className="sm:max-w-5xl h-[90vh] flex flex-col p-0 overflow-hidden" onPointerDownOutside={(e) => e.preventDefault()}>
                             <DialogHeader className="p-6 pb-4 border-b">
-                                <DialogTitle>{isEditing ? "Editar Cliente" : "Registrar Nuevo Cliente"}</DialogTitle>
+                                <DialogTitle>{isEditing ? "Editar" : "Registrar Nuevo"} Cliente</DialogTitle>
                                 <DialogDescription>Completa los datos fiscales y los contactos de la empresa.</DialogDescription>
                             </DialogHeader>
                             

@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { PlusCircle, Loader2, MoreVertical, Truck, Trash2, MapPin, Briefcase, Users, Mail, Phone, Building2, EyeOff, Clock, Zap } from 'lucide-react';
+import { PlusCircle, Loader2, MoreVertical, Truck, Trash2, MapPin, Briefcase, Users, Mail, Phone, Building2, Clock, Zap } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { useToast } from '@/modules/core/hooks/use-toast';
