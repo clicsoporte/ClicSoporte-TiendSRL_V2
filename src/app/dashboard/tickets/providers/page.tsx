@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { PlusCircle, Loader2, MoreVertical, Truck, Trash2, MapPin, Briefcase, Users, Mail, Phone, Building2, Clock, Zap, Percent } from 'lucide-react';
+import { PlusCircle, Loader2, MoreVertical, Truck, Trash2, MapPin, Briefcase, Users, Mail, Phone, Building2, Percent } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { useToast } from '@/modules/core/hooks/use-toast';
@@ -96,7 +96,7 @@ export default function ProvidersPage() {
         if(isAuthorized) fetchInitialData();
     }, [setTitle, isAuthorized]);
 
-    // Lógica de cálculo de precios revisada: (Costo * (1+Margen)) * (1+IVA)
+    // Lógica de cálculo de precios revisada: (Costo * (1+Margen/100)) * (1+IVA/100)
     useEffect(() => {
         const factorMargen = 1 + (newServiceRate.marginRemote / 100);
         const factorIVA = 1 + (newServiceRate.taxRate / 100);
