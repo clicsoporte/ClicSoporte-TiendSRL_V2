@@ -18,6 +18,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PlusCircle, Trash2, Save, BellRing, Clock, Send, Loader2, Mail } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
 import type { NotificationRule, ScheduledTask, NotificationServiceConfig, EmailSettings } from '@/modules/core/types';
 import { 
     getAllNotificationRules, saveNotificationRule, deleteNotificationRule,
@@ -435,8 +436,8 @@ export default function AutomationManagerPage() {
                             <p className="text-[10px] text-muted-foreground mb-1">
                                 Usa <b>[CORREO_CLIENTE]</b> para Email o <b>[TELEGRAM_CLIENTE]</b> para Telegram del cliente.
                             </p>
-                            <textarea 
-                                className="w-full min-h-[100px] border rounded-md p-2 text-sm" 
+                            <Textarea 
+                                className="w-full min-h-[100px]" 
                                 value={currentRule.recipients?.join('\n')}
                                 onChange={e => setCurrentRule({...currentRule, recipients: e.target.value.split('\n').filter(Boolean)})}
                                 placeholder="ejemplo@empresa.com o ID de chat"

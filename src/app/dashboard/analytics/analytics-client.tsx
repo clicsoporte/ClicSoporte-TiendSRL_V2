@@ -7,7 +7,7 @@
 import { useAnalytics } from '@/modules/analytics/hooks/useAnalytics';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AreaChart, CalendarCheck, Ticket, FileText, Coins, Receipt, CheckCircle2, PieChart as PieIcon, BarChart3, Users, Wrench } from 'lucide-react';
+import { AreaChart, Ticket, Coins, Receipt, CheckCircle2, PieChart as PieIcon, BarChart3, Users, Wrench } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
 import { Button } from '@/components/ui/button';
@@ -97,7 +97,7 @@ export default function AnalyticsClient() {
                 <TabsContent value="overview" className="space-y-6">
                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                         <StatCard title="Total de Casos" value={state.kpis?.tickets.total || 0} icon={Ticket} isLoading={state.isLoading} color="text-primary" />
-                        <StatCard title="Proyectos TI" value={state.kpis?.projects.total || 0} icon={CalendarCheck} isLoading={state.isLoading} color="text-purple-600" />
+                        <StatCard title="Proyectos TI" value={state.kpis?.projects.total || 0} icon={AreaChart} isLoading={state.isLoading} color="text-purple-600" />
                         <StatCard title="Tickets Abiertos" value={state.kpis?.tickets.open || 0} icon={CheckCircle2} isLoading={state.isLoading} color="text-blue-600" />
                         <StatCard title="Casos Resueltos" value={state.kpis?.tickets.completed || 0} icon={CheckCircle2} isLoading={state.isLoading} color="text-green-600" />
                     </div>
@@ -251,13 +251,13 @@ export default function AnalyticsClient() {
                             <CardContent className="space-y-4">
                                 <div className="p-4 border rounded-lg bg-green-50/50 flex items-center justify-between">
                                     <div className="flex items-center gap-3">
-                                        <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center text-green-600"><FileText className="h-5 w-5" /></div>
+                                        <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center text-green-600"><Coins className="h-5 w-5" /></div>
                                         <div><p className="text-[10px] text-muted-foreground uppercase font-black">Bajo Contrato</p><p className="text-xl font-black">{(state.kpis?.timeTracking.totalBillable || 0).toFixed(1)} h</p></div>
                                     </div>
                                 </div>
                                 <div className="p-4 border rounded-lg bg-orange-50/50 flex items-center justify-between">
                                     <div className="flex items-center gap-3">
-                                        <div className="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-600"><FileText className="h-5 w-5" /></div>
+                                        <div className="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-600"><Coins className="h-5 w-5" /></div>
                                         <div><p className="text-[10px] text-muted-foreground uppercase font-black">Fuera de Contrato</p><p className="text-xl font-black">{(state.kpis?.timeTracking.totalNonBillable || 0).toFixed(1)} h</p></div>
                                     </div>
                                 </div>
