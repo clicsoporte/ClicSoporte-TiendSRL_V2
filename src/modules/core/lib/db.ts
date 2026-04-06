@@ -468,6 +468,14 @@ export async function initializeMainDatabase(db: Database) {
             entityId INTEGER,
             entityType TEXT
         );
+
+        CREATE TABLE IF NOT EXISTS notification_templates (
+            eventId TEXT PRIMARY KEY,
+            subject TEXT NOT NULL,
+            body TEXT NOT NULL,
+            telegram TEXT NOT NULL,
+            internal TEXT NOT NULL
+        );
     `;
 
     db.exec(mainSchema);
@@ -509,6 +517,31 @@ export async function initializeMainDatabase(db: Database) {
     ];
     const insertSoftware = db.prepare('INSERT OR IGNORE INTO software_products (name, isInternal) VALUES (@name, @isInternal)');
     software.forEach(p => insertSoftware.run(p));
+
+    // Seed Notification Templates
+    seedNotificationTemplates(db);
+}
+
+function seedNotificationTemplates(db: Database) {
+    const templates = [
+        {
+            eventId: 'onTicketCreated',
+            subject: '[NUEVO TICKET] {{consecutive}} - {{subject}}',
+            body: '<div style="font-family: sans-serif; color: #333;"><h2 style="color: #2563eb;">Nuevo Ticket Registrado</h2><p>Hola <b>{{customerName}}</b>, hemos recibido tu solicitud de soporte.</p><hr><p><b>ID del Caso:</b> {{consecutive}}</p><p><b>Asunto:</b> {{subject}}</p><p>Un técnico revisará tu caso a la brevedad.</p></div>',
+            telegram: '🆕 <b>NUEVO TICKET</b>\n\n<b>ID:</b> {{consecutive}}\n<b>Cliente:</b> {{customerName}}\n<b>Asunto:</b> {{subject}}',
+            internal: 'Nuevo ticket {{consecutive}} creado por {{customerName}}'
+        },
+        {
+            eventId: 'onTicketCompleted',
+            subject: '[CASO RESUELTO] Ticket {{consecutive}}',
+            body: '<div style="font-family: sans-serif; color: #333;"><h2 style="color: #16a34a;">Caso de Soporte Finalizado</h2><p>Tu solicitud <b>{{consecutive}}</b> ha sido resuelta.</p><div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; padding: 15px; border-radius: 8px; margin: 20px 0;"><h4>Solución:</h4><p>{{content}}</p></div></div>',
+            telegram: '✅ <b>TICKET COMPLETADO</b>\n\n<b>ID:</b> {{consecutive}}\n<b>Resuelto por:</b> {{userName}}',
+            internal: 'Ticket {{consecutive}} completado con éxito.'
+        }
+    ];
+
+    const insert = db.prepare('INSERT OR IGNORE INTO notification_templates (eventId, subject, body, telegram, internal) VALUES (@eventId, @subject, @body, @telegram, @internal)');
+    templates.forEach(t => insert.run(t));
 }
 
 /**
@@ -614,66 +647,17 @@ export async function runMainMigrations(db: Database) {
         if (!hasColumn('provider_geo_rates', field)) db.exec(`ALTER TABLE provider_geo_rates ADD COLUMN ${field} ${type};`);
     });
 
-    // New M-M table for subcontractors
+    // Templates table
     db.exec(`
-        CREATE TABLE IF NOT EXISTS project_subcontractors (
-            projectId INTEGER NOT NULL,
-            providerId INTEGER NOT NULL,
-            PRIMARY KEY (projectId, providerId),
-            FOREIGN KEY (projectId) REFERENCES projects(id) ON DELETE CASCADE,
-            FOREIGN KEY (providerId) REFERENCES third_party_providers(id) ON DELETE CASCADE
+        CREATE TABLE IF NOT EXISTS notification_templates (
+            eventId TEXT PRIMARY KEY,
+            subject TEXT NOT NULL,
+            body TEXT NOT NULL,
+            telegram TEXT NOT NULL,
+            internal TEXT NOT NULL
         );
     `);
-
-    // Provider Intelligence Tables
-    db.exec(`
-        CREATE TABLE IF NOT EXISTS provider_services (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            providerId INTEGER NOT NULL,
-            serviceId TEXT NOT NULL,
-            buyPriceRemote REAL DEFAULT 0,
-            marginRemote REAL DEFAULT 0,
-            taxRate REAL DEFAULT 13,
-            sellPriceRemote REAL DEFAULT 0,
-            buyPriceOnSite REAL DEFAULT 0,
-            marginOnSite REAL DEFAULT 0,
-            sellPriceOnSite REAL DEFAULT 0,
-            FOREIGN KEY (providerId) REFERENCES third_party_providers(id) ON DELETE CASCADE
-        );
-
-        CREATE TABLE IF NOT EXISTS provinces (
-            id INTEGER PRIMARY KEY,
-            name TEXT NOT NULL
-        );
-
-        CREATE TABLE IF NOT EXISTS cantons (
-            id INTEGER PRIMARY KEY,
-            provinceId INTEGER NOT NULL,
-            name TEXT NOT NULL,
-            FOREIGN KEY (provinceId) REFERENCES provinces(id) ON DELETE CASCADE
-        );
-
-        CREATE TABLE IF NOT EXISTS districts (
-            id INTEGER PRIMARY KEY,
-            cantonId INTEGER NOT NULL,
-            name TEXT NOT NULL,
-            FOREIGN KEY (cantonId) REFERENCES cantons(id) ON DELETE CASCADE
-        );
-
-        CREATE TABLE IF NOT EXISTS provider_geo_rates (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            providerId INTEGER NOT NULL,
-            provinceId INTEGER NOT NULL,
-            cantonId INTEGER,
-            districtId INTEGER,
-            buyTravelPrice REAL DEFAULT 0,
-            marginTravel REAL DEFAULT 0,
-            taxRate REAL DEFAULT 13,
-            sellTravelPrice REAL DEFAULT 0,
-            locationName TEXT NOT NULL,
-            FOREIGN KEY (providerId) REFERENCES third_party_providers(id) ON DELETE CASCADE
-        );
-    `);
+    seedNotificationTemplates(db);
 }
 
 export async function getLogs(filters: { type?: string; search?: string; dateRange?: DateRange }): Promise<LogEntry[]> {
