@@ -6,12 +6,32 @@ Esta guía detalla los pasos para configurar un VPS de 1 vCPU / 1GB RAM para hos
 
 ---
 
-## 1. PREPARACIÓN INICIAL DEL SISTEMA
+## 1. ESTIMACIÓN DE CONSUMO DE RECURSOS
+### Escenario: 2 Técnicos Activos / 10 Clientes (Uso Bajo)
 
-### 1.1. Actualizar repositorios
+Con la arquitectura actual (Server Actions + SQLite), el consumo estimado es:
+
+*   **MEMORIA RAM (Runtime):** ~450MB - 550MB totales.
+    - OS (Ubuntu): ~200MB.
+    - App (Node.js/Next.js): ~250MB.
+    - Nginx + PM2: ~50MB.
+    - *Nota:* El 1GB de RAM física es suficiente para la ejecución, pero el SWAP de 2GB es VITAL para el proceso de `npm run build` (compilación).
+*   **CPU (vCPU):** < 2% en reposo. Spikes de 10-15% durante la generación de PDFs o sincronización masiva con el ERP.
+*   **ALMACENAMIENTO (SSD):** ~6GB ocupados.
+    - OS + Dependencias: ~5GB.
+    - Base de Datos (10 clientes): < 50MB (crece muy lento).
+    - Quedan ~19GB libres para backups y archivos adjuntos.
+*   **ANCHO DE BANDA:** Consumo extremadamente bajo por ser mayoritariamente texto y JSON.
+    - *Advertencia:* El límite de 0.16GB mencionado es inusualmente bajo para un VPS (típicamente son 1TB+). Si realmente es ese el límite, evita descargar backups pesados o subir muchas fotos de alta resolución en los proyectos.
+
+---
+
+## 2. PREPARACIÓN INICIAL DEL SISTEMA
+
+### 2.1. Actualizar repositorios
 sudo apt update && sudo apt upgrade -y
 
-### 1.2. Configuración de Memoria Virtual (SWAP) - OBLIGATORIO
+### 2.2. Configuración de Memoria Virtual (SWAP) - OBLIGATORIO
 Dado que el servidor tiene 1GB de RAM, Next.js fallará al compilar sin SWAP. Crearemos 2GB de memoria virtual.
 
 sudo fallocate -l 2G /swapfile
@@ -24,34 +44,34 @@ echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
 
 ---
 
-## 2. INSTALACIÓN DEL ENTORNO DE EJECUCIÓN
+## 3. INSTALACIÓN DEL ENTORNO DE EJECUCIÓN
 
-### 2.1. Instalar Node.js (Versión 20 LTS o superior)
+### 3.1. Instalar Node.js (Versión 20 LTS o superior)
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
 sudo apt install -y nodejs
 
-### 2.2. Instalar Gestores de Procesos y Herramientas
+### 3.2. Instalar Gestores de Procesos y Herramientas
 sudo npm install -g pm2
 sudo apt install -y git build-essential
 
 ---
 
-## 3. DESPLIEGUE DE LA APLICACIÓN
+## 4. DESPLIEGUE DE LA APLICACIÓN
 
-### 3.1. Clonar y Preparar (Ejemplo usando Git)
+### 4.1. Clonar y Preparar (Ejemplo usando Git)
 cd /var/www
 # git clone <tu_repositorio> clic-tools
 # cd clic-tools
 
-### 3.2. Configurar Variables de Entorno
+### 4.2. Configurar Variables de Env
 # Crear el archivo .env.local con tus credenciales de SQL Server (ERP)
 nano .env.local
 
-### 3.3. Instalar Dependencias y Compilar
+### 4.3. Instalar Dependencias y Compilar
 npm install
 npm run build
 
-### 3.4. Iniciar con PM2 (Gestión de Procesos)
+### 4.4. Iniciar con PM2 (Gestión de Procesos)
 pm2 start npm --name "clic-tools" -- start
 
 # Configurar para que inicie automáticamente al bootear el VPS
@@ -61,12 +81,12 @@ pm2 save
 
 ---
 
-## 4. SERVIDOR WEB Y SEGURIDAD (REVERSE PROXY)
+## 5. SERVIDOR WEB Y SEGURIDAD (REVERSE PROXY)
 
-### 4.1. Instalar Nginx
+### 5.1. Instalar Nginx
 sudo apt install -y nginx
 
-### 4.2. Configurar el Sitio en Nginx
+### 5.2. Configurar el Sitio en Nginx
 sudo nano /etc/nginx/sites-available/clic-tools
 
 # Pegar la siguiente configuración:
@@ -84,21 +104,21 @@ server {
     }
 }
 
-### 4.3. Activar Configuración y Reiniciar Nginx
+### 5.3. Activar Configuración y Reiniciar Nginx
 sudo ln -s /etc/nginx/sites-available/clic-tools /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl restart nginx
 
 ---
 
-## 5. CERTIFICADO SSL (HTTPS) - GRATUITO Y AUTOMÁTICO
+## 6. CERTIFICADO SSL (HTTPS) - GRATUITO Y AUTOMÁTICO
 
 sudo apt install -y certbot python3-certbot-nginx
 sudo certbot --nginx -d tu-dominio.com
 
 ---
 
-## 6. FIREWALL (UFW) - ENDURECIMIENTO DE SEGURIDAD
+## 7. FIREWALL (UFW) - ENDURECIMIENTO DE SEGURIDAD
 
 # Permitir SSH (Asegúrate de no quedarte fuera)
 sudo ufw allow ssh
@@ -111,10 +131,10 @@ sudo ufw enable
 
 ---
 
-## 7. PERSISTENCIA DE DATOS (NOTAS IMPORTANTES)
+## 8. PERSISTENCIA DE DATOS (NOTAS IMPORTANTES)
 
 1. La base de datos SQLite reside en la carpeta `dbs/intratool.db`. 
-2. Es altamente recomendable hacer backups periódicos de esta carpeta hacia un almacenamiento externo (S3, Dropbox o descarga manual).
+2. Es altamente recomendable hacer backups periódicos de esta carpeta hacia un almacenamiento externo.
 3. Si el ERP (SQL Server) está en tu oficina, debes añadir la IP de este VPS al "Whitelisting" del firewall de tu oficina para el puerto 1433.
 
 ---
