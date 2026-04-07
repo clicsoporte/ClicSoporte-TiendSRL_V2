@@ -216,7 +216,7 @@ export default function HelpPage() {
                     <p>Subtotal = (Costo Compra * (1 + Margen / 100))</p>
                     <p>Venta Sugerida = Subtotal * (1 + IVA / 100)</p>
                 </div>
-                <p>Al configurar un proveedor en <b>Administración > Proveedores Terceros</b>, puedes digitalizar manualmente el impuesto (13%, 4%, 2%, 1% o 0% si es exento). El sistema te sugerirá el precio de venta exacto a cobrar al cliente.</p>
+                <p>Al configurar un proveedor en <b>Administración &gt; Proveedores Terceros</b>, puedes digitalizar manualmente el impuesto (13%, 4%, 2%, 1% o 0% si es exento). El sistema te sugerirá el precio de venta exacto a cobrar al cliente.</p>
             </div>
         )
     }
