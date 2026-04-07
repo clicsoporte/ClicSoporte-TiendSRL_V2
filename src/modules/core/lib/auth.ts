@@ -157,30 +157,30 @@ export async function comparePasswords(userId: number, password: string): Promis
 
 /**
  * Handles the password recovery process by generating a temporary password and emailing it.
+ * IMPROVED: Checks SMTP config first and only updates DB if email is sent successfully.
  */
 export async function sendPasswordRecoveryEmail(email: string): Promise<void> {
     const db = await connectDb();
     const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email) as User | undefined;
     
+    // Check if email settings are configured BEFORE doing anything
+    const emailSettings = await getEmailSettings();
+    if (!emailSettings.smtpHost) {
+        await logError("Recovery failed: SMTP not configured", { email });
+        throw new Error("El servicio de recuperación por correo no está configurado. Contacte a su administrador.");
+    }
+
     if (!user) {
         await logWarn(`Password recovery requested for non-existent email: ${email}`);
-        return; // Silent return for security to prevent email enumeration
+        // Return success message to user anyway to prevent email enumeration
+        return; 
     }
 
     try {
         const tempPassword = Math.random().toString(36).slice(-8);
-        const hashedTempPassword = await bcrypt.hash(tempPassword, SALT_ROUNDS);
-
-        db.prepare('UPDATE users SET password = ?, forcePasswordChange = 1 WHERE id = ?')
-          .run(hashedTempPassword, user.id);
-
-        const emailSettings = await getEmailSettings();
         const companySettings = await getCompanySettings();
 
-        if (!emailSettings.smtpHost) {
-            throw new Error("SMTP service is not configured. Cannot send recovery email.");
-        }
-
+        // 1. Prepare email content
         let body = (emailSettings.recoveryEmailBody || `
             <div style="font-family: sans-serif;">
                 <h2>Hola [NOMBRE_USUARIO]</h2>
@@ -196,17 +196,24 @@ export async function sendPasswordRecoveryEmail(email: string): Promise<void> {
             body += `<p style="margin-top: 20px; font-size: 12px; color: #666;">Enviado por: ${companySettings.name}</p>`;
         }
 
+        // 2. ATTEMPT TO SEND EMAIL FIRST
+        // If this fails, it throws an error and we never touch the DB
         await sendEmail({
             to: user.email,
             subject: emailSettings.recoveryEmailSubject || 'Recuperación de Contraseña - Clic-Soporte',
             html: body
         });
 
-        await logInfo(`Recovery email sent to ${user.name} (${email})`);
+        // 3. ONLY IF EMAIL SUCCEEDED, UPDATE THE DATABASE
+        const hashedTempPassword = await bcrypt.hash(tempPassword, SALT_ROUNDS);
+        db.prepare('UPDATE users SET password = ?, forcePasswordChange = 1 WHERE id = ?')
+          .run(hashedTempPassword, user.id);
+
+        await logInfo(`Recovery email sent and password updated for ${user.name} (${email})`);
     } catch (error: unknown) {
         const err = error as Error;
         await logError(`Failed to process password recovery for ${email}`, { error: err.message });
-        throw new Error("No se pudo procesar la recuperación. Contacte al administrador.");
+        throw new Error(`Error al enviar el correo: ${err.message}. Su contraseña actual sigue vigente.`);
     }
 }
 
