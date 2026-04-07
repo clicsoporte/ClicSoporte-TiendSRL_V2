@@ -1,0 +1,135 @@
+
+# GUÍA DE DESPLIEGUE EN VPS (UBUNTU 24.04 LTS) - CLIC-TOOLS
+# Arquitectura: Node.js + Next.js + SQLite + PM2 + Nginx + SSL
+
+Esta guía detalla los pasos para configurar un VPS de 1 vCPU / 1GB RAM para hospedar el sistema de forma segura y eficiente.
+
+---
+
+## 1. PREPARACIÓN INICIAL DEL SISTEMA
+
+### 1.1. Actualizar repositorios
+sudo apt update && sudo apt upgrade -y
+
+### 1.2. Configuración de Memoria Virtual (SWAP) - OBLIGATORIO
+Dado que el servidor tiene 1GB de RAM, Next.js fallará al compilar sin SWAP. Crearemos 2GB de memoria virtual.
+
+sudo fallocate -l 2G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+
+# Hacerlo permanente tras reinicios
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+
+---
+
+## 2. INSTALACIÓN DEL ENTORNO DE EJECUCIÓN
+
+### 2.1. Instalar Node.js (Versión 20 LTS o superior)
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt install -y nodejs
+
+### 2.2. Instalar Gestores de Procesos y Herramientas
+sudo npm install -g pm2
+sudo apt install -y git build-essential
+
+---
+
+## 3. DESPLIEGUE DE LA APLICACIÓN
+
+### 3.1. Clonar y Preparar (Ejemplo usando Git)
+cd /var/www
+# git clone <tu_repositorio> clic-tools
+# cd clic-tools
+
+### 3.2. Configurar Variables de Entorno
+# Crear el archivo .env.local con tus credenciales de SQL Server (ERP)
+nano .env.local
+
+### 3.3. Instalar Dependencias y Compilar
+npm install
+npm run build
+
+### 3.4. Iniciar con PM2 (Gestión de Procesos)
+pm2 start npm --name "clic-tools" -- start
+
+# Configurar para que inicie automáticamente al bootear el VPS
+pm2 startup
+# (Ejecutar el comando que imprima la pantalla)
+pm2 save
+
+---
+
+## 4. SERVIDOR WEB Y SEGURIDAD (REVERSE PROXY)
+
+### 4.1. Instalar Nginx
+sudo apt install -y nginx
+
+### 4.2. Configurar el Sitio en Nginx
+sudo nano /etc/nginx/sites-available/clic-tools
+
+# Pegar la siguiente configuración:
+server {
+    listen 80;
+    server_name tu-dominio.com; # Cambiar por tu IP o dominio
+
+    location / {
+        proxy_pass http://localhost:9003; # Puerto configurado en package.json
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
+
+### 4.3. Activar Configuración y Reiniciar Nginx
+sudo ln -s /etc/nginx/sites-available/clic-tools /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl restart nginx
+
+---
+
+## 5. CERTIFICADO SSL (HTTPS) - GRATUITO Y AUTOMÁTICO
+
+sudo apt install -y certbot python3-certbot-nginx
+sudo certbot --nginx -d tu-dominio.com
+
+---
+
+## 6. FIREWALL (UFW) - ENDURECIMIENTO DE SEGURIDAD
+
+# Permitir SSH (Asegúrate de no quedarte fuera)
+sudo ufw allow ssh
+
+# Permitir Tráfico Web
+sudo ufw allow 'Nginx Full'
+
+# Activar Firewall
+sudo ufw enable
+
+---
+
+## 7. PERSISTENCIA DE DATOS (NOTAS IMPORTANTES)
+
+1. La base de datos SQLite reside en la carpeta `dbs/intratool.db`. 
+2. Es altamente recomendable hacer backups periódicos de esta carpeta hacia un almacenamiento externo (S3, Dropbox o descarga manual).
+3. Si el ERP (SQL Server) está en tu oficina, debes añadir la IP de este VPS al "Whitelisting" del firewall de tu oficina para el puerto 1433.
+
+---
+
+## COMANDOS ÚTILES DE MANTENIMIENTO
+
+# Ver logs en tiempo real
+pm2 logs clic-tools
+
+# Reiniciar tras cambios
+git pull
+npm install
+npm run build
+pm2 restart clic-tools
+
+# Estado del servidor
+top
+free -m
