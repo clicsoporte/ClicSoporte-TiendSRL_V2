@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Help Center page with advanced mini-tutorials for MSP operations.
  * Enhanced with practical examples and business logic explanations.
@@ -8,7 +9,7 @@ import { useEffect, useState, useMemo } from "react";
 import { usePageTitle } from "@/modules/core/hooks/usePageTitle";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Search, LifeBuoy, Rocket, DollarSign, Wrench, AlertTriangle, ShieldCheck, MapPin, Clock, Zap, Wallet, BellRing, KeyRound } from "lucide-react";
+import { Search, LifeBuoy, Rocket, Wrench, AlertTriangle, ShieldCheck, MapPin, Zap, Wallet, BellRing, KeyRound } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/modules/core/hooks/useAuth";
 import { Input } from "@/components/ui/input";
@@ -124,7 +125,7 @@ export default function HelpPage() {
                 <p>El sistema protege el margen de ganancia de cada proyecto TI llave en mano.</p>
                 <div className="bg-muted/30 p-4 rounded-lg border border-primary/20">
                     <p className="text-sm font-bold text-primary uppercase mb-2">Ejemplo Práctico:</p>
-                    <p className="text-sm italic">"Vendes un sistema de CCTV por ¢1,000,000. Al crear el proyecto, digitalizas este monto en el campo <b>Presupuesto Venta</b>."</p>
+                    <p className="text-sm italic">&quot;Vendes un sistema de CCTV por ¢1,000,000. Al crear el proyecto, digitalizas este monto en el campo <b>Presupuesto Venta</b>.&quot;</p>
                 </div>
                 <ul className="list-disc pl-6 space-y-2">
                     <li><strong>Monitor de Burn-Rate:</strong> Conforme agregas materiales o subcontratos, el sistema calcula el costo real.</li>
@@ -191,11 +192,11 @@ export default function HelpPage() {
                 <div className="space-y-3">
                     <div className="flex items-start gap-3">
                         <div className="mt-1 h-2 w-2 rounded-full bg-primary shrink-0" />
-                        <p className="text-sm"><strong>Tickets por Tema:</strong> Identifica si hay fallas recurrentes. Si el 50% de los casos son "Redes", podrías vender un proyecto de cableado nuevo.</p>
+                        <p className="text-sm"><strong>Tickets por Tema:</strong> Identifica si hay fallas recurrentes. Si el 50% de los casos son &quot;Redes&quot;, podrías vender un proyecto de cableado nuevo.</p>
                     </div>
                     <div className="flex items-start gap-3">
                         <div className="mt-1 h-2 w-2 rounded-full bg-primary shrink-0" />
-                        <p className="text-sm"><strong>Rentabilidad por Modalidad:</strong> Compara cuántas ganancias dejan los servicios "Por Hora" vs los servicios "Por Tarea" (Fijos).</p>
+                        <p className="text-sm"><strong>Rentabilidad por Modalidad:</strong> Compara cuántas ganancias dejan los servicios &quot;Por Hora&quot; vs los servicios &quot;Por Tarea&quot; (Fijos).</p>
                     </div>
                     <div className="flex items-start gap-3">
                         <div className="mt-1 h-2 w-2 rounded-full bg-primary shrink-0" />
@@ -212,7 +213,7 @@ export default function HelpPage() {
             <div className="space-y-4">
                 <p>Al utilizar especialistas externos, el sistema asegura que siempre cubras tus costos e impuestos.</p>
                 <div className="p-4 bg-muted/30 rounded-lg font-mono text-xs space-y-1">
-                    <p className="text-blue-700 font-bold">// Fórmula Interna:</p>
+                    <p className="text-blue-700 font-bold">{`// Formula Interna:`}</p>
                     <p>Subtotal = (Costo Compra * (1 + Margen / 100))</p>
                     <p>Venta Sugerida = Subtotal * (1 + IVA / 100)</p>
                 </div>

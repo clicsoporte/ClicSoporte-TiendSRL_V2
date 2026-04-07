@@ -7,7 +7,6 @@
 
 import { connectDb, getUserCount } from './db';
 import bcrypt from 'bcryptjs';
-import { initialRoles } from './db-constants';
 import { logInfo, logError } from './logger';
 
 const SALT_ROUNDS = 10;

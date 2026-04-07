@@ -38,7 +38,7 @@ export async function runDatabaseAudit(): Promise<AuditResult[]> {
             } else {
                 results.push({ table: tableName, status: 'ok', missingColumns: [] });
             }
-        } catch (error) {
+        } catch {
             results.push({ table: tableName, status: 'missing_table', missingColumns: expectedColumns });
         }
     }

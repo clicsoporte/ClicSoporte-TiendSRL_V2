@@ -24,7 +24,7 @@ import {
   } from "../../../../components/ui/select"
 import { useToast } from "../../../../modules/core/hooks/use-toast";
 import { logError, logInfo, logWarn } from "../../../../modules/core/lib/logger";
-import { UploadCloud, RotateCcw, Loader2, Save, LifeBuoy, Trash2 as TrashIcon, Download, Skull, AlertTriangle, ShieldCheck, DatabaseZap, SearchCheck, CheckCircle2, XCircle } from "lucide-react";
+import { UploadCloud, RotateCcw, Loader2, Save, LifeBuoy, Trash2 as TrashIcon, Download, Skull, AlertTriangle, DatabaseZap, SearchCheck, CheckCircle2, XCircle } from "lucide-react";
 import { useDropzone } from 'react-dropzone';
 import { usePageTitle } from "../../../../modules/core/hooks/usePageTitle";
 import { Checkbox } from '../../../../components/ui/checkbox';
