@@ -7,7 +7,7 @@
 import { cache } from 'react';
 import { cookies } from 'next/headers';
 import { connectDb } from './db';
-import type { User, ExchangeRateApiResponse, Company, Customer, Contract } from '../types';
+import type { User, ExchangeRateApiResponse, Company, Contract } from '../types';
 import bcrypt from 'bcryptjs';
 import { logInfo, logWarn, logError } from './logger';
 import { SESSION_COOKIE, SALT_ROUNDS, SESSION_DURATION } from './auth-constants';
