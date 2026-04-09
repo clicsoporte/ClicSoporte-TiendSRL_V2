@@ -109,6 +109,7 @@ export type CustomerContact = {
     position: string;
     officePhone: string;
     whatsapp: string;
+    phone: string; // Generic phone field
     branch: string;
 };
 
@@ -118,6 +119,7 @@ export type CustomerContact = {
 export type Customer = {
     id: string;
     name: string;
+    commercialName?: string; // Manual alias/commercial name
     address: string;
     phone: string;
     taxId: string;

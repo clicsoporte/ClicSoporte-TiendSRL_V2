@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Server-side functions for accessing master data like customers, products, etc.
  * Separated to avoid circular dependencies.
@@ -41,17 +42,17 @@ export async function upsertCustomer(customer: Customer): Promise<Customer> {
     try {
         const stmt = db.prepare(`
             INSERT INTO customers (
-                id, name, address, phone, taxId, currency, creditLimit, paymentCondition, salesperson, active, email, electronicDocEmail, isManual, contacts,
+                id, name, commercialName, address, phone, taxId, currency, creditLimit, paymentCondition, salesperson, active, email, electronicDocEmail, isManual, contacts,
                 taxRegime, taxStatus, isTaxMoroso, isTaxOmiso, taxAdministration, taxActivities,
                 provinceId, cantonId, districtId
             )
             VALUES (
-                @id, @name, @address, @phone, @taxId, @currency, @creditLimit, @paymentCondition, @salesperson, @active, @email, @electronicDocEmail, 1, @contacts,
+                @id, @name, @commercialName, @address, @phone, @taxId, @currency, @creditLimit, @paymentCondition, @salesperson, @active, @email, @electronicDocEmail, 1, @contacts,
                 @taxRegime, @taxStatus, @isTaxMoroso, @isTaxOmiso, @taxAdministration, @taxActivities,
                 @provinceId, @cantonId, @districtId
             )
             ON CONFLICT(id) DO UPDATE SET
-                name = excluded.name, address = excluded.address, phone = excluded.phone, taxId = excluded.taxId, currency = excluded.currency,
+                name = excluded.name, commercialName = excluded.commercialName, address = excluded.address, phone = excluded.phone, taxId = excluded.taxId, currency = excluded.currency,
                 creditLimit = excluded.creditLimit, paymentCondition = excluded.paymentCondition, salesperson = excluded.salesperson, active = excluded.active,
                 email = excluded.email, electronicDocEmail = excluded.electronicDocEmail, contacts = excluded.contacts,
                 taxRegime = excluded.taxRegime, taxStatus = excluded.taxStatus, isTaxMoroso = excluded.isTaxMoroso, isTaxOmiso = excluded.isTaxOmiso,
@@ -63,6 +64,7 @@ export async function upsertCustomer(customer: Customer): Promise<Customer> {
         const params = {
             id: customer.id,
             name: customer.name,
+            commercialName: customer.commercialName || null,
             address: customer.address || null,
             phone: customer.phone || null,
             taxId: customer.taxId,

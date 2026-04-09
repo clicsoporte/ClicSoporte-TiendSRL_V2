@@ -33,12 +33,14 @@ const emptyContact: CustomerContact = {
     position: '',
     officePhone: '',
     whatsapp: '',
+    phone: '',
     branch: ''
 };
 
 const emptyCustomer: Customer = {
     id: '',
     name: '',
+    commercialName: '',
     address: '',
     phone: '',
     taxId: '',
@@ -124,6 +126,7 @@ export default function CustomersClient() {
         const lowerSearch = searchTerm.toLowerCase();
         return (customers || []).filter(c => 
             c.name.toLowerCase().includes(lowerSearch) || 
+            (c.commercialName || "").toLowerCase().includes(lowerSearch) ||
             c.id.toLowerCase().includes(lowerSearch) ||
             c.taxId.includes(lowerSearch)
         );
@@ -268,9 +271,13 @@ export default function CustomersClient() {
                                                 <Label htmlFor="cust-id">Código de Cliente (Único)</Label>
                                                 <Input id="cust-id" value={currentCustomer.id} onChange={e => setCurrentCustomer({...currentCustomer, id: e.target.value})} disabled={isEditing} placeholder="Ej: C001" />
                                             </div>
-                                            <div className="space-y-2 md:col-span-2">
+                                            <div className="space-y-2">
                                                 <Label htmlFor="cust-name">Nombre Completo o Razón Social</Label>
                                                 <Input id="cust-name" value={currentCustomer.name} onChange={e => setCurrentCustomer({...currentCustomer, name: e.target.value})} placeholder="Nombre legal del cliente" />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="cust-commercial">Nombre Comercial / Alias</Label>
+                                                <Input id="cust-commercial" value={currentCustomer.commercialName || ''} onChange={e => setCurrentCustomer({...currentCustomer, commercialName: e.target.value})} placeholder="Nombre para búsqueda rápida" />
                                             </div>
                                             
                                             {currentCustomer.taxRegime && (
@@ -434,6 +441,10 @@ export default function CustomersClient() {
                                                     <Label className="text-xs">Departamento</Label>
                                                     <Input value={newContact.department} onChange={e => setNewContact({...newContact, department: e.target.value})} placeholder="Ej: TI, RRHH" className="h-8 text-xs" />
                                                 </div>
+                                                <div className="space-y-1.5">
+                                                    <Label className="text-xs">Teléfono</Label>
+                                                    <Input value={newContact.phone} onChange={e => setNewContact({...newContact, phone: e.target.value})} placeholder="Ej: 8888-7777" className="h-8 text-xs" />
+                                                </div>
                                                 <div className="flex items-end lg:col-span-2">
                                                     <Button type="button" size="sm" onClick={handleAddContactToList} className="w-full h-8">
                                                         <PlusCircle className="mr-2 h-4 w-4" /> Agregar Contacto
@@ -454,7 +465,7 @@ export default function CustomersClient() {
                                                             <p className="text-xs font-semibold flex items-center gap-1"><Briefcase className="h-3 w-3" /> {contact.department}</p>
                                                         </div>
                                                         <div>
-                                                            <p className="text-xs flex items-center gap-1"><Phone className="h-3 w-3" /> {contact.officePhone || contact.whatsapp || 'N/A'}</p>
+                                                            <p className="text-xs flex items-center gap-1"><Phone className="h-3 w-3" /> {contact.phone || contact.officePhone || contact.whatsapp || 'N/A'}</p>
                                                         </div>
                                                     </div>
                                                     <Button variant="ghost" size="icon" onClick={() => handleRemoveContact(contact.id)} className="opacity-0 group-hover:opacity-100 text-destructive">
@@ -484,7 +495,7 @@ export default function CustomersClient() {
                     <div className="flex items-center relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input 
-                            placeholder="Buscar por nombre, código o cédula..." 
+                            placeholder="Buscar por nombre, comercial, código o cédula..." 
                             className="pl-9"
                             value={searchTerm}
                             onChange={e => setSearchTerm(e.target.value)}
@@ -497,7 +508,7 @@ export default function CustomersClient() {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Código</TableHead>
-                                    <TableHead>Nombre</TableHead>
+                                    <TableHead>Nombre / Comercial</TableHead>
                                     <TableHead>Cédula</TableHead>
                                     <TableHead>Plan Asignado</TableHead>
                                     <TableHead>Estado</TableHead>
@@ -511,7 +522,14 @@ export default function CustomersClient() {
                                         return (
                                             <TableRow key={customer.id}>
                                                 <TableCell className="font-mono text-xs">{customer.id}</TableCell>
-                                                <TableCell className="font-medium">{customer.name}</TableCell>
+                                                <TableCell>
+                                                    <div className="flex flex-col">
+                                                        <span className="font-medium">{customer.name}</span>
+                                                        {customer.commercialName && (
+                                                            <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-tight">Comercial: {customer.commercialName}</span>
+                                                        )}
+                                                    </div>
+                                                </TableCell>
                                                 <TableCell>{customer.taxId}</TableCell>
                                                 <TableCell>
                                                     {pkg ? (

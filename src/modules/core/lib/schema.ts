@@ -25,7 +25,7 @@ export const MASTER_SCHEMA: ExpectedSchema = {
     suggestions: ['id', 'content', 'userId', 'userName', 'isRead', 'timestamp'],
     user_preferences: ['userId', 'key', 'value'],
     customers: [
-        'id', 'name', 'address', 'phone', 'taxId', 'currency', 'creditLimit', 'paymentCondition', 
+        'id', 'name', 'commercialName', 'address', 'phone', 'taxId', 'currency', 'creditLimit', 'paymentCondition', 
         'salesperson', 'active', 'email', 'electronicDocEmail', 'isManual', 'contacts', 
         'supportPackageId', 'taxRegime', 'taxStatus', 'isTaxMoroso', 'isTaxOmiso', 
         'taxAdministration', 'taxActivities', 'provinceId', 'cantonId', 'districtId', 'telegramChatId'
