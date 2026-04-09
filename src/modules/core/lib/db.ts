@@ -61,9 +61,9 @@ export async function initializeMainDatabase(db: Database) {
         
         CREATE TABLE IF NOT EXISTS api_settings (
             id INTEGER PRIMARY KEY DEFAULT 1,
-            exchange_rate_api TEXT,
-            hacienda_exemption_api TEXT,
-            hacienda_tributaria_api TEXT
+            exchangeRateApi TEXT,
+            haciendaExemptionApi TEXT,
+            haciendaTributariaApi TEXT
         );
 
         CREATE TABLE IF NOT EXISTS email_settings (
@@ -616,6 +616,16 @@ export async function runMainMigrations(db: Database) {
     if (!hasColumn('company_settings', 'systemVersion')) db.exec(`ALTER TABLE company_settings ADD COLUMN systemVersion TEXT;`);
     if (!hasColumn('company_settings', 'publicUrl')) db.exec(`ALTER TABLE company_settings ADD COLUMN publicUrl TEXT;`);
     if (!hasColumn('company_settings', 'internalHourCost')) db.exec(`ALTER TABLE company_settings ADD COLUMN internalHourCost REAL DEFAULT 0;`);
+
+    // API SETTINGS Migrations (Fixing snake_case to camelCase discrepancy)
+    const apiSettingsFields = [
+        ['exchangeRateApi', 'TEXT'], 
+        ['haciendaExemptionApi', 'TEXT'], 
+        ['haciendaTributariaApi', 'TEXT']
+    ];
+    apiSettingsFields.forEach(([field, type]) => {
+        if (!hasColumn('api_settings', field)) db.exec(`ALTER TABLE api_settings ADD COLUMN ${field} ${type};`);
+    });
 
     // HACIENDA Migrations
     const haciendaFields = [
