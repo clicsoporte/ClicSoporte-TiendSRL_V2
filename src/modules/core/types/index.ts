@@ -133,6 +133,9 @@ export type Customer = {
     isManual?: boolean;
     contacts: CustomerContact[];
     supportPackageId?: string | null;
+    // Real-time enrichment
+    consumedHours?: number;
+    availableHours?: number;
     // Hacienda data
     taxRegime?: string;
     taxStatus?: string;

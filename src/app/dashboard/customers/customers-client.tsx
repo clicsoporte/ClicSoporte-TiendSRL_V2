@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { PlusCircle, Search, Edit, Trash2, Loader2, UserPlus, Users, Building2, Mail, Phone, Briefcase, SearchIcon, CheckCircle2, AlertCircle, MapPin, ShieldCheck, Send } from 'lucide-react';
+import { PlusCircle, Search, Edit, Trash2, Loader2, UserPlus, Users, Building2, Mail, Phone, Briefcase, SearchIcon, CheckCircle2, AlertCircle, MapPin, ShieldCheck, Send, Clock, Timer } from 'lucide-react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { upsertCustomer, deleteCustomer } from '@/modules/core/lib/data-access-db';
 import { getContributorInfo } from '@/modules/hacienda/lib/actions';
@@ -506,11 +506,14 @@ export default function CustomersClient() {
                     <div className="rounded-md border">
                         <Table>
                             <TableHeader>
-                                <TableRow>
-                                    <TableHead>Código</TableHead>
-                                    <TableHead>Nombre / Comercial</TableHead>
+                                <TableRow className="bg-muted/50">
+                                    <TableHead className="w-[80px]">Código</TableHead>
+                                    <TableHead>Cliente / Comercial</TableHead>
                                     <TableHead>Cédula</TableHead>
-                                    <TableHead>Plan Asignado</TableHead>
+                                    <TableHead>Plan de Soporte</TableHead>
+                                    <TableHead className="text-center">Hrs. Mes</TableHead>
+                                    <TableHead className="text-center">Consumido</TableHead>
+                                    <TableHead className="text-center">Saldo</TableHead>
                                     <TableHead>Estado</TableHead>
                                     <TableHead className="text-right">Acciones</TableHead>
                                 </TableRow>
@@ -519,41 +522,67 @@ export default function CustomersClient() {
                                 {filteredCustomers.length > 0 ? (
                                     filteredCustomers.map(customer => {
                                         const pkg = companyData?.supportPackages.find(p => p.id === customer.supportPackageId);
+                                        const consumed = customer.consumedHours || 0;
+                                        const available = customer.availableHours || 0;
+                                        const balance = available - consumed;
+                                        const percentageUsed = available > 0 ? (consumed / available) * 100 : 0;
+
                                         return (
                                             <TableRow key={customer.id}>
                                                 <TableCell className="font-mono text-xs">{customer.id}</TableCell>
                                                 <TableCell>
                                                     <div className="flex flex-col">
-                                                        <span className="font-medium">{customer.name}</span>
+                                                        <span className="font-bold text-sm">{customer.name}</span>
                                                         {customer.commercialName && (
-                                                            <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-tight">Comercial: {customer.commercialName}</span>
+                                                            <span className="text-[10px] text-primary font-black uppercase tracking-tighter">★ {customer.commercialName}</span>
                                                         )}
                                                     </div>
                                                 </TableCell>
-                                                <TableCell>{customer.taxId}</TableCell>
+                                                <TableCell className="text-xs">{customer.taxId}</TableCell>
                                                 <TableCell>
                                                     {pkg ? (
-                                                        <Badge variant="default" className="bg-primary/10 text-primary border-primary/20">
-                                                            {pkg.name}
+                                                        <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-[10px]">
+                                                            <ShieldCheck className="h-3 w-3 mr-1" /> {pkg.name}
                                                         </Badge>
                                                     ) : (
-                                                        <span className="text-xs text-muted-foreground italic">Sin plan</span>
+                                                        <span className="text-[10px] text-muted-foreground italic">Soporte por Evento</span>
                                                     )}
                                                 </TableCell>
+                                                <TableCell className="text-center font-mono font-bold text-xs">{available > 0 ? `${available}h` : '-'}</TableCell>
+                                                <TableCell className="text-center">
+                                                    <div className="flex flex-col items-center">
+                                                        <span className={cn("font-mono text-xs", consumed > 0 ? "font-bold" : "text-muted-foreground")}>{consumed.toFixed(1)}h</span>
+                                                        {available > 0 && (
+                                                            <div className="w-12 h-1 bg-muted rounded-full mt-1 overflow-hidden">
+                                                                <div 
+                                                                    className={cn("h-full", percentageUsed > 90 ? "bg-red-500" : percentageUsed > 70 ? "bg-orange-500" : "bg-green-500")} 
+                                                                    style={{ width: `${Math.min(percentageUsed, 100)}%` }} 
+                                                                />
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="text-center">
+                                                    {available > 0 ? (
+                                                        <Badge variant={balance < 0 ? "destructive" : "secondary"} className={cn("text-[10px] h-5", balance > 0 && "bg-green-50 text-green-700 border-green-200")}>
+                                                            {balance.toFixed(1)}h
+                                                        </Badge>
+                                                    ) : '-'}
+                                                </TableCell>
                                                 <TableCell>
-                                                    <Badge variant={customer.active === 'S' ? 'default' : 'secondary'}>
-                                                        {customer.active === 'S' ? 'Activo' : 'Inactivo'}
+                                                    <Badge variant={customer.active === 'S' ? 'default' : 'secondary'} className="text-[10px] h-5">
+                                                        {customer.active === 'S' ? 'ACTIVO' : 'INACTIVO'}
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell className="text-right">
-                                                    <div className="flex justify-end gap-2">
+                                                    <div className="flex justify-end gap-1">
                                                         {hasPermission('customers:update') && (
-                                                            <Button variant="ghost" size="icon" onClick={() => handleEdit(customer)}><Edit className="h-4 w-4" /></Button>
+                                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(customer)}><Edit className="h-4 w-4" /></Button>
                                                         )}
                                                         {hasPermission('customers:delete') && (
                                                             <AlertDialog>
                                                                 <AlertDialogTrigger asChild>
-                                                                    <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive"><Trash2 className="h-4 w-4" /></Button>
                                                                 </AlertDialogTrigger>
                                                                 <AlertDialogContent>
                                                                     <AlertDialogHeader>
@@ -574,7 +603,7 @@ export default function CustomersClient() {
                                     })
                                 ) : (
                                     <TableRow>
-                                        <TableCell colSpan={6} className="h-24 text-center">No se encontraron clientes.</TableCell>
+                                        <TableCell colSpan={9} className="h-24 text-center">No se encontraron clientes.</TableCell>
                                     </TableRow>
                                 )}
                             </TableBody>

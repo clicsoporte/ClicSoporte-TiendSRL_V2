@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Server-side authentication using HttpOnly cookies and React cache.
  */
@@ -6,7 +7,7 @@
 import { cache } from 'react';
 import { cookies } from 'next/headers';
 import { connectDb } from './db';
-import type { User, ExchangeRateApiResponse, Company } from '../types';
+import type { User, ExchangeRateApiResponse, Company, Customer, Contract } from '../types';
 import bcrypt from 'bcryptjs';
 import { logInfo, logWarn, logError } from './logger';
 import { SESSION_COOKIE, SALT_ROUNDS, SESSION_DURATION } from './auth-constants';
@@ -219,11 +220,13 @@ export async function sendPasswordRecoveryEmail(email: string): Promise<void> {
 
 /**
  * Fetches all initial data for the AuthProvider in one go.
+ * Enhanced to calculate consumed hours per customer for the current month.
  */
 export async function getInitialAuthData() {
     try {
+        const db = await connectDb();
         const [
-            roles, companySettings, customers, products, stock, exemptions, 
+            roles, companySettings, customersData, products, stock, exemptions, 
             exchangeRate, unreadSuggestions, users
         ] = await Promise.all([
             getAllRoles().catch(() => []),
@@ -237,6 +240,44 @@ export async function getInitialAuthData() {
             getAllUsers().catch(() => [])
         ]);
 
+        // 1. Calculate Consumed Hours for this month per customer
+        const consumptionRows = db.prepare(`
+            SELECT 
+                c.id as customerId,
+                SUM(te.billableDuration) as consumedMs
+            FROM time_entries te
+            JOIN tickets t ON te.ticketId = t.id
+            JOIN customers c ON (t.customerName = c.name OR t.companyName = c.name OR t.id = c.id)
+            WHERE te.isBillable = 1 
+              AND t.isBillable = 0 -- Only entries under contract/plan
+              AND te.startTime >= date('now', 'start of month')
+            GROUP BY c.id
+        `).all() as { customerId: string, consumedMs: number }[];
+
+        const consumptionMap = new Map(consumptionRows.map(r => [r.customerId, r.consumedMs / 3600000]));
+
+        // 2. Fetch active contracts to determine available hours
+        const activeContracts = db.prepare("SELECT * FROM contracts WHERE status = 'active'").all() as Contract[];
+        const contractMap = new Map(activeContracts.map(c => [c.customerId, c.monthlyHours]));
+
+        // 3. Enrich customers with hour data
+        const enrichedCustomers = customersData.map(customer => {
+            const consumedHours = consumptionMap.get(customer.id) || 0;
+            
+            // Priority for available hours: 1. Active Contract, 2. Assigned Support Package
+            let availableHours = contractMap.get(customer.id) || 0;
+            if (availableHours === 0 && customer.supportPackageId) {
+                const pkg = companySettings.supportPackages.find(p => p.id === customer.supportPackageId);
+                availableHours = pkg?.defaultHours || 0;
+            }
+
+            return {
+                ...customer,
+                consumedHours: parseFloat(consumedHours.toFixed(2)),
+                availableHours
+            };
+        });
+
         const rateData: { rate: number | null; date: string | null } = { rate: null, date: null };
         const erRes = exchangeRate as ExchangeRateApiResponse | null;
         if (erRes?.venta?.valor) {
@@ -245,13 +286,20 @@ export async function getInitialAuthData() {
         }
 
         return {
-            roles, companySettings, customers, products, stock, exemptions,
-            exchangeRate: rateData, unreadSuggestions, users, exemptionLaws: [] 
+            roles, 
+            companySettings, 
+            customers: enrichedCustomers, 
+            products, 
+            stock, 
+            exemptions,
+            exchangeRate: rateData, 
+            unreadSuggestions, 
+            users, 
+            exemptionLaws: [] 
         };
     } catch (error: unknown) {
         const err = error as Error;
         console.error("Critical error in getInitialAuthData:", err.message);
-        // Return minimal defaults to prevent complete app crash
         return {
             roles: [], companySettings: {} as Company, customers: [], products: [], stock: [], exemptions: [],
             exchangeRate: { rate: null, date: null }, unreadSuggestions: 0, users: [], exemptionLaws: []
