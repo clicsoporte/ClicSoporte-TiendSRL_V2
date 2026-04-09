@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Custom hook for managing the state and logic of the Licenses page.
  */
@@ -9,7 +10,7 @@ import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError } from '@/modules/core/lib/logger';
 import { useAuth } from '@/modules/core/hooks/useAuth';
-import type { License, SoftwareProduct, ClientCompany } from '@/modules/core/types';
+import type { License, SoftwareProduct, Customer } from '@/modules/core/types';
 import { 
     getLicenses as getLicensesServer, 
     addLicense as addLicenseServer,
@@ -20,13 +21,12 @@ import {
     deleteSoftwareProduct,
     generateNewKeys
 } from '../lib/actions';
-import { getClientCompanies } from '@/modules/tickets/lib/actions';
 import { useDebounce } from 'use-debounce';
 import { add } from 'date-fns';
 
 const emptyLicense: Partial<License> = {
     softwareId: 0,
-    clientCompanyId: null,
+    customerId: null,
     hardwareId: '',
     licenseKey: '',
     isPerpetual: false,
@@ -43,14 +43,13 @@ export const useLicenses = () => {
     const { isAuthorized } = useAuthorization(['licenses:read']);
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
-    const { companyData } = useAuth();
+    const { companyData, customers } = useAuth();
 
     const [state, setState] = useState({
         isLoading: true,
         isSubmitting: false,
         licenses: [] as License[],
         softwareProducts: [] as SoftwareProduct[],
-        clientCompanies: [] as ClientCompany[],
         isFormOpen: false,
         isEditing: false,
         currentLicense: emptyLicense,
@@ -70,12 +69,11 @@ export const useLicenses = () => {
     const loadInitialData = useCallback(async () => {
         updateState({ isLoading: true });
         try {
-            const [licensesData, softwareData, companiesData] = await Promise.all([
+            const [licensesData, softwareData] = await Promise.all([
                 getLicensesServer(),
                 getSoftwareProducts(),
-                getClientCompanies(),
             ]);
-            updateState({ licenses: licensesData, softwareProducts: softwareData, clientCompanies: companiesData });
+            updateState({ licenses: licensesData, softwareProducts: softwareData });
         } catch (error) {
             logError('Failed to load license data', { error: String(error) });
             toast({ title: "Error", description: "No se pudieron cargar los datos de licencias.", variant: "destructive" });
@@ -99,12 +97,11 @@ export const useLicenses = () => {
         updateState({ newSoftwareProduct: { ...state.newSoftwareProduct, [field]: value } });
     };
 
-    const handleSelectCompany = (companyId: string) => {
-        const id = parseInt(companyId, 10);
-        const company = state.clientCompanies.find(c => c.id === id);
+    const handleSelectCompany = (customerId: string) => {
+        const customer = customers.find(c => c.id === customerId);
         updateState({ 
-            currentLicense: { ...state.currentLicense, clientCompanyId: id },
-            companySearchTerm: company ? company.name : '',
+            currentLicense: { ...state.currentLicense, customerId: customerId },
+            companySearchTerm: customer ? customer.name : '',
             isCompanySearchOpen: false,
         });
     };
@@ -116,7 +113,7 @@ export const useLicenses = () => {
             ? softwareProducts.find(p => p.id === currentLicense.softwareId)
             : null;
 
-        if (!currentLicense.softwareId || !currentLicense.clientCompanyId) {
+        if (!currentLicense.softwareId || !currentLicense.customerId) {
             toast({ title: "Datos incompletos", description: "Debe seleccionar un cliente y un producto de software.", variant: "destructive" });
             return;
         }
@@ -136,12 +133,10 @@ export const useLicenses = () => {
         const licensePayload = { ...currentLicense };
         if(selectedSoftware?.isInternal) {
             // For internal software, the server will generate the key.
-            // If we are creating a new one, we make sure the key is not sent.
             if (!isEditing) {
                 delete licensePayload.licenseKey;
             }
         } else {
-            // For third-party software, hardwareId is irrelevant.
             licensePayload.hardwareId = null;
         }
 
@@ -166,12 +161,12 @@ export const useLicenses = () => {
     };
     
     const handleEditLicense = (license: License) => {
-        const company = state.clientCompanies.find(c => c.id === license.clientCompanyId);
+        const customer = customers.find(c => c.id === license.customerId);
         updateState({
             currentLicense: license,
             isEditing: true,
             isFormOpen: true,
-            companySearchTerm: company ? company.name : '',
+            companySearchTerm: customer ? customer.name : (license.customerId || ''),
         });
     };
 
@@ -253,7 +248,7 @@ export const useLicenses = () => {
         const a = document.createElement('a');
         a.href = url;
         const softwareName = software.name.replace(/\s+/g, '_') || 'software';
-        const clientName = state.clientCompanies.find(c => c.id === license.clientCompanyId)?.name.replace(/\s+/g, '_') || 'cliente';
+        const clientName = customers.find(c => c.id === license.customerId)?.name.replace(/\s+/g, '_') || 'cliente';
         a.download = `license_${softwareName}_${clientName}.lic`;
         document.body.appendChild(a);
         a.click();
@@ -261,14 +256,14 @@ export const useLicenses = () => {
         URL.revokeObjectURL(url);
     };
 
-    const clientCompanyOptions = useMemo(() => {
+    const clientCustomerOptions = useMemo(() => {
         if (debouncedCompanySearch.length < 2) return [];
         const searchTerms = debouncedCompanySearch.toLowerCase().split(' ').filter(Boolean);
-        return state.clientCompanies.filter(c => {
+        return customers.filter(c => {
             const targetText = `${c.id} ${c.name} ${c.taxId}`.toLowerCase();
             return searchTerms.every(term => targetText.includes(term));
-        }).map(c => ({ value: String(c.id), label: `${c.name} (${c.taxId})` }));
-    }, [state.clientCompanies, debouncedCompanySearch]);
+        }).map(c => ({ value: c.id, label: `[${c.id}] ${c.name} (${c.taxId})` }));
+    }, [customers, debouncedCompanySearch]);
 
     const getLicenseStatus = (license: License): { label: string, variant: "default" | "secondary" | "destructive" | "outline" } => {
         if (license.status === 'revoked') return { label: "Revocada", variant: "destructive" };
@@ -299,10 +294,10 @@ export const useLicenses = () => {
     };
 
     const selectors = {
-        filteredLicenses: state.licenses, // Placeholder for future filtering
-        clientCompanyOptions,
+        filteredLicenses: state.licenses,
+        clientCustomerOptions,
         getSoftwareProduct: (id: number | null) => state.softwareProducts.find(p => p.id === id),
-        getClientCompany: (id: number | null) => state.clientCompanies.find(c => c.id === id),
+        getCustomer: (id: string | null) => customers.find(c => c.id === id),
         getLicenseStatus,
     };
 

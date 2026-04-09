@@ -695,7 +695,7 @@ export type License = {
     id: number;
     licenseKey: string;
     softwareId: number;
-    clientCompanyId: number | null;
+    customerId: string | null;
     hardwareId?: string | null;
     isPerpetual: boolean;
     expirationDate: string;

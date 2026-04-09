@@ -401,7 +401,7 @@ export async function initializeMainDatabase(db: Database) {
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             licenseKey TEXT NOT NULL,
             softwareId INTEGER NOT NULL,
-            clientCompanyId INTEGER,
+            customerId TEXT,
             hardwareId TEXT,
             isPerpetual BOOLEAN NOT NULL DEFAULT FALSE,
             expirationDate TEXT,
@@ -669,7 +669,7 @@ export async function runMainMigrations(db: Database) {
     if (!hasColumn('projects', 'estimatedBudget')) db.exec(`ALTER TABLE projects ADD COLUMN estimatedBudget REAL DEFAULT 0;`);
     
     // LICENSES Migrations
-    if (!hasColumn('licenses', 'hardwareId')) db.exec(`ALTER TABLE licenses ADD COLUMN hardwareId TEXT;`);
+    if (!hasColumn('licenses', 'customerId')) db.exec(`ALTER TABLE licenses ADD COLUMN customerId TEXT;`);
 
     // PROVIDERS Migrations
     if (!hasColumn('third_party_providers', 'contacts')) db.exec(`ALTER TABLE third_party_providers ADD COLUMN contacts TEXT;`);

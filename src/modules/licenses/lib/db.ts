@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Server-side functions for the licenses module.
  * Unified into intratool.db.
@@ -39,7 +40,7 @@ export async function addLicense(licenseData: Omit<License, 'id' | 'createdAt'>)
         
         const licenseInfo = {
             softwareId: licenseData.softwareId,
-            clientCompanyId: licenseData.clientCompanyId,
+            customerId: licenseData.customerId,
             hardwareId: hardwareId,
             isPerpetual: licenseData.isPerpetual,
             expirationDate: licenseData.expirationDate,
@@ -55,12 +56,12 @@ export async function addLicense(licenseData: Omit<License, 'id' | 'createdAt'>)
     }
 
     const info = db.prepare(`
-        INSERT INTO licenses (licenseKey, softwareId, clientCompanyId, hardwareId, isPerpetual, expirationDate, status, createdAt)
-        VALUES (@licenseKey, @softwareId, @clientCompanyId, @hardwareId, @isPerpetual, @expirationDate, @status, @createdAt)
+        INSERT INTO licenses (licenseKey, softwareId, customerId, hardwareId, isPerpetual, expirationDate, status, createdAt)
+        VALUES (@licenseKey, @softwareId, @customerId, @hardwareId, @isPerpetual, @expirationDate, @status, @createdAt)
     `).run({
         licenseKey,
         softwareId: licenseData.softwareId,
-        clientCompanyId: licenseData.clientCompanyId,
+        customerId: licenseData.customerId,
         hardwareId,
         isPerpetual: licenseData.isPerpetual ? 1 : 0,
         expirationDate: licenseData.expirationDate || null,
@@ -90,7 +91,7 @@ export async function updateLicense(license: License): Promise<License> {
         // Re-generate the signed license because dates or parameters might have changed
         const licenseInfo = {
             softwareId: license.softwareId,
-            clientCompanyId: license.clientCompanyId,
+            customerId: license.customerId,
             hardwareId: hardwareId,
             isPerpetual: license.isPerpetual,
             expirationDate: license.expirationDate,
@@ -104,7 +105,7 @@ export async function updateLicense(license: License): Promise<License> {
     }
 
     db.prepare(`
-        UPDATE licenses SET licenseKey = @licenseKey, softwareId = @softwareId, clientCompanyId = @clientCompanyId,
+        UPDATE licenses SET licenseKey = @licenseKey, softwareId = @softwareId, customerId = @customerId,
             hardwareId = @hardwareId, isPerpetual = @isPerpetual, expirationDate = @expirationDate, status = @status
         WHERE id = @id
     `).run({

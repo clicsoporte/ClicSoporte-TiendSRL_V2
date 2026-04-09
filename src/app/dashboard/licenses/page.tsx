@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Main page for the License Management module.
  */
@@ -74,13 +75,13 @@ export default function LicensesPage() {
                                             <div className="grid gap-4 py-4">
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                     <div className="space-y-2">
-                                                        <Label htmlFor="client-company-search">Cliente</Label>
+                                                        <Label htmlFor="client-search">Cliente</Label>
                                                         <SearchInput
-                                                            options={selectors.clientCompanyOptions}
+                                                            options={selectors.clientCustomerOptions}
                                                             onSelect={actions.handleSelectCompany}
                                                             value={state.companySearchTerm}
                                                             onValueChange={actions.setCompanySearchTerm}
-                                                            placeholder="Buscar empresa cliente..."
+                                                            placeholder="Buscar por nombre, código o cédula..."
                                                             open={state.isCompanySearchOpen}
                                                             onOpenChange={actions.setIsCompanySearchOpen}
                                                         />
@@ -172,12 +173,12 @@ export default function LicensesPage() {
                             <TableBody>
                                 {selectors.filteredLicenses.map(license => {
                                     const software = selectors.getSoftwareProduct(license.softwareId);
-                                    const client = selectors.getClientCompany(license.clientCompanyId);
+                                    const client = selectors.getCustomer(license.customerId);
                                     const { label, variant } = selectors.getLicenseStatus(license);
                                     return (
                                         <TableRow key={license.id}>
                                             <TableCell className="font-medium">{software?.name || 'Desconocido'}</TableCell>
-                                            <TableCell>{client?.name || 'No asignado'}</TableCell>
+                                            <TableCell>{client?.name || license.customerId || 'No asignado'}</TableCell>
                                             <TableCell>
                                                 {software?.isInternal ? (
                                                     <span className="text-sm text-muted-foreground">HWID: {license.hardwareId}</span>
