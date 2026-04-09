@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Client Component logic for managing support ticket settings.
  * Extracted to resolve ESLint and circular dependency issues.
@@ -8,12 +9,12 @@ import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useEffect, useMemo, useState } from 'react';
 import { useTicketSettings } from '@/modules/tickets/hooks/useTicketSettings';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { PlusCircle, Trash2, Map as MapIcon, Edit, Hash, Package, ShieldCheck, Check, Clock, Zap } from 'lucide-react';
+import { PlusCircle, Trash2, Map as MapIcon, Edit, Hash, Package, ShieldCheck, Check, Clock, Zap, DollarSign } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useAuth } from '@/modules/core/hooks/useAuth';
@@ -98,8 +99,8 @@ export default function TicketSettingsPageContent() {
         )
     }
 
-    const cantonsForProvince = state.cantons.filter(c => c.provinceId === selectedProvinceId);
-    const districtsForCanton = state.districts.filter(d => d.cantonId === selectedCantonId);
+    const cantonsForProvince = state.provinces ? state.cantons.filter(c => c.provinceId === selectedProvinceId) : [];
+    const districtsForCanton = state.cantons ? state.districts.filter(d => d.cantonId === selectedCantonId) : [];
 
     return (
         <main className="flex-1 p-4 md:p-6 lg:p-8">
@@ -321,7 +322,14 @@ export default function TicketSettingsPageContent() {
                                             <Button variant="ghost" size="icon" className="text-destructive" onClick={() => actions.handleDeletePackage(pkg.id)}><Trash2 className="h-4 w-4" /></Button>
                                         </div>
 
-                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                                        <div className="grid grid-cols-1 sm:grid-cols-4 gap-6">
+                                            <div className="space-y-2">
+                                                <Label className="text-xs font-bold uppercase">Precio Base Sugerido</Label>
+                                                <div className="relative">
+                                                    <DollarSign className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+                                                    <Input type="number" className="pl-7" value={pkg.basePrice || ''} onChange={e => actions.handlePackagePropChange(pkg.id, 'basePrice', Number(e.target.value))} placeholder="¢0.00" />
+                                                </div>
+                                            </div>
                                             <div className="space-y-2">
                                                 <Label className="text-xs font-bold uppercase">Horas Incluidas</Label>
                                                 <Input type="number" value={pkg.defaultHours || ''} onChange={e => actions.handlePackagePropChange(pkg.id, 'defaultHours', Number(e.target.value))} placeholder="Ej: 10" />
@@ -386,9 +394,10 @@ export default function TicketSettingsPageContent() {
                                 <Separator className="my-6" />
                                 <div className="bg-muted/30 p-6 rounded-xl border-2 border-dashed space-y-4">
                                     <h4 className="font-bold text-sm">Nuevo Paquete de Soporte</h4>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
                                         <div className="space-y-1.5"><Label className="text-xs">ID</Label><Input value={state.newPackage.id} onChange={e => actions.setNewPackage({...state.newPackage, id: e.target.value})} placeholder="Ej: GOLD"/></div>
                                         <div className="space-y-1.5"><Label className="text-xs">Nombre</Label><Input value={state.newPackage.name} onChange={e => actions.setNewPackage({...state.newPackage, name: e.target.value})} placeholder="Ej: Plan Corporativo Oro"/></div>
+                                        <div className="space-y-1.5"><Label className="text-xs">Precio Base Sugerido</Label><Input type="number" value={state.newPackage.basePrice || ''} onChange={e => actions.setNewPackage({...state.newPackage, basePrice: Number(e.target.value)})} placeholder="¢0.00" /></div>
                                         <div className="space-y-1.5"><Label className="text-xs">Horas Base</Label><Input type="number" value={state.newPackage.defaultHours || ''} onChange={e => actions.setNewPackage({...state.newPackage, defaultHours: Number(e.target.value)})} /></div>
                                         <Button onClick={actions.handleAddPackage} className="w-full"><PlusCircle className="mr-2 h-4 w-4" /> Crear Paquete</Button>
                                     </div>
@@ -421,7 +430,10 @@ export default function TicketSettingsPageContent() {
                                                 <span className="text-[10px] font-normal text-muted-foreground"> {service.billingType === 'task' ? '/tarea' : '/hora'}</span>
                                             </p>
                                         </div>
-                                        <Button variant="ghost" size="icon" className="text-destructive opacity-0 group-hover:opacity-100" onClick={() => actions.handleDeleteService(service.id)}><Trash2 className="h-4 w-4"/></Button>
+                                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <Button variant="ghost" size="icon" onClick={() => actions.handleEditServiceClick(service)}><Edit className="h-4 w-4" /></Button>
+                                            <Button variant="ghost" size="icon" className="text-destructive" onClick={() => actions.handleDeleteService(service.id)}><Trash2 className="h-4 w-4"/></Button>
+                                        </div>
                                     </div>
                                 ))}
                             </div>
@@ -456,6 +468,41 @@ export default function TicketSettingsPageContent() {
                     Guardar Configuración General
                 </Button>
             </div>
+
+            <Dialog open={state.isServiceFormOpen} onOpenChange={actions.setIsServiceFormOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Editar Servicio</DialogTitle>
+                        <DialogDescription>Modifica los detalles del servicio del catálogo.</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label>Nombre Comercial</Label>
+                            <Input value={state.newService.name} onChange={e => actions.setNewService({...state.newService, name: e.target.value})} />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label>Tipo de Cobro</Label>
+                                <Select value={state.newService.billingType} onValueChange={(v: 'hour' | 'task') => actions.setNewService({...state.newService, billingType: v})}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="hour">Por Hora</SelectItem>
+                                        <SelectItem value="task">Por Tarea (Fijo)</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Precio Sugerido</Label>
+                                <Input type="number" value={state.newService.price || ''} onChange={e => actions.setNewService({...state.newService, price: Number(e.target.value)})} />
+                            </div>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="ghost" onClick={() => actions.setIsServiceFormOpen(false)}>Cancelar</Button>
+                        <Button onClick={actions.handleSaveServiceEdit}>Guardar Cambios</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             <Dialog open={isGeoEditOpen} onOpenChange={setGeoEditOpen}>
                 <DialogContent>

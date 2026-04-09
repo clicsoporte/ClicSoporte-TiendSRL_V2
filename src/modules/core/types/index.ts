@@ -64,6 +64,7 @@ export type SupportPackage = {
   defaultHours?: number;
   roundingMultiple: number; // In minutes (e.g., 15, 30, 60)
   graceMinutes: number; // In minutes
+  basePrice?: number; // Base commercial price for reference
 };
 
 export type Service = {

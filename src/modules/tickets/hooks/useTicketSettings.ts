@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Custom hook for managing the ticket settings page.
  */
@@ -60,12 +61,16 @@ export const useTicketSettings = () => {
     
     // States for services and packages
     const [newService, setNewService] = useState<Service>({ id: "", name: "", price: 0, billingType: 'hour' });
+    const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
+    const [isServiceFormOpen, setIsServiceFormOpen] = useState(false);
+
     const [newPackage, setNewPackage] = useState<Omit<SupportPackage, 'includedServices' | 'excludedServices'>>({ 
         id: "", 
         name: "", 
         defaultHours: 0,
         roundingMultiple: 15,
-        graceMinutes: 5
+        graceMinutes: 5,
+        basePrice: 0
     });
 
     const fetchInitialData = useCallback(async () => {
@@ -156,9 +161,27 @@ export const useTicketSettings = () => {
         const updatedCatalog = [...(companyData.servicesCatalog || []), newService];
         setCompanyData({ ...companyData, servicesCatalog: updatedCatalog });
         setNewService({ id: "", name: "", price: 0, billingType: 'hour' });
-      };
+    };
+
+    const handleEditServiceClick = (service: Service) => {
+        setNewService(service);
+        setEditingServiceId(service.id);
+        setIsServiceFormOpen(true);
+    };
+
+    const handleSaveServiceEdit = () => {
+        if (!companyData || !editingServiceId) return;
+        const updatedCatalog = (companyData.servicesCatalog || []).map(s => 
+            s.id === editingServiceId ? newService : s
+        );
+        setCompanyData({ ...companyData, servicesCatalog: updatedCatalog });
+        setNewService({ id: "", name: "", price: 0, billingType: 'hour' });
+        setEditingServiceId(null);
+        setIsServiceFormOpen(false);
+        toast({ title: "Servicio Actualizado" });
+    };
     
-      const handleDeleteService = (serviceId: string) => {
+    const handleDeleteService = (serviceId: string) => {
         if (!companyData) return;
         const updatedCatalog = (companyData.servicesCatalog || []).filter(s => s.id !== serviceId);
         const updatedPackages = (companyData.supportPackages || []).map(p => ({
@@ -167,9 +190,9 @@ export const useTicketSettings = () => {
             excludedServices: p.excludedServices.filter(sId => sId !== serviceId),
         }));
         setCompanyData({ ...companyData, servicesCatalog: updatedCatalog, supportPackages: updatedPackages });
-      };
+    };
       
-      const handleAddPackage = () => {
+    const handleAddPackage = () => {
         if (!companyData || !newPackage.id || !newPackage.name) return;
         const newPkg: SupportPackage = { 
             ...newPackage, 
@@ -177,20 +200,21 @@ export const useTicketSettings = () => {
             includedServices: [], 
             excludedServices: [],
             roundingMultiple: newPackage.roundingMultiple || 15,
-            graceMinutes: newPackage.graceMinutes || 0
+            graceMinutes: newPackage.graceMinutes || 0,
+            basePrice: newPackage.basePrice || 0
         };
         const updatedPackages = [...(companyData.supportPackages || []), newPkg];
         setCompanyData({ ...companyData, supportPackages: updatedPackages });
-        setNewPackage({ id: "", name: "", defaultHours: 0, roundingMultiple: 15, graceMinutes: 5 });
-      };
+        setNewPackage({ id: "", name: "", defaultHours: 0, roundingMultiple: 15, graceMinutes: 5, basePrice: 0 });
+    };
     
-      const handleDeletePackage = (packageId: string) => {
+    const handleDeletePackage = (packageId: string) => {
         if (!companyData) return;
         const updatedPackages = (companyData.supportPackages || []).filter(p => p.id !== packageId);
         setCompanyData({ ...companyData, supportPackages: updatedPackages });
-      };
+    };
       
-      const handlePackageServiceToggle = (packageId: string, serviceId: string, type: 'included' | 'excluded', checked: boolean) => {
+    const handlePackageServiceToggle = (packageId: string, serviceId: string, type: 'included' | 'excluded', checked: boolean) => {
         if (!companyData) return;
         const updatedPackages = (companyData.supportPackages || []).map(pkg => {
             if (pkg.id === packageId) {
@@ -300,6 +324,8 @@ export const useTicketSettings = () => {
             currentTopic,
             topicToDelete,
             newService,
+            editingServiceId,
+            isServiceFormOpen,
             newPackage,
             provinces,
             cantons,
@@ -316,6 +342,9 @@ export const useTicketSettings = () => {
             setTopicToDelete,
             resetForm,
             setNewService,
+            setIsServiceFormOpen,
+            handleEditServiceClick,
+            handleSaveServiceEdit,
             setNewPackage,
             handleAddService,
             handleDeleteService,
