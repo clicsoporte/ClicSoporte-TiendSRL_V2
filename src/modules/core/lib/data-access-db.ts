@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Server-side functions for accessing master data like customers, products, etc.
  * Separated to avoid circular dependencies.
@@ -8,6 +7,7 @@
 import { connectDb } from './db';
 import type { Product, Customer, StockInfo, Exemption } from '@/modules/core/types';
 import { logInfo, logError } from './logger';
+import { authorizeAction } from './auth-guard';
 
 /**
  * Retrieves all customers from the database.
@@ -36,9 +36,15 @@ export async function getAllCustomers(): Promise<Customer[]> {
 
 /**
  * Adds or updates a customer manually.
+ * PROTECTED: Requires customers:create or customers:update.
  */
 export async function upsertCustomer(customer: Customer): Promise<Customer> {
     const db = await connectDb();
+    
+    // Server-side audit: verify intent and permissions
+    const existing = db.prepare('SELECT id FROM customers WHERE id = ?').get(customer.id);
+    await authorizeAction(existing ? 'customers:update' : 'customers:create');
+
     try {
         const stmt = db.prepare(`
             INSERT INTO customers (
@@ -61,7 +67,6 @@ export async function upsertCustomer(customer: Customer): Promise<Customer> {
                 supportPackageId = excluded.supportPackageId, telegramChatId = excluded.telegramChatId
         `);
         
-        // Clean parameters to ensure no 'undefined' values reach SQLite
         const params = {
             id: customer.id,
             name: customer.name,
@@ -106,8 +111,10 @@ export async function upsertCustomer(customer: Customer): Promise<Customer> {
 
 /**
  * Deletes a customer.
+ * PROTECTED: Requires customers:delete.
  */
 export async function deleteCustomer(id: string): Promise<void> {
+    await authorizeAction('customers:delete');
     const db = await connectDb();
     try {
         db.prepare('DELETE FROM customers WHERE id = ?').run(id);

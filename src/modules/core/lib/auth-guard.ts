@@ -4,6 +4,7 @@
 import { redirect } from 'next/navigation';
 import { getCurrentUser } from './auth';
 import { connectDb } from './db';
+import { permissionTree } from './permissions';
 
 /**
  * Validates if the current user has a specific permission at the server level.
@@ -23,6 +24,12 @@ async function checkPermission(permission: string): Promise<boolean> {
     
     // Check direct permission or super admin
     if (permissions.includes(permission) || permissions.includes('admin:all')) return true;
+    
+    // Check hierarchy
+    for (const userPerm of permissions) {
+        const children = permissionTree[userPerm] || [];
+        if (children.includes(permission)) return true;
+    }
     
     return false;
 }
