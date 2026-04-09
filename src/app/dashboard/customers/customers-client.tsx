@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { PlusCircle, Search, Edit, Trash2, Loader2, UserPlus, Building2, Mail, Phone, Briefcase, SearchIcon, CheckCircle2, AlertCircle, MapPin, ShieldCheck, Send, RefreshCw } from 'lucide-react';
+import { PlusCircle, Search, Edit, Trash2, Loader2, UserPlus, Building2, Mail, Phone, Briefcase, SearchIcon, CheckCircle2, AlertCircle, MapPin, ShieldCheck, Send, RefreshCw, Users } from 'lucide-react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { upsertCustomer, deleteCustomer } from '@/modules/core/lib/data-access-db';
 import { getContributorInfo } from '@/modules/hacienda/lib/actions';
