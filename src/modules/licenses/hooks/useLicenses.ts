@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Custom hook for managing the state and logic of the Licenses page.
  */
@@ -10,7 +9,7 @@ import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError } from '@/modules/core/lib/logger';
 import { useAuth } from '@/modules/core/hooks/useAuth';
-import type { License, SoftwareProduct, Customer } from '@/modules/core/types';
+import type { License, SoftwareProduct } from '@/modules/core/types';
 import { 
     getLicenses as getLicensesServer, 
     addLicense as addLicenseServer,
@@ -202,7 +201,7 @@ export const useLicenses = () => {
         try {
             await deleteSoftwareProduct(id);
             updateState({ softwareProducts: state.softwareProducts.filter(p => p.id !== id) });
-            toast({ title: "Producto de Software Eliminado" });
+            toast({ title: "Producto de Software Eliminao" });
         } catch (error: unknown) {
             const err = error as { message: string };
             toast({ title: "Error", description: err.message, variant: "destructive" });

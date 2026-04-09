@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Client Component logic for managing support ticket settings.
  * Extracted to resolve ESLint and circular dependency issues.
@@ -9,7 +8,7 @@ import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useEffect, useMemo, useState } from 'react';
 import { useTicketSettings } from '@/modules/tickets/hooks/useTicketSettings';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
