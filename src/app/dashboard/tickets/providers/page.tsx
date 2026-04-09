@@ -38,6 +38,7 @@ const emptyContact: CustomerContact = {
     position: '',
     officePhone: '',
     whatsapp: '',
+    phone: '',
     branch: ''
 };
 
