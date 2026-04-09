@@ -28,6 +28,10 @@ import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 export default function LicensesPage() {
     const { state, actions, selectors } = useLicenses();
     const { hasPermission } = useAuthorization(['licenses:manage']);
+
+    const selectedSoftware = state.currentLicense.softwareId
+        ? state.softwareProducts.find(p => p.id === state.currentLicense.softwareId)
+        : null;
     
     if (state.isLoading) {
         return (
@@ -52,7 +56,7 @@ export default function LicensesPage() {
                     <div className="flex items-center justify-between">
                         <div>
                             <CardTitle>Gestión de Licencias</CardTitle>
-                            <CardDescription>Administra las licencias de software offline para tus clientes.</CardDescription>
+                            <CardDescription>Administra las licencias de software para tus clientes.</CardDescription>
                         </div>
                         <div className="flex gap-2">
                              {hasPermission('licenses:manage') && <Button variant="outline" onClick={() => actions.setIsSoftwareDialogOpen(true)}>Gestionar Software</Button>}
@@ -92,10 +96,32 @@ export default function LicensesPage() {
                                                     </div>
                                                 </div>
                                                 
-                                                <div className="space-y-2">
-                                                    <Label htmlFor="hardware-id">Hardware ID (Obligatorio para Offline)</Label>
-                                                    <Input id="hardware-id" value={state.currentLicense.hardwareId || ''} onChange={(e) => actions.handleCurrentLicenseChange('hardwareId', e.target.value)} placeholder="ID de hardware del cliente para licencias bloqueadas" required/>
-                                                </div>
+                                                {selectedSoftware && (
+                                                    selectedSoftware.isInternal ? (
+                                                        <div className="space-y-2">
+                                                            <Label htmlFor="hardware-id">Hardware ID (Software Propio)</Label>
+                                                            <Input
+                                                                id="hardware-id"
+                                                                value={state.currentLicense.hardwareId || ''}
+                                                                onChange={(e) => actions.handleCurrentLicenseChange('hardwareId', e.target.value)}
+                                                                placeholder="ID de hardware del cliente para generar la licencia"
+                                                                required
+                                                            />
+                                                        </div>
+                                                    ) : (
+                                                        <div className="space-y-2">
+                                                            <Label htmlFor="third-party-license-key">Número de Licencia (Terceros)</Label>
+                                                            <Input
+                                                                id="third-party-license-key"
+                                                                value={state.currentLicense.licenseKey || ''}
+                                                                onChange={(e) => actions.handleCurrentLicenseChange('licenseKey', e.target.value)}
+                                                                placeholder="Ingrese el número de licencia proporcionado por el fabricante"
+                                                                required
+                                                            />
+                                                        </div>
+                                                    )
+                                                )}
+
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
                                                      <div className="space-y-2">
                                                         <Label htmlFor="expiration-date">Fecha de Vencimiento</Label>
@@ -137,6 +163,7 @@ export default function LicensesPage() {
                                 <TableRow>
                                     <TableHead>Software</TableHead>
                                     <TableHead>Cliente</TableHead>
+                                    <TableHead>Detalles de Licencia</TableHead>
                                     <TableHead>Vencimiento</TableHead>
                                     <TableHead>Estado</TableHead>
                                     <TableHead className="text-right">Acciones</TableHead>
@@ -151,6 +178,13 @@ export default function LicensesPage() {
                                         <TableRow key={license.id}>
                                             <TableCell className="font-medium">{software?.name || 'Desconocido'}</TableCell>
                                             <TableCell>{client?.name || 'No asignado'}</TableCell>
+                                            <TableCell>
+                                                {software?.isInternal ? (
+                                                    <span className="text-sm text-muted-foreground">HWID: {license.hardwareId}</span>
+                                                ) : (
+                                                    <span className="font-mono text-sm">{license.licenseKey}</span>
+                                                )}
+                                            </TableCell>
                                             <TableCell>{license.isPerpetual ? 'Perpetua' : license.expirationDate ? format(parseISO(license.expirationDate), 'dd/MM/yyyy') : 'N/A'}</TableCell>
                                             <TableCell><Badge variant={variant}>{label}</Badge></TableCell>
                                             <TableCell className="text-right">
@@ -158,7 +192,7 @@ export default function LicensesPage() {
                                                     <DropdownMenu>
                                                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4"/></Button></DropdownMenuTrigger>
                                                         <DropdownMenuContent align="end">
-                                                            <DropdownMenuItem onSelect={() => actions.downloadLicenseFile(license)}>
+                                                            <DropdownMenuItem onSelect={() => actions.downloadLicenseFile(license)} disabled={!software?.isInternal}>
                                                                 <Download className="mr-2 h-4 w-4" />Descargar Licencia
                                                             </DropdownMenuItem>
                                                             {hasPermission('licenses:manage') && <DropdownMenuItem onSelect={() => actions.handleEditLicense(license)}><Edit className="mr-2 h-4 w-4"/>Editar</DropdownMenuItem>}
@@ -172,8 +206,7 @@ export default function LicensesPage() {
                                 })}
                                 {selectors.filteredLicenses.length === 0 && (
                                     <TableRow><TableCell colSpan={6} className="h-24 text-center">No hay licencias que coincidan con los filtros.</TableCell></TableRow>
-                                )}
-                            </TableBody>
+                                )}</TableBody>
                         </Table>
                     </div>
                 </CardContent>

@@ -22,15 +22,21 @@ export const getLicenses = async (): Promise<License[]> => {
     return JSON.parse(JSON.stringify(licenses));
 }
 
-export async function addLicense(license: Omit<License, 'id' | 'createdAt' | 'licenseKey'>): Promise<License> {
+/**
+ * Adds a new license record.
+ */
+export async function addLicense(license: Omit<License, 'id' | 'createdAt'>): Promise<License> {
     const newLicense = await addLicenseServer(license);
-    await logInfo('New offline license created', { softwareId: newLicense.softwareId, clientCompanyId: newLicense.clientCompanyId });
+    await logInfo('License record created', { softwareId: newLicense.softwareId, clientCompanyId: newLicense.clientCompanyId });
     return JSON.parse(JSON.stringify(newLicense));
 }
 
+/**
+ * Updates an existing license record.
+ */
 export async function updateLicense(license: License): Promise<License> {
     const updatedLicense = await updateLicenseServer(license);
-    await logInfo('Offline license updated', { licenseId: updatedLicense.id });
+    await logInfo('License record updated', { licenseId: updatedLicense.id });
     return JSON.parse(JSON.stringify(updatedLicense));
 }
 

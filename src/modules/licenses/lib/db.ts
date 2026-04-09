@@ -18,60 +18,102 @@ export async function getLicenses(): Promise<License[]> {
     return JSON.parse(JSON.stringify(results));
 }
 
-export async function addLicense(licenseData: Omit<License, 'id' | 'createdAt' | 'licenseKey'>): Promise<License> {
+/**
+ * Adds a new license.
+ * Handles different logic for Internal vs Third-Party software.
+ */
+export async function addLicense(licenseData: Omit<License, 'id' | 'createdAt'>): Promise<License> {
     const db = await connectLicensesDb();
-    if (!licenseData.hardwareId) throw new Error("El Hardware ID es obligatorio.");
     
-    const licenseInfo = {
-        softwareId: licenseData.softwareId,
-        clientCompanyId: licenseData.clientCompanyId,
-        hardwareId: licenseData.hardwareId,
-        isPerpetual: licenseData.isPerpetual,
-        expirationDate: licenseData.expirationDate,
-        createdAt: new Date().toISOString(),
-    };
+    // Fetch software info to check if it's internal
+    const software = db.prepare('SELECT isInternal FROM software_products WHERE id = ?').get(licenseData.softwareId) as { isInternal: number } | undefined;
+    
+    if (!software) throw new Error("Producto de software no encontrado.");
 
-    const signedLicenseJson = await signLicenseData(licenseInfo);
+    let licenseKey = licenseData.licenseKey;
+    let hardwareId = licenseData.hardwareId || null;
+    const now = new Date().toISOString();
+
+    if (software.isInternal) {
+        if (!hardwareId) throw new Error("El Hardware ID es obligatorio para software propio.");
+        
+        const licenseInfo = {
+            softwareId: licenseData.softwareId,
+            clientCompanyId: licenseData.clientCompanyId,
+            hardwareId: hardwareId,
+            isPerpetual: licenseData.isPerpetual,
+            expirationDate: licenseData.expirationDate,
+            createdAt: now,
+        };
+
+        // Generate signed license file content for internal software
+        licenseKey = await signLicenseData(licenseInfo);
+    } else {
+        // For 3rd party, use the provided license key directly and clear HWID
+        if (!licenseKey) throw new Error("El número de licencia es obligatorio para software de terceros.");
+        hardwareId = null;
+    }
+
     const info = db.prepare(`
         INSERT INTO licenses (licenseKey, softwareId, clientCompanyId, hardwareId, isPerpetual, expirationDate, status, createdAt)
         VALUES (@licenseKey, @softwareId, @clientCompanyId, @hardwareId, @isPerpetual, @expirationDate, @status, @createdAt)
     `).run({
-        licenseKey: signedLicenseJson,
+        licenseKey,
         softwareId: licenseData.softwareId,
         clientCompanyId: licenseData.clientCompanyId,
-        hardwareId: licenseData.hardwareId,
+        hardwareId,
         isPerpetual: licenseData.isPerpetual ? 1 : 0,
-        expirationDate: licenseData.expirationDate,
+        expirationDate: licenseData.expirationDate || null,
         status: 'active',
-        createdAt: licenseInfo.createdAt
+        createdAt: now
     });
 
     return db.prepare('SELECT * FROM licenses WHERE id = ?').get(info.lastInsertRowid) as License;
 }
 
+/**
+ * Updates an existing license.
+ * Re-signs the key if it's internal software.
+ */
 export async function updateLicense(license: License): Promise<License> {
     const db = await connectLicensesDb();
-    if (!license.hardwareId) throw new Error("El Hardware ID es obligatorio.");
+    
+    const software = db.prepare('SELECT isInternal FROM software_products WHERE id = ?').get(license.softwareId) as { isInternal: number } | undefined;
+    if (!software) throw new Error("Producto de software no encontrado.");
 
-    const licenseInfo = {
-        softwareId: license.softwareId,
-        clientCompanyId: license.clientCompanyId,
-        hardwareId: license.hardwareId,
-        isPerpetual: license.isPerpetual,
-        expirationDate: license.expirationDate,
-        createdAt: license.createdAt,
-    };
+    let licenseKey = license.licenseKey;
+    let hardwareId = license.hardwareId || null;
 
-    const signedLicenseJson = await signLicenseData(licenseInfo);
+    if (software.isInternal) {
+        if (!hardwareId) throw new Error("El Hardware ID es obligatorio para software propio.");
+        
+        // Re-generate the signed license because dates or parameters might have changed
+        const licenseInfo = {
+            softwareId: license.softwareId,
+            clientCompanyId: license.clientCompanyId,
+            hardwareId: hardwareId,
+            isPerpetual: license.isPerpetual,
+            expirationDate: license.expirationDate,
+            createdAt: license.createdAt, // Preserve original creation date
+        };
+
+        licenseKey = await signLicenseData(licenseInfo);
+    } else {
+        if (!licenseKey) throw new Error("El número de licencia es obligatorio para software de terceros.");
+        hardwareId = null;
+    }
+
     db.prepare(`
         UPDATE licenses SET licenseKey = @licenseKey, softwareId = @softwareId, clientCompanyId = @clientCompanyId,
             hardwareId = @hardwareId, isPerpetual = @isPerpetual, expirationDate = @expirationDate, status = @status
         WHERE id = @id
     `).run({
         ...license,
-        licenseKey: signedLicenseJson,
+        licenseKey,
+        hardwareId,
         isPerpetual: license.isPerpetual ? 1 : 0,
     });
+    
     return db.prepare('SELECT * FROM licenses WHERE id = ?').get(license.id) as License;
 }
 

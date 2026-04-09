@@ -28,6 +28,7 @@ const emptyLicense: Partial<License> = {
     softwareId: 0,
     clientCompanyId: null,
     hardwareId: '',
+    licenseKey: '',
     isPerpetual: false,
     expirationDate: '',
     status: 'active',
@@ -90,7 +91,7 @@ export const useLicenses = () => {
         }
     }, [isAuthorized, loadInitialData, setTitle]);
 
-    const handleCurrentLicenseChange = (field: keyof typeof emptyLicense, value: string | number | boolean | null) => {
+    const handleCurrentLicenseChange = (field: keyof License, value: string | number | boolean | null) => {
         updateState({ currentLicense: { ...state.currentLicense, [field]: value } });
     };
     
@@ -109,25 +110,55 @@ export const useLicenses = () => {
     };
 
     const handleSaveLicense = async () => {
-        if (!state.currentLicense.softwareId || !state.currentLicense.clientCompanyId) {
+        const { currentLicense, softwareProducts, isEditing } = state;
+
+        const selectedSoftware = currentLicense.softwareId
+            ? softwareProducts.find(p => p.id === currentLicense.softwareId)
+            : null;
+
+        if (!currentLicense.softwareId || !currentLicense.clientCompanyId) {
             toast({ title: "Datos incompletos", description: "Debe seleccionar un cliente y un producto de software.", variant: "destructive" });
             return;
         }
+
+        if (selectedSoftware?.isInternal && !currentLicense.hardwareId) {
+            toast({ title: "Datos incompletos", description: "El Hardware ID es obligatorio para el software propio.", variant: "destructive" });
+            return;
+        }
+
+        if (!selectedSoftware?.isInternal && !currentLicense.licenseKey) {
+            toast({ title: "Datos incompletos", description: "El número de licencia es obligatorio para el software de terceros.", variant: "destructive" });
+            return;
+        }
+
         updateState({ isSubmitting: true });
+
+        const licensePayload = { ...currentLicense };
+        if(selectedSoftware?.isInternal) {
+            // For internal software, the server will generate the key.
+            // If we are creating a new one, we make sure the key is not sent.
+            if (!isEditing) {
+                delete licensePayload.licenseKey;
+            }
+        } else {
+            // For third-party software, hardwareId is irrelevant.
+            licensePayload.hardwareId = null;
+        }
+
         try {
-            if (state.isEditing && 'id' in state.currentLicense) {
-                const updated = await updateLicenseServer(state.currentLicense as License);
+            if (isEditing && 'id' in licensePayload) {
+                const updated = await updateLicenseServer(licensePayload as License);
                 updateState({ licenses: state.licenses.map(l => l.id === updated.id ? updated : l) });
                 toast({ title: "Licencia Actualizada" });
             } else {
-                const newLicense = await addLicenseServer(state.currentLicense as Omit<License, 'id' | 'createdAt' | 'licenseKey'>);
+                const newLicense = await addLicenseServer(licensePayload as Omit<License, 'id' | 'createdAt'>);
                 updateState({ licenses: [newLicense, ...state.licenses] });
                 toast({ title: "Licencia Creada" });
             }
             updateState({ isFormOpen: false, currentLicense: emptyLicense, isEditing: false, companySearchTerm: '' });
         } catch (error: unknown) {
             const err = error as { message: string };
-            logError('Failed to save license', { error: err.message });
+            logError('Failed to save license', { error: err.message, currentLicense: licensePayload });
             toast({ title: "Error al Guardar", description: err.message, variant: "destructive" });
         } finally {
             updateState({ isSubmitting: false });
@@ -212,13 +243,18 @@ export const useLicenses = () => {
     };
     
     const downloadLicenseFile = (license: License) => {
-        const blob = new Blob([license.licenseKey], { type: 'application/json' });
+        const software = state.softwareProducts.find(p => p.id === license.softwareId);
+        if (!software || !software.isInternal) {
+            toast({ title: "Operación no permitida", description: "Solo se pueden descargar archivos de licencia para software propio.", variant: "destructive" });
+            return;
+        }
+        const blob = new Blob([license.licenseKey], { type: 'text/plain' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        const softwareName = state.softwareProducts.find(p => p.id === license.softwareId)?.name.replace(/\s+/g, '_') || 'software';
+        const softwareName = software.name.replace(/\s+/g, '_') || 'software';
         const clientName = state.clientCompanies.find(c => c.id === license.clientCompanyId)?.name.replace(/\s+/g, '_') || 'cliente';
-        a.download = `license_${softwareName}_${clientName}.json`;
+        a.download = `license_${softwareName}_${clientName}.lic`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
