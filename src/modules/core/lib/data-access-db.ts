@@ -44,12 +44,12 @@ export async function upsertCustomer(customer: Customer): Promise<Customer> {
             INSERT INTO customers (
                 id, name, commercialName, address, phone, taxId, currency, creditLimit, paymentCondition, salesperson, active, email, electronicDocEmail, isManual, contacts,
                 taxRegime, taxStatus, isTaxMoroso, isTaxOmiso, taxAdministration, taxActivities,
-                provinceId, cantonId, districtId
+                provinceId, cantonId, districtId, supportPackageId, telegramChatId
             )
             VALUES (
                 @id, @name, @commercialName, @address, @phone, @taxId, @currency, @creditLimit, @paymentCondition, @salesperson, @active, @email, @electronicDocEmail, 1, @contacts,
                 @taxRegime, @taxStatus, @isTaxMoroso, @isTaxOmiso, @taxAdministration, @taxActivities,
-                @provinceId, @cantonId, @districtId
+                @provinceId, @cantonId, @districtId, @supportPackageId, @telegramChatId
             )
             ON CONFLICT(id) DO UPDATE SET
                 name = excluded.name, commercialName = excluded.commercialName, address = excluded.address, phone = excluded.phone, taxId = excluded.taxId, currency = excluded.currency,
@@ -57,7 +57,8 @@ export async function upsertCustomer(customer: Customer): Promise<Customer> {
                 email = excluded.email, electronicDocEmail = excluded.electronicDocEmail, contacts = excluded.contacts,
                 taxRegime = excluded.taxRegime, taxStatus = excluded.taxStatus, isTaxMoroso = excluded.isTaxMoroso, isTaxOmiso = excluded.isTaxOmiso,
                 taxAdministration = excluded.taxAdministration, taxActivities = excluded.taxActivities,
-                provinceId = excluded.provinceId, cantonId = excluded.cantonId, districtId = excluded.districtId
+                provinceId = excluded.provinceId, cantonId = excluded.cantonId, districtId = excluded.districtId,
+                supportPackageId = excluded.supportPackageId, telegramChatId = excluded.telegramChatId
         `);
         
         // Clean parameters to ensure no 'undefined' values reach SQLite
@@ -84,7 +85,9 @@ export async function upsertCustomer(customer: Customer): Promise<Customer> {
             taxActivities: customer.taxActivities || '[]',
             provinceId: customer.provinceId || null,
             cantonId: customer.cantonId || null,
-            districtId: customer.districtId || null
+            districtId: customer.districtId || null,
+            supportPackageId: customer.supportPackageId || null,
+            telegramChatId: customer.telegramChatId || null
         };
 
         stmt.run(params);
