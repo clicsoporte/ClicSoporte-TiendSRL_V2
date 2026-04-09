@@ -1,4 +1,3 @@
-
 'use client';
 
 /**
@@ -119,17 +118,20 @@ export const useTickets = () => {
     const validateCoverage = useCallback((serviceId: string | null, contract: Contract | null, customerId: string | null) => {
         if (!serviceId) return { isBillable: false, message: 'Seleccione un servicio para validar cobertura.' };
         
+        const service = companyData?.servicesCatalog.find(s => s.id === serviceId);
+        const priceLabel = service ? ` (Tarifa: ¢${(service.price || 0).toLocaleString()} ${service.billingType === 'task' ? '/tarea' : '/hora'})` : '';
+
         // Priority 1: Check active contract
         if (contract) {
             if (contract.includedServices.includes(serviceId)) {
                 return { isBillable: false, message: `Servicio cubierto por CONTRATO VIGENTE: ${contract.name}` };
             }
             if (contract.excludedServices.includes(serviceId)) {
-                return { isBillable: true, message: `Servicio EXCLUIDO del contrato. Se generará cobro adicional.` };
+                return { isBillable: true, message: `Servicio EXCLUIDO del contrato. Se generará cobro adicional${priceLabel}.` };
             }
         } else if (customerId) {
             // Check for customer without any active contract
-            return { isBillable: true, message: '¡ATENCIÓN! El cliente NO tiene contrato vigente. El servicio es de ALTO RIESGO FINANCIERO.' };
+            return { isBillable: true, message: `¡ATENCIÓN! El cliente NO tiene contrato vigente. El servicio es de ALTO RIESGO FINANCIERO${priceLabel}.` };
         }
 
         // Priority 2: Check support package linked to customer profile
@@ -142,13 +144,13 @@ export const useTickets = () => {
                         return { isBillable: false, message: `Servicio cubierto por PLAN MENSUAL: ${pkg.name}` };
                     }
                     if (pkg.excludedServices.includes(serviceId)) {
-                        return { isBillable: true, message: `Servicio NO INCLUIDO en el plan ${pkg.name}. Se generará cobro.` };
+                        return { isBillable: true, message: `Servicio NO INCLUIDO en el plan ${pkg.name}. Se generará cobro${priceLabel}.` };
                     }
                 }
             }
         }
 
-        return { isBillable: true, message: 'Sin cobertura detectada. FACTURABLE.' };
+        return { isBillable: true, message: `Sin cobertura detectada. FACTURABLE${priceLabel}.` };
     }, [customers, companyData]);
 
     const handleNewTicketChange = useCallback((field: keyof NewTicketPayload, value: string | number | boolean | null) => {
