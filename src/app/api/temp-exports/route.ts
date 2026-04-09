@@ -1,6 +1,6 @@
 /**
- * @fileoverview API Route to safely serve temporary export files.
- * Marked as force-dynamic to prevent build-time static generation errors.
+ * @fileoverview API Route to safely serve and delete temporary export files.
+ * Consolidated as the primary export endpoint.
  */
 
 import { NextRequest, NextResponse } from 'next/server';

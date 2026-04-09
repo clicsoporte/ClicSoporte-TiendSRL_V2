@@ -1,6 +1,6 @@
 /**
- * @fileoverview API Route to safely serve temporary backup files.
- * Marked as force-dynamic to prevent build-time static generation errors.
+ * @fileoverview API Route to safely serve temporary backup files for download.
+ * Consolidated as the primary download endpoint.
  */
 
 import { NextRequest, NextResponse } from 'next/server';

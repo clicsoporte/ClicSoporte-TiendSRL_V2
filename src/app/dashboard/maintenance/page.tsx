@@ -372,7 +372,7 @@ export default function MaintenancePage() {
                                                             {format(parseISO(b.date), "dd/MM/yyyy HH:mm:ss", { locale: es })}
                                                         </p>
                                                     </div>
-                                                    <a href={`/routes/temp-backups?file=${encodeURIComponent(b.fileName)}`} download={b.fileName}>
+                                                    <a href={`/api/temp-backups?file=${encodeURIComponent(b.fileName)}`} download={b.fileName}>
                                                         <Button variant="ghost" size="icon"><Download className="h-4 w-4"/></Button>
                                                     </a>
                                                 </div>
