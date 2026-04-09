@@ -27,7 +27,7 @@ export const getLicenses = async (): Promise<License[]> => {
  */
 export async function addLicense(license: Omit<License, 'id' | 'createdAt'>): Promise<License> {
     const newLicense = await addLicenseServer(license);
-    await logInfo('License record created', { softwareId: newLicense.softwareId, clientCompanyId: newLicense.clientCompanyId });
+    await logInfo('License record created', { softwareId: newLicense.softwareId, customerId: newLicense.customerId });
     return JSON.parse(JSON.stringify(newLicense));
 }
 
