@@ -10,6 +10,7 @@ import { getInitialAuthData } from '../lib/auth';
 import { getNotifications, markNotificationsAsRead } from "@/modules/notifications/lib/db";
 import { useRouter, usePathname } from "next/navigation";
 import { Loader2 } from "lucide-react";
+import { checkPermissionInTree } from "../lib/permissions";
 
 interface AuthContextType {
   user: User | null;
@@ -114,8 +115,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
 
   const hasPermission = useCallback((permission: string): boolean => {
     if (!userRole) return false;
-    if (userRole.id === 'admin') return true;
-    return userRole.permissions.includes(permission) || userRole.permissions.includes('admin:all');
+    return checkPermissionInTree(userRole.permissions, permission);
   }, [userRole]);
 
   const markAsRead = async (ids: (number|string)[]) => {

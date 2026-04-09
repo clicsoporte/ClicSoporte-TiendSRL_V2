@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Server-side functions for the planner module.
  * Unified into intratool.db. Handles TI project tracking and materials.
@@ -8,6 +7,7 @@
 import type { Database } from 'better-sqlite3';
 import { connectDb } from '@/modules/core/lib/db';
 import { logError } from '@/modules/core/lib/logger';
+import { authorizeAction } from '@/modules/core/lib/auth-guard';
 import type { TIProject, ProjectAdvance, ProjectAttachment, ProjectItem, PlannerSettings } from '../../core/types';
 
 export async function connectPlannerDb(): Promise<Database> {
@@ -53,6 +53,7 @@ export async function getSettings(): Promise<PlannerSettings> {
 }
 
 export async function saveSettings(settings: Partial<PlannerSettings>): Promise<void> {
+    await authorizeAction('admin:settings:planner');
     const db = await connectPlannerDb();
     const upsert = db.prepare('INSERT OR REPLACE INTO planner_settings (key, value) VALUES (?, ?)');
     Object.entries(settings).forEach(([key, value]) => {
@@ -74,6 +75,7 @@ export async function getProjectById(id: number): Promise<TIProject | null> {
 }
 
 export async function addProject(project: Omit<TIProject, 'id' | 'consecutive' | 'createdAt' | 'updatedAt' | 'billingStatus'>): Promise<TIProject> {
+    await authorizeAction('planner:create');
     try {
         const db = await connectPlannerDb();
         const settings = await getSettings();
@@ -107,7 +109,6 @@ export async function addProject(project: Omit<TIProject, 'id' | 'consecutive' |
 
             const projectId = Number(info.lastInsertRowid);
 
-            // Handle subcontractors
             if (project.subcontractorIds && project.subcontractorIds.length > 0) {
                 const insertSub = db.prepare('INSERT INTO project_subcontractors (projectId, providerId) VALUES (?, ?)');
                 for (const subId of project.subcontractorIds) {
@@ -132,6 +133,8 @@ export async function addProject(project: Omit<TIProject, 'id' | 'consecutive' |
 }
 
 export async function updateProject(project: TIProject): Promise<TIProject> {
+    // Dynamic status check could be added here for even more granularity
+    await authorizeAction('planner:read'); 
     const db = await connectPlannerDb();
     const now = new Date().toISOString();
 
@@ -159,7 +162,6 @@ export async function updateProject(project: TIProject): Promise<TIProject> {
             project.id
         );
 
-        // Sync subcontractors
         db.prepare('DELETE FROM project_subcontractors WHERE projectId = ?').run(project.id);
         const insertSub = db.prepare('INSERT INTO project_subcontractors (projectId, providerId) VALUES (?, ?)');
         if (project.subcontractorIds) {
@@ -190,6 +192,7 @@ export async function getProjectAdvances(projectId: number): Promise<ProjectAdva
 }
 
 export async function addProjectAdvance(advance: Omit<ProjectAdvance, 'id' | 'timestamp'>): Promise<ProjectAdvance> {
+    await authorizeAction('planner:read'); // If you can read, you can log advances
     const db = await connectPlannerDb();
     const now = new Date().toISOString();
     const info = db.prepare(`INSERT INTO project_advances (projectId, timestamp, content, userId, userName) VALUES (?, ?, ?, ?, ?)`).run(advance.projectId, now, advance.content, advance.userId, advance.userName);
@@ -222,6 +225,7 @@ export async function getProjectAttachments(projectId: number): Promise<ProjectA
 }
 
 export async function addProjectAttachment(attachment: Omit<ProjectAttachment, 'id' | 'createdAt'>): Promise<ProjectAttachment> {
+    await authorizeAction('planner:read');
     const db = await connectPlannerDb();
     const now = new Date().toISOString();
     const info = db.prepare(`INSERT INTO project_attachments (projectId, name, fileName, fileType, data, uploadedBy, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)`).run(attachment.projectId, attachment.name, attachment.fileName, attachment.fileType, attachment.data, attachment.uploadedBy, now);
@@ -254,6 +258,7 @@ export async function getProjectItems(projectId: number): Promise<ProjectItem[]>
 }
 
 export async function saveProjectItem(item: Omit<ProjectItem, 'id'>): Promise<ProjectItem> {
+    await authorizeAction('planner:read');
     const db = await connectPlannerDb();
     const info = db.prepare(`INSERT INTO project_items (projectId, description, quantity, unitPrice, type) VALUES (?, ?, ?, ?, ?)`).run(item.projectId, item.description, item.quantity, item.unitPrice, item.type);
     const row = db.prepare('SELECT * FROM project_items WHERE id = ?').get(info.lastInsertRowid) as Record<string, unknown>;
@@ -269,6 +274,7 @@ export async function saveProjectItem(item: Omit<ProjectItem, 'id'>): Promise<Pr
 }
 
 export async function deleteProjectItem(id: number): Promise<void> {
+    await authorizeAction('planner:read');
     const db = await connectPlannerDb();
     db.prepare('DELETE FROM project_items WHERE id = ?').run(id);
 }

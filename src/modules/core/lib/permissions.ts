@@ -54,7 +54,6 @@ export type AppPermission = string;
 
 /**
  * Defines the hierarchical relationship between permissions.
- * If a user has a parent permission, they automatically inherit the child permissions.
  */
 export const permissionTree: Record<string, string[]> = {
   'admin:all': [
@@ -76,24 +75,42 @@ export const permissionTree: Record<string, string[]> = {
   'cost-assistant:access': ['cost-assistant:view', 'cost-assistant:process']
 };
 
+/**
+ * Pure recursive function to check if a set of permissions contains a specific one, 
+ * respecting the defined hierarchy.
+ */
+export function checkPermissionInTree(userPermissions: string[], permissionToSearch: string): boolean {
+    if (userPermissions.includes('admin:all') || userPermissions.includes('admin')) return true;
+    if (userPermissions.includes(permissionToSearch)) return true;
+
+    const memo = new Set<string>();
+    const search = (perms: string[]): boolean => {
+        for (const p of perms) {
+            if (p === permissionToSearch) return true;
+            if (memo.has(p)) continue;
+            memo.add(p);
+            
+            const children = permissionTree[p] || [];
+            if (children.includes(permissionToSearch)) return true;
+            if (search(children)) return true;
+        }
+        return false;
+    };
+
+    return search(userPermissions);
+}
+
 export const permissionTranslations: Record<string, string> = {
-  // Acceso General
   "dashboard:access": "Acceso al Panel Principal",
-  
-  // Cotizador
   "quotes:create": "Cotizador: Crear Proformas",
   "quotes:generate": "Cotizador: Generar PDF",
   "quotes:drafts:create": "Cotizador: Guardar Borradores",
   "quotes:drafts:read": "Cotizador: Ver Borradores",
   "quotes:drafts:delete": "Cotizador: Borrar Borradores",
-
-  // Asistente de Costos
   "cost-assistant:view": "Asistente Costos: Ver Módulo",
   "cost-assistant:process": "Asistente Costos: Procesar XML",
   "cost-assistant:margins": "Asistente Costos: Editar Márgenes",
   "cost-assistant:export": "Asistente Costos: Exportar Excel",
-
-  // Soporte Técnico
   "tickets:create": "Tickets: Abrir Casos",
   "tickets:read:all": "Tickets: Ver Todos los Casos",
   "tickets:reply": "Tickets: Responder / Notas",
@@ -101,48 +118,30 @@ export const permissionTranslations: Record<string, string> = {
   "tickets:time-tracking": "Tickets: Control de Tiempo",
   "tickets:delete": "Tickets: Eliminar",
   "tickets:admin:settings": "Tickets: Configuración Avanzada",
-
-  // Clientes
   "customers:read": "Clientes: Ver Listado",
   "customers:create": "Clientes: Crear Nuevo",
   "customers:update": "Clientes: Editar Datos",
   "customers:delete": "Clientes: Eliminar",
   "customers:update:plan": "Clientes: Cambiar Plan de Soporte",
-
-  // Contratos
   "contracts:read": "Contratos: Ver Listado",
   "contracts:create": "Contratos: Crear Nuevo",
   "contracts:update": "Contratos: Editar / Renovar",
   "contracts:delete": "Contratos: Eliminar",
-
-  // Proveedores
   "providers:read": "Proveedores: Ver Catálogo",
   "providers:manage": "Proveedores: Gestionar Tarifas",
   "view:provider:costs": "Supervisor: Ver Costos y Utilidad",
-
-  // Facturación
   "billing:manage": "Facturación: Auditar y Conciliar",
-
-  // Licencias
   "licenses:read": "Licencias: Ver Listado",
   "licenses:manage": "Licencias: Crear / Editar",
   "licenses:admin:keys": "Licencias: Gestión de Claves",
-
-  // Proyectos TI
   "planner:read": "Proyectos: Ver Listado",
   "planner:create": "Proyectos: Crear Nuevo",
   "planner:status:approve": "Proyectos: Aprobar Fases",
   "planner:status:in-progress": "Proyectos: Iniciar Ejecución",
   "planner:status:completed": "Proyectos: Finalizar",
   "planner:priority:update": "Proyectos: Cambiar Prioridad",
-
-  // Hacienda
   "hacienda:query": "Hacienda: Consultas de Contribuyentes",
-
-  // Analíticas
   "analytics:read": "Analíticas: Ver Reportes Gerenciales",
-
-  // Usuarios y Roles
   "users:read": "Usuarios: Ver Listado",
   "users:create": "Usuarios: Crear Nuevo",
   "users:update": "Usuarios: Editar / Clave",
@@ -151,8 +150,6 @@ export const permissionTranslations: Record<string, string> = {
   "roles:create": "Roles: Crear Nuevo",
   "roles:update": "Roles: Editar Permisos",
   "roles:delete": "Roles: Eliminar",
-
-  // Administración Sistema
   "admin:settings:general": "Admin: Configuración Empresa",
   "admin:settings:api": "Admin: Enlaces API",
   "admin:settings:planner": "Admin: Ajustes Proyectos",
@@ -161,7 +158,5 @@ export const permissionTranslations: Record<string, string> = {
   "admin:import:run": "Admin: Sincronizar con ERP",
   "admin:logs:read": "Admin: Ver Logs del Sistema",
   "admin:maintenance:backup": "Admin: Gestión de Backups",
-  
-  // Super Admin
   "admin:all": "Administrador Total (Control Total)"
 };

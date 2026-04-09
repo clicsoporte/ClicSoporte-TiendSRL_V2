@@ -1,11 +1,12 @@
 /**
  * @fileoverview Server-side functions for the contracts module.
- * Now unified into intratool.db.
+ * Unified into intratool.db.
  */
 "use server";
 
 import type { Database } from 'better-sqlite3';
 import { connectDb } from '@/modules/core/lib/db';
+import { authorizeAction } from '@/modules/core/lib/auth-guard';
 import type { Contract } from '@/modules/core/types';
 import { addDays, parseISO, differenceInCalendarDays, format } from 'date-fns';
 
@@ -32,6 +33,7 @@ export async function getContracts(customerId?: string): Promise<Contract[]> {
 }
 
 export async function addContract(contractData: Omit<Contract, 'id' | 'consecutive' | 'createdAt'>): Promise<Contract> {
+    await authorizeAction('contracts:create');
     const db = await connectContractsDb();
     const prefixRow = db.prepare("SELECT value FROM contract_settings WHERE key = 'contractPrefix'").get() as { value: string } | undefined;
     const numberRow = db.prepare("SELECT value FROM contract_settings WHERE key = 'nextContractNumber'").get() as { value: string } | undefined;
@@ -69,6 +71,7 @@ export async function addContract(contractData: Omit<Contract, 'id' | 'consecuti
 }
 
 export async function updateContract(contract: Contract): Promise<Contract> {
+    await authorizeAction('contracts:update');
     const db = await connectContractsDb();
     db.prepare(`
         UPDATE contracts SET
@@ -85,6 +88,7 @@ export async function updateContract(contract: Contract): Promise<Contract> {
 }
 
 export async function deleteContract(id: number): Promise<void> {
+    await authorizeAction('contracts:delete');
     const db = await connectContractsDb();
     db.prepare('DELETE FROM contracts WHERE id = ?').run(id);
 }
@@ -109,6 +113,7 @@ export async function getActiveContractForCustomer(customerId: string): Promise<
 }
 
 export async function autoRenewContract(contractId: number): Promise<Contract> {
+    // This is a system task, usually called by scheduler, but we verify active session just in case
     const db = await connectContractsDb();
     const old = db.prepare('SELECT * FROM contracts WHERE id = ?').get(contractId) as {
         name: string; customerId: string; startDate: string; endDate: string;

@@ -8,11 +8,11 @@ import type { Database } from 'better-sqlite3';
 import { connectDb } from '@/modules/core/lib/db';
 import { logError } from '@/modules/core/lib/logger';
 import { getCompanySettings } from '@/modules/core/lib/settings-db';
+import { authorizeAction } from '@/modules/core/lib/auth-guard';
 import type { Ticket, NewTicketPayload, User, TicketThread, HelpTopic, ClientCompany, SupportPackage, Service, ThirdPartyProvider, ProviderService, ProviderGeoRate, Province, Canton, District } from '@/modules/core/types';
 
 /**
  * Interface representing a Ticket row as it comes from the database.
- * SQLite stores booleans as integers (0 or 1).
  */
 interface DbTicketRow extends Omit<Ticket, 'isBillable' | 'hasActiveTimer' | 'totalDuration'> {
     isBillable: number;
@@ -31,6 +31,7 @@ async function getNextTicketNumberInternal(db: Database): Promise<{ prefix: stri
 }
 
 export async function addTicket(payload: NewTicketPayload, user: User): Promise<Ticket> {
+    await authorizeAction('tickets:create');
     try {
         const db = await connectTicketsDb();
         const { prefix, number } = await getNextTicketNumberInternal(db);
@@ -77,6 +78,7 @@ export async function addTicket(payload: NewTicketPayload, user: User): Promise<
 }
 
 export async function addClientCompany(payload: Omit<ClientCompany, 'id' | 'createdAt'>): Promise<ClientCompany> {
+    await authorizeAction('tickets:admin:settings');
     const db = await connectTicketsDb();
     const now = new Date().toISOString();
     const info = db.prepare(`INSERT INTO client_companies (name, taxId, address, phone, email, createdAt) VALUES (@name, @taxId, @address, @phone, @email, @createdAt)`).run({ ...payload, createdAt: now });
@@ -84,12 +86,14 @@ export async function addClientCompany(payload: Omit<ClientCompany, 'id' | 'crea
 }
 
 export async function updateClientCompany(payload: ClientCompany): Promise<ClientCompany> {
+    await authorizeAction('tickets:admin:settings');
     const db = await connectTicketsDb();
     db.prepare(`UPDATE client_companies SET name = @name, taxId = @taxId, address = @address, phone = @phone, email = @email WHERE id = @id`).run(payload);
     return payload;
 }
 
 export async function deleteClientCompany(id: number): Promise<void> {
+    await authorizeAction('tickets:admin:settings');
     const db = await connectTicketsDb();
     db.prepare('DELETE FROM client_companies WHERE id = ?').run(id);
 }
@@ -132,6 +136,8 @@ export async function getTicketThread(ticketId: number): Promise<TicketThread[]>
 }
 
 export async function addThreadEntry(payload: { ticketId: number; userId: number; userName: string; content: string; type: 'message' | 'note' | 'status_change' }): Promise<TicketThread> {
+    // Basic verification: user must have permission to reply
+    await authorizeAction('tickets:reply');
     const db = await connectTicketsDb();
     const now = new Date().toISOString();
     const info = db.prepare(`INSERT INTO ticket_threads (ticketId, userId, userName, type, content, createdAt) VALUES (?, ?, ?, ?, ?, ?)`).run(payload.ticketId, payload.userId, payload.userName, payload.type, payload.content, now);
@@ -140,6 +146,7 @@ export async function addThreadEntry(payload: { ticketId: number; userId: number
 }
 
 export async function updateTicketDetails(ticketId: number, updates: Partial<Pick<Ticket, 'status' | 'priority' | 'assigneeId' | 'isBillable' | 'providerId'>>, user: User): Promise<Ticket> {
+    await authorizeAction('tickets:manage');
     const db = await connectTicketsDb();
     const currentTicket = db.prepare('SELECT * FROM tickets WHERE id = ?').get(ticketId) as DbTicketRow;
     if (!currentTicket) throw new Error("Ticket not found.");
@@ -156,7 +163,6 @@ export async function updateTicketDetails(ticketId: number, updates: Partial<Pic
             params.push(updates.status);
             notes.push(`Estado: ${updates.status}`);
 
-            // 1. If moving TO in_progress, start a new timer entry if none exists
             if (updates.status === 'in_progress') {
                 const running = db.prepare('SELECT id FROM time_entries WHERE ticketId = ? AND endTime IS NULL').get(ticketId);
                 if (!running) {
@@ -167,7 +173,6 @@ export async function updateTicketDetails(ticketId: number, updates: Partial<Pic
                 }
             }
 
-            // 2. If moving TO on_hold, completed, or canceled, stop any running timer
             if (['on_hold', 'completed', 'canceled'].includes(updates.status)) {
                 const active = db.prepare('SELECT id, startTime FROM time_entries WHERE ticketId = ? AND endTime IS NULL').get(ticketId) as { id: number; startTime: string } | undefined;
                 if (active) {
@@ -206,23 +211,27 @@ export async function getHelpTopics(): Promise<HelpTopic[]> {
 }
 
 export async function addHelpTopic(topic: Omit<HelpTopic, 'id'>): Promise<HelpTopic> {
+    await authorizeAction('tickets:admin:settings');
     const db = await connectTicketsDb();
     const info = db.prepare('INSERT INTO help_topics (name, defaultPriority, defaultAssigneeId, defaultServiceId) VALUES (?, ?, ?, ?)').run(topic.name, topic.defaultPriority, topic.defaultAssigneeId, topic.defaultServiceId);
     return db.prepare('SELECT * FROM help_topics WHERE id = ?').get(info.lastInsertRowid) as HelpTopic;
 }
 
 export async function updateHelpTopic(topic: HelpTopic): Promise<HelpTopic> {
+    await authorizeAction('tickets:admin:settings');
     const db = await connectTicketsDb();
     db.prepare('UPDATE help_topics SET name = ?, defaultPriority = ?, defaultAssigneeId = ?, defaultServiceId = ? WHERE id = ?').run(topic.name, topic.defaultPriority, topic.defaultAssigneeId, topic.defaultServiceId, topic.id);
     return db.prepare('SELECT * FROM help_topics WHERE id = ?').get(topic.id) as HelpTopic;
 }
 
 export async function deleteHelpTopic(id: number): Promise<void> {
+    await authorizeAction('tickets:admin:settings');
     const db = await connectTicketsDb();
     db.prepare('DELETE FROM help_topics WHERE id = ?').run(id);
 }
 
 export async function deleteTicket(id: number): Promise<void> {
+    await authorizeAction('tickets:delete');
     const db = await connectTicketsDb();
     db.prepare('DELETE FROM tickets WHERE id = ?').run(id);
 }
@@ -255,6 +264,7 @@ export async function getThirdPartyProviders(): Promise<ThirdPartyProvider[]> {
 }
 
 export async function addThirdPartyProvider(payload: Omit<ThirdPartyProvider, 'id' | 'createdAt'>): Promise<ThirdPartyProvider> {
+    await authorizeAction('providers:manage');
     const db = await connectTicketsDb();
     const now = new Date().toISOString();
     const info = db.prepare(`INSERT INTO third_party_providers (name, email, phone, specialty, notes, contacts, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)`)
@@ -263,6 +273,7 @@ export async function addThirdPartyProvider(payload: Omit<ThirdPartyProvider, 'i
 }
 
 export async function updateThirdPartyProvider(payload: ThirdPartyProvider): Promise<ThirdPartyProvider> {
+    await authorizeAction('providers:manage');
     const db = await connectTicketsDb();
     db.prepare(`UPDATE third_party_providers SET name = @name, email = @email, phone = @phone, specialty = @specialty, notes = @notes, contacts = @contacts WHERE id = @id`)
         .run(payload.name, payload.email, payload.phone, payload.specialty, payload.notes, JSON.stringify(payload.contacts || []), payload.id);
@@ -270,11 +281,13 @@ export async function updateThirdPartyProvider(payload: ThirdPartyProvider): Pro
 }
 
 export async function deleteThirdPartyProvider(id: number): Promise<void> {
+    await authorizeAction('providers:manage');
     const db = await connectTicketsDb();
     db.prepare('DELETE FROM third_party_providers WHERE id = ?').run(id);
 }
 
 export async function saveProviderService(payload: Omit<ProviderService, 'id'>): Promise<ProviderService> {
+    await authorizeAction('providers:manage');
     const db = await connectTicketsDb();
     const info = db.prepare(`
         INSERT INTO provider_services (
@@ -291,11 +304,13 @@ export async function saveProviderService(payload: Omit<ProviderService, 'id'>):
 }
 
 export async function deleteProviderService(id: number): Promise<void> {
+    await authorizeAction('providers:manage');
     const db = await connectTicketsDb();
     db.prepare('DELETE FROM provider_services WHERE id = ?').run(id);
 }
 
 export async function saveProviderGeoRate(payload: Omit<ProviderGeoRate, 'id'>): Promise<ProviderGeoRate> {
+    await authorizeAction('providers:manage');
     const db = await connectTicketsDb();
     const info = db.prepare(`
         INSERT INTO provider_geo_rates (
@@ -310,6 +325,7 @@ export async function saveProviderGeoRate(payload: Omit<ProviderGeoRate, 'id'>):
 }
 
 export async function deleteProviderGeoRate(id: number): Promise<void> {
+    await authorizeAction('providers:manage');
     const db = await connectTicketsDb();
     db.prepare('DELETE FROM provider_geo_rates WHERE id = ?').run(id);
 }
@@ -323,52 +339,59 @@ export async function getCRGeoData(): Promise<{ provinces: Province[], cantons: 
     };
 }
 
-// --- Geographic Management Functions ---
-
 export async function addProvince(name: string): Promise<Province> {
+    await authorizeAction('tickets:admin:settings');
     const db = await connectTicketsDb();
     const info = db.prepare('INSERT INTO provinces (name) VALUES (?)').run(name);
     return { id: Number(info.lastInsertRowid), name };
 }
 
 export async function updateProvince(id: number, name: string): Promise<void> {
+    await authorizeAction('tickets:admin:settings');
     const db = await connectTicketsDb();
     db.prepare('UPDATE provinces SET name = ? WHERE id = ?').run(name, id);
 }
 
 export async function deleteProvince(id: number): Promise<void> {
+    await authorizeAction('tickets:admin:settings');
     const db = await connectTicketsDb();
     db.prepare('DELETE FROM provinces WHERE id = ?').run(id);
 }
 
 export async function addCanton(provinceId: number, name: string): Promise<Canton> {
+    await authorizeAction('tickets:admin:settings');
     const db = await connectTicketsDb();
     const info = db.prepare('INSERT INTO cantons (provinceId, name) VALUES (?, ?)').run(provinceId, name);
     return { id: Number(info.lastInsertRowid), provinceId, name };
 }
 
 export async function updateCanton(id: number, name: string): Promise<void> {
+    await authorizeAction('tickets:admin:settings');
     const db = await connectTicketsDb();
     db.prepare('UPDATE cantons SET name = ? WHERE id = ?').run(name, id);
 }
 
 export async function deleteCanton(id: number): Promise<void> {
+    await authorizeAction('tickets:admin:settings');
     const db = await connectTicketsDb();
     db.prepare('DELETE FROM cantons WHERE id = ?').run(id);
 }
 
 export async function addDistrict(cantonId: number, name: string): Promise<District> {
+    await authorizeAction('tickets:admin:settings');
     const db = await connectTicketsDb();
     const info = db.prepare('INSERT INTO districts (cantonId, name) VALUES (?, ?)').run(cantonId, name);
     return { id: Number(info.lastInsertRowid), cantonId, name };
 }
 
 export async function updateDistrict(id: number, name: string): Promise<void> {
+    await authorizeAction('tickets:admin:settings');
     const db = await connectTicketsDb();
     db.prepare('UPDATE districts SET name = ? WHERE id = ?').run(name, id);
 }
 
 export async function deleteDistrict(id: number): Promise<void> {
+    await authorizeAction('tickets:admin:settings');
     const db = await connectTicketsDb();
     db.prepare('DELETE FROM districts WHERE id = ?').run(id);
 }
@@ -384,6 +407,7 @@ export async function getTicketSettings(): Promise<{ ticketPrefix: string; nextT
 }
 
 export async function saveTicketSettings(settings: { ticketPrefix: string; nextTicketNumber: number }): Promise<void> {
+    await authorizeAction('tickets:admin:settings');
     const db = await connectTicketsDb();
     db.prepare("INSERT OR REPLACE INTO ticket_settings (key, value) VALUES ('ticketPrefix', ?)").run(settings.ticketPrefix);
     db.prepare("INSERT OR REPLACE INTO ticket_settings (key, value) VALUES ('nextTicketNumber', ?)").run(String(settings.nextTicketNumber));

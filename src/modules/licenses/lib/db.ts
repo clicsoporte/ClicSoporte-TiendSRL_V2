@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Server-side functions for the licenses module.
  * Unified into intratool.db.
@@ -8,6 +7,7 @@
 import { connectDb } from '../../core/lib/db';
 import type { License, SoftwareProduct } from '@/modules/core/types';
 import { signLicenseData } from './crypto';
+import { authorizeAction } from '@/modules/core/lib/auth-guard';
 
 export async function connectLicensesDb(): Promise<import('better-sqlite3').Database> {
     return connectDb();
@@ -21,12 +21,11 @@ export async function getLicenses(): Promise<License[]> {
 
 /**
  * Adds a new license.
- * Handles different logic for Internal vs Third-Party software.
  */
 export async function addLicense(licenseData: Omit<License, 'id' | 'createdAt'>): Promise<License> {
+    await authorizeAction('licenses:manage');
     const db = await connectLicensesDb();
     
-    // Fetch software info to check if it's internal
     const software = db.prepare('SELECT isInternal FROM software_products WHERE id = ?').get(licenseData.softwareId) as { isInternal: number } | undefined;
     
     if (!software) throw new Error("Producto de software no encontrado.");
@@ -47,10 +46,8 @@ export async function addLicense(licenseData: Omit<License, 'id' | 'createdAt'>)
             createdAt: now,
         };
 
-        // Generate signed license file content for internal software
         licenseKey = await signLicenseData(licenseInfo);
     } else {
-        // For 3rd party, use the provided license key directly and clear HWID
         if (!licenseKey) throw new Error("El número de licencia es obligatorio para software de terceros.");
         hardwareId = null;
     }
@@ -74,9 +71,9 @@ export async function addLicense(licenseData: Omit<License, 'id' | 'createdAt'>)
 
 /**
  * Updates an existing license.
- * Re-signs the key if it's internal software.
  */
 export async function updateLicense(license: License): Promise<License> {
+    await authorizeAction('licenses:manage');
     const db = await connectLicensesDb();
     
     const software = db.prepare('SELECT isInternal FROM software_products WHERE id = ?').get(license.softwareId) as { isInternal: number } | undefined;
@@ -88,14 +85,13 @@ export async function updateLicense(license: License): Promise<License> {
     if (software.isInternal) {
         if (!hardwareId) throw new Error("El Hardware ID es obligatorio para software propio.");
         
-        // Re-generate the signed license because dates or parameters might have changed
         const licenseInfo = {
             softwareId: license.softwareId,
             customerId: license.customerId,
             hardwareId: hardwareId,
             isPerpetual: license.isPerpetual,
             expirationDate: license.expirationDate,
-            createdAt: license.createdAt, // Preserve original creation date
+            createdAt: license.createdAt, 
         };
 
         licenseKey = await signLicenseData(licenseInfo);
@@ -119,6 +115,7 @@ export async function updateLicense(license: License): Promise<License> {
 }
 
 export async function deleteLicense(id: number): Promise<void> {
+    await authorizeAction('licenses:manage');
     const db = await connectLicensesDb();
     db.prepare('DELETE FROM licenses WHERE id = ?').run(id);
 }
@@ -129,12 +126,14 @@ export async function getSoftwareProducts(): Promise<SoftwareProduct[]> {
 }
 
 export async function addSoftwareProduct(product: Omit<SoftwareProduct, 'id'>): Promise<SoftwareProduct> {
+    await authorizeAction('licenses:manage');
     const db = await connectLicensesDb();
     const info = db.prepare(`INSERT INTO software_products (name, isInternal) VALUES (@name, @isInternal)`).run({ ...product, isInternal: product.isInternal ? 1 : 0 });
     return db.prepare('SELECT * FROM software_products WHERE id = ?').get(info.lastInsertRowid) as SoftwareProduct;
 }
 
 export async function deleteSoftwareProduct(id: number): Promise<void> {
+    await authorizeAction('licenses:manage');
     const db = await connectLicensesDb();
     db.prepare('DELETE FROM software_products WHERE id = ?').run(id);
 }
