@@ -192,6 +192,7 @@ export default function ContractsClient() {
                                     <TableHead>Consecutivo</TableHead>
                                     <TableHead>Nombre</TableHead>
                                     <TableHead>Cliente</TableHead>
+                                    <TableHead className="text-center">Horas</TableHead>
                                     <TableHead>Vigencia</TableHead>
                                     <TableHead>Estado</TableHead>
                                     <TableHead>Renov.</TableHead>
@@ -206,6 +207,7 @@ export default function ContractsClient() {
                                             <TableCell className="font-mono font-bold">{contract.consecutive}</TableCell>
                                             <TableCell>{contract.name}</TableCell>
                                             <TableCell>{customer?.name || contract.customerId}</TableCell>
+                                            <TableCell className="text-center font-mono font-bold">{contract.monthlyHours}h</TableCell>
                                             <TableCell className="text-xs">
                                                 {format(parseISO(contract.startDate), 'dd/MM/yy')} al {format(parseISO(contract.endDate), 'dd/MM/yy')}
                                             </TableCell>
@@ -228,7 +230,7 @@ export default function ContractsClient() {
                                         </TableRow>
                                     );
                                 })}
-                                {contracts.length === 0 && <TableRow><TableCell colSpan={7} className="text-center py-10">No hay contratos registrados.</TableCell></TableRow>}
+                                {contracts.length === 0 && <TableRow><TableCell colSpan={8} className="text-center py-10">No hay contratos registrados.</TableCell></TableRow>}
                             </TableBody>
                         </Table>
                     </div>
