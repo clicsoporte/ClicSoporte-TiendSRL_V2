@@ -16,13 +16,22 @@ export function useAuthorization(requiredPermissions: string[] = []) {
     const userPerms = userRole.permissions || [];
     if (userPerms.includes(permission) || userPerms.includes('admin:all')) return true;
 
-    // Hierarchical check: does any of the user's permissions have this as a child?
-    for (const userPerm of userPerms) {
-      const children = permissionTree[userPerm] || [];
-      if (children.includes(permission)) return true;
-    }
+    // Recursive search in permission tree
+    const memo = new Set<string>();
+    const searchInTree = (perms: string[]): boolean => {
+        for (const p of perms) {
+            if (p === permission) return true;
+            if (memo.has(p)) continue;
+            memo.add(p);
+            
+            const children = permissionTree[p] || [];
+            if (children.includes(permission)) return true;
+            if (searchInTree(children)) return true;
+        }
+        return false;
+    };
 
-    return false;
+    return searchInTree(userPerms);
   };
 
   const isAuthorized = requiredPermissions.length === 0 

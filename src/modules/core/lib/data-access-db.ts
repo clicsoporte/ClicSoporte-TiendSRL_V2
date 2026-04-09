@@ -8,6 +8,34 @@ import { connectDb } from './db';
 import type { Product, Customer, StockInfo, Exemption } from '@/modules/core/types';
 import { logInfo, logError } from './logger';
 import { authorizeAction } from './auth-guard';
+import { getCurrentUser } from './auth';
+import { permissionTree } from './permissions';
+
+/**
+ * Helper to check granular permission recursively at server level.
+ */
+async function hasGranularPermission(permission: string): Promise<boolean> {
+    const user = await getCurrentUser();
+    if (!user) return false;
+    if (user.role === 'admin') return true;
+
+    const db = await connectDb();
+    const roleRow = db.prepare('SELECT permissions FROM roles WHERE id = ?').get(user.role) as { permissions: string } | undefined;
+    if (!roleRow) return false;
+    
+    const userPermissions: string[] = JSON.parse(roleRow.permissions || '[]');
+    if (userPermissions.includes('admin:all') || userPermissions.includes(permission)) return true;
+
+    const searchInTree = (perms: string[]): boolean => {
+        for (const p of perms) {
+            if (p === permission) return true;
+            const children = permissionTree[p] || [];
+            if (searchInTree(children)) return true;
+        }
+        return false;
+    };
+    return searchInTree(userPermissions);
+}
 
 /**
  * Retrieves all customers from the database.
@@ -41,9 +69,17 @@ export async function getAllCustomers(): Promise<Customer[]> {
 export async function upsertCustomer(customer: Customer): Promise<Customer> {
     const db = await connectDb();
     
-    // Server-side audit: verify intent and permissions
-    const existing = db.prepare('SELECT id FROM customers WHERE id = ?').get(customer.id);
+    // 1. Initial Permission Check
+    const existing = db.prepare('SELECT id, supportPackageId FROM customers WHERE id = ?').get(customer.id) as { id: string, supportPackageId: string | null } | undefined;
     await authorizeAction(existing ? 'customers:update' : 'customers:create');
+
+    // 2. Granular Check for Support Plan change
+    if (existing && customer.supportPackageId !== existing.supportPackageId) {
+        const canUpdatePlan = await hasGranularPermission('customers:update:plan');
+        if (!canUpdatePlan) {
+            throw new Error("No tienes permiso para modificar el plan de soporte del cliente.");
+        }
+    }
 
     try {
         const stmt = db.prepare(`

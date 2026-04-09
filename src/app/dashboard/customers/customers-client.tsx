@@ -240,6 +240,8 @@ export default function CustomersClient() {
         );
     }
 
+    const canChangePlan = hasPermission('customers:update:plan');
+
     return (
         <main className="flex-1 p-4 md:p-6 lg:p-8 space-y-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -373,12 +375,13 @@ export default function CustomersClient() {
                                         </h3>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             <div className="space-y-2">
-                                                <Label>Paquete de Soporte Mensual</Label>
+                                                <Label className={cn(!canChangePlan && "opacity-50")}>Paquete de Soporte Mensual</Label>
                                                 <Select 
                                                     value={currentCustomer.supportPackageId || 'none'} 
                                                     onValueChange={v => setCurrentCustomer({...currentCustomer, supportPackageId: v === 'none' ? null : v})}
+                                                    disabled={!canChangePlan}
                                                 >
-                                                    <SelectTrigger><SelectValue placeholder="Sin plan asignado"/></SelectTrigger>
+                                                    <SelectTrigger className={cn(!canChangePlan && "bg-muted cursor-not-allowed")}><SelectValue placeholder="Sin plan asignado"/></SelectTrigger>
                                                     <SelectContent>
                                                         <SelectItem value="none">Sin plan (Soporte por evento)</SelectItem>
                                                         {(companyData?.supportPackages || []).map(pkg => (
@@ -386,7 +389,8 @@ export default function CustomersClient() {
                                                         ))}
                                                     </SelectContent>
                                                 </Select>
-                                                <p className="text-[10px] text-muted-foreground">Define la lógica de redondeo y servicios incluidos para este cliente.</p>
+                                                {!canChangePlan && <p className="text-[10px] text-destructive font-bold">No tienes permiso para cambiar el plan del cliente.</p>}
+                                                {canChangePlan && <p className="text-[10px] text-muted-foreground">Define la lógica de redondeo y servicios incluidos para este cliente.</p>}
                                             </div>
                                         </div>
                                     </section>

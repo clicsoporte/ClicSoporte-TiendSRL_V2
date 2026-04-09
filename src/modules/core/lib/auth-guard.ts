@@ -8,7 +8,7 @@ import { permissionTree } from './permissions';
 
 /**
  * Validates if the current user has a specific permission at the server level.
- * Handles the hierarchical check (admin:all or parent permissions).
+ * Handles recursive hierarchical checks.
  */
 async function checkPermission(permission: string): Promise<boolean> {
     const user = await getCurrentUser();
@@ -20,18 +20,27 @@ async function checkPermission(permission: string): Promise<boolean> {
     
     if (!roleRow) return false;
     
-    const permissions: string[] = JSON.parse(roleRow.permissions || '[]');
+    const userPermissions: string[] = JSON.parse(roleRow.permissions || '[]');
     
-    // Check direct permission or super admin
-    if (permissions.includes(permission) || permissions.includes('admin:all')) return true;
-    
-    // Check hierarchy
-    for (const userPerm of permissions) {
-        const children = permissionTree[userPerm] || [];
-        if (children.includes(permission)) return true;
-    }
-    
-    return false;
+    if (userPermissions.includes('admin:all')) return true;
+    if (userPermissions.includes(permission)) return true;
+
+    // Recursive search in permission tree
+    const memo = new Set<string>();
+    const searchInTree = (perms: string[]): boolean => {
+        for (const p of perms) {
+            if (p === permission) return true;
+            if (memo.has(p)) continue;
+            memo.add(p);
+            
+            const children = permissionTree[p] || [];
+            if (children.includes(permission)) return true;
+            if (searchInTree(children)) return true;
+        }
+        return false;
+    };
+
+    return searchInTree(userPermissions);
 }
 
 /**

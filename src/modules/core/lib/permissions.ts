@@ -24,7 +24,8 @@ export const permissionGroups = {
     "customers:read", 
     "customers:create", 
     "customers:update", 
-    "customers:delete"
+    "customers:delete",
+    "customers:update:plan"
   ],
   "Contratos": [
     "contracts:read", 
@@ -62,15 +63,15 @@ export const permissionTree: Record<string, string[]> = {
     'users:read', 'users:create', 'users:update', 'users:delete',
     'roles:read', 'roles:create', 'roles:update', 'roles:delete',
     'licenses:admin:keys', 'tickets:admin:settings', 'billing:manage',
-    'customers:create', 'customers:update', 'customers:delete',
-    'contracts:create', 'contracts:update', 'contracts:delete',
-    'cost-assistant:margins', 'cost-assistant:export',
-    'view:provider:costs'
+    'customers:read', 'customers:create', 'customers:update', 'customers:delete', 'customers:update:plan',
+    'contracts:read', 'contracts:create', 'contracts:update', 'contracts:delete',
+    'cost-assistant:margins', 'cost-assistant:export', 'cost-assistant:view', 'cost-assistant:process',
+    'view:provider:costs', 'providers:read', 'providers:manage', 'planner:read', 'tickets:read:all', 'hacienda:query', 'analytics:read'
   ],
   'users:manage': ['users:read', 'users:create', 'users:update', 'users:delete'],
   'roles:manage': ['roles:read', 'roles:create', 'roles:update', 'roles:delete'],
-  'customers:manage': ['customers:read', 'customers:create', 'customers:update', 'customers:delete'],
-  'contracts:manage': ['customers:read', 'customers:create', 'customers:update', 'customers:delete'],
+  'customers:manage': ['customers:read', 'customers:create', 'customers:update', 'customers:delete', 'customers:update:plan'],
+  'contracts:manage': ['contracts:read', 'contracts:create', 'contracts:update', 'contracts:delete'],
   'tickets:manage': ['tickets:reply', 'tickets:time-tracking'],
   'cost-assistant:access': ['cost-assistant:view', 'cost-assistant:process']
 };
@@ -106,6 +107,7 @@ export const permissionTranslations: Record<string, string> = {
   "customers:create": "Clientes: Crear Nuevo",
   "customers:update": "Clientes: Editar Datos",
   "customers:delete": "Clientes: Eliminar",
+  "customers:update:plan": "Clientes: Cambiar Plan de Soporte",
 
   // Contratos
   "contracts:read": "Contratos: Ver Listado",
