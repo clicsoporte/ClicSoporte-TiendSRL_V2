@@ -7,7 +7,7 @@ import { useTickets } from "@/modules/tickets/hooks/useTickets";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
-import { FilePlus, Loader2, FilterX, ShieldCheck, ShieldAlert, Clock, Info, EyeOff, MapPin, Zap, UserCircle } from "lucide-react";
+import { FilePlus, Loader2, FilterX, ShieldCheck, ShieldAlert, Clock, Info, EyeOff, MapPin, Zap, UserCircle, Mail, MessageCircle } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -347,6 +347,27 @@ export default function TicketsClient() {
 
                                                 <Input id="new-ticket-customer-name" value={newTicket.customerName} onChange={(e) => actions.handleNewTicketChange('customerName', e.target.value)} required placeholder="Nombre" className="h-8 text-xs" />
                                                 <Input id="new-ticket-customer-email" type="email" value={newTicket.customerEmail} onChange={(e) => actions.handleNewTicketChange('customerEmail', e.target.value)} required placeholder="Email" className="h-8 text-xs" />
+                                                
+                                                <div className="flex flex-wrap gap-3 pt-1">
+                                                    {newTicket.customerEmail && (
+                                                        <a 
+                                                            href={`mailto:${newTicket.customerEmail}`} 
+                                                            className="text-[10px] text-primary hover:underline flex items-center gap-1 font-bold"
+                                                        >
+                                                            <Mail className="h-3 w-3" /> Enviar Correo
+                                                        </a>
+                                                    )}
+                                                    {newTicket.customerPhone && (
+                                                        <a 
+                                                            href={`https://wa.me/${newTicket.customerPhone.replace(/\D/g, '')}?text=Hola%20quiero%20hacer%20una%20consulta`} 
+                                                            target="_blank" 
+                                                            rel="noopener noreferrer"
+                                                            className="text-[10px] text-green-600 hover:underline flex items-center gap-1 font-bold"
+                                                        >
+                                                            <MessageCircle className="h-3 w-3" /> WhatsApp
+                                                        </a>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
