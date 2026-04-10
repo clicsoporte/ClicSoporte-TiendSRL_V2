@@ -1,17 +1,29 @@
 /**
- * @fileoverview Server-side guards to protect pages and actions based on user permissions.
+ * @fileoverview Server-side "guardian" functions for robust authorization.
+ * These functions are the primary source of truth for permission checking on the server,
+ * protecting both API-like actions and page renders.
  */
+'use server';
+
+import { cache } from 'react';
 import { redirect } from 'next/navigation';
 import { getCurrentUser } from './auth';
 import { connectDb } from './db';
 import { checkPermissionInTree } from './permissions';
+import type { User } from '@/modules/core/types';
 
 /**
- * Validates if the current user has a specific permission at the server level.
- * Handles recursive hierarchical checks.
+ * Memoized function to get the current user's data from the session.
+ */
+const getCachedUser = cache(async () => {
+    return await getCurrentUser();
+});
+
+/**
+ * Internal helper to verify permission recursively.
  */
 async function checkPermission(permission: string): Promise<boolean> {
-    const user = await getCurrentUser();
+    const user = await getCachedUser();
     if (!user) return false;
     if (user.role === 'admin') return true;
 
@@ -25,24 +37,42 @@ async function checkPermission(permission: string): Promise<boolean> {
 }
 
 /**
- * Protects a Server Component (Page). Redirects to dashboard if unauthorized.
+ * Verifies if the current user in session has a specific permission.
+ * Throws an Error if the check fails. Primary guard for all Server Actions.
+ *
+ * @param requiredPermission The permission string to check for.
  */
-export async function authorizePage(permission?: string) {
-    const user = await getCurrentUser();
-    if (!user) redirect('/');
-    
-    if (permission) {
-        const authorized = await checkPermission(permission);
-        if (!authorized) redirect('/dashboard');
+export async function authorizeAction(requiredPermission: string): Promise<User> {
+    const user = await getCachedUser();
+    if (!user) {
+        throw new Error("No autenticado. Inicia sesión para continuar.");
     }
+    
+    const isAuthorized = await checkPermission(requiredPermission);
+
+    if (!isAuthorized) {
+        throw new Error(`Acceso Denegado: Se requiere el permiso "${requiredPermission}" para realizar esta acción.`);
+    }
+
+    return user;
 }
 
 /**
- * Protects a Server Action. Throws error if unauthorized.
+ * Verifies if the current user in session can access a specific page.
+ * If the check fails, it redirects the user to the main dashboard.
+ *
+ * @param requiredPermission The permission string to check for.
  */
-export async function authorizeAction(permission: string) {
-    const authorized = await checkPermission(permission);
-    if (!authorized) {
-        throw new Error(`Acceso Denegado: Se requiere el permiso "${permission}" para realizar esta acción.`);
+export async function authorizePage(requiredPermission?: string): Promise<void> {
+    const user = await getCachedUser();
+    if (!user) {
+        return redirect('/');
+    }
+    
+    if (requiredPermission) {
+        const isAuthorized = await checkPermission(requiredPermission);
+        if (!isAuthorized) {
+            return redirect('/dashboard');
+        }
     }
 }

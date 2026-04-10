@@ -1,0 +1,787 @@
+
+// =================================================================================
+// CÓDIGO COMPLETO DEL MÓDULO DE GESTIÓN DE ROLES Y PERMISOS
+// =================================================================================
+// 
+// Este documento consolida todos los archivos de código fuente que componen
+// el sistema de gestión de roles de Clic-Tools. Su propósito es servir como una
+// referencia técnica completa para entender la arquitectura y el flujo de datos
+// de esta funcionalidad crítica.
+//
+// Los archivos se presentan en el siguiente orden lógico:
+// 1. permissions.ts: La "constitución" del sistema. Define cada permiso posible y su jerarquía.
+// 2. roles-client.tsx: La interfaz de usuario (UI) que el administrador utiliza para gestionar los roles.
+// 3. roles-actions.ts: Las acciones de servidor seguras que la UI llama para leer y escribir en la base de datos.
+// 4. auth-guard.ts: Los "guardianes" del sistema que utilizan los roles y permisos para proteger páginas y acciones.
+//
+// =================================================================================
+
+
+// =============================================================================
+// ARCHIVO: src/modules/core/lib/permissions.ts
+// PROPÓSITO: Define todos los permisos posibles y sus dependencias.
+// =============================================================================
+
+/**
+ * @fileoverview This file centralizes all permission-related constants and logic.
+ * Separating this from data.ts breaks a problematic dependency cycle.
+ */
+
+export const permissionGroups = {
+    "Acceso General": ["dashboard:access"],
+    "Cotizador": ["quotes:create", "quotes:generate", "quotes:drafts:create", "quotes:drafts:read", "quotes:drafts:delete"],
+    "Facturación y XML": ["invoices:access", "invoices:reporter:access", "invoices:reporter:export"],
+    "Solicitud de Compra": [
+        "requests:read", "requests:read:all", "requests:create", "requests:create:duplicate", "requests:notes:add",
+        "requests:edit:pending", "requests:edit:approved",
+        "requests:status:review", "requests:status:pending-approval", "requests:status:approve", "requests:status:ordered", 
+        "requests:status:received-in-warehouse", "requests:status:entered-erp", "requests:status:cancel",
+        "requests:reopen", "requests:status:revert-to-approved", "requests:status:unapproval-request", "requests:status:unapproval-request:approve"
+    ],
+    "Solicitud de Compra (Finanzas)": ["requests:view:sale-price", "requests:view:cost", "requests:view:margin"],
+    "Planificador de Producción": [
+        "planner:read", "planner:read:all", "planner:create", "planner:edit:pending", "planner:edit:approved", "planner:reopen", "planner:receive",
+        "planner:status:review", "planner:status:approve", "planner:status:in-progress", "planner:status:on-hold", 
+        "planner:status:completed", "planner:status:cancel", "planner:status:cancel-approved",
+        "planner:status:unapprove-request", "planner:status:unapprove-request:approve",
+        "planner:priority:update", "planner:machine:assign", "planner:schedule"
+    ],
+    "Asistente de Costos": ["cost-assistant:access", "cost-assistant:drafts:read-write"],
+    "Consignación": [
+        "consignments:access", "consignments:setup", "consignments:count", "consignments:reports:read", 
+        "consignments:boletas:read", "consignments:boletas:read:all", 
+        "consignments:boleta:approve", "consignments:boleta:send", "consignments:boleta:invoice", 
+        "consignments:boleta:cancel", "consignments:boleta:revert",
+        "consignments:adjustments:create", "consignments:closures:create", "consignments:closures:annul"
+    ],
+    "Centro de Operaciones y Trazabilidad (Nuevo)": ["operations:access", "operations:create", "operations:read:all", "operations:approve", "operations:sign"],
+    "Herramientas de TI (Nuevo)": ["it-tools:access", "it-tools:notes:read", "it-tools:notes:create", "it-tools:notes:update", "it-tools:notes:delete"],
+    "Gestión de Almacenes": [
+        "warehouse:access", "warehouse:search:full", "warehouse:search:simple",
+        "warehouse:receiving-wizard:use", "warehouse:population-wizard:use", "warehouse:inventory-count:create",
+        "warehouse:item-assignment:create", "warehouse:item-assignment:delete",
+        "warehouse:locations:create", "warehouse:locations:update", "warehouse:locations:delete",
+        "warehouse:units:create", "warehouse:units:delete", "warehouse:locks:manage",
+        "warehouse:correction:execute", "warehouse:correction:apply", "warehouse:labels:generate", 
+        "warehouse:explorer:read", "warehouse:cleanup:execute"
+    ],
+    "Consultas Hacienda": ["hacienda:query"],
+    "Analíticas y Reportes": ["analytics:read", "analytics:purchase-suggestions:read", "analytics:purchase-report:read", "analytics:production-report:read", "analytics:transits-report:read", "analytics:user-permissions:read", "analytics:physical-inventory-report:read", "analytics:receiving-report:read", "analytics:item-assignments-report:read", "analytics:occupancy-report:read", "analytics:consignments-report:read"],
+    "Gestión de Usuarios": ["users:create", "users:read", "users:update", "users:delete"],
+    "Gestión de Roles": ["roles:create", "roles:read", "roles:update", "roles:delete"],
+    "Administración del Sistema": [
+        "admin:access",
+        "admin:settings:general", "admin:settings:api", "admin:settings:planner", "admin:settings:requests", "admin:settings:warehouse", "admin:settings:stock", "admin:settings:cost-assistant", "admin:settings:analytics", "admin:settings:consignments",
+        "admin:suggestions:read",
+        "admin:import:run", "admin:import:files", "admin:import:sql", "admin:import:sql-config",
+        "admin:logs:read", "admin:logs:clear",
+        "admin:maintenance:backup", "admin:maintenance:restore", "admin:maintenance:reset"
+    ],
+};
+
+export const permissionTranslations = {
+    "admin:access": "Acceso a Configuración",
+    "dashboard:access": "Acceso al Panel", "quotes:create": "Cotizador: Crear", "quotes:generate": "Cotizador: Generar PDF", "quotes:drafts:create": "Borradores: Crear", "quotes:drafts:read": "Borradores: Cargar", "quotes:drafts:delete": "Borradores: Eliminar",
+    "invoices:access": "Facturas y XML: Acceso al Módulo",
+    "invoices:reporter:access": "Reporteador Facturas: Acceso",
+    "invoices:reporter:export": "Reporteador Facturas: Exportar Excel",
+    "requests:read": "Compras: Leer", "requests:read:all": "Compras: Leer Todo", "requests:create": "Compras: Crear", "requests:create:duplicate": "Compras: Crear Duplicados", "requests:notes:add": "Compras: Añadir Notas",
+    "requests:edit:pending": "Compras: Editar (Pendientes)", "requests:edit:approved": "Compras: Editar (Aprobadas)", "requests:status:review": "Compras: Enviar a Revisión", "requests:status:pending-approval": "Compras: Enviar a Aprobación", "requests:reopen": "Compras: Reabrir", "requests:status:approve": "Compras: Aprobar", "requests:status:ordered": "Compras: Marcar como Ordenada", "requests:status:received-in-warehouse": "Compras: Recibir en Bodega", "requests:status:entered-erp": "Compras: Ingresar a ERP", "requests:status:cancel": "Compras: Cancelar", "requests:status:revert-to-approved": "Compras: Revertir a Aprobada", "requests:status:unapproval-request": "Compras: Solicitar Desaprobación", "requests:status:unapproval-request:approve": "Compras: Aprobar Desaprobación",
+    "requests:view:sale-price": "Compras: Ver Precio Venta", "requests:view:cost": "Compras: Ver Costo", "requests:view:margin": "Compras: Ver Margen",
+    "planner:read": "Plan.: Leer Órdenes", "planner:read:all": "Plan.: Leer Todas las Órdenes", "planner:create": "Plan.: Crear Órdenes",
+    "planner:edit:pending": "Plan.: Editar (Pendientes)", "planner:edit:approved": "Plan.: Editar (Aprobadas)", "planner:reopen": "Plan.: Reabrir Órdenes", "planner:receive": "Plan.: Recibir en Bodega", "planner:status:review": "Plan.: Enviar a Revisión", "planner:status:approve": "Plan.: Cambiar a Aprobada", "planner:status:in-progress": "Plan.: Cambiar a En Progreso", "planner:status:on-hold": "Plan.: Cambiar a En Espera", 
+    "planner:status:completed": "Plan.: Cambiar a Completada", "planner:status:cancel": "Plan.: Cancelar (Pendientes)", "planner:status:cancel-approved": "Plan.: Cancelar (Aprobadas)", "planner:priority:update": "Plan.: Cambiar Prioridad", "planner:machine:assign": "Plan.: Asignar Máquina", "planner:status:unapprove-request": "Plan.: Solicitar Desaprobación", "planner:status:unapprove-request:approve": "Plan.: Aprobar Desaprobación", "planner:schedule": "Plan.: Programar Fechas",
+    "cost-assistant:access": "Asist. Costos: Acceso", "cost-assistant:drafts:read-write": "Asist. Costos: Guardar Borradores",
+    "consignments:access": "Consignación: Acceso General", "consignments:setup": "Consignación: Configurar Acuerdos", "consignments:count": "Consignación: Realizar Conteos", "consignments:reports:read": "Consignación: Ver Reportes", 
+    "consignments:boletas:read": "Consignación: Ver Lista de Boletas", "consignments:boletas:read:all": "Consignación: Ver Todas las Boletas", 
+    "consignments:boleta:approve": "Consignación: Aprobar Boletas", "consignments:boleta:send": "Consignación: Marcar como Enviada", "consignments:boleta:invoice": "Consignación: Marcar como Facturada", 
+    "consignments:boleta:cancel": "Consignación: Cancelar Boletas", "consignments:boleta:revert": "Consignación: Revertir Estados de Boleta",
+    "consignments:adjustments:create": "Consignación: Crear Ajustes",
+    "consignments:closures:create": "Consignación: Crear Cierres",
+    "consignments:closures:annul": "Consignación: Anular Cierres",
+    "operations:access": "Operaciones: Acceso General", "operations:create": "Operaciones: Crear Documentos", "operations:read:all": "Operaciones: Ver Todos", "operations:approve": "Operaciones: Aprobar Documentos", "operations:sign": "Operaciones: Firmar Entregas/Recibos",
+    "it-tools:access": "TI: Acceso General", "it-tools:notes:read": "TI: Ver Notas", "it-tools:notes:create": "TI: Crear Notas", "it-tools:notes:update": "TI: Editar Notas", "it-tools:notes:delete": "TI: Eliminar Notas",
+    "warehouse:access": "Almacén: Acceso General", "warehouse:search:full": "Almacén: Consulta Completa", "warehouse:search:simple": "Almacén: Búsqueda Rápida", 
+    "warehouse:receiving-wizard:use": "Almacén: Usar Asist. Recepción", "warehouse:population-wizard:use": "Almacén: Usar Asist. Poblado", "warehouse:inventory-count:create": "Almacén: Registrar Conteo",
+    "warehouse:item-assignment:create": "Almacén: Asignar Ubic./Prod.", "warehouse:item-assignment:delete": "Almacén: Eliminar Asignación",
+    "warehouse:locations:create": "Almacén: Crear Ubicaciones", "warehouse:locations:update": "Almacén: Editar Ubicaciones", "warehouse:locations:delete": "Almacén: Eliminar Ubicaciones",
+    "warehouse:units:create": "Almacén: Crear Lotes/QR", "warehouse:units:delete": "Almacén: Eliminar Lotes/QR", "warehouse:locks:manage": "Almacén: Gestionar Bloqueos",
+    "warehouse:correction:execute": "Almacén: Corregir Ingreso", "warehouse:correction:apply": "Almacén: Aplicar Ingreso", "warehouse:labels:generate": "Almacén: Generar Etiquetas", "warehouse:explorer:read": "Almacén: Ver Explorador", "warehouse:cleanup:execute": "Almacén: Usar Herramientas de Limpieza",
+    "hacienda:query": "Hacienda: Realizar Consultas",
+    "analytics:read": "Analíticas: Acceso", "analytics:purchase-suggestions:read": "Analíticas: Sugerencias Compra", "analytics:purchase-report:read": "Analíticas: Reporte Compras", "analytics:production-report:read": "Analíticas: Reporte Producción", "analytics:transits-report:read": "Analíticas: Reporte Tránsitos", "analytics:user-permissions:read": "Analíticas: Reporte Permisos", "analytics:physical-inventory-report:read": "Analíticas: Reporte Inv. Físico", "analytics:receiving-report:read": "Analíticas: Reporte Recepciones", "analytics:item-assignments-report:read": "Analíticas: Reporte Catálogo", "analytics:occupancy-report:read": "Analíticas: Reporte Ocupación", "analytics:consignments-report:read": "Analíticas: Reporte Consignación",
+    "users:create": "Usuarios: Crear", "users:read": "Usuarios: Leer", "users:update": "Usuarios: Actualizar", "users:delete": "Usuarios: Eliminar",
+    "roles:create": "Roles: Crear", "roles:read": "Roles: Leer", "roles:update": "Roles: Actualizar", "roles:delete": "Roles: Eliminar",
+    "admin:settings:general": "Admin: Config. General", "admin:settings:api": "Admin: Config. de API", "admin:settings:planner": "Admin: Config. Planificador", "admin:settings:requests": "Admin: Config. Compras", "admin:settings:warehouse": "Admin: Config. Almacenes", "admin:settings:stock": "Admin: Config. Inventario", "admin:settings:cost-assistant": "Admin: Config. Asist. Costos", "admin:settings:analytics": "Admin: Config. Analíticas", "admin:settings:consignments": "Admin: Config. Consignación",
+    "admin:suggestions:read": "Admin: Leer Sugerencias",
+    "admin:import:run": "Admin: Ejecutar Sincronización ERP", "admin:import:files": "Admin: Importar (Archivos)", "admin:import:sql": "Admin: Importar (SQL)", "admin:import:sql-config": "Admin: Configurar SQL",
+    "admin:logs:read": "Admin: Ver Registros (Logs)", "admin:logs:clear": "Admin: Limpiar Registros (Logs)",
+    "admin:maintenance:backup": "Admin: Mantenimiento (Backup)", "admin:maintenance:restore": "Admin: Mantenimiento (Restaurar)", "admin:maintenance:reset": "Admin: Mantenimiento (Resetear)",
+} as const;
+
+export type AppPermission = keyof typeof permissionTranslations;
+
+export const allAdminPermissions: AppPermission[] = Object.values(permissionGroups).flat() as AppPermission[];
+
+export const analyticsPermissions = permissionGroups["Analíticas y Reportes"];
+
+/**
+ * Defines the hierarchical dependencies between permissions.
+ * The key is the parent permission, and the value is an array of child permissions it grants.
+ * This structure is used to automatically manage permission dependencies in the UI.
+ */
+export const permissionTree: Partial<Record<AppPermission, AppPermission[]>> = {
+    // --- Top-Level Access ---
+    "dashboard:access": [
+        "quotes:create", "invoices:access", "requests:read", "planner:read", "cost-assistant:access",
+        "consignments:access", "warehouse:access", "hacienda:query",
+        "operations:access", "it-tools:access", "analytics:read", "admin:access"
+    ],
+    
+    // --- Admin ---
+    "admin:access": [
+        "users:read", "roles:read", "admin:settings:general", "admin:settings:api", 
+        "admin:settings:planner", "admin:settings:requests", "admin:settings:warehouse", 
+        "admin:settings:stock", "admin:settings:cost-assistant", "admin:settings:analytics",
+        "admin:settings:consignments", "admin:suggestions:read", "admin:import:run", 
+        "admin:logs:read", "admin:maintenance:backup"
+    ],
+    "users:read": ["users:create", "users:update", "users:delete"],
+    "roles:read": ["roles:create", "roles:update", "roles:delete"],
+    "admin:import:run": ["admin:import:files", "admin:import:sql", "admin:import:sql-config"],
+    "admin:logs:read": ["admin:logs:clear"],
+    "admin:maintenance:backup": ["admin:maintenance:restore", "admin:maintenance:reset"],
+
+    // --- Analytics ---
+    "analytics:read": [
+        "analytics:purchase-suggestions:read", "analytics:purchase-report:read", "analytics:production-report:read", 
+        "analytics:transits-report:read", "analytics:user-permissions:read", "analytics:physical-inventory-report:read", 
+        "analytics:receiving-report:read", "analytics:item-assignments-report:read", "analytics:occupancy-report:read", 
+        "analytics:consignments-report:read"
+    ],
+    
+    // --- Invoices ---
+    "invoices:access": ["cost-assistant:access", "invoices:reporter:access"],
+    "invoices:reporter:access": ["invoices:reporter:export"],
+
+    // --- Purchase Requests ---
+    "requests:read": ["requests:read:all", "requests:create", "requests:notes:add"],
+    "requests:create": ["requests:edit:pending", "requests:create:duplicate"],
+    "requests:status:review": ["requests:read"],
+    "requests:status:pending-approval": ["requests:status:review"],
+    "requests:status:approve": ["requests:status:pending-approval", "requests:edit:approved"],
+    "requests:status:ordered": ["requests:status:approve"],
+    "requests:status:received-in-warehouse": ["requests:status:ordered"],
+    "requests:status:entered-erp": ["requests:status:received-in-warehouse"],
+    "requests:view:cost": ["requests:view:sale-price"],
+    "requests:view:margin": ["requests:view:cost"],
+
+    // --- Production Planner ---
+    "planner:read": ["planner:read:all", "planner:create"],
+    "planner:create": ["planner:edit:pending"],
+    "planner:status:review": ["planner:read"],
+    "planner:status:approve": ["planner:status:review", "planner:edit:approved"],
+    "planner:status:in-progress": ["planner:status:approve", "planner:priority:update", "planner:machine:assign", "planner:schedule"],
+    "planner:status:on-hold": ["planner:status:in-progress"],
+    "planner:status:completed": ["planner:status:in-progress"],
+    "planner:receive": ["planner:status:completed"],
+
+    // --- Consignments ---
+    "consignments:access": [
+        "consignments:setup", "consignments:count", "consignments:boletas:read", "consignments:reports:read",
+        "consignments:adjustments:create", "consignments:closures:create"
+    ],
+    "consignments:boletas:read": [
+        "consignments:boletas:read:all", "consignments:boleta:approve", "consignments:boleta:send", 
+        "consignments:boleta:invoice", "consignments:boleta:cancel", "consignments:boleta:revert"
+    ],
+    "consignments:boleta:approve": ["consignments:closures:annul"], // Annul permission depends on approval permission
+    
+    // --- IT Tools ---
+    "it-tools:access": ["it-tools:notes:read"],
+    "it-tools:notes:read": ["it-tools:notes:create", "it-tools:notes:update", "it-tools:notes:delete"],
+    
+    // --- Warehouse ---
+    "warehouse:access": [
+        "warehouse:search:full", "warehouse:search:simple", "warehouse:receiving-wizard:use", 
+        "warehouse:population-wizard:use", "warehouse:inventory-count:create", "warehouse:item-assignment:create", 
+        "warehouse:locations:create", "warehouse:units:create", "warehouse:locks:manage", 
+        "warehouse:correction:execute", "warehouse:labels:generate", "warehouse:explorer:read",
+        "warehouse:cleanup:execute"
+    ],
+    "warehouse:cleanup:execute": ["warehouse:item-assignment:delete"],
+    "warehouse:item-assignment:delete": ["warehouse:item-assignment:create"],
+    "warehouse:locations:update": ["warehouse:locations:create"],
+    "warehouse:locations:delete": ["warehouse:locations:create"],
+    "warehouse:units:delete": ["warehouse:units:create"],
+    "warehouse:correction:apply": ["warehouse:correction:execute"],
+};
+
+
+
+// =============================================================================
+// ARCHIVO: src/app/dashboard/admin/roles/roles-client.tsx
+// PROPÓSITO: La interfaz de usuario (UI) para crear y gestionar roles.
+// =============================================================================
+
+'use client';
+
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogClose,
+} from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import { useToast } from '@/modules/core/hooks/use-toast';
+import { logInfo, logError } from '@/modules/core/lib/logger';
+import {
+  permissionGroups,
+  permissionTranslations,
+  permissionTree,
+  AppPermission,
+} from '@/modules/core/lib/permissions';
+import { getAllRoles, saveAllRoles, resetDefaultRoles } from '@/modules/core/lib/roles-actions';
+import type { Role } from '@/modules/core/types';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { PlusCircle, Save, Trash2, ShieldQuestion, Copy } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
+import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
+
+export default function RolesClient() {
+  const { hasPermission } = useAuthorization(['roles:create', 'roles:read', 'roles:update', 'roles:delete']);
+  const { toast } = useToast();
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const { setTitle } = usePageTitle();
+
+  const [isDialogOpen, setDialogOpen] = useState(false);
+  const [currentRole, setCurrentRole] = useState<Role | null>(null);
+  const [roleToDelete, setRoleToDelete] = useState<Role | null>(null);
+
+  const fetchRoles = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const rolesData = await getAllRoles();
+      setRoles(rolesData);
+    } catch (error) {
+      logError('Error fetching roles', { error });
+      toast({
+        title: 'Error',
+        description: 'No se pudieron cargar los roles.',
+        variant: 'destructive',
+      });
+    }
+    setIsLoading(false);
+  }, [toast]);
+
+  useEffect(() => {
+    setTitle('Gestión de Roles');
+    fetchRoles();
+  }, [setTitle, fetchRoles]);
+
+  const handleOpenDialog = (role?: Role) => {
+    setCurrentRole(role ? { ...role } : { id: '', name: '', permissions: [] });
+    setDialogOpen(true);
+  };
+  
+  const handleCopyRole = (role: Role) => {
+    setCurrentRole({
+        id: '', // New role, so no ID
+        name: `Copia de ${role.name}`,
+        permissions: [...role.permissions] // Copy permissions
+    });
+    setDialogOpen(true);
+  }
+
+  const handleSaveRole = async () => {
+    if (!currentRole || !currentRole.name.trim()) {
+      toast({
+        title: 'Error de Validación',
+        description: 'El nombre del rol no puede estar vacío.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    let updatedRoles;
+    const isNew = !currentRole.id;
+    if (isNew) {
+      const newRoleId = currentRole.name
+        .toLowerCase()
+        .replace(/\s+/g, '-')
+        .replace(/[^a-z0-9-]/g, '');
+      if (roles.some((r) => r.id === newRoleId)) {
+        toast({
+          title: 'Error',
+          description: 'Ya existe un rol con un ID similar.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      updatedRoles = [...roles, { ...currentRole, id: newRoleId }];
+    } else {
+      updatedRoles = roles.map((r) =>
+        r.id === currentRole.id ? currentRole : r
+      );
+    }
+
+    try {
+      await saveAllRoles(updatedRoles);
+      setRoles(updatedRoles);
+      toast({
+        title: 'Roles Guardados',
+        description: `El rol "${currentRole.name}" ha sido ${
+          isNew ? 'creado' : 'actualizado'
+        }.`,
+      });
+      await logInfo('Roles saved', { role: currentRole.name });
+    } catch (err: any) {
+      logError('Failed to save roles', { error: err.message });
+      toast({
+        title: 'Error',
+        description: 'No se pudieron guardar los roles.',
+        variant: 'destructive',
+      });
+    }
+
+    setDialogOpen(false);
+  };
+
+  const handleDeleteRole = async () => {
+    if (!roleToDelete) return;
+    if (roleToDelete.id === 'admin') {
+      toast({
+        title: 'Acción no permitida',
+        description: 'No se puede eliminar el rol de Administrador.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    const updatedRoles = roles.filter((r) => r.id !== roleToDelete.id);
+    await saveAllRoles(updatedRoles);
+    setRoles(updatedRoles);
+    toast({
+      title: 'Rol Eliminado',
+      description: `El rol "${roleToDelete.name}" ha sido eliminado.`,
+      variant: 'destructive',
+    });
+    await logInfo('Role deleted', { roleId: roleToDelete.id });
+    setRoleToDelete(null);
+  };
+
+  const handleResetAdmin = async () => {
+    await resetDefaultRoles();
+    await fetchRoles(); // Re-fetch all roles to get the updated admin role
+    toast({
+      title: 'Rol de Administrador Restablecido',
+      description:
+        'Todos los permisos han sido re-asignados al rol de Administrador.',
+    });
+    await logInfo('Admin role reset to default');
+  };
+
+  const handlePermissionChange = (permission: AppPermission, isChecked: boolean, role: Role) => {
+    if (!currentRole) return;
+
+    let newPermissions = new Set(role.permissions as AppPermission[]);
+
+    const addWithParents = (perm: AppPermission) => {
+        newPermissions.add(perm);
+        for (const parent in permissionTree) {
+            const parentPerm = parent as AppPermission;
+            if (permissionTree[parentPerm]?.includes(perm)) {
+                addWithParents(parentPerm);
+            }
+        }
+    };
+    
+    const removeWithChildren = (perm: AppPermission) => {
+        newPermissions.delete(perm);
+        const children = permissionTree[perm] || [];
+        for (const child of children) {
+            removeWithChildren(child as AppPermission);
+        }
+    };
+    
+    if (isChecked) {
+        addWithParents(permission);
+    } else {
+        removeWithChildren(permission);
+    }
+    
+    setCurrentRole({ ...role, permissions: Array.from(newPermissions) });
+  };
+  
+ const handleGroupPermissionChange = (groupPermissions: AppPermission[], check: boolean) => {
+    if (!currentRole) return;
+    
+    let newPermissions = new Set(currentRole.permissions as AppPermission[]);
+
+    const addWithParents = (perm: AppPermission) => {
+        newPermissions.add(perm);
+        for (const parent in permissionTree) {
+            const parentPerm = parent as AppPermission;
+            if (permissionTree[parentPerm]?.includes(perm)) {
+                addWithParents(parentPerm);
+            }
+        }
+    };
+
+    const removeWithChildren = (perm: AppPermission) => {
+        newPermissions.delete(perm);
+        const children = permissionTree[perm] || [];
+        for (const child of children) {
+            removeWithChildren(child as AppPermission);
+        }
+    };
+
+    groupPermissions.forEach(p => {
+        if (check) {
+            addWithParents(p);
+        } else {
+            removeWithChildren(p);
+        }
+    });
+
+    setCurrentRole({ ...currentRole, permissions: Array.from(newPermissions) });
+};
+
+
+  const renderPermissionGroup = (
+    groupName: string,
+    permissions: AppPermission[],
+    role: Role
+  ) => {
+    const allSelectedInGroup = permissions.every(p => role.permissions.includes(p));
+
+    return (
+      <details key={groupName} className="space-y-2">
+        <summary className="cursor-pointer font-medium flex justify-between items-center py-2 hover:bg-muted/50 rounded-md -mx-2 px-2">
+          <span>{groupName}</span>
+          <div className="flex items-center gap-2 mr-4" onClick={(e) => e.preventDefault()}>
+            <Label htmlFor={`select-all-${groupName.replace(/\s+/g, '-')}`} className="text-xs font-normal cursor-pointer">
+              Todos
+            </Label>
+            <Checkbox
+              id={`select-all-${groupName.replace(/\s+/g, '-')}`}
+              checked={allSelectedInGroup}
+              onCheckedChange={(checked) => handleGroupPermissionChange(permissions, !!checked)}
+              disabled={role.id === 'admin'}
+            />
+          </div>
+        </summary>
+        <div className="pl-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 border-l-2 ml-2 pl-4">
+          {permissions.map((permission) => (
+            <div key={permission} className="flex items-center space-x-2">
+              <Checkbox
+                id={`${role.id}-${permission}`}
+                checked={role.permissions.includes(permission)}
+                onCheckedChange={(checked) =>
+                  handlePermissionChange(permission, !!checked, role)
+                }
+                disabled={role.id === 'admin'}
+              />
+              <Label
+                htmlFor={`${role.id}-${permission}`}
+                className="font-normal text-sm"
+              >
+                {(permissionTranslations as any)[permission] || permission}
+              </Label>
+            </div>
+          ))}
+        </div>
+      </details>
+    );
+  };
+
+  if (isLoading) {
+    return (
+      <main className="flex-1 p-4 md:p-6 lg:p-8">
+        <div className="mx-auto max-w-4xl space-y-6">
+          <Skeleton className="h-64 w-full" />
+          <Skeleton className="h-64 w-full" />
+        </div>
+      </main>
+    );
+  }
+
+  return (
+    <main className="flex-1 p-4 md:p-6 lg:p-8">
+      <div className="mx-auto max-w-4xl space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">Gestión de Roles</h1>
+            <p className="text-muted-foreground">
+              Define roles de usuario y asigna permisos específicos.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={handleResetAdmin}
+              disabled={!hasPermission('roles:update')}
+            >
+              <ShieldQuestion className="mr-2 h-4 w-4" />
+              Restablecer Rol Admin
+            </Button>
+            <Button
+              onClick={() => handleOpenDialog()}
+              disabled={!hasPermission('roles:create')}
+            >
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Nuevo Rol
+            </Button>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          {roles.map((role) => (
+            <Card key={role.id}>
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <CardTitle>{role.name}</CardTitle>
+                    <CardDescription>ID: {role.id}</CardDescription>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleCopyRole(role)}
+                      disabled={!hasPermission('roles:create')}
+                    >
+                      <Copy className="mr-2 h-4 w-4"/>
+                      Copiar Rol
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleOpenDialog(role)}
+                      disabled={
+                        role.id === 'admin' || !hasPermission('roles:update')
+                      }
+                    >
+                      Editar Permisos
+                    </Button>
+                     <AlertDialog onOpenChange={(open) => !open && setRoleToDelete(null)}>
+                        <AlertDialogTrigger asChild>
+                             <Button
+                                variant="destructive"
+                                disabled={
+                                    role.id === 'admin' || !hasPermission('roles:delete')
+                                }
+                                onClick={() => setRoleToDelete(role)}
+                                >
+                                <Trash2 className="h-4 w-4" />
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>¿Eliminar el rol &quot;{roleToDelete?.name}&quot;?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    Esta acción no se puede deshacer. Los usuarios con este rol perderán sus permisos.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleDeleteRole}>Sí, Eliminar</AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </div>
+              </CardHeader>
+            </Card>
+          ))}
+        </div>
+      </div>
+
+      <Dialog open={isDialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>
+              {currentRole?.id ? 'Editar Rol' : 'Nuevo Rol'}
+            </DialogTitle>
+            <DialogDescription>
+              {currentRole?.id
+                ? `Editando permisos para "${currentRole?.name}"`
+                : 'Crea un nuevo rol y asigna sus permisos.'}
+            </DialogDescription>
+          </DialogHeader>
+          {currentRole && (
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="role-name">Nombre del Rol</Label>
+                <Input
+                  id="role-name"
+                  value={currentRole.name}
+                  onChange={(e) =>
+                    setCurrentRole({ ...currentRole, name: e.target.value })
+                  }
+                  disabled={currentRole.id === 'admin'}
+                />
+              </div>
+              <ScrollArea className="h-[50vh] rounded-md border p-4">
+                <div className="space-y-6">
+                  {Object.entries(permissionGroups).map(([groupName, perms]) =>
+                    renderPermissionGroup(groupName, perms as AppPermission[], currentRole)
+                  )}
+                </div>
+              </ScrollArea>
+            </div>
+          )}
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="ghost">Cancelar</Button>
+            </DialogClose>
+            <Button
+              onClick={handleSaveRole}
+              disabled={currentRole?.id === 'admin'}
+            >
+              <Save className="mr-2 h-4 w-4" />
+              Guardar Cambios
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </main>
+  );
+}
+
+
+
+
+// =============================================================================
+// ARCHIVO: src/modules/core/lib/roles-actions.ts
+// PROPÓSITO: Server Actions para interactuar de forma segura con la DB de roles.
+// =============================================================================
+
+'use server';
+
+import {
+    getAllRoles as getAllRolesDb,
+    saveAllRoles as saveAllRolesDb,
+    resetDefaultRoles as resetDefaultRolesDb,
+} from '@/modules/core/lib/db';
+import type { Role } from '../types';
+import { authorizeAction } from './auth-guard';
+
+export async function getAllRoles(): Promise<Role[]> {
+    await authorizeAction('roles:read');
+    return getAllRolesDb();
+}
+export async function saveAllRoles(roles: Role[]): Promise<void> {
+    await authorizeAction('roles:update');
+    return saveAllRolesDb(roles);
+}
+export async function resetDefaultRoles(): Promise<void> {
+    await authorizeAction('roles:update');
+    return resetDefaultRolesDb();
+}
+
+
+
+// =============================================================================
+// ARCHIVO: src/modules/core/lib/auth-guard.ts
+// PROPÓSITO: "Guardianes" del sistema que usan roles para proteger páginas y acciones.
+// =============================================================================
+
+/**
+ * @fileoverview Server-side "guardian" functions for robust authorization.
+ * These functions are the primary source of truth for permission checking on the server,
+ * protecting both API-like actions and page renders.
+ */
+'use server';
+
+import { cache } from 'react';
+import { redirect } from 'next/navigation';
+import { getCurrentUser, hasPermission as hasPermissionServer } from './auth';
+import { logWarn } from './logger';
+import type { User } from '@/modules/core/types';
+import { AuthError } from '../types';
+import type { AppPermission } from './permissions';
+
+/**
+ * Memoized function to get the current user's data from the session.
+ * This utilizes React's `cache` to prevent multiple database queries for the user
+ * within a single server-side render cycle.
+ */
+const getCachedUser = cache(async () => {
+    const user = await getCurrentUser();
+    if (!user) {
+        return null;
+    }
+    return user;
+});
+
+/**
+ * Verifies if the current user in session has a specific permission.
+ * Throws an AuthError if the check fails. This is the primary guard
+ * for all Server Actions that modify data.
+ *
+ * @param requiredPermission The permission string to check for.
+ * @returns {Promise<User>} The full user object if authorized, allowing for reuse in the action.
+ * @throws {AuthError} If the user is not authenticated or lacks permission.
+ */
+export async function authorizeAction(requiredPermission: AppPermission): Promise<User> {
+    const user = await getCachedUser();
+    if (!user) {
+        throw new AuthError("No autenticado. Inicia sesión para continuar.");
+    }
+    
+    const isAuthorized = await hasPermissionServer(user.id, requiredPermission);
+
+    if (!isAuthorized) {
+        await logWarn('Intento de acción no autorizada', { user: user.name, requiredPermission });
+        throw new AuthError("No tienes permiso para realizar esta acción.");
+    }
+
+    return user;
+}
+
+
+/**
+ * Verifies if the current user in session can access a specific page.
+ * If the check fails, it redirects the user to the main dashboard.
+ * This should be used at the top of Server Components (pages) to protect routes.
+ *
+ * @param requiredPermission The permission string to check for.
+ */
+export async function authorizePage(requiredPermission: AppPermission): Promise<void> {
+    const user = await getCachedUser();
+    if (!user) {
+        return redirect('/'); // If no user, redirect to login
+    }
+    
+    const isAuthorized = await hasPermissionServer(user.id, requiredPermission);
+
+    if (!isAuthorized) {
+        // Redirect to a safe default page if unauthorized.
+        // No warning is logged for page access attempts to avoid log spam.
+        return redirect('/dashboard');
+    }
+}
