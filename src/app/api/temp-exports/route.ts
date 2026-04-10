@@ -1,6 +1,6 @@
 /**
  * @fileoverview API Route to safely serve and delete temporary export files.
- * Consolidated as the primary export endpoint.
+ * Marked as strictly dynamic to avoid build-time static generation errors.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -8,51 +8,37 @@ import path from 'path';
 import fs from 'fs';
 
 export const dynamic = 'force-dynamic';
-
-const EXPORT_DIR = 'temp_exports';
-const exportDirectory = path.join(process.cwd(), 'dbs', EXPORT_DIR);
-
-if (!fs.existsSync(exportDirectory)) {
-    fs.mkdirSync(exportDirectory, { recursive: true });
-}
+export const revalidate = 0;
 
 export async function GET(request: NextRequest) {
-    const { searchParams } = new URL(request.url);
-    const fileName = searchParams.get('file');
-
-    if (!fileName) {
-        return new NextResponse('Filename is required', { status: 400 });
-    }
-
-    const sanitizedFileName = path.basename(fileName);
-    if (sanitizedFileName !== fileName) {
-        return new NextResponse('Invalid filename', { status: 400 });
-    }
-
-    const filePath = path.join(exportDirectory, sanitizedFileName);
-    
-    if (!fs.existsSync(filePath)) {
-        return new NextResponse('File not found', { status: 404 });
-    }
-
     try {
-        const stats = fs.statSync(filePath);
-        const dataStream = fs.createReadStream(filePath);
+        const { searchParams } = new URL(request.url);
+        const fileName = searchParams.get('file');
+
+        if (!fileName) {
+            return new NextResponse('Filename is required', { status: 400 });
+        }
+
+        const sanitizedFileName = path.basename(fileName);
+        const exportDirectory = path.join(process.cwd(), 'dbs', 'temp_exports');
+        const filePath = path.join(exportDirectory, sanitizedFileName);
         
-        const readableStream = new ReadableStream({
-            start(controller) {
-                dataStream.on('data', (chunk) => controller.enqueue(chunk));
-                dataStream.on('end', () => controller.close());
-                dataStream.on('error', (err: Error) => controller.error(err));
+        if (!fs.existsSync(filePath)) {
+            return new NextResponse('File not found', { status: 404 });
+        }
+
+        const stats = fs.statSync(filePath);
+        const fileBuffer = fs.readFileSync(filePath);
+
+        return new NextResponse(fileBuffer, {
+            status: 200,
+            headers: {
+                'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'Content-Disposition': `attachment; filename="${sanitizedFileName}"`,
+                'Content-Length': String(stats.size),
+                'Cache-Control': 'no-store, max-age=0',
             },
         });
-
-        const headers = new Headers();
-        headers.set('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        headers.set('Content-Disposition', `attachment; filename="${sanitizedFileName}"`);
-        headers.set('Content-Length', String(stats.size));
-
-        return new NextResponse(readableStream as ReadableStream<Uint8Array>, { status: 200, headers });
 
     } catch (error: unknown) {
         console.error(`Failed to read export file: ${(error as Error).message}`);
@@ -69,7 +55,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     const sanitizedFileName = path.basename(fileName);
-    const filePath = path.join(exportDirectory, sanitizedFileName);
+    const filePath = path.join(process.cwd(), 'dbs', 'temp_exports', sanitizedFileName);
 
     if (fs.existsSync(filePath)) {
         try {
