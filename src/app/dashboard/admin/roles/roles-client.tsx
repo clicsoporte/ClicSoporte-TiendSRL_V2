@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
-  CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
@@ -42,12 +41,10 @@ import {
 } from '@/modules/core/lib/permissions';
 import { getAllRoles, saveAllRoles, resetDefaultRoles } from '@/modules/core/lib/roles-actions';
 import type { Role } from '@/modules/core/types';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { PlusCircle, Save, Trash2, ShieldQuestion, Copy, Loader2, ChevronRight } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
-import { cn } from '@/lib/utils';
 
 export default function RolesClient() {
   const { hasPermission } = useAuthorization(['roles:create', 'roles:read', 'roles:update', 'roles:delete']);
@@ -141,8 +138,8 @@ export default function RolesClient() {
       });
       await logInfo('Roles saved', { role: currentRole.name });
       setDialogOpen(false);
-    } catch (err: any) {
-      logError('Failed to save roles', { error: err.message });
+    } catch (err: unknown) {
+      logError('Failed to save roles', { error: (err as Error).message });
       toast({
         title: 'Error',
         description: 'No se pudieron guardar los roles.',
@@ -188,7 +185,7 @@ export default function RolesClient() {
   const handlePermissionChange = (permission: AppPermission, isChecked: boolean) => {
     if (!currentRole) return;
 
-    let newPermissions = new Set(currentRole.permissions as AppPermission[]);
+    const newPermissions = new Set(currentRole.permissions as AppPermission[]);
 
     const addWithParents = (perm: AppPermission) => {
         newPermissions.add(perm);
@@ -220,7 +217,7 @@ export default function RolesClient() {
  const handleGroupPermissionChange = (groupPermissions: AppPermission[], check: boolean) => {
     if (!currentRole) return;
     
-    let newPermissions = new Set(currentRole.permissions as AppPermission[]);
+    const newPermissions = new Set(currentRole.permissions as AppPermission[]);
 
     const addWithParents = (perm: AppPermission) => {
         newPermissions.add(perm);
@@ -415,11 +412,11 @@ export default function RolesClient() {
             <DialogTitle>
               {currentRole?.id ? 'Editar Permisos del Rol' : 'Crear Nuevo Rol'}
             </DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-sm font-normal text-muted-foreground">
               {currentRole?.id
                 ? `Personaliza las facultades para "${currentRole?.name}"`
                 : 'Define el nombre y las capacidades del nuevo puesto.'}
-            </DialogDescription>
+            </DialogTitle>
           </DialogHeader>
           
           <div className="flex-1 overflow-y-auto p-6 scrollbar-thin">
