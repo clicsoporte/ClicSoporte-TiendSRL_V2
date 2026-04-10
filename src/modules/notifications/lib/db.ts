@@ -1,6 +1,6 @@
 /**
  * @fileoverview Server-side functions for the notifications module.
- * Unified into intratool.db.
+ * Unified into intratool.db. Tables prefixed with ticket_.
  */
 "use server";
 
@@ -52,7 +52,7 @@ export async function saveNotificationRule(rule: Omit<NotificationRule, 'id'> | 
         recipients: JSON.stringify(rule.recipients || []),
         subject: rule.subject || null,
         enabled: rule.enabled ? 1 : 0,
-        id: (rule as any).id || null
+        id: 'id' in rule ? rule.id : null
     };
 
     try {
@@ -107,7 +107,7 @@ export async function saveScheduledTask(task: Omit<ScheduledTask, 'id'> | Schedu
         schedule: task.schedule || '',
         taskId: task.taskId || '',
         enabled: task.enabled ? 1 : 0,
-        id: (task as any).id || null
+        id: 'id' in task ? task.id : null
     };
 
     try {
