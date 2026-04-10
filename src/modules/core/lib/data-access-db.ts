@@ -1,6 +1,5 @@
 /**
- * @fileoverview Server-side functions for accessing master data like customers, products, etc.
- * Separated to avoid circular dependencies.
+ * @fileoverview Funciones de servidor para acceder a datos maestros (clientes, productos, etc.).
  */
 "use server";
 
@@ -8,11 +7,11 @@ import { connectDb } from './db';
 import type { Product, Customer, StockInfo, Exemption } from '@/modules/core/types';
 import { logInfo, logError } from './logger';
 import { authorizeAction } from './auth-guard';
-import { getCurrentUser } from './auth';
+import { getCurrentUser } from './session';
 import { permissionTree } from './permissions';
 
 /**
- * Helper to check granular permission recursively at server level.
+ * Ayudante para verificar permisos granulares de forma recursiva en el servidor.
  */
 async function hasGranularPermission(permission: string): Promise<boolean> {
     const user = await getCurrentUser();
@@ -38,8 +37,7 @@ async function hasGranularPermission(permission: string): Promise<boolean> {
 }
 
 /**
- * Retrieves all customers from the database.
- * @returns {Promise<Customer[]>}
+ * Obtiene todos los clientes de la base de datos.
  */
 export async function getAllCustomers(): Promise<Customer[]> {
     const db = await connectDb();
@@ -57,23 +55,20 @@ export async function getAllCustomers(): Promise<Customer[]> {
         }));
         return JSON.parse(JSON.stringify(enrichedResults));
     } catch (error) {
-        console.error("Failed to get all customers:", error);
+        console.error("Error al obtener clientes:", error);
         return [];
     }
 }
 
 /**
- * Adds or updates a customer manually.
- * PROTECTED: Requires customers:create or customers:update.
+ * Crea o actualiza un cliente manualmente.
  */
 export async function upsertCustomer(customer: Customer): Promise<Customer> {
     const db = await connectDb();
     
-    // 1. Initial Permission Check
     const existing = db.prepare('SELECT id, supportPackageId FROM customers WHERE id = ?').get(customer.id) as { id: string, supportPackageId: string | null } | undefined;
     await authorizeAction(existing ? 'customers:update' : 'customers:create');
 
-    // 2. Granular Check for Support Plan change
     if (existing && customer.supportPackageId !== existing.supportPackageId) {
         const canUpdatePlan = await hasGranularPermission('customers:update:plan');
         if (!canUpdatePlan) {
@@ -146,8 +141,7 @@ export async function upsertCustomer(customer: Customer): Promise<Customer> {
 }
 
 /**
- * Deletes a customer.
- * PROTECTED: Requires customers:delete.
+ * Elimina un cliente. Requiere permiso customers:delete.
  */
 export async function deleteCustomer(id: string): Promise<void> {
     await authorizeAction('customers:delete');
@@ -163,8 +157,7 @@ export async function deleteCustomer(id: string): Promise<void> {
 }
 
 /**
- * Retrieves all products from the database.
- * @returns {Promise<Product[]>}
+ * Obtiene todos los artículos.
  */
 export async function getAllProducts(): Promise<Product[]> {
     const db = await connectDb();
@@ -172,14 +165,13 @@ export async function getAllProducts(): Promise<Product[]> {
         const results = db.prepare('SELECT * FROM products').all() as Product[];
         return JSON.parse(JSON.stringify(results));
     } catch (error) {
-        console.error("Failed to get all products:", error);
+        console.error("Error al obtener productos:", error);
         return [];
     }
 }
 
 /**
- * Retrieves all stock information from the database.
- * @returns {Promise<StockInfo[]>}
+ * Obtiene los niveles de existencias.
  */
 export async function getAllStock(): Promise<StockInfo[]> {
     const db = await connectDb();
@@ -191,14 +183,13 @@ export async function getAllStock(): Promise<StockInfo[]> {
         }));
         return JSON.parse(JSON.stringify(parsedData));
     } catch (error) {
-        console.error("Failed to get all stock:", error);
+        console.error("Error al obtener existencias:", error);
         return [];
     }
 }
 
 /**
- * Retrieves all exemptions from the database.
- * @returns {Promise<Exemption[]>}
+ * Obtiene todas las exoneraciones.
  */
 export async function getAllExemptions(): Promise<Exemption[]> {
     const db = await connectDb();
@@ -206,14 +197,13 @@ export async function getAllExemptions(): Promise<Exemption[]> {
         const results = db.prepare('SELECT * FROM exemptions').all() as Exemption[];
         return JSON.parse(JSON.stringify(results));
     } catch (error) {
-        console.error("Failed to get all exemptions:", error);
+        console.error("Error al obtener exoneraciones:", error);
         return [];
     }
 }
 
 /**
- * Retrieves the full CABYS catalog from the database.
- * @returns {Promise<{code: string, description: string, taxRate: number}[]>}
+ * Obtiene el catálogo CABYS completo.
  */
 export async function getCabysCatalog(): Promise<{code: string, description: string, taxRate: number}[]> {
     const db = await connectDb();
@@ -221,7 +211,7 @@ export async function getCabysCatalog(): Promise<{code: string, description: str
         const results = db.prepare('SELECT * FROM cabys_catalog').all() as {code: string, description: string, taxRate: number}[];
         return JSON.parse(JSON.stringify(results));
     } catch (error) {
-        console.error("Failed to get CABYS catalog:", error);
+        console.error("Error al obtener catálogo CABYS:", error);
         return [];
     }
 }

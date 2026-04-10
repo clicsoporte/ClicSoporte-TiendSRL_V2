@@ -1,10 +1,8 @@
-
 /**
- * @fileoverview Server-side authentication using HttpOnly cookies and React cache.
+ * @fileoverview Lógica de autenticación del servidor.
  */
 "use server";
 
-import { cache } from 'react';
 import { cookies } from 'next/headers';
 import { connectDb } from './db';
 import type { User, ExchangeRateApiResponse, Company, Contract } from '../types';
@@ -17,35 +15,11 @@ import { getAllCustomers, getAllProducts, getAllStock, getAllExemptions } from '
 import { getExchangeRate } from './api-actions';
 import { getUnreadSuggestionsCount } from './suggestions-actions';
 import { getEmailSettings, sendEmail } from './email-service';
+import { getCurrentUser } from './session';
 
 /**
- * Retrieves the currently authenticated user based on the session cookie.
- * Cached per request to ensure efficiency.
- */
-export const getCurrentUser = cache(async (): Promise<User | null> => {
-    const cookieStore = cookies();
-    const userId = cookieStore.get(SESSION_COOKIE)?.value;
-
-    if (!userId) return null;
-
-    try {
-        const db = await connectDb();
-        const user = db.prepare('SELECT * FROM users WHERE id = ?').get(Number(userId)) as User | undefined;
-
-        if (!user) return null;
-
-        const safeUser = { ...user };
-        delete safeUser.password;
-        return JSON.parse(JSON.stringify(safeUser));
-    } catch (error) {
-        console.error("Error fetching current user:", error);
-        return null;
-    }
-});
-
-/**
- * Attempts to log in a user.
- * @returns The user object and whether a password change is required.
+ * Intenta iniciar sesión para un usuario.
+ * @returns El objeto de usuario y si se requiere cambio de contraseña.
  */
 export async function login(email: string, passwordProvided: string): Promise<{ user: User | null, forcePasswordChange: boolean }> {
     const db = await connectDb();
@@ -65,24 +39,24 @@ export async function login(email: string, passwordProvided: string): Promise<{ 
 
                 const safeUser = { ...user };
                 delete safeUser.password;
-                await logInfo(`User '${user.name}' logged in successfully.`);
+                await logInfo(`Usuario '${user.name}' inició sesión exitosamente.`);
                 return { 
                     user: JSON.parse(JSON.stringify(safeUser)), 
                     forcePasswordChange: !!user.forcePasswordChange 
                 };
             }
         }
-        await logWarn(`Failed login attempt for email: ${email}`);
+        await logWarn(`Intento de inicio de sesión fallido para: ${email}`);
         return { user: null, forcePasswordChange: false };
     } catch (error) {
-        console.error("Login error:", error);
+        console.error("Error en login:", error);
         return { user: null, forcePasswordChange: false };
     }
 }
 
 export async function logout(): Promise<void> {
     const user = await getCurrentUser();
-    if (user) await logInfo(`User '${user.name}' logged out.`);
+    if (user) await logInfo(`Usuario '${user.name}' cerró sesión.`);
     cookies().delete(SESSION_COOKIE);
 }
 
@@ -157,23 +131,20 @@ export async function comparePasswords(userId: number, password: string): Promis
 }
 
 /**
- * Handles the password recovery process by generating a temporary password and emailing it.
- * IMPROVED: Checks SMTP config first and only updates DB if email is sent successfully.
+ * Gestiona el proceso de recuperación de contraseña.
  */
 export async function sendPasswordRecoveryEmail(email: string): Promise<void> {
     const db = await connectDb();
     const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email) as User | undefined;
     
-    // Check if email settings are configured BEFORE doing anything
     const emailSettings = await getEmailSettings();
     if (!emailSettings.smtpHost) {
-        await logError("Recovery failed: SMTP not configured", { email });
-        throw new Error("El servicio de recuperación por correo no está configurado. Contacte a su administrador.");
+        await logError("Recuperación fallida: SMTP no configurado", { email });
+        throw new Error("El servicio de recuperación por correo no está configurado.");
     }
 
     if (!user) {
-        await logWarn(`Password recovery requested for non-existent email: ${email}`);
-        // Return success message to user anyway to prevent email enumeration
+        await logWarn(`Recuperación solicitada para correo inexistente: ${email}`);
         return; 
     }
 
@@ -181,13 +152,12 @@ export async function sendPasswordRecoveryEmail(email: string): Promise<void> {
         const tempPassword = Math.random().toString(36).slice(-8);
         const companySettings = await getCompanySettings();
 
-        // 1. Prepare email content
         let body = (emailSettings.recoveryEmailBody || `
             <div style="font-family: sans-serif;">
                 <h2>Hola [NOMBRE_USUARIO]</h2>
-                <p>Has solicitado restablecer tu contraseña en Clic-Soporte.</p>
+                <p>Has solicitado restablecer tu contraseña.</p>
                 <p>Tu clave temporal es: <b style="font-size: 18px; color: #2563eb;">[CLAVE_TEMPORAL]</b></p>
-                <p>Por seguridad, el sistema te pedirá cambiar esta clave al ingresar.</p>
+                <p>El sistema te pedirá cambiarla al ingresar.</p>
             </div>
         `)
         .replace('[NOMBRE_USUARIO]', user.name)
@@ -197,30 +167,26 @@ export async function sendPasswordRecoveryEmail(email: string): Promise<void> {
             body += `<p style="margin-top: 20px; font-size: 12px; color: #666;">Enviado por: ${companySettings.name}</p>`;
         }
 
-        // 2. ATTEMPT TO SEND EMAIL FIRST
-        // If this fails, it throws an error and we never touch the DB
         await sendEmail({
             to: user.email,
-            subject: emailSettings.recoveryEmailSubject || 'Recuperación de Contraseña - Clic-Soporte',
+            subject: emailSettings.recoveryEmailSubject || 'Recuperación de Contraseña',
             html: body
         });
 
-        // 3. ONLY IF EMAIL SUCCEEDED, UPDATE THE DATABASE
         const hashedTempPassword = await bcrypt.hash(tempPassword, SALT_ROUNDS);
         db.prepare('UPDATE users SET password = ?, forcePasswordChange = 1 WHERE id = ?')
           .run(hashedTempPassword, user.id);
 
-        await logInfo(`Recovery email sent and password updated for ${user.name} (${email})`);
+        await logInfo(`Correo de recuperación enviado para ${user.name}`);
     } catch (error: unknown) {
         const err = error as Error;
-        await logError(`Failed to process password recovery for ${email}`, { error: err.message });
-        throw new Error(`Error al enviar el correo: ${err.message}. Su contraseña actual sigue vigente.`);
+        await logError(`Fallo al procesar recuperación para ${email}`, { error: err.message });
+        throw new Error(`Error al enviar el correo: ${err.message}`);
     }
 }
 
 /**
- * Fetches all initial data for the AuthProvider in one go.
- * Enhanced to calculate consumed hours per customer for the current month.
+ * Obtiene todos los datos iniciales para el AuthProvider.
  */
 export async function getInitialAuthData() {
     try {
@@ -240,7 +206,6 @@ export async function getInitialAuthData() {
             getAllUsers().catch(() => [])
         ]);
 
-        // 1. Calculate Consumed Hours for this month per customer
         const consumptionRows = db.prepare(`
             SELECT 
                 c.id as customerId,
@@ -249,22 +214,17 @@ export async function getInitialAuthData() {
             JOIN tickets t ON te.ticketId = t.id
             JOIN customers c ON (t.customerName = c.name OR t.companyName = c.name OR t.id = c.id)
             WHERE te.isBillable = 1 
-              AND t.isBillable = 0 -- Only entries under contract/plan
+              AND t.isBillable = 0
               AND te.startTime >= date('now', 'start of month')
             GROUP BY c.id
         `).all() as { customerId: string, consumedMs: number }[];
 
         const consumptionMap = new Map(consumptionRows.map(r => [r.customerId, r.consumedMs / 3600000]));
-
-        // 2. Fetch active contracts to determine available hours
         const activeContracts = db.prepare("SELECT * FROM contracts WHERE status = 'active'").all() as Contract[];
         const contractMap = new Map(activeContracts.map(c => [c.customerId, c.monthlyHours]));
 
-        // 3. Enrich customers with hour data
         const enrichedCustomers = customersData.map(customer => {
             const consumedHours = consumptionMap.get(customer.id) || 0;
-            
-            // Priority for available hours: 1. Active Contract, 2. Assigned Support Package
             let availableHours = contractMap.get(customer.id) || 0;
             if (availableHours === 0 && customer.supportPackageId) {
                 const pkg = companySettings.supportPackages.find(p => p.id === customer.supportPackageId);
@@ -299,7 +259,7 @@ export async function getInitialAuthData() {
         };
     } catch (error: unknown) {
         const err = error as Error;
-        console.error("Critical error in getInitialAuthData:", err.message);
+        console.error("Error crítico en getInitialAuthData:", err.message);
         return {
             roles: [], companySettings: {} as Company, customers: [], products: [], stock: [], exemptions: [],
             exchangeRate: { rate: null, date: null }, unreadSuggestions: 0, users: [], exemptionLaws: []

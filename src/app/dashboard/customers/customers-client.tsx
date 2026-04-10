@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { PlusCircle, Search, Edit, Trash2, Loader2, UserPlus, Building2, Mail, Phone, Briefcase, SearchIcon, CheckCircle2, AlertCircle, MapPin, ShieldCheck, Send, RefreshCw, Users } from 'lucide-react';
+import { PlusCircle, Search, Edit, Trash2, Loader2, UserPlus, Building2, Mail, Phone, Briefcase, SearchIcon, CheckCircle2, AlertCircle, MapPin, ShieldCheck, Send, RefreshCw, Users, MessageCircle, X } from 'lucide-react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { upsertCustomer, deleteCustomer } from '@/modules/core/lib/data-access-db';
 import { getContributorInfo } from '@/modules/hacienda/lib/actions';
@@ -73,7 +73,10 @@ export default function CustomersClient() {
     const [isHaciendaLoading, setIsHaciendaLoading] = useState(false);
     const [currentCustomer, setCurrentCustomer] = useState<Customer>(emptyCustomer);
     const [isEditing, setIsEditing] = useState(false);
+    
+    // Contact editing state
     const [newContact, setNewContact] = useState<CustomerContact>(emptyContact);
+    const [editingContactId, setEditingContactId] = useState<string | null>(null);
 
     const [geoData, setGeoData] = useState<{ provinces: Province[], cantons: Canton[], districts: District[] }>({ provinces: [], cantons: [], districts: [] });
 
@@ -213,12 +216,33 @@ export default function CustomersClient() {
             toast({ title: "Contacto incompleto", description: "El nombre y el correo son obligatorios.", variant: "destructive" });
             return;
         }
-        const contactWithId = { ...newContact, id: Date.now().toString() };
-        setCurrentCustomer(prev => ({
-            ...prev,
-            contacts: [...(prev.contacts || []), contactWithId]
-        }));
+
+        if (editingContactId) {
+            setCurrentCustomer(prev => ({
+                ...prev,
+                contacts: (prev.contacts || []).map(c => c.id === editingContactId ? newContact : c)
+            }));
+            setEditingContactId(null);
+            toast({ title: "Contacto Actualizado" });
+        } else {
+            const contactWithId = { ...newContact, id: Date.now().toString() };
+            setCurrentCustomer(prev => ({
+                ...prev,
+                contacts: [...(prev.contacts || []), contactWithId]
+            }));
+            toast({ title: "Contacto Añadido" });
+        }
         setNewContact(emptyContact);
+    };
+
+    const handleEditContact = (contact: CustomerContact) => {
+        setNewContact(contact);
+        setEditingContactId(contact.id);
+    };
+
+    const handleCancelContactEdit = () => {
+        setNewContact(emptyContact);
+        setEditingContactId(null);
     };
 
     const handleRemoveContact = (id: string) => {
@@ -226,6 +250,10 @@ export default function CustomersClient() {
             ...prev,
             contacts: (prev.contacts || []).filter(c => c.id !== id)
         }));
+        if (editingContactId === id) {
+            setEditingContactId(null);
+            setNewContact(emptyContact);
+        }
     };
 
     if (!isAuthReady) {
@@ -255,7 +283,7 @@ export default function CustomersClient() {
                         Recalcular Horas
                     </Button>
                     
-                    <Dialog open={isFormOpen} onOpenChange={(open) => { setFormOpen(open); if(!open) { setCurrentCustomer(emptyCustomer); setIsEditing(false); setNewContact(emptyContact); }}}>
+                    <Dialog open={isFormOpen} onOpenChange={(open) => { setFormOpen(open); if(!open) { setCurrentCustomer(emptyCustomer); setIsEditing(false); setNewContact(emptyContact); setEditingContactId(null); }}}>
                         {hasPermission('customers:create') && (
                             <DialogTrigger asChild>
                                 <Button className="flex-1 sm:flex-none"><PlusCircle className="mr-2 h-4 w-4" /> Nuevo Cliente</Button>
@@ -454,27 +482,44 @@ export default function CustomersClient() {
                                             <Users className="h-5 w-5 text-primary" /> Contactos de la Empresa
                                         </h3>
                                         
-                                        <div className="bg-muted/30 p-4 rounded-lg border space-y-4 mb-6">
+                                        <div className={cn("p-4 rounded-lg border space-y-4 mb-6 transition-colors", editingContactId ? "bg-amber-50 border-amber-200" : "bg-muted/30")}>
+                                            <div className="flex items-center justify-between mb-2">
+                                                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                                                    {editingContactId ? 'Editando Contacto' : 'Nuevo Contacto'}
+                                                </h4>
+                                                {editingContactId && (
+                                                    <Button variant="ghost" size="sm" onClick={handleCancelContactEdit} className="h-6 text-[10px]">
+                                                        <X className="h-3 w-3 mr-1" /> CANCELAR EDICIÓN
+                                                    </Button>
+                                                )}
+                                            </div>
                                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                                 <div className="space-y-1.5">
                                                     <Label className="text-xs">Nombre Completo</Label>
-                                                    <Input value={newContact.name} onChange={e => setNewContact({...newContact, name: e.target.value})} placeholder="Ej: Juan Perez" className="h-8 text-xs" />
+                                                    <Input value={newContact.name} onChange={e => setNewContact({...newContact, name: e.target.value})} placeholder="Ej: Juan Perez" className="h-8 text-xs bg-background" />
                                                 </div>
                                                 <div className="space-y-1.5">
                                                     <Label className="text-xs">Correo</Label>
-                                                    <Input type="email" value={newContact.email} onChange={e => setNewContact({...newContact, email: e.target.value})} placeholder="juan@ejemplo.com" className="h-8 text-xs" />
+                                                    <Input type="email" value={newContact.email} onChange={e => setNewContact({...newContact, email: e.target.value})} placeholder="juan@ejemplo.com" className="h-8 text-xs bg-background" />
                                                 </div>
                                                 <div className="space-y-1.5">
                                                     <Label className="text-xs">Departamento</Label>
-                                                    <Input value={newContact.department} onChange={e => setNewContact({...newContact, department: e.target.value})} placeholder="Ej: TI, RRHH" className="h-8 text-xs" />
+                                                    <Input value={newContact.department} onChange={e => setNewContact({...newContact, department: e.target.value})} placeholder="Ej: TI, RRHH" className="h-8 text-xs bg-background" />
                                                 </div>
                                                 <div className="space-y-1.5">
-                                                    <Label className="text-xs">Teléfono</Label>
-                                                    <Input value={newContact.phone} onChange={e => setNewContact({...newContact, phone: e.target.value})} placeholder="Ej: 8888-7777" className="h-8 text-xs" />
+                                                    <Label className="text-xs">Tel. Oficina</Label>
+                                                    <Input value={newContact.phone} onChange={e => setNewContact({...newContact, phone: e.target.value})} placeholder="Ej: 2222-1111" className="h-8 text-xs bg-background" />
                                                 </div>
-                                                <div className="flex items-end lg:col-span-2">
-                                                    <Button type="button" size="sm" onClick={handleAddContactToList} className="w-full h-8">
-                                                        <PlusCircle className="mr-2 h-4 w-4" /> Agregar Contacto
+                                                <div className="space-y-1.5">
+                                                    <Label className="text-xs flex items-center gap-1">
+                                                        <MessageCircle className="h-3 w-3 text-green-600" /> WhatsApp Directo
+                                                    </Label>
+                                                    <Input value={newContact.whatsapp} onChange={e => setNewContact({...newContact, whatsapp: e.target.value})} placeholder="Ej: 8888-7777" className="h-8 text-xs bg-background" />
+                                                </div>
+                                                <div className="flex items-end">
+                                                    <Button type="button" size="sm" onClick={handleAddContactToList} className={cn("w-full h-8", editingContactId && "bg-amber-600 hover:bg-amber-700")}>
+                                                        {editingContactId ? <CheckCircle2 className="mr-2 h-4 w-4" /> : <PlusCircle className="mr-2 h-4 w-4" />}
+                                                        {editingContactId ? 'Actualizar Datos' : 'Agregar Contacto'}
                                                     </Button>
                                                 </div>
                                             </div>
@@ -482,7 +527,10 @@ export default function CustomersClient() {
 
                                         <div className="space-y-2">
                                             {(currentCustomer.contacts || []).map((contact) => (
-                                                <div key={contact.id} className="flex items-center justify-between p-3 rounded-md border bg-card text-sm shadow-sm group hover:border-primary transition-colors">
+                                                <div key={contact.id} className={cn(
+                                                    "flex items-center justify-between p-3 rounded-md border text-sm shadow-sm group transition-all",
+                                                    editingContactId === contact.id ? "border-amber-500 bg-amber-50 ring-1 ring-amber-500" : "bg-card hover:border-primary"
+                                                )}>
                                                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 flex-1">
                                                         <div>
                                                             <p className="font-bold">{contact.name}</p>
@@ -491,15 +539,30 @@ export default function CustomersClient() {
                                                         <div>
                                                             <p className="text-xs font-semibold flex items-center gap-1"><Briefcase className="h-3 w-3" /> {contact.department}</p>
                                                         </div>
-                                                        <div>
-                                                            <p className="text-xs flex items-center gap-1"><Phone className="h-3 w-3" /> {contact.phone || contact.officePhone || contact.whatsapp || 'N/A'}</p>
+                                                        <div className="flex flex-col gap-1">
+                                                            {contact.phone && <p className="text-xs flex items-center gap-1"><Phone className="h-3 w-3" /> {contact.phone}</p>}
+                                                            {contact.whatsapp && (
+                                                                <p className="text-xs text-green-600 font-bold flex items-center gap-1">
+                                                                    <MessageCircle className="h-3 w-3" /> {contact.whatsapp}
+                                                                </p>
+                                                            )}
                                                         </div>
                                                     </div>
-                                                    <Button variant="ghost" size="icon" onClick={() => handleRemoveContact(contact.id)} className="opacity-0 group-hover:opacity-100 text-destructive">
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </Button>
+                                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <Button variant="ghost" size="icon" onClick={() => handleEditContact(contact)} className="h-8 w-8 text-primary">
+                                                            <Edit className="h-4 w-4" />
+                                                        </Button>
+                                                        <Button variant="ghost" size="icon" onClick={() => handleRemoveContact(contact.id)} className="h-8 w-8 text-destructive">
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
                                                 </div>
                                             ))}
+                                            {(!currentCustomer.contacts || currentCustomer.contacts.length === 0) && (
+                                                <div className="text-center py-8 border-2 border-dashed rounded-lg bg-muted/20">
+                                                    <p className="text-muted-foreground text-sm">No hay contactos agregados para este cliente.</p>
+                                                </div>
+                                            )}
                                         </div>
                                     </section>
                                 </div>

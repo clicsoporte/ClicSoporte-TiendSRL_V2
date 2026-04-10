@@ -1,26 +1,24 @@
 /**
- * @fileoverview Server-side "guardian" functions for robust authorization.
- * These functions are the primary source of truth for permission checking on the server,
- * protecting both API-like actions and page renders.
+ * @fileoverview Funciones guardianas para robustecer la autorización en el servidor.
  */
 'use server';
 
 import { cache } from 'react';
 import { redirect } from 'next/navigation';
-import { getCurrentUser } from './auth';
+import { getCurrentUser } from './session';
 import { connectDb } from './db';
 import { checkPermissionInTree } from './permissions';
 import type { User } from '@/modules/core/types';
 
 /**
- * Memoized function to get the current user's data from the session.
+ * Función memoizada para obtener el usuario actual desde la sesión.
  */
 const getCachedUser = cache(async () => {
     return await getCurrentUser();
 });
 
 /**
- * Internal helper to verify permission recursively.
+ * Ayudante interno para verificar permisos de forma recursiva.
  */
 async function checkPermission(permission: string): Promise<boolean> {
     const user = await getCachedUser();
@@ -37,10 +35,7 @@ async function checkPermission(permission: string): Promise<boolean> {
 }
 
 /**
- * Verifies if the current user in session has a specific permission.
- * Throws an Error if the check fails. Primary guard for all Server Actions.
- *
- * @param requiredPermission The permission string to check for.
+ * Verifica si el usuario tiene un permiso específico. Lanza error si falla.
  */
 export async function authorizeAction(requiredPermission: string): Promise<User> {
     const user = await getCachedUser();
@@ -58,10 +53,7 @@ export async function authorizeAction(requiredPermission: string): Promise<User>
 }
 
 /**
- * Verifies if the current user in session can access a specific page.
- * If the check fails, it redirects the user to the main dashboard.
- *
- * @param requiredPermission The permission string to check for.
+ * Verifica si el usuario puede acceder a una página. Redirige si falla.
  */
 export async function authorizePage(requiredPermission?: string): Promise<void> {
     const user = await getCachedUser();
