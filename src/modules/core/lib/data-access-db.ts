@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Funciones de servidor para acceder a datos maestros (clientes, productos, etc.).
  */
@@ -51,7 +52,9 @@ export async function getAllCustomers(): Promise<Customer[]> {
             isTaxOmiso: !!c.isTaxOmiso,
             provinceId: c.provinceId ? Number(c.provinceId) : null,
             cantonId: c.cantonId ? Number(c.cantonId) : null,
-            districtId: c.districtId ? Number(c.districtId) : null
+            districtId: c.districtId ? Number(c.districtId) : null,
+            isBlocked: !!c.isBlocked,
+            blockedReason: c.blockedReason as string | null
         }));
         return JSON.parse(JSON.stringify(enrichedResults));
     } catch (error) {
@@ -81,12 +84,12 @@ export async function upsertCustomer(customer: Customer): Promise<Customer> {
             INSERT INTO customers (
                 id, name, commercialName, address, phone, taxId, currency, creditLimit, paymentCondition, salesperson, active, email, electronicDocEmail, isManual, contacts,
                 taxRegime, taxStatus, isTaxMoroso, isTaxOmiso, taxAdministration, taxActivities,
-                provinceId, cantonId, districtId, supportPackageId, telegramChatId
+                provinceId, cantonId, districtId, supportPackageId, telegramChatId, isBlocked, blockedReason
             )
             VALUES (
                 @id, @name, @commercialName, @address, @phone, @taxId, @currency, @creditLimit, @paymentCondition, @salesperson, @active, @email, @electronicDocEmail, 1, @contacts,
                 @taxRegime, @taxStatus, @isTaxMoroso, @isTaxOmiso, @taxAdministration, @taxActivities,
-                @provinceId, @cantonId, @districtId, @supportPackageId, @telegramChatId
+                @provinceId, @cantonId, @districtId, @supportPackageId, @telegramChatId, @isBlocked, @blockedReason
             )
             ON CONFLICT(id) DO UPDATE SET
                 name = excluded.name, commercialName = excluded.commercialName, address = excluded.address, phone = excluded.phone, taxId = excluded.taxId, currency = excluded.currency,
@@ -95,7 +98,8 @@ export async function upsertCustomer(customer: Customer): Promise<Customer> {
                 taxRegime = excluded.taxRegime, taxStatus = excluded.taxStatus, isTaxMoroso = excluded.isTaxMoroso, isTaxOmiso = excluded.isTaxOmiso,
                 taxAdministration = excluded.taxAdministration, taxActivities = excluded.taxActivities,
                 provinceId = excluded.provinceId, cantonId = excluded.cantonId, districtId = excluded.districtId,
-                supportPackageId = excluded.supportPackageId, telegramChatId = excluded.telegramChatId
+                supportPackageId = excluded.supportPackageId, telegramChatId = excluded.telegramChatId,
+                isBlocked = excluded.isBlocked, blockedReason = excluded.blockedReason
         `);
         
         const params = {
@@ -123,7 +127,9 @@ export async function upsertCustomer(customer: Customer): Promise<Customer> {
             cantonId: customer.cantonId || null,
             districtId: customer.districtId || null,
             supportPackageId: customer.supportPackageId || null,
-            telegramChatId: customer.telegramChatId || null
+            telegramChatId: customer.telegramChatId || null,
+            isBlocked: customer.isBlocked ? 1 : 0,
+            blockedReason: customer.blockedReason || null
         };
 
         stmt.run(params);

@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -11,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { PlusCircle, Search, Edit, Trash2, Loader2, UserPlus, Building2, Mail, Phone, Briefcase, SearchIcon, CheckCircle2, AlertCircle, MapPin, ShieldCheck, Send, RefreshCw, Users, MessageCircle, X } from 'lucide-react';
+import { PlusCircle, Search, Edit, Trash2, Loader2, UserPlus, Building2, Mail, Phone, Briefcase, SearchIcon, CheckCircle2, AlertCircle, MapPin, ShieldCheck, Send, RefreshCw, Users, MessageCircle, X, ShieldAlert } from 'lucide-react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { upsertCustomer, deleteCustomer } from '@/modules/core/lib/data-access-db';
 import { getContributorInfo } from '@/modules/hacienda/lib/actions';
@@ -23,6 +24,7 @@ import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
+import { Switch } from '@/components/ui/switch';
 
 const emptyContact: CustomerContact = {
     id: '',
@@ -57,7 +59,9 @@ const emptyCustomer: Customer = {
     cantonId: null,
     districtId: null,
     supportPackageId: null,
-    telegramChatId: ''
+    telegramChatId: '',
+    isBlocked: false,
+    blockedReason: ''
 };
 
 export default function CustomersClient() {
@@ -187,7 +191,9 @@ export default function CustomersClient() {
             contacts: Array.isArray(customer.contacts) ? customer.contacts : [],
             taxActivities: customer.taxActivities || '[]',
             supportPackageId: customer.supportPackageId || null,
-            telegramChatId: customer.telegramChatId || ''
+            telegramChatId: customer.telegramChatId || '',
+            isBlocked: !!customer.isBlocked,
+            blockedReason: customer.blockedReason || ''
         });
         setIsEditing(true);
         setFormOpen(true);
@@ -298,8 +304,22 @@ export default function CustomersClient() {
                             <div className="flex-1 overflow-y-auto p-6 scrollbar-thin">
                                 <div className="space-y-8 pr-2">
                                     <section>
-                                        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                                            <Building2 className="h-5 w-5 text-primary" /> Datos Principales
+                                        <h3 className="text-lg font-semibold mb-4 flex items-center justify-between gap-2">
+                                            <div className="flex items-center gap-2">
+                                                <Building2 className="h-5 w-5 text-primary" /> Datos Principales
+                                            </div>
+                                            <div className="flex items-center gap-4">
+                                                <div className="flex items-center space-x-2 border rounded-md px-3 py-1 bg-background">
+                                                    <Switch 
+                                                        id="cust-blocked" 
+                                                        checked={currentCustomer.isBlocked} 
+                                                        onCheckedChange={(checked) => setCurrentCustomer({...currentCustomer, isBlocked: checked})}
+                                                    />
+                                                    <Label htmlFor="cust-blocked" className={cn("text-xs font-bold uppercase", currentCustomer.isBlocked ? "text-destructive" : "text-muted-foreground")}>
+                                                        {currentCustomer.isBlocked ? 'Cliente Bloqueado' : 'Cliente Activo'}
+                                                    </Label>
+                                                </div>
+                                            </div>
                                         </h3>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             <div className="space-y-2 relative">
@@ -333,6 +353,20 @@ export default function CustomersClient() {
                                                 <Input id="cust-commercial" value={currentCustomer.commercialName || ''} onChange={e => setCurrentCustomer({...currentCustomer, commercialName: e.target.value})} placeholder="Nombre para búsqueda rápida" />
                                             </div>
                                             
+                                            {currentCustomer.isBlocked && (
+                                                <div className="md:col-span-2 bg-destructive/5 border border-destructive/20 p-4 rounded-lg space-y-2">
+                                                    <Label className="text-destructive font-bold flex items-center gap-2">
+                                                        <ShieldAlert className="h-4 w-4" /> Razón del Bloqueo Administrativo
+                                                    </Label>
+                                                    <Textarea 
+                                                        value={currentCustomer.blockedReason || ''} 
+                                                        onChange={e => setCurrentCustomer({...currentCustomer, blockedReason: e.target.value})} 
+                                                        placeholder="Ej: Mora mayor a 60 días, falta de pago en licencias..." 
+                                                        className="bg-white border-destructive/30"
+                                                    />
+                                                </div>
+                                            )}
+
                                             {currentCustomer.taxRegime && (
                                                 <div className="md:col-span-2 bg-muted/30 p-4 rounded-lg border border-primary/20 space-y-3">
                                                     <div className="flex items-center justify-between">
@@ -618,7 +652,7 @@ export default function CustomersClient() {
                                         const percentageUsed = available > 0 ? (consumed / available) * 100 : 0;
 
                                         return (
-                                            <TableRow key={customer.id}>
+                                            <TableRow key={customer.id} className={cn(customer.isBlocked && "bg-destructive/5")}>
                                                 <TableCell className="font-mono text-xs">{customer.id}</TableCell>
                                                 <TableCell>
                                                     <div className="flex flex-col">
@@ -660,9 +694,15 @@ export default function CustomersClient() {
                                                     ) : '-'}
                                                 </TableCell>
                                                 <TableCell>
-                                                    <Badge variant={customer.active === 'S' ? 'default' : 'secondary'} className="text-[10px] h-5">
-                                                        {customer.active === 'S' ? 'ACTIVO' : 'INACTIVO'}
-                                                    </Badge>
+                                                    {customer.isBlocked ? (
+                                                        <Badge variant="destructive" className="text-[10px] h-5 uppercase font-black" title={customer.blockedReason || 'Cliente Bloqueado'}>
+                                                            BLOQUEADO
+                                                        </Badge>
+                                                    ) : (
+                                                        <Badge variant={customer.active === 'S' ? 'default' : 'secondary'} className="text-[10px] h-5 uppercase">
+                                                            {customer.active === 'S' ? 'ACTIVO' : 'INACTIVO'}
+                                                        </Badge>
+                                                    )}
                                                 </TableCell>
                                                 <TableCell className="text-right">
                                                     <div className="flex justify-end gap-1">

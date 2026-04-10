@@ -148,6 +148,9 @@ export type Customer = {
     cantonId?: number | null;
     districtId?: number | null;
     telegramChatId?: string | null;
+    // Administrative Status
+    isBlocked?: boolean;
+    blockedReason?: string | null;
 };
 
 /**

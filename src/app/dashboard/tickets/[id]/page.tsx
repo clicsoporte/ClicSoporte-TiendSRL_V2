@@ -1,3 +1,4 @@
+
 'use client';
 
 /**
@@ -296,6 +297,11 @@ export default function TicketDetailPage() {
                         <span className="font-bold">{ticket.isBillable ? 'Servicio Adicional (Con Costo)' : 'Cubierto por Contrato'}</span>
                     </div>
                     <p className="text-muted-foreground">Servicio: <strong>{selectedService?.name || 'General'}</strong></p>
+                    {ticket.isBillable && selectedService?.price && (
+                        <p className="text-primary font-black mt-1">
+                            Precio Sugerido: ¢{selectedService.price.toLocaleString()} {selectedService.billingType === 'task' ? '(Fijo)' : '/ h'}
+                        </p>
+                    )}
                     {ticket.contractId && <p className="text-muted-foreground">Línea de Contrato: <strong>#{ticket.contractId}</strong></p>}
                 </div>
             </CardContent>
@@ -323,15 +329,24 @@ export default function TicketDetailPage() {
     );
 
     const CustomerCard = () => (
-        <Card>
+        <Card className={cn(linkedCustomer?.isBlocked && "border-destructive")}>
             <CardHeader className="p-4 pb-2">
                 <CardTitle className="text-sm font-bold flex items-center gap-2">
                     <UserCircle className="h-4 w-4" /> INFORMACIÓN DEL CLIENTE
                 </CardTitle>
             </CardHeader>
             <CardContent className="p-4 pt-0 text-sm space-y-1">
-                <p className="font-bold">{ticket.customerName}</p>
+                <div className="flex items-center justify-between">
+                    <p className="font-bold">{ticket.customerName}</p>
+                    {linkedCustomer?.isBlocked && <Badge variant="destructive" className="text-[8px] h-4">BLOQUEADO</Badge>}
+                </div>
                 {ticket.companyName && <p className="text-xs text-muted-foreground">{ticket.companyName}</p>}
+                {linkedCustomer?.isBlocked && (
+                    <div className="mt-2 p-2 bg-destructive/5 rounded border border-destructive/20">
+                        <p className="text-[10px] font-bold text-destructive uppercase">Motivo del Bloqueo:</p>
+                        <p className="text-[10px] italic">{linkedCustomer.blockedReason || 'Administrativo'}</p>
+                    </div>
+                )}
                 <p className="text-xs text-muted-foreground pt-2 flex items-center gap-1">
                     <Info className="h-3 w-3" /> Creado el {format(parseISO(ticket.createdAt), 'dd/MM/yy HH:mm')}
                 </p>

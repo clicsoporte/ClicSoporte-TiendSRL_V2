@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Client-side component for Support Tickets.
  */
@@ -50,6 +51,7 @@ export default function TicketsClient() {
 
     const selectedCustomer = customers.find(c => c.id === selectedCustomerId);
     const customerContacts = selectedCustomer?.contacts || [];
+    const isCustomerBlocked = selectedCustomer?.isBlocked || false;
 
     // Intelligence: Provider rate matching with Margin, VAT and Travel Logic
     const providerRateInfo = useMemo(() => {
@@ -174,19 +176,31 @@ export default function TicketsClient() {
                                     <DialogDescription>Valida la cobertura del contrato antes de proceder.</DialogDescription>
                                 </DialogHeader>
                                 <div className="flex-1 overflow-y-auto p-6 scrollbar-thin">
+                                    {isCustomerBlocked && (
+                                        <Alert variant="destructive" className="mb-6 border-2 shadow-md">
+                                            <ShieldAlert className="h-5 w-5" />
+                                            <AlertTitle className="font-black uppercase tracking-wider">¡CLIENTE BLOQUEADO!</AlertTitle>
+                                            <AlertDescription className="text-sm font-bold">
+                                                Este cliente tiene un bloqueo administrativo. Motivo: {selectedCustomer?.blockedReason || 'Sin razón especificada.'}
+                                                <br />
+                                                <span className="uppercase text-[10px] mt-2 block">No se permite la apertura de nuevos tickets para este cliente.</span>
+                                            </AlertDescription>
+                                        </Alert>
+                                    )}
+
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 py-4 pr-2">
                                         <div className="md:col-span-2 space-y-4">
                                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                                 <div className="space-y-2">
                                                     <Label className="text-xs">Tema de Ayuda</Label>
-                                                    <Select value={String(newTicket.helpTopicId || '')} onValueChange={(v) => actions.handleNewTicketChange('helpTopicId', Number(v))} required>
+                                                    <Select value={String(newTicket.helpTopicId || '')} onValueChange={(v) => actions.handleNewTicketChange('helpTopicId', Number(v))} required disabled={isCustomerBlocked}>
                                                         <SelectTrigger className="h-8"><SelectValue placeholder="Seleccione un tema..."/></SelectTrigger>
                                                         <SelectContent>{helpTopics.map(topic => (<SelectItem key={topic.id} value={String(topic.id)}>{topic.name}</SelectItem>))}</SelectContent>
                                                     </Select>
                                                 </div>
                                                     <div className="space-y-2">
                                                     <Label className="text-xs">Servicio Requerido</Label>
-                                                    <Select value={newTicket.serviceId || "none"} onValueChange={(v) => actions.handleNewTicketChange('serviceId', v === 'none' ? null : v)} required>
+                                                    <Select value={newTicket.serviceId || "none"} onValueChange={(v) => actions.handleNewTicketChange('serviceId', v === 'none' ? null : v)} required disabled={isCustomerBlocked}>
                                                         <SelectTrigger className="h-8"><SelectValue placeholder="Seleccione un servicio..."/></SelectTrigger>
                                                         <SelectContent>
                                                             <SelectItem value="none">Ninguno</SelectItem>
@@ -196,7 +210,7 @@ export default function TicketsClient() {
                                                 </div>
                                             </div>
 
-                                            {selectors.coverageMessage && (
+                                            {selectors.coverageMessage && !isCustomerBlocked && (
                                                 <Alert variant={newTicket.isBillable ? 'destructive' : 'default'} className="py-2">
                                                     {newTicket.isBillable ? <ShieldAlert className="h-4 w-4" /> : <ShieldCheck className="h-4 w-4" />}
                                                     <AlertTitle className="text-xs font-bold">{newTicket.isBillable ? 'FUERA DE CONTRATO' : 'INCLUIDO EN CONTRATO'}</AlertTitle>
@@ -206,11 +220,11 @@ export default function TicketsClient() {
 
                                             <div className="space-y-2">
                                                 <Label className="text-xs">Asunto</Label>
-                                                <Input id="new-ticket-subject" value={newTicket.subject} onChange={(e) => actions.handleNewTicketChange('subject', e.target.value)} required className="h-8" />
+                                                <Input id="new-ticket-subject" value={newTicket.subject} onChange={(e) => actions.handleNewTicketChange('subject', e.target.value)} required className="h-8" disabled={isCustomerBlocked} />
                                             </div>
                                             <div className="space-y-2">
                                                 <Label className="text-xs">Descripción Detallada</Label>
-                                                <Textarea id="new-ticket-content" rows={6} value={newTicket.content} onChange={(e) => actions.handleNewTicketChange('content', e.target.value)} required />
+                                                <Textarea id="new-ticket-content" rows={6} value={newTicket.content} onChange={(e) => actions.handleNewTicketChange('content', e.target.value)} required disabled={isCustomerBlocked} />
                                             </div>
                                         </div>
                                         <div className="md:col-span-1 space-y-4 md:border-l md:pl-6">
@@ -227,7 +241,7 @@ export default function TicketsClient() {
                                                 />
                                             </div>
                                             
-                                            {activeContract && (
+                                            {activeContract && !isCustomerBlocked && (
                                                 <div className="bg-primary/5 p-3 rounded-lg border border-primary/20 space-y-1">
                                                     <p className="text-[10px] font-bold text-primary uppercase">Contrato Activo</p>
                                                     <p className="text-xs font-bold">{activeContract.name}</p>
@@ -241,11 +255,12 @@ export default function TicketsClient() {
                                                     <Switch 
                                                         checked={newTicket.isBillable} 
                                                         onCheckedChange={(checked) => actions.handleNewTicketChange('isBillable', checked)} 
+                                                        disabled={isCustomerBlocked}
                                                     />
                                                 </div>
                                                 <div className="space-y-2">
                                                     <Label className="text-xs">Proveedor Externo (Opcional)</Label>
-                                                    <Select value={String(newTicket.providerId || 'null')} onValueChange={(v) => actions.handleNewTicketChange('providerId', v === 'null' ? null : Number(v))}>
+                                                    <Select value={String(newTicket.providerId || 'null')} onValueChange={(v) => actions.handleNewTicketChange('providerId', v === 'null' ? null : Number(v))} disabled={isCustomerBlocked}>
                                                         <SelectTrigger className="h-8"><SelectValue placeholder="Servicio Interno"/></SelectTrigger>
                                                         <SelectContent>
                                                             <SelectItem value="null">Ninguno</SelectItem>
@@ -255,7 +270,7 @@ export default function TicketsClient() {
                                                 </div>
                                             </div>
 
-                                            {providerRateInfo && (
+                                            {providerRateInfo && !isCustomerBlocked && (
                                                 <div className="bg-blue-50 p-3 rounded-lg border border-blue-200 space-y-3">
                                                     <div className="flex items-center justify-between">
                                                         <p className="text-[10px] font-bold text-blue-700 uppercase flex items-center gap-1"><Info className="h-3 w-3"/> Tarifas Sugeridas</p>
@@ -327,6 +342,7 @@ export default function TicketsClient() {
                                                 
                                                 {customerContacts.length > 0 && (
                                                     <Select 
+                                                        disabled={isCustomerBlocked}
                                                         onValueChange={(val) => {
                                                             const contact = customerContacts.find(c => c.id === val);
                                                             if (contact) actions.handleSelectContact(contact);
@@ -345,8 +361,8 @@ export default function TicketsClient() {
                                                     </Select>
                                                 )}
 
-                                                <Input id="new-ticket-customer-name" value={newTicket.customerName} onChange={(e) => actions.handleNewTicketChange('customerName', e.target.value)} required placeholder="Nombre" className="h-8 text-xs" />
-                                                <Input id="new-ticket-customer-email" type="email" value={newTicket.customerEmail} onChange={(e) => actions.handleNewTicketChange('customerEmail', e.target.value)} required placeholder="Email" className="h-8 text-xs" />
+                                                <Input id="new-ticket-customer-name" value={newTicket.customerName} onChange={(e) => actions.handleNewTicketChange('customerName', e.target.value)} required placeholder="Nombre" className="h-8 text-xs" disabled={isCustomerBlocked} />
+                                                <Input id="new-ticket-customer-email" type="email" value={newTicket.customerEmail} onChange={(e) => actions.handleNewTicketChange('customerEmail', e.target.value)} required placeholder="Email" className="h-8 text-xs" disabled={isCustomerBlocked} />
                                                 
                                                 <div className="flex flex-wrap gap-3 pt-1">
                                                     {newTicket.customerEmail && (
@@ -374,9 +390,9 @@ export default function TicketsClient() {
                                 </div>
                                 <DialogFooter className="p-6 border-t bg-muted/10">
                                     <DialogClose asChild><Button type="button" variant="ghost" size="sm">Cancelar</Button></DialogClose>
-                                    <Button type="submit" disabled={isSubmitting} size="sm">
+                                    <Button type="submit" disabled={isSubmitting || isCustomerBlocked} size="sm" className={cn(isCustomerBlocked && "bg-muted text-muted-foreground cursor-not-allowed")}>
                                         {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}
-                                        Abrir Ticket
+                                        {isCustomerBlocked ? 'CLIENTE BLOQUEADO' : 'Abrir Ticket'}
                                     </Button>
                                 </DialogFooter>
                             </form>

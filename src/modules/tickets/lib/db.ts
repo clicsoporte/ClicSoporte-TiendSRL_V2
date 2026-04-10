@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Server-side functions for the support tickets module.
  * Unified into intratool.db. Tables prefixed with ticket_.
@@ -34,6 +35,13 @@ export async function addTicket(payload: NewTicketPayload, user: User): Promise<
     await authorizeAction('tickets:create');
     try {
         const db = await connectTicketsDb();
+        
+        // Anti-Fraud check: Ensure customer is not blocked
+        const customer = db.prepare("SELECT isBlocked, blockedReason FROM customers WHERE name = ? OR commercialName = ?").get(payload.customerName, payload.customerName) as { isBlocked: number, blockedReason: string } | undefined;
+        if (customer && customer.isBlocked === 1) {
+            throw new Error(`OPERACIÓN DENEGADA: El cliente se encuentra BLOQUEADO por razones administrativas. Motivo: ${customer.blockedReason || 'Sin especificar'}`);
+        }
+
         const { prefix, number } = await getNextTicketNumberInternal(db);
 
         const transaction = db.transaction(() => {
@@ -73,7 +81,7 @@ export async function addTicket(payload: NewTicketPayload, user: User): Promise<
     } catch (error: unknown) {
         const err = error as Error;
         await logError("Falla al abrir ticket de soporte", { error: err.message, subject: payload.subject });
-        throw new Error(`No se pudo crear el ticket: ${err.message}`);
+        throw new Error(err.message || "No se pudo crear el ticket.");
     }
 }
 
