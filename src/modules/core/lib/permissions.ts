@@ -4,7 +4,7 @@
  */
 
 export const permissionGroups = {
-    "Acceso General": ["dashboard:access"],
+    "Acceso General": ["dashboard:access", "dashboard:stats:view"],
     "Cotizador": ["quotes:create", "quotes:generate", "quotes:drafts:create", "quotes:drafts:read", "quotes:drafts:delete"],
     "Soporte Técnico": [
         "tickets:read:all", "tickets:create", "tickets:reply", "tickets:manage", 
@@ -21,7 +21,7 @@ export const permissionGroups = {
     ],
     "Proyectos TI": [
         "planner:read", "planner:create", "planner:status:approve", "planner:status:in-progress", 
-        "planner:status:completed", "planner:priority:update"
+        "planner:status:completed", "planner:priority:update", "planner:financials:view"
     ],
     "Hacienda": ["hacienda:query"],
     "Asistente de Costos": [
@@ -34,13 +34,15 @@ export const permissionGroups = {
     "Administración del Sistema": [
         "admin:access",
         "admin:settings:general", "admin:settings:api", "admin:settings:planner", "admin:settings:stock",
-        "admin:suggestions:read", "admin:import:run", "admin:logs:read", "admin:maintenance:backup"
+        "admin:suggestions:read", "admin:import:run", "admin:logs:read", "admin:logs:clear",
+        "admin:maintenance:backup", "admin:maintenance:restore", "admin:maintenance:reset"
     ],
     "Super Admin": ["admin:all"]
 };
 
 export const permissionTranslations: Record<string, string> = {
     "dashboard:access": "Acceso al Panel Principal",
+    "dashboard:stats:view": "Ver Resumen de Operaciones",
     "quotes:create": "Cotizador: Crear Proformas",
     "quotes:generate": "Cotizador: Generar PDF",
     "quotes:drafts:create": "Cotizador: Guardar Borradores",
@@ -71,6 +73,7 @@ export const permissionTranslations: Record<string, string> = {
     "planner:status:in-progress": "Proyectos: Iniciar Ejecución",
     "planner:status:completed": "Proyectos: Finalizar",
     "planner:priority:update": "Proyectos: Cambiar Prioridad",
+    "planner:financials:view": "Proyectos: Ver Rentabilidad (Escudo)",
     "hacienda:query": "Hacienda: Consultas de Contribuyentes",
     "cost-assistant:access": "Asist. Costos: Acceso General",
     "cost-assistant:view": "Asist. Costos: Ver Módulo",
@@ -97,7 +100,10 @@ export const permissionTranslations: Record<string, string> = {
     "admin:suggestions:read": "Admin: Ver Sugerencias",
     "admin:import:run": "Admin: Sincronizar con ERP",
     "admin:logs:read": "Admin: Ver Logs del Sistema",
+    "admin:logs:clear": "Admin: Limpiar Logs",
     "admin:maintenance:backup": "Admin: Gestión de Backups",
+    "admin:maintenance:restore": "Admin: Restaurar Sistema",
+    "admin:maintenance:reset": "Admin: Reseteo de Fábrica (Peligro)",
     "admin:all": "Administrador Total (Control Total)"
 };
 
@@ -105,39 +111,46 @@ export type AppPermission = keyof typeof permissionTranslations;
 
 /**
  * Defines the hierarchical dependencies between permissions.
- * The key is the parent permission, and the value is an array of child permissions it grants.
- * NOTE: 'admin:all' is excluded from this tree to avoid reverse-triggering the super-admin 
- * status when selecting common functional permissions.
+ * The Key is the BASE permission (the one that is REQUIRED).
+ * The Value is an array of ADVANCED permissions that automatically check the base.
+ * Logic: Check advanced -> auto-check base. Uncheck base -> auto-uncheck advanced.
  */
 export const permissionTree: Record<string, string[]> = {
-    "dashboard:access": ["tickets:read:all", "customers:read", "contracts:read", "planner:read"],
+    // Top-Level Access
+    "dashboard:access": ["dashboard:stats:view", "tickets:read:all", "customers:read", "contracts:read", "planner:read", "licenses:read", "admin:access"],
     
-    "admin:access": [
-        "users:read", "roles:read", "admin:settings:general", "admin:settings:api", 
-        "admin:settings:planner", "admin:settings:stock", "admin:suggestions:read", 
-        "admin:import:run", "admin:logs:read", "admin:maintenance:backup"
-    ],
+    // Tickets (Read is base for everything)
+    "tickets:read:all": ["tickets:create", "tickets:reply", "tickets:manage", "tickets:delete"],
+    "tickets:manage": ["tickets:time-tracking", "tickets:admin:settings"],
     
-    "users:read": ["users:create", "users:update", "users:delete"],
-    "roles:read": ["roles:create", "roles:update", "roles:delete"],
-    
-    "tickets:read:all": ["tickets:create", "tickets:reply"],
-    "tickets:manage": ["tickets:read:all", "tickets:time-tracking"],
-    "tickets:admin:settings": ["tickets:manage"],
-    
-    "customers:read": ["customers:create", "customers:update"],
+    // Customers (Read is base)
+    "customers:read": ["customers:create", "customers:update", "customers:delete"],
     "customers:update": ["customers:update:plan"],
     
-    "contracts:read": ["contracts:create", "contracts:update"],
+    // Contracts
+    "contracts:read": ["contracts:create", "contracts:update", "contracts:delete"],
     
-    "planner:read": ["planner:create", "planner:status:in-progress"],
-    "planner:status:approve": ["planner:read"],
-    "planner:status:completed": ["planner:status:in-progress"],
+    // Planner
+    "planner:read": ["planner:create", "planner:status:approve", "planner:status:in-progress", "planner:financials:view"],
+    "planner:status:in-progress": ["planner:status:completed", "planner:priority:update"],
     
+    // Cost Assistant
     "cost-assistant:access": ["cost-assistant:view", "cost-assistant:process"],
     "cost-assistant:process": ["cost-assistant:margins", "cost-assistant:export"],
     
-    "providers:manage": ["providers:read", "view:provider:costs"],
+    // Providers
+    "providers:read": ["providers:manage", "view:provider:costs"],
+    
+    // User Management
+    "users:read": ["users:create", "users:update", "users:delete"],
+    
+    // Roles Management
+    "roles:read": ["roles:create", "roles:update", "roles:delete"],
+    
+    // Administration & Maintenance
+    "admin:access": ["admin:settings:general", "admin:settings:api", "admin:settings:planner", "admin:settings:stock", "admin:suggestions:read", "admin:import:run", "admin:logs:read", "admin:maintenance:backup"],
+    "admin:logs:read": ["admin:logs:clear"],
+    "admin:maintenance:backup": ["admin:maintenance:restore", "admin:maintenance:reset"],
 };
 
 /**
@@ -148,19 +161,26 @@ export function checkPermissionInTree(userPermissions: string[], permissionToSea
     if (userPermissions.includes('admin:all') || userPermissions.includes('admin')) return true;
     if (userPermissions.includes(permissionToSearch)) return true;
 
+    // To check if a user has 'permissionToSearch', we check if any of their permissions
+    // is a descendant of 'permissionToSearch' in the tree.
     const memo = new Set<string>();
-    const search = (perms: string[]): boolean => {
-        for (const p of perms) {
-            if (p === permissionToSearch) return true;
-            if (memo.has(p)) continue;
-            memo.add(p);
-            
-            const children = permissionTree[p] || [];
-            if (children.includes(permissionToSearch)) return true;
-            if (search(children)) return true;
+    const isDescendant = (current: string): boolean => {
+        const children = permissionTree[current] || [];
+        if (children.includes(permissionToSearch)) return true;
+        for (const child of children) {
+            if (memo.has(child)) continue;
+            memo.add(child);
+            if (isDescendant(child)) return true;
         }
         return false;
     };
 
-    return search(userPermissions);
+    // Note: The hierarchy logic in the tree is: Base -> Advanced.
+    // If user has 'Advanced', they have 'Base'.
+    // So if permissionToSearch is 'Base', and user has 'Advanced', they are authorized.
+    for (const userPerm of userPermissions) {
+        if (isDescendant(userPerm)) return true;
+    }
+
+    return false;
 }

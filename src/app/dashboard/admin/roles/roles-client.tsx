@@ -187,16 +187,20 @@ export default function RolesClient() {
 
     const newPermissions = new Set(currentRole.permissions as AppPermission[]);
 
+    // Helper: When checking an item, auto-check all its parent dependencies (Recursive Up)
     const addWithParents = (perm: AppPermission) => {
         newPermissions.add(perm);
-        for (const parent in permissionTree) {
-            const parentPerm = parent as AppPermission;
-            if (permissionTree[parentPerm]?.includes(perm)) {
-                addWithParents(parentPerm);
+        // Find who is the parent of this permission in the tree
+        for (const parentId in permissionTree) {
+            if (parentId === 'admin:all') continue; // Stop admin:all from being auto-selected
+            const children = permissionTree[parentId] || [];
+            if (children.includes(perm)) {
+                addWithParents(parentId as AppPermission);
             }
         }
     };
     
+    // Helper: When unchecking an item, auto-uncheck all its child dependencies (Recursive Down)
     const removeWithChildren = (perm: AppPermission) => {
         newPermissions.delete(perm);
         const children = permissionTree[perm] || [];
@@ -221,10 +225,11 @@ export default function RolesClient() {
 
     const addWithParents = (perm: AppPermission) => {
         newPermissions.add(perm);
-        for (const parent in permissionTree) {
-            const parentPerm = parent as AppPermission;
-            if (permissionTree[parentPerm]?.includes(perm)) {
-                addWithParents(parentPerm);
+        for (const parentId in permissionTree) {
+            if (parentId === 'admin:all') continue;
+            const children = permissionTree[parentId] || [];
+            if (children.includes(perm)) {
+                addWithParents(parentId as AppPermission);
             }
         }
     };
