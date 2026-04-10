@@ -9,6 +9,7 @@ import {
     getAllRoles as getAllRolesDb,
     saveAllRoles as saveAllRolesDb,
     resetDefaultRoles as resetDefaultRolesDb,
+    deleteRole as deleteRoleDb,
 } from './roles-db';
 import type { Role } from '../types';
 import { authorizeAction } from './auth-guard';
@@ -29,6 +30,15 @@ export async function getAllRoles(): Promise<Role[]> {
 export async function saveAllRoles(roles: Role[]): Promise<void> {
     await authorizeAction('roles:update');
     return await saveAllRolesDb(roles);
+}
+
+/**
+ * Deletes a role by ID.
+ * Requires roles:delete permission.
+ */
+export async function deleteRole(id: string): Promise<void> {
+    await authorizeAction('roles:delete');
+    return await deleteRoleDb(id);
 }
 
 /**

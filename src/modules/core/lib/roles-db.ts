@@ -43,14 +43,31 @@ export async function saveAllRoles(roles: Role[]): Promise<void> {
     `);
     
     const transaction = db.transaction((rolesToSave: Role[]) => {
-        // Clear existing non-default roles to handle deletions
-        db.exec("DELETE FROM roles WHERE id NOT IN ('admin', 'viewer', 'planner-user', 'requester-user', 'support-agent')");
+        // Clear existing roles to handle deletions, but ALWAYS protect 'admin'
+        const idsToKeep = rolesToSave.map(r => r.id);
+        if (idsToKeep.length > 0) {
+            const placeholders = idsToKeep.map(() => '?').join(',');
+            db.prepare(`DELETE FROM roles WHERE id NOT IN (${placeholders}) AND id != 'admin'`).run(...idsToKeep);
+        } else {
+            db.prepare("DELETE FROM roles WHERE id != 'admin'").run();
+        }
+
         for (const role of rolesToSave) {
             upsert.run({ ...role, permissions: JSON.stringify(role.permissions) });
         }
     });
 
     transaction(roles);
+}
+
+/**
+ * Deletes a specific role by ID.
+ * @param {string} id - The ID of the role to delete.
+ */
+export async function deleteRole(id: string): Promise<void> {
+    if (id === 'admin') throw new Error("No se puede eliminar el rol de Administrador.");
+    const db = await connectDb();
+    db.prepare('DELETE FROM roles WHERE id = ?').run(id);
 }
 
 /**

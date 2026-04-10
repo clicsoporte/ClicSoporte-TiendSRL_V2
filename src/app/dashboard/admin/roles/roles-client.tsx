@@ -39,7 +39,7 @@ import {
   permissionTree,
   AppPermission,
 } from '@/modules/core/lib/permissions';
-import { getAllRoles, saveAllRoles, resetDefaultRoles } from '@/modules/core/lib/roles-actions';
+import { getAllRoles, saveAllRoles, resetDefaultRoles, deleteRole } from '@/modules/core/lib/roles-actions';
 import type { Role } from '@/modules/core/types';
 import { PlusCircle, Save, Trash2, ShieldQuestion, Copy, Loader2, ChevronRight } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -160,16 +160,27 @@ export default function RolesClient() {
       });
       return;
     }
-    const updatedRoles = roles.filter((r) => r.id !== roleToDelete.id);
-    await saveAllRoles(updatedRoles);
-    setRoles(updatedRoles);
-    toast({
-      title: 'Rol Eliminado',
-      description: `El rol "${roleToDelete.name}" ha sido eliminado.`,
-      variant: 'destructive',
-    });
-    await logInfo('Role deleted', { roleId: roleToDelete.id });
-    setRoleToDelete(null);
+
+    setIsSubmitting(true);
+    try {
+      await deleteRole(roleToDelete.id);
+      setRoles(prev => prev.filter((r) => r.id !== roleToDelete.id));
+      toast({
+        title: 'Rol Eliminado',
+        description: `El rol "${roleToDelete.name}" ha sido eliminado permanentemente.`,
+      });
+      await logInfo('Role deleted', { roleId: roleToDelete.id });
+    } catch (err: unknown) {
+      logError('Failed to delete role', { error: (err as Error).message });
+      toast({
+        title: 'Error',
+        description: 'No se pudo eliminar el rol de la base de datos.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmitting(false);
+      setRoleToDelete(null);
+    }
   };
 
   const handleResetAdmin = async () => {
@@ -399,7 +410,10 @@ export default function RolesClient() {
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction onClick={handleDeleteRole} className="bg-destructive text-destructive-foreground">Sí, Eliminar</AlertDialogAction>
+                                <AlertDialogAction onClick={handleDeleteRole} disabled={isSubmitting} className="bg-destructive text-destructive-foreground">
+                                    {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
+                                    Sí, Eliminar
+                                </AlertDialogAction>
                             </AlertDialogFooter>
                         </AlertDialogContent>
                     </AlertDialog>
