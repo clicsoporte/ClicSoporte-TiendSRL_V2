@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Sidebar component for the main application layout.
  */
@@ -35,7 +36,8 @@ import {
   Users,
   FileText,
   Receipt,
-  Wallet
+  Wallet,
+  BookCopy
 } from "lucide-react";
 import type { Tool } from "../../modules/core/types";
 import { UserNav } from "./user-nav";
@@ -143,6 +145,16 @@ export function AppSidebar() {
       bgColor: "bg-purple-500",
       textColor: "text-white",
       permission: "planner:read"
+    },
+    {
+      id: "it-notes",
+      name: "Notas de TI",
+      description: "Base de conocimientos técnica.",
+      href: "/dashboard/it-tools/notes",
+      icon: BookCopy,
+      bgColor: "bg-slate-700",
+      textColor: "text-white",
+      permission: "it-tools:access"
     },
      {
       id: "hacienda-query",

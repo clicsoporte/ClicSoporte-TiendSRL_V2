@@ -14,7 +14,8 @@ import {
   Search,
   Users,
   FileText,
-  Receipt
+  Receipt,
+  BookCopy
 } from "lucide-react";
 
 /**
@@ -55,6 +56,15 @@ export const mainTools: Tool[] = [
     href: "/dashboard/planner",
     icon: CalendarCheck,
     bgColor: "bg-purple-500",
+    textColor: "text-white",
+  },
+  {
+    id: "it-notes",
+    name: "Notas de TI",
+    description: "Documentación técnica y bitácoras por cliente.",
+    href: "/dashboard/it-tools/notes",
+    icon: BookCopy,
+    bgColor: "bg-slate-700",
     textColor: "text-white",
   },
   {
@@ -130,4 +140,16 @@ export const financeTools: (Tool & { permission: string })[] = [
       textColor: "text-white",
       permission: "hacienda:query"
     },
+];
+
+export const itTools: Tool[] = [
+    {
+        id: "it-notes",
+        name: "Notas de TI",
+        description: "Gestionar procedimientos y guías técnicas.",
+        href: "/dashboard/it-tools/notes",
+        icon: BookCopy,
+        bgColor: "bg-slate-700",
+        textColor: "text-white",
+    }
 ];

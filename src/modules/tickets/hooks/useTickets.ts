@@ -1,3 +1,4 @@
+
 'use client';
 
 /**
@@ -350,6 +351,7 @@ export const useTickets = () => {
         supportUsers: users.filter(u => u.role === 'admin' || u.role === 'support-agent'),
         customerOptions: debouncedCustomerSearch.length < 2 ? [] : customers.filter(c =>
             c.name.toLowerCase().includes(debouncedCustomerSearch.toLowerCase()) ||
+            (c.commercialName || "").toLowerCase().includes(debouncedCustomerSearch.toLowerCase()) ||
             c.id.toLowerCase().includes(debouncedCustomerSearch.toLowerCase())
         ).map(c => ({ value: c.id, label: `${c.name} (${c.id})` })),
         filteredTickets: state.tickets.filter(ticket => {

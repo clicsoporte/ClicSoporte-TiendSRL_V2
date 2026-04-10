@@ -428,6 +428,19 @@ export async function initializeMainDatabase(db: Database) {
             createdAt TEXT NOT NULL
         );
 
+        -- IT TOOLS MODULE
+        CREATE TABLE IF NOT EXISTS it_notes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            content TEXT,
+            customerId TEXT,
+            tags TEXT,
+            createdBy TEXT,
+            createdAt TEXT NOT NULL,
+            updatedAt TEXT NOT NULL,
+            FOREIGN KEY (customerId) REFERENCES customers(id) ON DELETE SET NULL
+        );
+
         -- COST ASSISTANT MODULE
         CREATE TABLE IF NOT EXISTS cost_drafts (
             id TEXT PRIMARY KEY,
@@ -674,6 +687,21 @@ export async function runMainMigrations(db: Database) {
     
     // LICENSES Migrations
     if (!hasColumn('licenses', 'customerId')) db.exec(`ALTER TABLE licenses ADD COLUMN customerId TEXT;`);
+
+    // IT TOOLS - NOTES Migrations
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS it_notes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            content TEXT,
+            customerId TEXT,
+            tags TEXT,
+            createdBy TEXT,
+            createdAt TEXT NOT NULL,
+            updatedAt TEXT NOT NULL,
+            FOREIGN KEY (customerId) REFERENCES customers(id) ON DELETE SET NULL
+        );
+    `);
 
     // PROVIDERS Migrations
     if (!hasColumn('third_party_providers', 'contacts')) db.exec(`ALTER TABLE third_party_providers ADD COLUMN contacts TEXT;`);

@@ -385,6 +385,18 @@ export type AnalyticsData = {
     byBillingType: VolumeKpi[];
 };
 
+// --- IT Tools Module Types ---
+export type ITNote = {
+    id: number;
+    title: string;
+    content: string;
+    customerId?: string | null;
+    tags?: string | null;
+    createdBy: string;
+    createdAt: string;
+    updatedAt: string;
+};
+
 // --- TI Project Management Types ---
 
 export type ProjectStatus = 'planning' | 'execution' | 'testing' | 'completed' | 'canceled';

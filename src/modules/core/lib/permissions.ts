@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview This file centralizes all permission-related constants and logic.
  * Features hierarchical dependencies and granular categorization for MSP operations.
@@ -22,6 +23,9 @@ export const permissionGroups = {
     "Proyectos TI": [
         "planner:read", "planner:create", "planner:status:approve", "planner:status:in-progress", 
         "planner:status:completed", "planner:priority:update", "planner:financials:view"
+    ],
+    "Herramientas de TI": [
+        "it-tools:access", "it-tools:notes:read", "it-tools:notes:create", "it-tools:notes:update", "it-tools:notes:delete"
     ],
     "Hacienda": ["hacienda:query"],
     "Asistente de Costos": [
@@ -67,6 +71,11 @@ export const permissionTranslations: Record<string, string> = {
     "licenses:read": "Licencias: Ver Listado",
     "licenses:manage": "Licencias: Crear / Editar",
     "licenses:admin:keys": "Licencias: Gestión de Claves",
+    "it-tools:access": "IT-Tools: Acceso General",
+    "it-tools:notes:read": "Notas TI: Ver Listado",
+    "it-tools:notes:create": "Notas TI: Crear Nueva",
+    "it-tools:notes:update": "Notas TI: Editar Notas",
+    "it-tools:notes:delete": "Notas TI: Eliminar Notas",
     "planner:read": "Proyectos: Ver Listado",
     "planner:create": "Proyectos: Crear Nuevo",
     "planner:status:approve": "Proyectos: Aprobar Fases",
@@ -121,10 +130,17 @@ export const permissionTree: Record<string, string[]> = {
     "contracts:read": ["dashboard:access"],
     "planner:read": ["dashboard:access"],
     "licenses:read": ["dashboard:access"],
+    "it-tools:access": ["dashboard:access"],
     "analytics:read": ["dashboard:access"],
     "billing:manage": ["dashboard:access"],
     "cost-assistant:access": ["dashboard:access"],
     "hacienda:query": ["dashboard:access"],
+
+    // IT Tools Hierarchy
+    "it-tools:notes:read": ["it-tools:access"],
+    "it-tools:notes:create": ["it-tools:notes:read"],
+    "it-tools:notes:update": ["it-tools:notes:read"],
+    "it-tools:notes:delete": ["it-tools:notes:update"],
 
     // Tickets Hierarchy
     "tickets:admin:settings": ["tickets:manage"],

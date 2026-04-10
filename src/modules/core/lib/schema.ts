@@ -28,7 +28,8 @@ export const MASTER_SCHEMA: ExpectedSchema = {
         'id', 'name', 'commercialName', 'address', 'phone', 'taxId', 'currency', 'creditLimit', 'paymentCondition', 
         'salesperson', 'active', 'email', 'electronicDocEmail', 'isManual', 'contacts', 
         'supportPackageId', 'taxRegime', 'taxStatus', 'isTaxMoroso', 'isTaxOmiso', 
-        'taxAdministration', 'taxActivities', 'provinceId', 'cantonId', 'districtId', 'telegramChatId'
+        'taxAdministration', 'taxActivities', 'provinceId', 'cantonId', 'districtId', 'telegramChatId',
+        'isBlocked', 'blockedReason'
     ],
     products: ['id', 'description', 'classification', 'lastEntry', 'active', 'notes', 'unit', 'isBasicGood', 'cabys'],
     stock: ['itemId', 'stockByWarehouse', 'totalStock'],
@@ -67,6 +68,7 @@ export const MASTER_SCHEMA: ExpectedSchema = {
         'id', 'providerId', 'provinceId', 'cantonId', 'districtId', 'buyTravelPrice', 
         'marginTravel', 'taxRate', 'sellTravelPrice', 'locationName'
     ],
+    it_notes: ['id', 'title', 'content', 'customerId', 'tags', 'createdBy', 'createdAt', 'updatedAt'],
     planner_settings: ['key', 'value'],
     projects: [
         'id', 'consecutive', 'name', 'customerId', 'customerName', 'category', 'status', 
@@ -78,7 +80,7 @@ export const MASTER_SCHEMA: ExpectedSchema = {
     project_attachments: ['id', 'projectId', 'name', 'fileName', 'fileType', 'data', 'uploadedBy', 'createdAt'],
     project_items: ['id', 'projectId', 'description', 'quantity', 'unitPrice', 'type'],
     software_products: ['id', 'name', 'isInternal'],
-    licenses: ['id', 'licenseKey', 'softwareId', 'clientCompanyId', 'hardwareId', 'isPerpetual', 'expirationDate', 'status', 'createdAt'],
+    licenses: ['id', 'licenseKey', 'softwareId', 'customerId', 'hardwareId', 'isPerpetual', 'expirationDate', 'status', 'createdAt'],
     time_entries: [
         'id', 'ticketId', 'userId', 'startTime', 'endTime', 'duration', 'billableDuration', 
         'billingStatus', 'externalInvoiceNumber', 'notes', 'isBillable', 'createdAt'
