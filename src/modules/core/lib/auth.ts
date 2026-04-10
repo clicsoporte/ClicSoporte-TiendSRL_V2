@@ -17,6 +17,8 @@ import { getUnreadSuggestionsCount } from './suggestions-actions';
 import { getEmailSettings, sendEmail } from './email-service';
 import { getCurrentUser } from './session';
 
+export { getCurrentUser };
+
 /**
  * Intenta iniciar sesión para un usuario.
  * @returns El objeto de usuario y si se requiere cambio de contraseña.
