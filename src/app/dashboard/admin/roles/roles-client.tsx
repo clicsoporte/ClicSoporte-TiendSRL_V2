@@ -185,7 +185,7 @@ export default function RolesClient() {
 
   const handleResetAdmin = async () => {
     await resetDefaultRoles();
-    await fetchRoles(); // Re-fetch all roles to get the updated admin role
+    await fetchRoles(); 
     toast({
       title: 'Roles Restablecidos',
       description: 'Los roles predeterminados han sido restaurados.',
@@ -198,32 +198,31 @@ export default function RolesClient() {
 
     const newPermissions = new Set(currentRole.permissions as AppPermission[]);
 
-    // Helper: When checking an item, auto-check all its parent dependencies (Recursive Up)
-    const addWithParents = (perm: AppPermission) => {
+    // Helper: When checking an item, auto-check all its CHILDREN requirements (Recursive Down)
+    const addWithChildren = (perm: AppPermission) => {
         newPermissions.add(perm);
-        // Find who is the parent of this permission in the tree
+        const children = permissionTree[perm] || [];
+        for (const child of children) {
+            addWithChildren(child as AppPermission);
+        }
+    };
+    
+    // Helper: When unchecking an item, auto-uncheck all PARENTS that require it (Recursive Up)
+    const removeWithParents = (perm: AppPermission) => {
+        newPermissions.delete(perm);
+        // Find which parents depend on this permission
         for (const parentId in permissionTree) {
-            if (parentId === 'admin:all') continue; // Stop admin:all from being auto-selected
             const children = permissionTree[parentId] || [];
             if (children.includes(perm)) {
-                addWithParents(parentId as AppPermission);
+                removeWithParents(parentId as AppPermission);
             }
         }
     };
     
-    // Helper: When unchecking an item, auto-uncheck all its child dependencies (Recursive Down)
-    const removeWithChildren = (perm: AppPermission) => {
-        newPermissions.delete(perm);
-        const children = permissionTree[perm] || [];
-        for (const child of children) {
-            removeWithChildren(child as AppPermission);
-        }
-    };
-    
     if (isChecked) {
-        addWithParents(permission);
+        addWithChildren(permission);
     } else {
-        removeWithChildren(permission);
+        removeWithParents(permission);
     }
     
     setCurrentRole({ ...currentRole, permissions: Array.from(newPermissions) });
@@ -234,30 +233,29 @@ export default function RolesClient() {
     
     const newPermissions = new Set(currentRole.permissions as AppPermission[]);
 
-    const addWithParents = (perm: AppPermission) => {
+    const addWithChildren = (perm: AppPermission) => {
         newPermissions.add(perm);
-        for (const parentId in permissionTree) {
-            if (parentId === 'admin:all') continue;
-            const children = permissionTree[parentId] || [];
-            if (children.includes(perm)) {
-                addWithParents(parentId as AppPermission);
-            }
+        const children = permissionTree[perm] || [];
+        for (const child of children) {
+            addWithChildren(child as AppPermission);
         }
     };
 
-    const removeWithChildren = (perm: AppPermission) => {
+    const removeWithParents = (perm: AppPermission) => {
         newPermissions.delete(perm);
-        const children = permissionTree[perm] || [];
-        for (const child of children) {
-            removeWithChildren(child as AppPermission);
+        for (const parentId in permissionTree) {
+            const children = permissionTree[parentId] || [];
+            if (children.includes(perm)) {
+                removeWithParents(parentId as AppPermission);
+            }
         }
     };
 
     groupPermissions.forEach(p => {
         if (check) {
-            addWithParents(p);
+            addWithChildren(p);
         } else {
-            removeWithChildren(p);
+            removeWithParents(p);
         }
     });
 

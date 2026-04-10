@@ -111,75 +111,101 @@ export type AppPermission = keyof typeof permissionTranslations;
 
 /**
  * Defines the hierarchical dependencies between permissions.
- * The Key is the BASE permission (the one that is REQUIRED).
- * The Value is an array of ADVANCED permissions that automatically check the base.
- * Logic: Check advanced -> auto-check base. Uncheck base -> auto-uncheck advanced.
+ * CORRECT LOGIC: The Key is the PARENT (Advanced). The Value is an array of CHILDREN (Requirements).
+ * If you have the Key, you automatically have the Value.
  */
 export const permissionTree: Record<string, string[]> = {
-    // Top-Level Access
-    "dashboard:access": ["dashboard:stats:view", "tickets:read:all", "customers:read", "contracts:read", "planner:read", "licenses:read", "admin:access"],
-    
-    // Tickets (Read is base for everything)
-    "tickets:read:all": ["tickets:create", "tickets:reply", "tickets:manage", "tickets:delete"],
-    "tickets:manage": ["tickets:time-tracking", "tickets:admin:settings"],
-    
-    // Customers (Read is base)
-    "customers:read": ["customers:create", "customers:update", "customers:delete"],
-    "customers:update": ["customers:update:plan"],
-    
+    // Top-Level Access (Requires Dashboard Access)
+    "admin:access": ["dashboard:access"],
+    "tickets:read:all": ["dashboard:access"],
+    "customers:read": ["dashboard:access"],
+    "contracts:read": ["dashboard:access"],
+    "planner:read": ["dashboard:access"],
+    "licenses:read": ["dashboard:access"],
+    "analytics:read": ["dashboard:access"],
+    "billing:manage": ["dashboard:access"],
+    "cost-assistant:access": ["dashboard:access"],
+    "hacienda:query": ["dashboard:access"],
+
+    // Tickets Hierarchy (Advanced implies Base)
+    "tickets:admin:settings": ["tickets:manage"],
+    "tickets:manage": ["tickets:read:all"],
+    "tickets:time-tracking": ["tickets:read:all"],
+    "tickets:reply": ["tickets:read:all"],
+    "tickets:create": ["tickets:read:all"],
+    "tickets:delete": ["tickets:manage"],
+
+    // Customers Hierarchy
+    "customers:update:plan": ["customers:update"],
+    "customers:update": ["customers:read"],
+    "customers:create": ["customers:read"],
+    "customers:delete": ["customers:update"],
+
     // Contracts
-    "contracts:read": ["contracts:create", "contracts:update", "contracts:delete"],
-    
+    "contracts:update": ["contracts:read"],
+    "contracts:create": ["contracts:read"],
+    "contracts:delete": ["contracts:update"],
+
     // Planner
-    "planner:read": ["planner:create", "planner:status:approve", "planner:status:in-progress", "planner:financials:view"],
-    "planner:status:in-progress": ["planner:status:completed", "planner:priority:update"],
-    
+    "planner:financials:view": ["planner:read"],
+    "planner:status:completed": ["planner:status:in-progress"],
+    "planner:status:in-progress": ["planner:status:approve"],
+    "planner:status:approve": ["planner:read"],
+    "planner:create": ["planner:read"],
+    "planner:priority:update": ["planner:read"],
+
     // Cost Assistant
-    "cost-assistant:access": ["cost-assistant:view", "cost-assistant:process"],
-    "cost-assistant:process": ["cost-assistant:margins", "cost-assistant:export"],
-    
-    // Providers
-    "providers:read": ["providers:manage", "view:provider:costs"],
-    
-    // User Management
-    "users:read": ["users:create", "users:update", "users:delete"],
-    
-    // Roles Management
-    "roles:read": ["roles:create", "roles:update", "roles:delete"],
-    
-    // Administration & Maintenance
-    "admin:access": ["admin:settings:general", "admin:settings:api", "admin:settings:planner", "admin:settings:stock", "admin:suggestions:read", "admin:import:run", "admin:logs:read", "admin:maintenance:backup"],
-    "admin:logs:read": ["admin:logs:clear"],
-    "admin:maintenance:backup": ["admin:maintenance:restore", "admin:maintenance:reset"],
+    "cost-assistant:export": ["cost-assistant:process"],
+    "cost-assistant:margins": ["cost-assistant:process"],
+    "cost-assistant:process": ["cost-assistant:view"],
+    "cost-assistant:view": ["cost-assistant:access"],
+
+    // Admin & Maintenance
+    "admin:maintenance:reset": ["admin:maintenance:restore"],
+    "admin:maintenance:restore": ["admin:maintenance:backup"],
+    "admin:maintenance:backup": ["admin:access"],
+    "admin:logs:clear": ["admin:logs:read"],
+    "admin:logs:read": ["admin:access"],
+    "admin:import:run": ["admin:access"],
+    "admin:suggestions:read": ["admin:access"],
+    "admin:settings:general": ["admin:access"],
+    "admin:settings:api": ["admin:access"],
+    "admin:settings:planner": ["admin:access"],
+    "admin:settings:stock": ["admin:access"],
+    "users:read": ["admin:access"],
+    "users:create": ["users:read"],
+    "users:update": ["users:read"],
+    "users:delete": ["users:update"],
+    "roles:read": ["admin:access"],
+    "roles:create": ["roles:read"],
+    "roles:update": ["roles:read"],
+    "roles:delete": ["roles:update"],
 };
 
 /**
  * Pure recursive function to check if a set of permissions contains a specific one, 
- * respecting the defined hierarchy.
+ * respecting the defined hierarchy (Parent grants Children).
  */
 export function checkPermissionInTree(userPermissions: string[], permissionToSearch: string): boolean {
     if (userPermissions.includes('admin:all') || userPermissions.includes('admin')) return true;
     if (userPermissions.includes(permissionToSearch)) return true;
 
-    // To check if a user has 'permissionToSearch', we check if any of their permissions
-    // is a descendant of 'permissionToSearch' in the tree.
     const memo = new Set<string>();
-    const isDescendant = (current: string): boolean => {
+    
+    // Helper to see if 'current' permission grants 'target' permission
+    const grantsPermission = (current: string, target: string): boolean => {
         const children = permissionTree[current] || [];
-        if (children.includes(permissionToSearch)) return true;
+        if (children.includes(target)) return true;
         for (const child of children) {
             if (memo.has(child)) continue;
             memo.add(child);
-            if (isDescendant(child)) return true;
+            if (grantsPermission(child, target)) return true;
         }
         return false;
     };
 
-    // Note: The hierarchy logic in the tree is: Base -> Advanced.
-    // If user has 'Advanced', they have 'Base'.
-    // So if permissionToSearch is 'Base', and user has 'Advanced', they are authorized.
     for (const userPerm of userPermissions) {
-        if (isDescendant(userPerm)) return true;
+        if (grantsPermission(userPerm, permissionToSearch)) return true;
     }
 
     return false;
