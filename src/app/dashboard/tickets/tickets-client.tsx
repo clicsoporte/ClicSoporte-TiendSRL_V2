@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Client-side component for Support Tickets.
  */
@@ -10,6 +9,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { FilePlus, Loader2, FilterX, ShieldCheck, ShieldAlert, Clock, Info, EyeOff, MapPin, Zap, UserCircle, Mail, MessageCircle } from "lucide-react";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { SearchInput } from "@/components/ui/search-input";
@@ -32,7 +32,7 @@ export default function TicketsClient() {
     const { hasPermission } = useAuthorization(['tickets:admin:settings', 'view:provider:costs']);
     const canViewCosts = hasPermission('view:provider:costs');
     const router = useRouter();
-    const { companyData, customers } = useAuth();
+    const { companyData, customers, users } = useAuth();
     
     const {
         isNewTicketDialogOpen,
@@ -46,7 +46,8 @@ export default function TicketsClient() {
         priorityFilter,
         activeContract,
         providers,
-        selectedCustomerId
+        selectedCustomerId,
+        showOnlyMine
     } = state;
 
     const selectedCustomer = customers.find(c => c.id === selectedCustomerId);
@@ -114,6 +115,8 @@ export default function TicketsClient() {
 
     const renderTicketRow = (ticket: Ticket) => {
         const { priorityConfig, statusConfig } = selectors;
+        const assignee = users.find(u => u.id === ticket.assigneeId);
+
         return (
             <TableRow key={ticket.id} className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => router.push(`/dashboard/tickets/${ticket.id}`)}>
                 <TableCell className="font-mono font-bold text-xs">{ticket.consecutive}</TableCell>
@@ -149,6 +152,16 @@ export default function TicketsClient() {
                     </div>
                 </TableCell>
                 <TableCell className="hidden md:table-cell text-xs text-muted-foreground">{format(parseISO(ticket.createdAt), 'dd/MM/yy HH:mm')}</TableCell>
+                <TableCell>
+                    {assignee ? (
+                        <div className="flex items-center gap-2">
+                            <UserCircle className="h-3.5 w-3.5 text-primary/70" />
+                            <span className="text-xs font-medium">{assignee.name}</span>
+                        </div>
+                    ) : (
+                        <span className="text-[10px] text-muted-foreground italic">Sin asignar</span>
+                    )}
+                </TableCell>
             </TableRow>
         );
     }
@@ -410,10 +423,20 @@ export default function TicketsClient() {
 
             <Card>
                 <CardHeader>
-                    <div className="flex flex-col md:flex-row gap-4">
+                    <div className="flex flex-col md:flex-row gap-4 items-center">
                         <Input placeholder="Buscar por Nº ticket, asunto o cliente..." value={searchTerm} onChange={(e) => actions.setSearchTerm(e.target.value)} className="max-w-sm h-9" />
                         <Select value={statusFilter} onValueChange={actions.setStatusFilter}><SelectTrigger className="w-full md:w-[180px] h-9"><SelectValue placeholder="Estado"/></SelectTrigger><SelectContent><SelectItem value="all">Todos los Estados</SelectItem>{Object.entries(selectors.statusConfig).map(([key, config]) => (<SelectItem key={key} value={key}>{config.label}</SelectItem>))}</SelectContent></Select>
                         <Select value={priorityFilter} onValueChange={actions.setPriorityFilter}><SelectTrigger className="w-full md:w-[180px] h-9"><SelectValue placeholder="Prioridad"/></SelectTrigger><SelectContent><SelectItem value="all">Todas las Prioridades</SelectItem>{Object.entries(selectors.priorityConfig).map(([key, config]) => (<SelectItem key={key} value={key}>{config.label}</SelectItem>))}</SelectContent></Select>
+                        
+                        <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/30 rounded-md border border-dashed border-primary/20">
+                            <Checkbox 
+                                id="show-only-mine" 
+                                checked={showOnlyMine} 
+                                onCheckedChange={(checked) => actions.setShowOnlyMine(!!checked)} 
+                            />
+                            <Label htmlFor="show-only-mine" className="text-xs whitespace-nowrap cursor-pointer font-bold text-primary/80">Solo mis tickets</Label>
+                        </div>
+
                         <Button variant="ghost" size="sm" onClick={actions.clearFilters} className="h-9"><FilterX className="mr-2 h-4 w-4"/>Limpiar</Button>
                     </div>
                 </CardHeader>
@@ -429,13 +452,14 @@ export default function TicketsClient() {
                                     <TableHead className="w-[120px]">Estado</TableHead>
                                     <TableHead className="w-[100px]">Tiempo</TableHead>
                                     <TableHead className="hidden md:table-cell w-[150px]">Fecha</TableHead>
+                                    <TableHead>Técnico Asignado</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {selectors.filteredTickets.length > 0 ? (
                                     selectors.filteredTickets.map(renderTicketRow)
                                 ) : (
-                                    <TableRow><TableCell colSpan={7} className="h-24 text-center text-muted-foreground italic">No se encontraron casos con los filtros actuales.</TableCell></TableRow>
+                                    <TableRow><TableCell colSpan={8} className="h-24 text-center text-muted-foreground italic">No se encontraron casos con los filtros actuales.</TableCell></TableRow>
                                 )}
                             </TableBody>
                         </Table>

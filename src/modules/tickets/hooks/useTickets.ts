@@ -19,6 +19,8 @@ import {
     getHelpTopics,
     deleteTicket,
     getThirdPartyProviders,
+    getTicketPreference,
+    saveTicketPreference
 } from '../lib/actions';
 import { getActiveContractForCustomer } from '@/modules/contracts/lib/actions';
 import { useDebounce } from 'use-debounce';
@@ -55,6 +57,7 @@ const initialState = {
     currentThread: [] as TicketThread[],
     activeContract: null as Contract | null,
     providers: [] as ThirdPartyProvider[],
+    showOnlyMine: false,
 };
 
 const priorityConfig: { [key in TicketPriority]: { label: string, variant: 'default' | 'secondary' | 'destructive' | 'outline' } } = {
@@ -76,7 +79,7 @@ export const useTickets = () => {
     const { isAuthorized } = useAuthorization(['tickets:read:all']);
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
-    const { companyData, users, customers } = useAuth();
+    const { companyData, users, customers, user } = useAuth();
 
     const [state, setState] = useState(initialState);
     
@@ -95,18 +98,30 @@ export const useTickets = () => {
                 getHelpTopics(),
                 getThirdPartyProviders()
             ]);
-            updateState({ 
-                tickets: fetchedTickets, 
-                helpTopics: fetchedHelpTopics,
-                providers: fetchedProviders
-            });
+            
+            // Load user preference for filtering
+            if (user) {
+                const showOnlyMinePref = await getTicketPreference(user.id, 'showOnlyMine');
+                updateState({ 
+                    tickets: fetchedTickets, 
+                    helpTopics: fetchedHelpTopics,
+                    providers: fetchedProviders,
+                    showOnlyMine: !!showOnlyMinePref
+                });
+            } else {
+                updateState({ 
+                    tickets: fetchedTickets, 
+                    helpTopics: fetchedHelpTopics,
+                    providers: fetchedProviders
+                });
+            }
         } catch (error) {
             logError("Failed to load tickets", { error: (error as Error).message });
             toast({ title: "Error", description: "No se pudieron cargar los datos.", variant: "destructive" });
         } finally {
             updateState({ isLoading: false });
         }
-    }, [toast, updateState]);
+    }, [toast, updateState, user]);
 
     useEffect(() => {
         setTitle("Soporte Técnico");
@@ -213,6 +228,12 @@ export const useTickets = () => {
         setSearchTerm: (term: string) => updateState({ searchTerm: term }),
         setStatusFilter: (status: string) => updateState({ statusFilter: status }),
         setPriorityFilter: (priority: string) => updateState({ priorityFilter: priority }),
+        setShowOnlyMine: async (val: boolean) => {
+            updateState({ showOnlyMine: val });
+            if (user) {
+                await saveTicketPreference(user.id, 'showOnlyMine', val);
+            }
+        },
 
         clearFilters: () => updateState({ searchTerm: '', statusFilter: 'all', priorityFilter: 'all' }),
 
@@ -232,8 +253,8 @@ export const useTickets = () => {
         },
 
         handleCreateTicket: async () => {
-            const user = users[0]; 
-            if (!user) return;
+            const usr = users[0]; 
+            if (!usr) return;
             
             let currentNewTicket: NewTicketPayload | null = null;
             setState(s => { currentNewTicket = s.newTicket; return s; });
@@ -245,7 +266,7 @@ export const useTickets = () => {
 
             updateState({ isSubmitting: true });
             try {
-                const createdTicket = await saveTicket(currentNewTicket as NewTicketPayload, user);
+                const createdTicket = await saveTicket(currentNewTicket as NewTicketPayload, usr);
                 toast({ title: "Ticket Creado", description: `El ticket #${createdTicket.consecutive} ha sido creado.` });
 
                 setState(prevState => ({
@@ -298,9 +319,9 @@ export const useTickets = () => {
             }
         },
 
-        updateTicketDetails: async (ticketId: number, updates: Partial<Pick<Ticket, 'status' | 'priority' | 'assigneeId' | 'isBillable' | 'providerId'>>, user: User): Promise<Ticket | null> => {
+        updateTicketDetails: async (ticketId: number, updates: Partial<Pick<Ticket, 'status' | 'priority' | 'assigneeId' | 'isBillable' | 'providerId'>>, u: User): Promise<Ticket | null> => {
             try {
-                const updatedTicket = await updateTicketDetailsServer(ticketId, updates, user);
+                const updatedTicket = await updateTicketDetailsServer(ticketId, updates, u);
                 const thread = await getTicketThreadServer(ticketId);
                 setState(prev => ({
                     ...prev,
@@ -321,7 +342,7 @@ export const useTickets = () => {
         resetNewTicketForm: () => {
             updateState({ newTicket: emptyTicket, selectedCustomerId: null, customerSearchTerm: '', activeContract: null });
         }
-    }), [updateState, toast, users, handleNewTicketChange, handleSelectCompany]);
+    }), [updateState, toast, users, handleNewTicketChange, handleSelectCompany, user]);
 
     const selectors = useMemo(() => ({
         priorityConfig,
@@ -337,11 +358,12 @@ export const useTickets = () => {
                 : true;
             const statusMatch = state.statusFilter === 'all' || ticket.status === state.statusFilter;
             const priorityMatch = state.priorityFilter === 'all' || ticket.priority === state.priorityFilter;
-            return searchMatch && statusMatch && priorityMatch;
+            const assigneeMatch = !state.showOnlyMine || ticket.assigneeId === user?.id;
+            return searchMatch && statusMatch && priorityMatch && assigneeMatch;
         }),
         coverageMessage: validateCoverage(state.newTicket.serviceId, state.activeContract, state.selectedCustomerId).message,
         providers: state.providers
-    }), [users, customers, debouncedCustomerSearch, debouncedSearchTerm, state.tickets, state.statusFilter, state.priorityFilter, state.newTicket.serviceId, state.activeContract, state.selectedCustomerId, state.providers, validateCoverage]);
+    }), [users, customers, debouncedCustomerSearch, debouncedSearchTerm, state.tickets, state.statusFilter, state.priorityFilter, state.showOnlyMine, state.newTicket.serviceId, state.activeContract, state.selectedCustomerId, state.providers, validateCoverage, user]);
 
     return {
         state,

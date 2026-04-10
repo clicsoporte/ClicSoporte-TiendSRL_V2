@@ -44,6 +44,7 @@ import {
     saveTicketSettings as saveTicketSettingsServer
 } from './db';
 import { triggerNotificationEvent } from '@/modules/notifications/lib/notifications-engine';
+import { getUserPreferences, saveUserPreferences } from '@/modules/core/lib/db';
 
 /**
  * Saves a new ticket to the database.
@@ -267,4 +268,18 @@ export async function getTicketSettings(): Promise<{ ticketPrefix: string; nextT
 
 export async function saveTicketSettings(settings: { ticketPrefix: string; nextTicketNumber: number }): Promise<void> {
     return await saveTicketSettingsServer(settings);
+}
+
+/**
+ * UI Preferences for tickets
+ */
+export async function getTicketPreference(userId: number, key: string) {
+    const prefs = await getUserPreferences(userId, 'tickets_ui_prefs');
+    return prefs[key];
+}
+
+export async function saveTicketPreference(userId: number, key: string, value: any) {
+    const prefs = await getUserPreferences(userId, 'tickets_ui_prefs');
+    prefs[key] = value;
+    await saveUserPreferences(userId, 'tickets_ui_prefs', prefs);
 }
