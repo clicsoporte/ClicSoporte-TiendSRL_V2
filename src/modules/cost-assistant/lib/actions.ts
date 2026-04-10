@@ -19,6 +19,7 @@ import * as XLSX from 'xlsx';
 import path from 'path';
 import fs from 'fs';
 import { getUserPreferences, saveUserPreferences } from '@/modules/core/lib/db';
+import { authorizeAction } from '@/modules/core/lib/auth-guard';
 
 const getValue = <T>(obj: Record<string, unknown>, pathArray: string[], defaultValue: T): T => {
     const result = pathArray.reduce((acc: unknown, key) => {
@@ -192,6 +193,7 @@ async function parseInvoice(xmlContent: string, fileIndex: number): Promise<Invo
 }
 
 export async function processInvoiceXmls(xmlContents: string[]): Promise<{ lines: CostAssistantLine[], processedInvoices: ProcessedInvoiceInfo[] }> {
+    await authorizeAction('cost-assistant:process');
     let allLines: CostAssistantLine[] = [];
     const processedInvoices: ProcessedInvoiceInfo[] = [];
 
@@ -263,11 +265,13 @@ export async function saveCostAssistantSettings(userId: number, settings: Partia
 }
 
 export async function getAllDrafts(userId: number): Promise<CostAnalysisDraft[]> {
+    await authorizeAction('cost-assistant:access');
     const drafts = await getAllDraftsServer(userId);
     return JSON.parse(JSON.stringify(drafts));
 }
 
 export async function saveDraft(draft: Omit<CostAnalysisDraft, 'id' | 'createdAt'>): Promise<void> {
+    await authorizeAction('cost-assistant:access');
     const settings = await getDbSettings();
     const draftPrefix = settings.draftPrefix || 'AC-';
     const nextDraftNumber = settings.nextDraftNumber || 1;
@@ -276,6 +280,7 @@ export async function saveDraft(draft: Omit<CostAnalysisDraft, 'id' | 'createdAt
 }
 
 export async function deleteDraft(id: string): Promise<void> {
+    await authorizeAction('cost-assistant:access');
     await logInfo('Cost analysis draft deleted', { draftId: id });
     return deleteDraftServer(id);
 }
@@ -286,6 +291,7 @@ export async function getNextDraftNumber(): Promise<number> {
 }
 
 export async function exportForERP(lines: CostAssistantLine[]): Promise<string> {
+    await authorizeAction('cost-assistant:export');
     const headers = [
         "Cabys", "Cód. Artículo", "Descripción", "Cant.", "Descuento", 
         "Costo Unit. (s/IVA)", "Costo Unit. (c/IVA)", "Imp. %", "Margen", 

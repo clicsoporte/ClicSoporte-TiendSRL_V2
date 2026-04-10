@@ -6,8 +6,10 @@
 import { connectDb } from '../../core/lib/db';
 import type { QuoteDraft } from '../../core/types';
 import { logError } from '../../core/lib/logger';
+import { authorizeAction } from '@/modules/core/lib/auth-guard';
 
 export async function saveQuoteDraft(draft: QuoteDraft): Promise<void> {
+    await authorizeAction('quotes:drafts:create');
     try {
         const db = await connectDb();
         const stmt = db.prepare(`
@@ -33,6 +35,7 @@ export async function saveQuoteDraft(draft: QuoteDraft): Promise<void> {
 }
 
 export async function getAllQuoteDrafts(userId: number): Promise<QuoteDraft[]> {
+    await authorizeAction('quotes:drafts:read');
     const db = await connectDb();
     const results = db.prepare('SELECT * FROM quote_drafts WHERE userId = ? ORDER BY createdAt DESC').all(userId) as Record<string, unknown>[];
     
@@ -47,6 +50,7 @@ export async function getAllQuoteDrafts(userId: number): Promise<QuoteDraft[]> {
 }
 
 export async function deleteQuoteDraft(draftId: string): Promise<void> {
+    await authorizeAction('quotes:drafts:delete');
     const db = await connectDb();
     db.prepare('DELETE FROM quote_drafts WHERE id = ?').run(draftId);
 }

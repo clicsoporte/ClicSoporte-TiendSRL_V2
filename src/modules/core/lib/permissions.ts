@@ -111,8 +111,7 @@ export type AppPermission = keyof typeof permissionTranslations;
 
 /**
  * Defines the hierarchical dependencies between permissions.
- * CORRECT LOGIC: The Key is the PARENT (Advanced). The Value is an array of CHILDREN (Requirements).
- * If you have the Key, you automatically have the Value.
+ * The Key is the PARENT (Advanced). The Value is an array of CHILDREN (Requirements).
  */
 export const permissionTree: Record<string, string[]> = {
     // Top-Level Access (Requires Dashboard Access)
@@ -127,7 +126,7 @@ export const permissionTree: Record<string, string[]> = {
     "cost-assistant:access": ["dashboard:access"],
     "hacienda:query": ["dashboard:access"],
 
-    // Tickets Hierarchy (Advanced implies Base)
+    // Tickets Hierarchy
     "tickets:admin:settings": ["tickets:manage"],
     "tickets:manage": ["tickets:read:all"],
     "tickets:time-tracking": ["tickets:read:all"],
