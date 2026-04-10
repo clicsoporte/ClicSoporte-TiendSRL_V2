@@ -1,7 +1,7 @@
-'use client';
+'use server';
 
 /**
- * @fileoverview Client-side functions for the Notifications module.
+ * @fileoverview Server Actions for the Notifications module.
  */
 
 import { 
@@ -15,7 +15,7 @@ import {
     saveNotificationServiceSettings as saveSettingsServer
 } from './db';
 import type { NotificationRule, ScheduledTask, NotificationServiceConfig } from '@/modules/core/types';
-import { logInfo } from '@/modules/core/lib/logger';
+import { logInfo, logError } from '@/modules/core/lib/logger';
 import { initScheduler } from './scheduler';
 
 export async function getAllNotificationRules(): Promise<NotificationRule[]> {
@@ -23,14 +23,26 @@ export async function getAllNotificationRules(): Promise<NotificationRule[]> {
 }
 
 export async function saveNotificationRule(rule: Omit<NotificationRule, 'id'> | NotificationRule): Promise<NotificationRule> {
-    const result = await saveRuleServer(rule);
-    await logInfo(`Notification rule saved: ${result.name}`);
-    return result;
+    try {
+        const result = await saveRuleServer(rule);
+        await logInfo(`Notification rule saved: ${result.name}`);
+        return JSON.parse(JSON.stringify(result));
+    } catch (error: unknown) {
+        const err = error as Error;
+        await logError(`Failed to save notification rule`, { error: err.message });
+        throw err;
+    }
 }
 
 export async function deleteNotificationRule(id: number): Promise<void> {
-    await deleteRuleServer(id);
-    await logInfo(`Notification rule deleted: ${id}`);
+    try {
+        await deleteRuleServer(id);
+        await logInfo(`Notification rule deleted: ${id}`);
+    } catch (error: unknown) {
+        const err = error as Error;
+        await logError(`Failed to delete notification rule`, { error: err.message, id });
+        throw err;
+    }
 }
 
 export async function getAllScheduledTasks(): Promise<ScheduledTask[]> {
@@ -38,25 +50,44 @@ export async function getAllScheduledTasks(): Promise<ScheduledTask[]> {
 }
 
 export async function saveScheduledTask(task: Omit<ScheduledTask, 'id'> | ScheduledTask): Promise<ScheduledTask> {
-    const result = await saveTaskServer(task);
-    await logInfo(`Scheduled task saved: ${result.name}`, { enabled: result.enabled });
-    // Re-initialize scheduler to apply changes immediately
-    await initScheduler();
-    return result;
+    try {
+        const result = await saveTaskServer(task);
+        await logInfo(`Scheduled task saved: ${result.name}`, { enabled: result.enabled });
+        // Re-initialize scheduler to apply changes immediately
+        await initScheduler();
+        return JSON.parse(JSON.stringify(result));
+    } catch (error: unknown) {
+        const err = error as Error;
+        await logError(`Failed to save scheduled task`, { error: err.message });
+        throw err;
+    }
 }
 
 export async function deleteScheduledTask(id: number): Promise<void> {
-    await deleteTaskServer(id);
-    await logInfo(`Scheduled task deleted: ${id}`);
-    // Refresh schedule
-    await initScheduler();
+    try {
+        await deleteTaskServer(id);
+        await logInfo(`Scheduled task deleted: ${id}`);
+        // Refresh schedule
+        await initScheduler();
+    } catch (error: unknown) {
+        const err = error as Error;
+        await logError(`Failed to delete scheduled task`, { error: err.message, id });
+        throw err;
+    }
 }
 
 export async function getNotificationServiceSettings(service: 'telegram'): Promise<NotificationServiceConfig> {
-    return await getSettingsServer(service);
+    const settings = await getSettingsServer(service);
+    return JSON.parse(JSON.stringify(settings));
 }
 
 export async function saveNotificationServiceSettings(service: 'telegram', config: NotificationServiceConfig): Promise<void> {
-    await saveSettingsServer(service, config);
-    await logInfo('Notification service settings updated', { service });
+    try {
+        await saveSettingsServer(service, config);
+        await logInfo('Notification service settings updated', { service });
+    } catch (error: unknown) {
+        const err = error as Error;
+        await logError(`Failed to save notification settings`, { error: err.message, service });
+        throw err;
+    }
 }
