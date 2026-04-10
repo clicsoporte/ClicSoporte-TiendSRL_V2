@@ -278,7 +278,7 @@ export async function getTicketPreference(userId: number, key: string) {
     return prefs[key];
 }
 
-export async function saveTicketPreference(userId: number, key: string, value: any) {
+export async function saveTicketPreference(userId: number, key: string, value: unknown) {
     const prefs = await getUserPreferences(userId, 'tickets_ui_prefs');
     prefs[key] = value;
     await saveUserPreferences(userId, 'tickets_ui_prefs', prefs);
