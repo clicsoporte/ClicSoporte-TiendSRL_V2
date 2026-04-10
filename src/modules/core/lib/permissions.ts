@@ -106,10 +106,10 @@ export type AppPermission = keyof typeof permissionTranslations;
 /**
  * Defines the hierarchical dependencies between permissions.
  * The key is the parent permission, and the value is an array of child permissions it grants.
+ * NOTE: 'admin:all' is excluded from this tree to avoid reverse-triggering the super-admin 
+ * status when selecting common functional permissions.
  */
 export const permissionTree: Record<string, string[]> = {
-    "admin:all": Object.keys(permissionTranslations),
-    
     "dashboard:access": ["tickets:read:all", "customers:read", "contracts:read", "planner:read"],
     
     "admin:access": [

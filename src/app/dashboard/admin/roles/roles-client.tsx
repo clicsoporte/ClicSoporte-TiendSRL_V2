@@ -408,15 +408,15 @@ export default function RolesClient() {
 
       <Dialog open={isDialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-5xl h-[90vh] flex flex-col p-0 overflow-hidden">
-          <DialogHeader className="p-6 pb-0">
+          <DialogHeader className="p-6 pb-4 border-b">
             <DialogTitle>
               {currentRole?.id ? 'Editar Permisos del Rol' : 'Crear Nuevo Rol'}
             </DialogTitle>
-            <DialogTitle className="text-sm font-normal text-muted-foreground">
+            <DialogDescription>
               {currentRole?.id
                 ? `Personaliza las facultades para "${currentRole?.name}"`
                 : 'Define el nombre y las capacidades del nuevo puesto.'}
-            </DialogTitle>
+            </DialogDescription>
           </DialogHeader>
           
           <div className="flex-1 overflow-y-auto p-6 scrollbar-thin">
