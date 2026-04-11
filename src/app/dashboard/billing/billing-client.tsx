@@ -104,6 +104,7 @@ export default function BillingClient() {
             setEntries(pending);
             setHistoryEntries(invoiced);
             setSelectedEntryIds(pending.map(e => e.id)); // Select all pending by default
+            setActiveTab("pending"); // Reset tab on customer change
         } catch {
             toast({ title: "Error al cargar detalles", variant: "destructive" });
         } finally {
@@ -121,7 +122,7 @@ export default function BillingClient() {
             await markEntriesAsInvoiced(selectedEntryIds, externalInvoice);
             toast({ title: "Registros Actualizados", description: `Se marcaron ${selectedEntryIds.length} sesiones como facturadas.` });
             
-            // Refresh local state
+            // Refresh local state and sidebar
             const movedEntries = entries.filter(e => selectedEntryIds.includes(e.id)).map(e => ({ ...e, billingStatus: 'invoiced' as const, externalInvoiceNumber: externalInvoice }));
             const remainingEntries = entries.filter(e => !selectedEntryIds.includes(e.id));
             
@@ -130,10 +131,8 @@ export default function BillingClient() {
             setSelectedEntryIds([]);
             setExternalInvoice("");
             
-            if (remainingEntries.length === 0 && activeTab === 'pending') {
-                // If no more pending, maybe refresh sidebar too
-                loadData();
-            }
+            // Re-fetch customer list to update sidebar totals
+            loadData();
         } catch {
             toast({ title: "Error", variant: "destructive" });
         } finally {
@@ -334,12 +333,18 @@ export default function BillingClient() {
 
                             {/* Main Content Area with Tabs */}
                             <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 overflow-hidden flex flex-col">
-                                <div className="px-6 border-b">
-                                    <TabsList className="bg-transparent h-12 p-0 gap-6">
-                                        <TabsTrigger value="pending" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 font-bold flex gap-2">
+                                <div className="px-6 border-b bg-muted/5">
+                                    <TabsList className="bg-transparent h-14 p-0 gap-8">
+                                        <TabsTrigger 
+                                            value="pending" 
+                                            className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 h-14 font-bold flex gap-2 hover:text-primary transition-all"
+                                        >
                                             <Clock className="h-4 w-4" /> Pendientes de Cobro ({entries.length})
                                         </TabsTrigger>
-                                        <TabsTrigger value="history" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 font-bold flex gap-2">
+                                        <TabsTrigger 
+                                            value="history" 
+                                            className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 h-14 font-bold flex gap-2 hover:text-primary transition-all"
+                                        >
                                             <History className="h-4 w-4" /> Historial de Facturados ({historyEntries.length})
                                         </TabsTrigger>
                                     </TabsList>
