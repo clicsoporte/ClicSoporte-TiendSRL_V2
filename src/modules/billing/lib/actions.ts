@@ -49,7 +49,7 @@ export async function getCustomersWithPendingBilling(): Promise<PendingCustomer[
                 t.serviceId
             FROM time_entries te
             JOIN tickets t ON te.ticketId = t.id
-            JOIN customers c ON (t.customerName = c.name OR t.companyName = c.name)
+            JOIN customers c ON (t.customerName = c.name OR t.companyName = c.name OR t.id = c.id)
             WHERE te.billingStatus = 'pending' AND te.isBillable = 1
         `).all() as (Pick<DbBillingRow, 'customerId' | 'customerName' | 'taxId' | 'billableDuration' | 'duration' | 'serviceId'>)[];
 
@@ -92,9 +92,9 @@ export async function getCustomersWithPendingBilling(): Promise<PendingCustomer[
 }
 
 /**
- * Retrieves all pending entries for a specific customer.
+ * Retrieves entries for a specific customer filtered by billing status.
  */
-export async function getPendingEntriesForCustomer(customerId: string): Promise<(TimeEntry & { ticketConsecutive: string, serviceName: string, price: number, amount: number })[]> {
+export async function getBillingEntriesForCustomer(customerId: string, status: 'pending' | 'invoiced'): Promise<(TimeEntry & { ticketConsecutive: string, serviceName: string, price: number, amount: number })[]> {
     const db = await connectDb();
     const settings = await getCompanySettings();
     const serviceMap = new Map(settings.servicesCatalog.map(s => [s.id, s]));
@@ -107,10 +107,10 @@ export async function getPendingEntriesForCustomer(customerId: string): Promise<
                 t.serviceId
             FROM time_entries te
             JOIN tickets t ON te.ticketId = t.id
-            JOIN customers c ON (t.customerName = c.name OR t.companyName = c.name)
-            WHERE c.id = ? AND te.billingStatus = 'pending' AND te.isBillable = 1
+            JOIN customers c ON (t.customerName = c.name OR t.companyName = c.name OR t.id = c.id)
+            WHERE c.id = ? AND te.billingStatus = ? AND te.isBillable = 1
             ORDER BY te.startTime DESC
-        `).all(customerId) as (TimeEntry & { ticketConsecutive: string, serviceId: string })[];
+        `).all(customerId, status) as (TimeEntry & { ticketConsecutive: string, serviceId: string })[];
 
         return rows.map(row => {
             const service = serviceMap.get(row.serviceId);
@@ -134,9 +134,16 @@ export async function getPendingEntriesForCustomer(customerId: string): Promise<
             };
         });
     } catch (error) {
-        console.error("Failed to fetch pending entries for customer:", error);
+        console.error("Failed to fetch billing entries for customer:", error);
         return [];
     }
+}
+
+/**
+ * Retrieves all pending entries for a specific customer (legacy wrapper).
+ */
+export async function getPendingEntriesForCustomer(customerId: string) {
+    return getBillingEntriesForCustomer(customerId, 'pending');
 }
 
 /**

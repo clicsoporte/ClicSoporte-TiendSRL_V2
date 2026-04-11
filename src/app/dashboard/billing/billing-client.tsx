@@ -13,15 +13,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { getCustomersWithPendingBilling, getPendingEntriesForCustomer, markEntriesAsInvoiced, type PendingCustomer } from '@/modules/billing/lib/actions';
+import { getCustomersWithPendingBilling, getBillingEntriesForCustomer, markEntriesAsInvoiced, type PendingCustomer } from '@/modules/billing/lib/actions';
 import { format, parseISO } from 'date-fns';
-import { Loader2, Receipt, CheckCircle2, Search, Download, Mail, UserCircle, ChevronRight, AlertCircle, UserCheck } from 'lucide-react';
+import { Loader2, Receipt, CheckCircle2, Search, Download, Mail, UserCircle, ChevronRight, AlertCircle, UserCheck, History, Clock } from 'lucide-react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { generateDocument } from '@/modules/core/lib/pdf-generator';
 import { sendBillingStatementByEmail } from '@/modules/billing/lib/email-actions';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { TimeEntry } from '@/modules/core/types';
 import type { RowInput } from 'jspdf-autotable';
 
@@ -42,10 +43,12 @@ export default function BillingClient() {
     // Selection state
     const [selectedCustomer, setSelectedCustomer] = useState<PendingCustomer | null>(null);
     const [entries, setEntries] = useState<BillingEntry[]>([]);
+    const [historyEntries, setHistoryEntries] = useState<BillingEntry[]>([]);
     const [isLoadingEntries, setIsLoadingEntries] = useState(false);
     const [selectedEntryIds, setSelectedEntryIds] = useState<number[]>([]);
     const [externalInvoice, setExternalInvoice] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [activeTab, setActiveTab] = useState("pending");
 
     // PDF & Email States
     const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
@@ -90,12 +93,17 @@ export default function BillingClient() {
         
         setSelectedCustomer(customer);
         setEntries([]);
+        setHistoryEntries([]);
         setSelectedEntryIds([]);
         setIsLoadingEntries(true);
         try {
-            const data = await getPendingEntriesForCustomer(customer.id);
-            setEntries(data);
-            setSelectedEntryIds(data.map(e => e.id)); // Select all by default
+            const [pending, invoiced] = await Promise.all([
+                getBillingEntriesForCustomer(customer.id, 'pending'),
+                getBillingEntriesForCustomer(customer.id, 'invoiced')
+            ]);
+            setEntries(pending);
+            setHistoryEntries(invoiced);
+            setSelectedEntryIds(pending.map(e => e.id)); // Select all pending by default
         } catch {
             toast({ title: "Error al cargar detalles", variant: "destructive" });
         } finally {
@@ -112,16 +120,20 @@ export default function BillingClient() {
         try {
             await markEntriesAsInvoiced(selectedEntryIds, externalInvoice);
             toast({ title: "Registros Actualizados", description: `Se marcaron ${selectedEntryIds.length} sesiones como facturadas.` });
-            setExternalInvoice("");
+            
+            // Refresh local state
+            const movedEntries = entries.filter(e => selectedEntryIds.includes(e.id)).map(e => ({ ...e, billingStatus: 'invoiced' as const, externalInvoiceNumber: externalInvoice }));
             const remainingEntries = entries.filter(e => !selectedEntryIds.includes(e.id));
-            if (remainingEntries.length === 0) {
-                setSelectedCustomer(null);
-                setEntries([]);
-            } else {
-                setEntries(remainingEntries);
-                setSelectedEntryIds([]);
+            
+            setEntries(remainingEntries);
+            setHistoryEntries(prev => [...movedEntries, ...prev]);
+            setSelectedEntryIds([]);
+            setExternalInvoice("");
+            
+            if (remainingEntries.length === 0 && activeTab === 'pending') {
+                // If no more pending, maybe refresh sidebar too
+                loadData();
             }
-            loadData();
         } catch {
             toast({ title: "Error", variant: "destructive" });
         } finally {
@@ -145,12 +157,15 @@ export default function BillingClient() {
 
     // --- PDF & Email Implementation ---
 
-    const handleGeneratePDF = () => {
-        if (!selectedCustomer || !companyData || entries.length === 0) return;
+    const handleGeneratePDF = (isHistory = false) => {
+        if (!selectedCustomer || !companyData) return;
+        const targetEntries = isHistory ? historyEntries : entries;
+        if (targetEntries.length === 0) return;
+
         setIsGeneratingPDF(true);
 
         try {
-            const tableRows = entries.map(e => [
+            const tableRows = targetEntries.map(e => [
                 format(parseISO(e.startTime), 'dd/MM/yy'),
                 e.ticketConsecutive,
                 { content: `${e.serviceName}\n${e.notes || ''}`, styles: { fontSize: 8 } },
@@ -159,8 +174,8 @@ export default function BillingClient() {
             ]);
 
             const doc = generateDocument({
-                docTitle: "ESTADO DE CUENTA DE SERVICIOS",
-                docId: "PEND-ACTUAL",
+                docTitle: isHistory ? "HISTORIAL DE SERVICIOS FACTURADOS" : "ESTADO DE CUENTA DE SERVICIOS",
+                docId: isHistory ? "HIST-FACT" : "PEND-ACTUAL",
                 companyData,
                 meta: [
                     { label: 'Fecha Emisión', value: format(new Date(), 'dd/MM/yyyy') },
@@ -174,13 +189,15 @@ export default function BillingClient() {
                     rows: tableRows as RowInput[],
                     columnStyles: { 4: { halign: 'right' } }
                 },
-                notes: "Este documento detalla las horas de soporte técnico que se encuentran pendientes de facturar en el ERP.",
+                notes: isHistory 
+                    ? "Este documento es un resumen de los servicios de soporte ya conciliados y facturados en el ERP."
+                    : "Este documento detalla las horas de soporte técnico que se encuentran pendientes de facturar en el ERP.",
                 totals: [
-                    { label: 'Total Pendiente:', value: formatCurrency(entries.reduce((acc, e) => acc + e.amount, 0)) }
+                    { label: isHistory ? 'Total Facturado:' : 'Total Pendiente:', value: formatCurrency(targetEntries.reduce((acc, e) => acc + e.amount, 0)) }
                 ]
             });
 
-            doc.save(`estado_cuenta_${selectedCustomer.id}.pdf`);
+            doc.save(`${isHistory ? 'historial' : 'estado_cuenta'}_${selectedCustomer.id}.pdf`);
             toast({ title: "PDF Descargado" });
         } catch {
             toast({ title: "Error al generar PDF", variant: "destructive" });
@@ -281,7 +298,7 @@ export default function BillingClient() {
                                 ))
                             ) : (
                                 <div className="p-10 text-center text-muted-foreground italic text-sm">
-                                    No se encontraron clientes con saldos.
+                                    No se encontraron clientes con saldos pendientes.
                                 </div>
                             )}
                         </div>
@@ -299,106 +316,165 @@ export default function BillingClient() {
                                         <UserCircle className="h-5 w-5 text-primary" />
                                         <h2 className="text-xl font-bold">{selectedCustomer.name}</h2>
                                     </div>
-                                    <p className="text-sm text-muted-foreground">Revisión de {entries.length} sesiones pendientes de cobro</p>
+                                    <p className="text-sm text-muted-foreground">ID: {selectedCustomer.id} | Cédula: {selectedCustomer.taxId}</p>
                                 </div>
                                 <div className="flex gap-2">
-                                    <Button variant="outline" size="sm" onClick={handleGeneratePDF} disabled={isGeneratingPDF}>
+                                    <Button variant="outline" size="sm" onClick={() => handleGeneratePDF(activeTab === 'history')} disabled={isGeneratingPDF}>
                                         {isGeneratingPDF ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Download className="mr-2 h-4 w-4" />}
                                         PDF
                                     </Button>
-                                    <Button variant="outline" size="sm" onClick={() => setEmailDialogOpen(true)}>
-                                        <Mail className="mr-2 h-4 w-4" /> 
-                                        Email
-                                    </Button>
-                                </div>
-                            </div>
-
-                            {/* Entries List */}
-                            <div className="flex-1 overflow-hidden flex flex-col p-6 space-y-4">
-                                <div className="flex justify-between items-center bg-primary/5 p-4 rounded-lg border border-primary/10">
-                                    <div>
-                                        <p className="text-[10px] font-bold text-primary uppercase">Monto Seleccionado para Facturar</p>
-                                        <p className="text-2xl font-bold text-primary">{formatCurrency(totalSelected)}</p>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="text-[10px] font-bold text-muted-foreground uppercase">Items Seleccionados</p>
-                                        <p className="text-xl font-bold">{selectedEntryIds.length} / {entries.length}</p>
-                                    </div>
-                                </div>
-
-                                <ScrollArea className="flex-1 border rounded-md bg-card">
-                                    {isLoadingEntries ? (
-                                        <div className="flex flex-col items-center justify-center p-20 gap-2">
-                                            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                                            <p className="text-sm text-muted-foreground">Cargando desglose...</p>
-                                        </div>
-                                    ) : (
-                                        <Table>
-                                            <TableHeader>
-                                                <TableRow className="bg-muted/50 sticky top-0 z-10">
-                                                    <TableHead className="w-[40px]">
-                                                        <Checkbox 
-                                                            checked={selectedEntryIds.length === entries.length && entries.length > 0} 
-                                                            onCheckedChange={(checked) => setSelectedEntryIds(checked ? entries.map(e => e.id) : [])}
-                                                        />
-                                                    </TableHead>
-                                                    <TableHead className="text-xs">Fecha</TableHead>
-                                                    <TableHead className="text-xs">Ticket</TableHead>
-                                                    <TableHead className="text-xs">Detalle de Labor</TableHead>
-                                                    <TableHead className="text-right text-xs">Horas</TableHead>
-                                                    <TableHead className="text-right text-xs">Subtotal</TableHead>
-                                                </TableRow>
-                                            </TableHeader>
-                                            <TableBody>
-                                                {entries.map(entry => (
-                                                    <TableRow key={entry.id} className={cn(selectedEntryIds.includes(entry.id) && "bg-primary/5")}>
-                                                        <TableCell>
-                                                            <Checkbox checked={selectedEntryIds.includes(entry.id)} onCheckedChange={() => toggleEntrySelection(entry.id)} />
-                                                        </TableCell>
-                                                        <TableCell className="text-xs">{format(parseISO(entry.startTime), 'dd/MM/yy')}</TableCell>
-                                                        <TableCell className="font-mono text-xs font-bold text-muted-foreground">{entry.ticketConsecutive}</TableCell>
-                                                        <TableCell>
-                                                            <p className="font-semibold text-xs">{entry.serviceName}</p>
-                                                            <p className="text-[10px] text-muted-foreground line-clamp-1 italic">{entry.notes || 'Sin descripción'}</p>
-                                                        </TableCell>
-                                                        <TableCell className="text-right text-xs font-mono">{( (entry.billableDuration || entry.duration || 0) / 3600000 ).toFixed(2)} h</TableCell>
-                                                        <TableCell className="text-right font-bold text-xs">{formatCurrency(entry.amount)}</TableCell>
-                                                    </TableRow>
-                                                ))}
-                                            </TableBody>
-                                        </Table>
+                                    {activeTab === 'pending' && (
+                                        <Button variant="outline" size="sm" onClick={() => setEmailDialogOpen(true)}>
+                                            <Mail className="mr-2 h-4 w-4" /> 
+                                            Email
+                                        </Button>
                                     )}
-                                </ScrollArea>
+                                </div>
                             </div>
 
-                            {/* Detail Footer (Action Bar) */}
-                            <div className="p-6 border-t bg-muted/10 shadow-inner">
-                                <div className="flex flex-col sm:flex-row items-end gap-4 max-w-2xl">
-                                    <div className="flex-1 w-full space-y-1.5">
-                                        <Label htmlFor="external-invoice" className="text-xs font-bold text-muted-foreground uppercase flex items-center gap-1">
-                                            <Receipt className="h-3 w-3" /> Nº Factura Generada en ERP
-                                        </Label>
-                                        <Input 
-                                            id="external-invoice"
-                                            value={externalInvoice} 
-                                            onChange={e => setExternalInvoice(e.target.value)} 
-                                            placeholder="Ej: F-001-98765" 
-                                            className="h-10 bg-background" 
-                                        />
-                                    </div>
-                                    <Button 
-                                        onClick={handleMarkInvoiced} 
-                                        disabled={!externalInvoice || selectedEntryIds.length === 0 || isSubmitting}
-                                        className="h-10 px-8 shadow-md"
-                                    >
-                                        {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
-                                        Conciliar y Cerrar Pendientes
-                                    </Button>
+                            {/* Main Content Area with Tabs */}
+                            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 overflow-hidden flex flex-col">
+                                <div className="px-6 border-b">
+                                    <TabsList className="bg-transparent h-12 p-0 gap-6">
+                                        <TabsTrigger value="pending" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 font-bold flex gap-2">
+                                            <Clock className="h-4 w-4" /> Pendientes de Cobro ({entries.length})
+                                        </TabsTrigger>
+                                        <TabsTrigger value="history" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 font-bold flex gap-2">
+                                            <History className="h-4 w-4" /> Historial de Facturados ({historyEntries.length})
+                                        </TabsTrigger>
+                                    </TabsList>
                                 </div>
-                                <p className="mt-2 text-[10px] text-muted-foreground italic flex items-center gap-1">
-                                    <AlertCircle className="h-3 w-3" /> Al confirmar, los registros seleccionados se marcarán como facturados y saldrán de los pendientes.
-                                </p>
-                            </div>
+
+                                <div className="flex-1 overflow-hidden flex flex-col p-6 pt-4">
+                                    <TabsContent value="pending" className="m-0 flex-1 overflow-hidden flex flex-col space-y-4">
+                                        <div className="flex justify-between items-center bg-primary/5 p-4 rounded-lg border border-primary/10">
+                                            <div>
+                                                <p className="text-[10px] font-bold text-primary uppercase">Monto Seleccionado para Facturar</p>
+                                                <p className="text-2xl font-bold text-primary">{formatCurrency(totalSelected)}</p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-[10px] font-bold text-muted-foreground uppercase">Items Seleccionados</p>
+                                                <p className="text-xl font-bold">{selectedEntryIds.length} / {entries.length}</p>
+                                            </div>
+                                        </div>
+
+                                        <ScrollArea className="flex-1 border rounded-md bg-card">
+                                            {isLoadingEntries ? (
+                                                <div className="flex flex-col items-center justify-center p-20 gap-2">
+                                                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                                                    <p className="text-sm text-muted-foreground">Cargando desglose...</p>
+                                                </div>
+                                            ) : (
+                                                <Table>
+                                                    <TableHeader>
+                                                        <TableRow className="bg-muted/50 sticky top-0 z-10">
+                                                            <TableHead className="w-[40px]">
+                                                                <Checkbox 
+                                                                    checked={selectedEntryIds.length === entries.length && entries.length > 0} 
+                                                                    onCheckedChange={(checked) => setSelectedEntryIds(checked ? entries.map(e => e.id) : [])}
+                                                                />
+                                                            </TableHead>
+                                                            <TableHead className="text-xs">Fecha</TableHead>
+                                                            <TableHead className="text-xs">Ticket</TableHead>
+                                                            <TableHead className="text-xs">Detalle de Labor</TableHead>
+                                                            <TableHead className="text-right text-xs">Horas</TableHead>
+                                                            <TableHead className="text-right text-xs">Subtotal</TableHead>
+                                                        </TableRow>
+                                                    </TableHeader>
+                                                    <TableBody>
+                                                        {entries.map(entry => (
+                                                            <TableRow key={entry.id} className={cn(selectedEntryIds.includes(entry.id) && "bg-primary/5")}>
+                                                                <TableCell>
+                                                                    <Checkbox checked={selectedEntryIds.includes(entry.id)} onCheckedChange={() => toggleEntrySelection(entry.id)} />
+                                                                </TableCell>
+                                                                <TableCell className="text-xs">{format(parseISO(entry.startTime), 'dd/MM/yy')}</TableCell>
+                                                                <TableCell className="font-mono text-xs font-bold text-muted-foreground">{entry.ticketConsecutive}</TableCell>
+                                                                <TableCell>
+                                                                    <p className="font-semibold text-xs">{entry.serviceName}</p>
+                                                                    <p className="text-[10px] text-muted-foreground line-clamp-1 italic">{entry.notes || 'Sin descripción'}</p>
+                                                                </TableCell>
+                                                                <TableCell className="text-right text-xs font-mono">{( (entry.billableDuration || entry.duration || 0) / 3600000 ).toFixed(2)} h</TableCell>
+                                                                <TableCell className="text-right font-bold text-xs">{formatCurrency(entry.amount)}</TableCell>
+                                                            </TableRow>
+                                                        ))}
+                                                        {entries.length === 0 && (
+                                                            <TableRow>
+                                                                <TableCell colSpan={6} className="h-32 text-center text-muted-foreground italic">No hay sesiones pendientes de cobro para este cliente.</TableCell>
+                                                            </TableRow>
+                                                        )}
+                                                    </TableBody>
+                                                </Table>
+                                            )}
+                                        </ScrollArea>
+
+                                        {/* Action Bar for Pending */}
+                                        <div className="pt-4 border-t bg-muted/10 p-4 rounded-lg">
+                                            <div className="flex flex-col sm:flex-row items-end gap-4 max-w-2xl">
+                                                <div className="flex-1 w-full space-y-1.5">
+                                                    <Label htmlFor="external-invoice" className="text-xs font-bold text-muted-foreground uppercase flex items-center gap-1">
+                                                        <Receipt className="h-3 w-3" /> Nº Factura Generada en ERP
+                                                    </Label>
+                                                    <Input 
+                                                        id="external-invoice"
+                                                        value={externalInvoice} 
+                                                        onChange={e => setExternalInvoice(e.target.value)} 
+                                                        placeholder="Ej: F-001-98765" 
+                                                        className="h-10 bg-background" 
+                                                    />
+                                                </div>
+                                                <Button 
+                                                    onClick={handleMarkInvoiced} 
+                                                    disabled={!externalInvoice || selectedEntryIds.length === 0 || isSubmitting}
+                                                    className="h-10 px-8 shadow-md"
+                                                >
+                                                    {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
+                                                    Conciliar y Cerrar Pendientes
+                                                </Button>
+                                            </div>
+                                            <p className="mt-2 text-[10px] text-muted-foreground italic flex items-center gap-1">
+                                                <AlertCircle className="h-3 w-3" /> Al confirmar, los registros seleccionados se marcarán como facturados y pasarán al historial.
+                                            </p>
+                                        </div>
+                                    </TabsContent>
+
+                                    <TabsContent value="history" className="m-0 flex-1 overflow-hidden flex flex-col">
+                                        <ScrollArea className="flex-1 border rounded-md bg-card">
+                                            <Table>
+                                                <TableHeader>
+                                                    <TableRow className="bg-muted/50 sticky top-0 z-10">
+                                                        <TableHead className="text-xs">Fecha</TableHead>
+                                                        <TableHead className="text-xs">Nº Factura ERP</TableHead>
+                                                        <TableHead className="text-xs">Ticket</TableHead>
+                                                        <TableHead className="text-xs">Detalle de Labor</TableHead>
+                                                        <TableHead className="text-right text-xs">Horas</TableHead>
+                                                        <TableHead className="text-right text-xs">Total Conciliado</TableHead>
+                                                    </TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {historyEntries.map(entry => (
+                                                        <TableRow key={entry.id}>
+                                                            <TableCell className="text-xs">{format(parseISO(entry.startTime), 'dd/MM/yy')}</TableCell>
+                                                            <TableCell><Badge variant="outline" className="font-mono bg-blue-50 text-blue-700 border-blue-200">{entry.externalInvoiceNumber}</Badge></TableCell>
+                                                            <TableCell className="font-mono text-xs font-bold text-muted-foreground">{entry.ticketConsecutive}</TableCell>
+                                                            <TableCell>
+                                                                <p className="font-semibold text-xs">{entry.serviceName}</p>
+                                                                <p className="text-[10px] text-muted-foreground line-clamp-1 italic">{entry.notes || 'Sin descripción'}</p>
+                                                            </TableCell>
+                                                            <TableCell className="text-right text-xs font-mono">{( (entry.billableDuration || entry.duration || 0) / 3600000 ).toFixed(2)} h</TableCell>
+                                                            <TableCell className="text-right font-bold text-xs">{formatCurrency(entry.amount)}</TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                    {historyEntries.length === 0 && (
+                                                        <TableRow>
+                                                            <TableCell colSpan={6} className="h-32 text-center text-muted-foreground italic">No hay historial de facturación registrado para este cliente.</TableCell>
+                                                        </TableRow>
+                                                    )}
+                                                </TableBody>
+                                            </Table>
+                                        </ScrollArea>
+                                    </TabsContent>
+                                </div>
+                            </Tabs>
                         </>
                     ) : (
                         <div className="flex-1 flex flex-col items-center justify-center text-center p-10 bg-muted/5">
@@ -407,7 +483,7 @@ export default function BillingClient() {
                             </div>
                             <h3 className="text-lg font-bold">Estado de Cuenta por Cliente</h3>
                             <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                                Selecciona un cliente de la lista de la izquierda para ver su detalle de soporte pendiente de facturar, generar reportes o realizar conciliaciones.
+                                Selecciona un cliente de la lista de la izquierda para ver su detalle de soporte pendiente de facturar, consultar el historial de facturas conciliadas o realizar nuevas conciliaciones.
                             </p>
                         </div>
                     )}
