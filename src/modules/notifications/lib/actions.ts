@@ -1,4 +1,3 @@
-
 'use server';
 
 /**
@@ -21,7 +20,8 @@ import { logInfo, logError } from '@/modules/core/lib/logger';
 import { initScheduler } from './scheduler';
 
 export async function getAllNotificationRules(): Promise<NotificationRule[]> {
-    return await getAllRulesServer();
+    const rules = await getAllRulesServer();
+    return JSON.parse(JSON.stringify(rules));
 }
 
 export async function saveNotificationRule(rule: Omit<NotificationRule, 'id'> | NotificationRule): Promise<NotificationRule> {
@@ -48,7 +48,8 @@ export async function deleteNotificationRule(id: number): Promise<void> {
 }
 
 export async function getAllScheduledTasks(): Promise<ScheduledTask[]> {
-    return await getAllTasksServer();
+    const tasks = await getAllTasksServer();
+    return JSON.parse(JSON.stringify(tasks));
 }
 
 export async function saveScheduledTask(task: Omit<ScheduledTask, 'id'> | ScheduledTask): Promise<ScheduledTask> {

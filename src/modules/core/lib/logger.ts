@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Centralized logging functions that interact with the database logger.
  * These server-side functions abstract away the direct database calls, providing a clean API
@@ -47,7 +46,8 @@ export async function getLogs(filters: {
     search?: string;
     dateRange?: DateRange;
 } = {}): Promise<LogEntry[]> {
-  return await dbGetLogs(filters);
+  const logs = await dbGetLogs(filters);
+  return JSON.parse(JSON.stringify(logs));
 }
 
 /**
