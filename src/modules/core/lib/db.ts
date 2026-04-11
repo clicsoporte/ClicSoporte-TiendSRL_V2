@@ -553,8 +553,22 @@ function seedNotificationTemplates(db: Database) {
         {
             eventId: 'onTicketCreated',
             subject: '[NUEVO TICKET] {{consecutive}} - {{subject}}',
-            body: '<div style="font-family: sans-serif; color: #333;"><h2 style="color: #2563eb;">Nuevo Ticket Registrado</h2><p>Hola <b>{{customerName}}</b>, hemos recibido tu solicitud de soporte.</p><hr><p><b>ID del Caso:</b> {{consecutive}}</p><p><b>Asunto:</b> {{subject}}</p><p>Un técnico revisará tu caso a la brevedad.</p></div>',
-            telegram: '🆕 <b>NUEVO TICKET</b>\n\n<b>ID:</b> {{consecutive}}\n<b>Cliente:</b> {{customerName}}\n<b>Asunto:</b> {{subject}}',
+            body: `
+                <div style="font-family: sans-serif; color: #333; max-width: 600px; border: 1px solid #eee; padding: 20px; border-radius: 10px;">
+                    <h2 style="color: #2563eb; margin-top: 0;">Nuevo Ticket Registrado</h2>
+                    <p>Hola <b>{{customerName}}</b>, hemos recibido tu solicitud de soporte.</p>
+                    <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                        <p style="margin: 5px 0;"><b>ID del Caso:</b> {{consecutive}}</p>
+                        <p style="margin: 5px 0;"><b>Asunto:</b> {{subject}}</p>
+                        {{#if isBillable}}
+                        <p style="margin: 15px 0 5px 0; color: #dc2626; font-weight: bold;">⚠️ NOTA DE FACTURACIÓN:</p>
+                        <p style="margin: 0; font-size: 13px;">Este servicio se encuentra fuera de su cobertura actual y genera un cargo adicional.</p>
+                        <p style="margin: 5px 0; font-size: 14px; font-weight: bold;">Precio Sugerido: {{formattedPrice}}</p>
+                        {{/if}}
+                    </div>
+                    <p style="font-size: 13px; color: #666;">Un técnico revisará tu caso a la brevedad. Gracias por confiar en nosotros.</p>
+                </div>`,
+            telegram: '🆕 <b>NUEVO TICKET</b>\n\n<b>ID:</b> {{consecutive}}\n<b>Cliente:</b> {{customerName}}\n<b>Asunto:</b> {{subject}}\n\n{{#if isBillable}}⚠️ <b>FACTURABLE:</b> {{formattedPrice}}{{/if}}',
             internal: 'Nuevo ticket {{consecutive}} creado por {{customerName}}'
         },
         {
@@ -567,8 +581,17 @@ function seedNotificationTemplates(db: Database) {
         {
             eventId: 'onTicketCompleted',
             subject: '[CASO RESUELTO] Ticket {{consecutive}}',
-            body: '<div style="font-family: sans-serif; color: #333;"><h2 style="color: #16a34a;">Caso de Soporte Finalizado</h2><p>Tu solicitud <b>{{consecutive}}</b> ha sido resuelta.</p><div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; padding: 15px; border-radius: 8px; margin: 20px 0;"><h4>Solución:</h4><p>{{content}}</p></div></div>',
-            telegram: '✅ <b>TICKET COMPLETADO</b>\n\n<b>ID:</b> {{consecutive}}\n<b>Resuelto por:</b> {{userName}}',
+            body: `
+                <div style="font-family: sans-serif; color: #333; max-width: 600px; border: 1px solid #eee; padding: 20px; border-radius: 10px;">
+                    <h2 style="color: #16a34a; margin-top: 0;">Caso de Soporte Finalizado</h2>
+                    <p>Estimado(a) <b>{{customerName}}</b>, su solicitud <b>{{consecutive}}</b> ha sido resuelta satisfactoriamente.</p>
+                    <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                        <h4 style="margin: 0 0 10px 0;">Detalle de Resolución:</h4>
+                        <p style="margin: 0; font-size: 14px; line-height: 1.5;">{{content}}</p>
+                    </div>
+                    <p style="font-size: 12px; color: #999;">Cerrado por: {{userName}}</p>
+                </div>`,
+            telegram: '✅ <b>TICKET COMPLETADO</b>\n\n<b>ID:</b> {{consecutive}}\n<b>Resuelto por:</b> {{userName}}\n\n<b>Resolución:</b>\n{{content}}',
             internal: 'Ticket {{consecutive}} completado con éxito.'
         },
         {
@@ -822,7 +845,7 @@ export async function getUserPreferences(userId: number, key: string): Promise<R
 
 export async function saveUserPreferences(userId: number, key: string, value: Record<string, unknown>): Promise<void> {
     const db = await connectDb();
-    db.prepare('INSERT OR REPLACE INTO user_preferences (userId, key, value) VALUES (?, ?, ?)').run(userId, key, JSON.stringify(value));
+    db.prepare('INSERT OR REPLACE INTO user_preferences (userId, key, value) VALUES (?, ?)').run(userId, key, JSON.stringify(value));
 }
 
 export async function getUnreadSuggestionsCount(): Promise<number> {

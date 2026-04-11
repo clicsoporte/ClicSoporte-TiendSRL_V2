@@ -17,9 +17,16 @@ import type { NotificationEventId, Customer, ClientCompany } from '../../core/ty
 /**
  * Replaces placeholders in a template string using data from a payload.
  * Syntax: {{field}}
+ * Supports simple {{#if field}}...{{/if}} logic for presence of fields.
  */
 function applyTemplate(template: string, payload: Record<string, unknown>): string {
-    return template.replace(/\{\{(\w+)\}\}/g, (match, key) => {
+    // 1. Process IF blocks: {{#if field}}content{{/if}}
+    let processed = template.replace(/\{\{#if (\w+)\}\}([\s\S]*?)\{\{\/if\}\}/g, (match, field, content) => {
+        return !!payload[field] ? content : '';
+    });
+
+    // 2. Process standard placeholders: {{field}}
+    return processed.replace(/\{\{(\w+)\}\}/g, (match, key) => {
         return String(payload[key] ?? match);
     });
 }
@@ -69,27 +76,17 @@ export async function triggerNotificationEvent(eventId: NotificationEventId, pay
         // --- External/Rule-Based Notifications ---
         if (matchingRules.length === 0) return;
 
-        // Resolve client data for placeholders
+        // Resolve client data for dynamic placeholders
         let resolvedClientTelegramId = null;
         let resolvedClientEmail = null;
 
         const mainDb = await connectDb();
         
-        if (payload.customerName || payload.customerId) {
-            const customer = mainDb.prepare('SELECT email, telegramChatId FROM customers WHERE name = ? OR id = ?').get(payload.customerName, payload.customerId) as Customer | undefined;
-            if (customer) {
-                resolvedClientTelegramId = customer.telegramChatId;
-                resolvedClientEmail = customer.email;
-            }
-        }
-
-        // Fallback to client_companies (used in Licenses and manual Tickets)
-        if (!resolvedClientEmail && payload.clientCompanyId) {
-            const company = mainDb.prepare('SELECT email, telegramChatId FROM client_companies WHERE id = ?').get(payload.clientCompanyId) as ClientCompany | undefined;
-            if (company) {
-                resolvedClientEmail = company.email;
-                resolvedClientTelegramId = company.telegramChatId;
-            }
+        // Search by ID or Name
+        const customer = mainDb.prepare('SELECT email, telegramChatId FROM customers WHERE name = ? OR id = ?').get(payload.customerName, payload.customerId) as Customer | undefined;
+        if (customer) {
+            resolvedClientTelegramId = customer.telegramChatId;
+            resolvedClientEmail = customer.email;
         }
 
         for (const rule of matchingRules) {

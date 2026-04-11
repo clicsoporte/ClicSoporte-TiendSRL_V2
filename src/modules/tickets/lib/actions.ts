@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Client-side functions for interacting with the ticket module's server-side DB functions.
  */
@@ -45,6 +46,7 @@ import {
 } from './db';
 import { triggerNotificationEvent } from '@/modules/notifications/lib/notifications-engine';
 import { getUserPreferences, saveUserPreferences } from '@/modules/core/lib/db';
+import { getCompanySettings } from '@/modules/core/lib/settings-db';
 
 /**
  * Saves a new ticket to the database.
@@ -52,11 +54,18 @@ import { getUserPreferences, saveUserPreferences } from '@/modules/core/lib/db';
 export async function saveTicket(payload: NewTicketPayload, user: User): Promise<Ticket> {
     try {
         const createdTicket = await addTicketServer(payload, user);
+        const settings = await getCompanySettings();
         
+        // Enrich payload with price info for notifications
+        const service = settings.servicesCatalog.find(s => s.id === payload.serviceId);
+        const formattedPrice = service ? `¢${(service.price || 0).toLocaleString()} ${service.billingType === 'task' ? '(Monto Fijo)' : '/ h'}` : '';
+
         // --- Integration with Notification Engine ---
         await triggerNotificationEvent('onTicketCreated', {
             ...createdTicket,
-            customerEmail: payload.customerEmail
+            customerEmail: payload.customerEmail,
+            isBillable: createdTicket.isBillable,
+            formattedPrice
         });
         
         if (createdTicket.priority === 'urgent') {
@@ -70,8 +79,9 @@ export async function saveTicket(payload: NewTicketPayload, user: User): Promise
         
         return JSON.parse(JSON.stringify(createdTicket));
     } catch (error: unknown) {
-        logError("Error saving ticket", { error: (error as Error).message });
-        throw error;
+        const err = error as Error;
+        logError("Error saving ticket", { error: err.message });
+        throw err;
     }
 }
 
