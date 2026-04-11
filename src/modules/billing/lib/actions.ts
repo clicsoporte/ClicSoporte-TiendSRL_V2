@@ -26,6 +26,7 @@ interface DbBillingRow extends TimeEntry {
     entryId: number;
     ticketConsecutive: string;
     serviceId: string;
+    userName: string;
 }
 
 /**
@@ -90,7 +91,7 @@ export async function getCustomersWithPendingBilling(): Promise<PendingCustomer[
             }
         });
 
-        // Return customers sorted by pending amount, but include those with 0 balance if they have history
+        // Return customers sorted by pending amount
         return Array.from(customerMap.values()).sort((a, b) => b.totalAmount - a.totalAmount);
     } catch (error) {
         console.error("Failed to fetch pending billing customers:", error);
@@ -101,7 +102,7 @@ export async function getCustomersWithPendingBilling(): Promise<PendingCustomer[
 /**
  * Retrieves entries for a specific customer filtered by billing status.
  */
-export async function getBillingEntriesForCustomer(customerId: string, status: 'pending' | 'invoiced'): Promise<(TimeEntry & { ticketConsecutive: string, serviceName: string, price: number, amount: number })[]> {
+export async function getBillingEntriesForCustomer(customerId: string, status: 'pending' | 'invoiced'): Promise<(TimeEntry & { ticketConsecutive: string, serviceName: string, price: number, amount: number, userName: string })[]> {
     const db = await connectDb();
     const settings = await getCompanySettings();
     const serviceMap = new Map(settings.servicesCatalog.map(s => [s.id, s]));
@@ -111,13 +112,15 @@ export async function getBillingEntriesForCustomer(customerId: string, status: '
             SELECT 
                 te.*,
                 t.consecutive as ticketConsecutive,
-                t.serviceId
+                t.serviceId,
+                u.name as userName
             FROM time_entries te
             JOIN tickets t ON te.ticketId = t.id
             JOIN customers c ON (t.customerName = c.name OR t.companyName = c.name OR t.id = c.id)
+            JOIN users u ON te.userId = u.id
             WHERE c.id = ? AND te.billingStatus = ? AND te.isBillable = 1
             ORDER BY te.startTime DESC
-        `).all(customerId, status) as (TimeEntry & { ticketConsecutive: string, serviceId: string })[];
+        `).all(customerId, status) as (TimeEntry & { ticketConsecutive: string, serviceId: string, userName: string })[];
 
         const results = rows.map(row => {
             const service = serviceMap.get(row.serviceId);
@@ -137,7 +140,8 @@ export async function getBillingEntriesForCustomer(customerId: string, status: '
                 isBillable: !!row.isBillable,
                 serviceName: service?.name || 'Servicio General',
                 price,
-                amount
+                amount,
+                userName: row.userName
             };
         });
 

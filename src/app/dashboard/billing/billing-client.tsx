@@ -15,7 +15,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { getCustomersWithPendingBilling, getBillingEntriesForCustomer, markEntriesAsInvoiced, type PendingCustomer } from '@/modules/billing/lib/actions';
 import { format, parseISO } from 'date-fns';
-import { Loader2, Receipt, CheckCircle2, Search, Download, Mail, UserCircle, ChevronRight, AlertCircle, UserCheck, History, Clock } from 'lucide-react';
+import { Loader2, Receipt, CheckCircle2, Search, Download, Mail, UserCircle, ChevronRight, AlertCircle, UserCheck, History, Clock, FilterX } from 'lucide-react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/modules/core/hooks/useAuth';
@@ -31,6 +31,7 @@ interface BillingEntry extends TimeEntry {
     serviceName: string;
     price: number;
     amount: number;
+    userName: string;
 }
 
 export default function BillingClient() {
@@ -40,6 +41,10 @@ export default function BillingClient() {
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
     
+    // Filters state
+    const [filterPending, setFilterPending] = useState(true);
+    const [filterUpToDate, setFilterUpToDate] = useState(false);
+
     // Selection state
     const [selectedCustomer, setSelectedCustomer] = useState<PendingCustomer | null>(null);
     const [entries, setEntries] = useState<BillingEntry[]>([]);
@@ -75,16 +80,17 @@ export default function BillingClient() {
     const filteredCustomers = useMemo(() => {
         const lowerSearch = searchTerm.trim().toLowerCase();
         
-        // If searching, search in ALL customers from Auth context
+        let baseList = customersWithActivity;
+
+        // If searching, include potential system customers even without active entries
         if (lowerSearch) {
-            return allCustomers
+            const searchBase = allCustomers
                 .filter(c => 
                     (c.name || "").toLowerCase().includes(lowerSearch) || 
                     (c.id || "").toLowerCase().includes(lowerSearch) ||
                     (c.taxId || "").toLowerCase().includes(lowerSearch)
                 )
                 .map(c => {
-                    // Enrich with existing activity data if present
                     const active = customersWithActivity.find(ac => ac.id === c.id);
                     return active || {
                         id: c.id,
@@ -95,11 +101,16 @@ export default function BillingClient() {
                         currency: 'CRC'
                     };
                 });
+            baseList = searchBase;
         }
-        
-        // If not searching, only show those with any activity
-        return customersWithActivity;
-    }, [customersWithActivity, allCustomers, searchTerm]);
+
+        // Apply Status Filters
+        return baseList.filter(c => {
+            if (filterPending && c.pendingCount > 0) return true;
+            if (filterUpToDate && c.pendingCount === 0) return true;
+            return false;
+        });
+    }, [customersWithActivity, allCustomers, searchTerm, filterPending, filterUpToDate]);
 
     const linkedCustomerInfo = useMemo(() => {
         if (!selectedCustomer) return null;
@@ -140,17 +151,20 @@ export default function BillingClient() {
             await markEntriesAsInvoiced(selectedEntryIds, externalInvoice);
             toast({ title: "Registros Actualizados", description: `Se marcaron ${selectedEntryIds.length} sesiones como facturadas.` });
             
-            // Refresh local state and sidebar
-            const movedEntries = entries.filter(e => selectedEntryIds.includes(e.id)).map(e => ({ ...e, billingStatus: 'invoiced' as const, externalInvoiceNumber: externalInvoice }));
-            const remainingEntries = entries.filter(e => !selectedEntryIds.includes(e.id));
+            // Refresh local state
+            loadData();
             
-            setEntries(remainingEntries);
-            setHistoryEntries(prev => [...movedEntries, ...prev]);
+            if (selectedCustomer) {
+                const [pending, invoiced] = await Promise.all([
+                    getBillingEntriesForCustomer(selectedCustomer.id, 'pending'),
+                    getBillingEntriesForCustomer(selectedCustomer.id, 'invoiced')
+                ]);
+                setEntries(pending);
+                setHistoryEntries(invoiced);
+            }
+            
             setSelectedEntryIds([]);
             setExternalInvoice("");
-            
-            // Re-fetch customer list to update sidebar totals
-            loadData();
         } catch {
             toast({ title: "Error", variant: "destructive" });
         } finally {
@@ -271,15 +285,25 @@ export default function BillingClient() {
             <div className="flex-1 flex overflow-hidden">
                 {/* Column 1: Customer List (Master) */}
                 <aside className="w-full md:w-80 lg:w-96 border-r bg-background flex flex-col shrink-0">
-                    <div className="p-4 border-b bg-muted/10">
+                    <div className="p-4 border-b bg-muted/10 space-y-4">
                         <div className="relative">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input 
-                                placeholder="Buscar cualquier cliente..." 
+                                placeholder="Buscar cliente..." 
                                 value={searchTerm} 
                                 onChange={e => setSearchTerm(e.target.value)} 
-                                className="pl-9 h-10"
+                                className="pl-9 h-9"
                             />
+                        </div>
+                        <div className="flex flex-wrap items-center gap-4 px-1">
+                            <div className="flex items-center space-x-2">
+                                <Checkbox id="filter-pending" checked={filterPending} onCheckedChange={(checked) => setFilterPending(!!checked)} />
+                                <Label htmlFor="filter-pending" className="text-xs font-bold cursor-pointer">Pendientes</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <Checkbox id="filter-uptodate" checked={filterUpToDate} onCheckedChange={(checked) => setFilterUpToDate(!!checked)} />
+                                <Label htmlFor="filter-uptodate" className="text-xs font-bold cursor-pointer">Al día</Label>
+                            </div>
                         </div>
                     </div>
                     <ScrollArea className="flex-1">
@@ -315,7 +339,7 @@ export default function BillingClient() {
                                 ))
                             ) : (
                                 <div className="p-10 text-center text-muted-foreground italic text-sm">
-                                    No se encontraron clientes que coincidan con la búsqueda.
+                                    No hay clientes que coincidan con los filtros.
                                 </div>
                             )}
                         </div>
@@ -474,6 +498,7 @@ export default function BillingClient() {
                                                         <TableHead className="text-xs">Nº Factura ERP</TableHead>
                                                         <TableHead className="text-xs">Ticket</TableHead>
                                                         <TableHead className="text-xs">Detalle de Labor</TableHead>
+                                                        <TableHead className="text-xs">Técnico</TableHead>
                                                         <TableHead className="text-right text-xs">Horas</TableHead>
                                                         <TableHead className="text-right text-xs">Total Conciliado</TableHead>
                                                     </TableRow>
@@ -488,13 +513,14 @@ export default function BillingClient() {
                                                                 <p className="font-semibold text-xs">{entry.serviceName}</p>
                                                                 <p className="text-[10px] text-muted-foreground line-clamp-1 italic">{entry.notes || 'Sin descripción'}</p>
                                                             </TableCell>
+                                                            <TableCell className="text-xs">{entry.userName}</TableCell>
                                                             <TableCell className="text-right text-xs font-mono">{( (entry.billableDuration || entry.duration || 0) / 3600000 ).toFixed(2)} h</TableCell>
                                                             <TableCell className="text-right font-bold text-xs">{formatCurrency(entry.amount)}</TableCell>
                                                         </TableRow>
                                                     ))}
                                                     {historyEntries.length === 0 && (
                                                         <TableRow>
-                                                            <TableCell colSpan={6} className="h-32 text-center text-muted-foreground italic">No hay historial de facturación registrado para este cliente.</TableCell>
+                                                            <TableCell colSpan={7} className="h-32 text-center text-muted-foreground italic">No hay historial de facturación registrado para este cliente.</TableCell>
                                                         </TableRow>
                                                     )}
                                                 </TableBody>
