@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -14,6 +15,7 @@ import {
     getNotificationServiceSettings as getSettingsServer,
     saveNotificationServiceSettings as saveSettingsServer
 } from './db';
+import { sendTelegramMessage, getTelegramUpdates } from './telegram-service';
 import type { NotificationRule, ScheduledTask, NotificationServiceConfig } from '@/modules/core/types';
 import { logInfo, logError } from '@/modules/core/lib/logger';
 import { initScheduler } from './scheduler';
@@ -90,4 +92,17 @@ export async function saveNotificationServiceSettings(service: 'telegram', confi
         await logError(`Failed to save notification settings`, { error: err.message, service });
         throw err;
     }
+}
+
+export async function testTelegram(chatId?: string) {
+    try {
+        await sendTelegramMessage('🤖 <b>Mensaje de Prueba</b>\n\nLa conexión con Clic-Tools funciona correctamente.', chatId);
+        return { success: true };
+    } catch (error: unknown) {
+        return { success: false, message: (error as Error).message };
+    }
+}
+
+export async function fetchTelegramChatId() {
+    return await getTelegramUpdates();
 }

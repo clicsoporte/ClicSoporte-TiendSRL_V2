@@ -1,3 +1,4 @@
+
 'use client';
 
 /**
@@ -17,13 +18,14 @@ import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { PlusCircle, Trash2, Save, BellRing, Clock, Send, Loader2, Mail } from 'lucide-react';
+import { PlusCircle, Trash2, Save, BellRing, Clock, Send, Loader2, Mail, RefreshCw } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import type { NotificationRule, ScheduledTask, NotificationServiceConfig, EmailSettings } from '@/modules/core/types';
 import { 
     getAllNotificationRules, saveNotificationRule, deleteNotificationRule,
     getAllScheduledTasks, saveScheduledTask, deleteScheduledTask,
-    getNotificationServiceSettings, saveNotificationServiceSettings 
+    getNotificationServiceSettings, saveNotificationServiceSettings,
+    testTelegram, fetchTelegramChatId
 } from '@/modules/notifications/lib/actions';
 import { getEmailSettings, saveEmailSettings, testEmailSettings } from '@/modules/core/lib/email-service';
 import { Badge } from '@/components/ui/badge';
@@ -54,6 +56,8 @@ export default function AutomationManagerPage() {
     const [isTaskDialogOpen, setTaskDialogOpen] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [isTestingEmail, setIsTestingEmail] = useState(false);
+    const [isTestingTelegram, setIsTestingTelegram] = useState(false);
+    const [isFetchingChatId, setIsFetchingChatId] = useState(false);
 
     const [currentRule, setCurrentRule] = useState<Partial<NotificationRule>>({
         name: '', event: 'onTicketCreated', action: 'sendEmail', recipients: [], enabled: true
@@ -130,6 +134,43 @@ export default function AutomationManagerPage() {
             toast({ title: 'Error', variant: 'destructive' });
         } finally {
             setIsSaving(false);
+        }
+    };
+
+    const handleTestTelegram = async () => {
+        if (!telegramSettings?.botToken || !telegramSettings?.chatId) {
+            toast({ title: "Faltan datos", description: "Configura el token y el ID antes de probar.", variant: "destructive" });
+            return;
+        }
+        setIsTestingTelegram(true);
+        try {
+            const res = await testTelegram(telegramSettings.chatId);
+            if (res.success) {
+                toast({ title: "Mensaje Enviado", description: "Revisa tu aplicación de Telegram." });
+            } else {
+                throw new Error(res.message);
+            }
+        } catch (error: unknown) {
+            toast({ title: "Error en Telegram", description: (error as Error).message, variant: "destructive" });
+        } finally {
+            setIsTestingTelegram(false);
+        }
+    };
+
+    const handleFetchChatId = async () => {
+        if (!telegramSettings?.botToken) {
+            toast({ title: "Token requerido", description: "Ingresa el bot token primero.", variant: "destructive" });
+            return;
+        }
+        setIsFetchingChatId(true);
+        try {
+            const chat = await fetchTelegramChatId();
+            setTelegramSettings({ ...telegramSettings, chatId: chat.id });
+            toast({ title: "Chat Detectado", description: `Se encontró: ${chat.name}` });
+        } catch (error: unknown) {
+            toast({ title: "Búsqueda Fallida", description: (error as Error).message, variant: "destructive" });
+        } finally {
+            setIsFetchingChatId(false);
         }
     };
 
@@ -374,15 +415,33 @@ export default function AutomationManagerPage() {
                                 </div>
                                 <div className="space-y-2">
                                     <Label>Chat ID Predeterminado (Staff)</Label>
-                                    <Input 
-                                        value={telegramSettings?.chatId || ''} 
-                                        onChange={e => setTelegramSettings({...telegramSettings!, chatId: e.target.value})} 
-                                        placeholder="-100123456789"
-                                    />
+                                    <div className="flex gap-2">
+                                        <Input 
+                                            value={telegramSettings?.chatId || ''} 
+                                            onChange={e => setTelegramSettings({...telegramSettings!, chatId: e.target.value})} 
+                                            placeholder="-100123456789"
+                                            className="flex-1"
+                                        />
+                                        <Button 
+                                            variant="secondary" 
+                                            size="sm" 
+                                            onClick={handleFetchChatId}
+                                            disabled={isFetchingChatId}
+                                            title="Detectar ID desde últimos mensajes recibidos"
+                                        >
+                                            {isFetchingChatId ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                                            <span className="ml-2 hidden sm:inline">Obtener Chat ID</span>
+                                        </Button>
+                                    </div>
+                                    <p className="text-[10px] text-muted-foreground italic">Envía un mensaje al bot antes de intentar obtener el ID automáticamente.</p>
                                 </div>
                             </div>
                         </CardContent>
-                        <CardFooter className="flex justify-end border-t p-6">
+                        <CardFooter className="flex justify-between border-t p-6">
+                            <Button variant="outline" onClick={handleTestTelegram} disabled={isTestingTelegram}>
+                                {isTestingTelegram ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                                Enviar Mensaje de Prueba
+                            </Button>
                             <Button onClick={handleSaveTelegram} disabled={isSaving}>
                                 {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4" />}
                                 Guardar Credenciales Telegram

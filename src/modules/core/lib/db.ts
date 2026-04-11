@@ -558,11 +558,32 @@ function seedNotificationTemplates(db: Database) {
             internal: 'Nuevo ticket {{consecutive}} creado por {{customerName}}'
         },
         {
+            eventId: 'onTicketStatusChanged',
+            subject: '[ACTUALIZACIÓN] Ticket {{consecutive}} - Cambio de Estado',
+            body: '<div style="font-family: sans-serif; color: #333;"><h2>Actualización de Ticket</h2><p>El ticket <b>{{consecutive}}</b> ha cambiado su estado a: <b style="color: #2563eb;">{{status}}</b></p></div>',
+            telegram: '🔄 <b>TICKET ACTUALIZADO</b>\n\n<b>ID:</b> {{consecutive}}\n<b>Nuevo Estado:</b> {{status}}',
+            internal: 'Ticket {{consecutive}} cambió estado a {{status}}'
+        },
+        {
             eventId: 'onTicketCompleted',
             subject: '[CASO RESUELTO] Ticket {{consecutive}}',
             body: '<div style="font-family: sans-serif; color: #333;"><h2 style="color: #16a34a;">Caso de Soporte Finalizado</h2><p>Tu solicitud <b>{{consecutive}}</b> ha sido resuelta.</p><div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; padding: 15px; border-radius: 8px; margin: 20px 0;"><h4>Solución:</h4><p>{{content}}</p></div></div>',
             telegram: '✅ <b>TICKET COMPLETADO</b>\n\n<b>ID:</b> {{consecutive}}\n<b>Resuelto por:</b> {{userName}}',
             internal: 'Ticket {{consecutive}} completado con éxito.'
+        },
+        {
+            eventId: 'onTicketCanceled',
+            subject: '[ANULADO] Ticket {{consecutive}}',
+            body: '<div style="font-family: sans-serif;"><h2>Ticket Anulado</h2><p>El caso <b>{{consecutive}}</b> ha sido cancelado.</p><p><b>Motivo:</b> {{content}}</p></div>',
+            telegram: '❌ <b>TICKET ANULADO</b>\n\n<b>ID:</b> {{consecutive}}\n<b>Motivo:</b> {{content}}',
+            internal: 'Ticket {{consecutive}} fue cancelado.'
+        },
+        {
+            eventId: 'onTicketPriorityUrgent',
+            subject: '[URGENTE] Atención requerida en Ticket {{consecutive}}',
+            body: '<div style="font-family: sans-serif; border: 2px solid red; padding: 20px;"><h2>PRIORIDAD URGENTE</h2><p>El ticket <b>{{consecutive}}</b> ha sido marcado como URGENTE.</p><p><b>Asunto:</b> {{subject}}</p></div>',
+            telegram: '🚨 <b>¡URGENCIA DETECTADA!</b>\n\n<b>Ticket:</b> {{consecutive}}\n<b>Asunto:</b> {{subject}}',
+            internal: '¡Ticket {{consecutive}} marcado como URGENTE!'
         },
         {
             eventId: 'onContractExpiring',
