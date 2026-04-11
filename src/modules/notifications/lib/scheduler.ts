@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -80,7 +81,7 @@ async function executeExpirationCheck() {
             SELECT l.*, s.name as softwareName, c.name as customerName, c.email as customerEmail
             FROM licenses l
             JOIN software_products s ON l.softwareId = s.id
-            LEFT JOIN client_companies c ON l.clientCompanyId = c.id
+            LEFT JOIN customers c ON l.customerId = c.id
             WHERE l.status = 'active' AND l.isPerpetual = 0
         `).all() as (License & { softwareName: string, customerName: string, customerEmail: string })[];
 
@@ -92,6 +93,7 @@ async function executeExpirationCheck() {
             // Notification thresholds
             if ([30, 15, 7, 1].includes(daysLeft)) {
                 await triggerNotificationEvent('onLicenseExpiring', { 
+                    customerId: license.customerId,
                     hardwareId: license.hardwareId,
                     softwareName: license.softwareName,
                     customerName: license.customerName,

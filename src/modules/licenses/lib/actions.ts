@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Client-side functions for the License Management module.
  */
@@ -15,6 +16,8 @@ import {
     deleteSoftwareProduct as deleteSoftwareProductServer
 } from './db';
 import { generateKeys, getPublicKey } from './crypto';
+import { triggerNotificationEvent } from '@/modules/notifications/lib/notifications-engine';
+import { format, parseISO } from 'date-fns';
 
 // --- Licenses ---
 export const getLicenses = async (): Promise<License[]> => {
@@ -28,6 +31,21 @@ export const getLicenses = async (): Promise<License[]> => {
 export async function addLicense(license: Omit<License, 'id' | 'createdAt'>): Promise<License> {
     const newLicense = await addLicenseServer(license);
     await logInfo('License record created', { softwareId: newLicense.softwareId, customerId: newLicense.customerId });
+    
+    // Trigger notification for new assignment
+    const products = await getSoftwareProductsServer();
+    const software = products.find(p => p.id === newLicense.softwareId);
+    
+    if (newLicense.customerId) {
+        await triggerNotificationEvent('onLicenseAssigned', {
+            customerId: newLicense.customerId,
+            softwareName: software?.name || 'Software',
+            type: software?.isInternal ? 'SaaS Propios' : 'Terceros',
+            expirationDate: newLicense.isPerpetual ? 'Perpetua' : (newLicense.expirationDate ? format(parseISO(newLicense.expirationDate), 'dd/MM/yyyy') : 'N/A'),
+            hardwareId: newLicense.hardwareId || null
+        });
+    }
+
     return JSON.parse(JSON.stringify(newLicense));
 }
 

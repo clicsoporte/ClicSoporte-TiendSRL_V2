@@ -623,6 +623,13 @@ function seedNotificationTemplates(db: Database) {
             internal: 'Licencia {{softwareName}} de {{customerName}} vence en {{daysLeft}} días.'
         },
         {
+            eventId: 'onLicenseAssigned',
+            subject: '[ASIGNACIÓN] Nueva Licencia: {{softwareName}}',
+            body: '<div style="font-family: sans-serif; color: #333;"><h2 style="color: #2563eb;">Nueva Licencia de Software Asignada</h2><p>Hola <b>{{customerName}}</b>, se ha registrado una nueva licencia de software en su perfil.</p><div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 20px 0;"><p><b>Software:</b> {{softwareName}}</p><p><b>Tipo:</b> {{type}}</p><p><b>Vencimiento:</b> {{expirationDate}}</p>{{#if hardwareId}}<p><b>Hardware ID:</b> {{hardwareId}}</p>{{/if}}</div><p style="font-size: 12px; color: #666;">Gracias por su preferencia.</p></div>',
+            telegram: '🔑 <b>NUEVA LICENCIA ASIGNADA</b>\n\n<b>Software:</b> {{softwareName}}\n<b>Cliente:</b> {{customerName}}\n<b>Vence:</b> {{expirationDate}}',
+            internal: 'Nueva licencia {{softwareName}} asignada a {{customerName}}'
+        },
+        {
             eventId: 'onContractAutoRenewed',
             subject: '[INFO] Renovación Automática: {{consecutive}}',
             body: '<div style="font-family: sans-serif;"><h2>Contrato Renovado Automáticamente</h2><p>El contrato de <b>{{customerName}}</b> ha sido renovado bajo la cláusula de prórroga automática.</p><p>Nueva vigencia hasta: <b>{{endDate}}</b></p></div>',

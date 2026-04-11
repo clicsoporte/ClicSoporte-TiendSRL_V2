@@ -774,6 +774,7 @@ export type NotificationEventId =
     | 'onNewSuggestion'
     | 'onContractExpiring'
     | 'onLicenseExpiring'
+    | 'onLicenseAssigned'
     | 'onContractAutoRenewed';
 
 export type Notification = {
