@@ -29,7 +29,8 @@ interface DbBillingRow extends TimeEntry {
 }
 
 /**
- * Retrieves a list of customers with pending billable time entries.
+ * Retrieves a list of customers who have ANY billable activity (pending or invoiced).
+ * This allows auditing history even if the current balance is zero.
  */
 export async function getCustomersWithPendingBilling(): Promise<PendingCustomer[]> {
     const db = await connectDb();
@@ -37,7 +38,7 @@ export async function getCustomersWithPendingBilling(): Promise<PendingCustomer[
     const serviceMap = new Map(settings.servicesCatalog.map(s => [s.id, s]));
 
     try {
-        // Query all pending billable entries joined with tickets and customers
+        // Query billable entries joined with tickets and customers
         const rows = db.prepare(`
             SELECT 
                 c.id as customerId,
@@ -46,12 +47,13 @@ export async function getCustomersWithPendingBilling(): Promise<PendingCustomer[
                 te.id as entryId,
                 te.billableDuration,
                 te.duration,
+                te.billingStatus,
                 t.serviceId
             FROM time_entries te
             JOIN tickets t ON te.ticketId = t.id
             JOIN customers c ON (t.customerName = c.name OR t.companyName = c.name OR t.id = c.id)
-            WHERE te.billingStatus = 'pending' AND te.isBillable = 1
-        `).all() as (Pick<DbBillingRow, 'customerId' | 'customerName' | 'taxId' | 'billableDuration' | 'duration' | 'serviceId'>)[];
+            WHERE te.isBillable = 1
+        `).all() as (Pick<DbBillingRow, 'customerId' | 'customerName' | 'taxId' | 'billableDuration' | 'duration' | 'serviceId' | 'billingStatus'>)[];
 
         const customerMap = new Map<string, PendingCustomer>();
 
@@ -61,11 +63,13 @@ export async function getCustomersWithPendingBilling(): Promise<PendingCustomer[
             const billingType = service?.billingType || 'hour';
             
             let amount = 0;
-            if (billingType === 'task') {
-                amount = price; // Flat fee
-            } else {
-                const durationMs = row.billableDuration !== null ? row.billableDuration : (row.duration || 0);
-                amount = (durationMs / 3600000) * price;
+            if (row.billingStatus === 'pending') {
+                if (billingType === 'task') {
+                    amount = price;
+                } else {
+                    const durationMs = row.billableDuration !== null ? row.billableDuration : (row.duration || 0);
+                    amount = (durationMs / 3600000) * price;
+                }
             }
 
             if (!customerMap.has(row.customerId)) {
@@ -75,15 +79,18 @@ export async function getCustomersWithPendingBilling(): Promise<PendingCustomer[
                     taxId: row.taxId,
                     pendingCount: 0,
                     totalAmount: 0,
-                    currency: 'CRC' // Default
+                    currency: 'CRC'
                 });
             }
 
             const summary = customerMap.get(row.customerId)!;
-            summary.pendingCount++;
-            summary.totalAmount += amount;
+            if (row.billingStatus === 'pending') {
+                summary.pendingCount++;
+                summary.totalAmount += amount;
+            }
         });
 
+        // Return customers sorted by pending amount, but include those with 0 balance if they have history
         return Array.from(customerMap.values()).sort((a, b) => b.totalAmount - a.totalAmount);
     } catch (error) {
         console.error("Failed to fetch pending billing customers:", error);
@@ -112,7 +119,7 @@ export async function getBillingEntriesForCustomer(customerId: string, status: '
             ORDER BY te.startTime DESC
         `).all(customerId, status) as (TimeEntry & { ticketConsecutive: string, serviceId: string })[];
 
-        return rows.map(row => {
+        const results = rows.map(row => {
             const service = serviceMap.get(row.serviceId);
             const price = service?.price || 0;
             const billingType = service?.billingType || 'hour';
@@ -133,6 +140,8 @@ export async function getBillingEntriesForCustomer(customerId: string, status: '
                 amount
             };
         });
+
+        return JSON.parse(JSON.stringify(results));
     } catch (error) {
         console.error("Failed to fetch billing entries for customer:", error);
         return [];
