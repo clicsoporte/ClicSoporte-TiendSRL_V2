@@ -5,7 +5,7 @@
 
 import { cookies } from 'next/headers';
 import { connectDb } from './db';
-import type { User, ExchangeRateApiResponse, Company, Contract } from '../types';
+import type { User, ExchangeRateApiResponse, Company, Contract, Role } from '../types';
 import bcrypt from 'bcryptjs';
 import { logInfo, logWarn, logError } from './logger';
 import { SESSION_COOKIE, SALT_ROUNDS, SESSION_DURATION } from './auth-constants';
@@ -116,7 +116,7 @@ export async function updateUser(user: User): Promise<User> {
     params.push(user.id);
 
     db.prepare(query).run(...params);
-    return user;
+    return JSON.parse(JSON.stringify(user));
 }
 
 export async function deleteUser(id: number): Promise<void> {
@@ -197,7 +197,7 @@ export async function getInitialAuthData() {
             roles, companySettings, customersData, products, stock, exemptions, 
             exchangeRate, unreadSuggestions, users
         ] = await Promise.all([
-            getAllRoles().catch(() => []),
+            getAllRoles().catch(() => [] as Role[]),
             getCompanySettings().catch(() => ({} as Company)),
             getAllCustomers().catch(() => []),
             getAllProducts().catch(() => []),
@@ -247,7 +247,8 @@ export async function getInitialAuthData() {
             rateData.date = erRes.venta.fecha;
         }
 
-        return {
+        // Return a strictly serialized plain object to avoid hydration/Server Action errors
+        return JSON.parse(JSON.stringify({
             roles, 
             companySettings, 
             customers: enrichedCustomers, 
@@ -258,7 +259,7 @@ export async function getInitialAuthData() {
             unreadSuggestions, 
             users, 
             exemptionLaws: [] 
-        };
+        }));
     } catch (error: unknown) {
         const err = error as Error;
         console.error("Error crítico en getInitialAuthData:", err.message);
