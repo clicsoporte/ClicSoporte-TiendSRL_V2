@@ -1,4 +1,3 @@
-
 'use server';
 
 /**
@@ -21,7 +20,7 @@ import type { NotificationEventId } from '../../core/types';
  */
 function applyTemplate(template: string, payload: Record<string, unknown>): string {
     // 1. Process IF blocks: {{#if field}}content{{/if}}
-    let processed = template.replace(/\{\{#if (\w+)\}\}([\s\S]*?)\{\{\/if\}\}/g, (match, field, content) => {
+    const processed = template.replace(/\{\{#if (\w+)\}\}([\s\S]*?)\{\{\/if\}\}/g, (match, field, content) => {
         return !!payload[field] ? content : '';
     });
 

@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Help Center page with advanced mini-tutorials for MSP operations.
  * Enhanced with practical examples and business logic explanations.
@@ -14,7 +13,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/modules/core/hooks/useAuth";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 
 // --- Helper Functions ---
 const normalizeText = (text: string | null | undefined): string => {
@@ -201,7 +199,7 @@ export default function HelpPage() {
         )
     },
     {
-        title: "Tutorial: Cálculo de Tarifas de Proveedores",
+        title: "Tutorial: Tarifas de Proveedores",
         icon: <MapPin className="mr-4 h-6 w-6 text-amber-600" />,
         content: (
             <div className="space-y-4">
