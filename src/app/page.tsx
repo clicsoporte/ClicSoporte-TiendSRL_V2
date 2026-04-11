@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview The main login page for the application.
  * Enhanced with Setup Wizard logic for the first start.
@@ -12,6 +11,8 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Network } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getInitialPageData } from "./actions";
+
+export const dynamic = 'force-dynamic';
 
 async function CompanyInfo() {
   const companyData = await getCompanySettings();

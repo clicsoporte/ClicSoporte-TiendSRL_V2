@@ -20,7 +20,7 @@ const nextConfig = {
     serverActions: {
       bodySizeLimit: '50mb',
     },
-    // instrumentationHook ya no es necesario en Next.js 15+ ya que está habilitado por defecto
+    instrumentationHook: true,
   },
 };
 

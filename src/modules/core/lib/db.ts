@@ -16,6 +16,11 @@ const DB_FILE = 'intratool.db';
 const SALT_ROUNDS = 10;
 
 /**
+ * Global flag to prevent redundant initializations in the same process
+ */
+let _dbInitialized = false;
+
+/**
  * Connects to the central database.
  * All modules now point here.
  */
@@ -637,6 +642,8 @@ function seedGeographicData(db: Database) {
 }
 
 export async function runMainMigrations(db: Database) {
+    if (_dbInitialized) return;
+
     const tableInfo = (table: string) => db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
     const hasColumn = (table: string, col: string) => new Set(tableInfo(table).map(c => c.name)).has(col);
 
@@ -673,6 +680,7 @@ export async function runMainMigrations(db: Database) {
     if (!hasColumn('third_party_providers', 'contacts')) db.exec(`ALTER TABLE third_party_providers ADD COLUMN contacts TEXT;`);
 
     seedNotificationTemplates(db);
+    _dbInitialized = true;
 }
 
 export async function getUserCount(): Promise<number> {
