@@ -12,7 +12,7 @@ import { sendTelegramMessage } from './telegram-service';
 import { logInfo, logError } from '../../core/lib/logger';
 import { getAllUsers } from '../../core/lib/auth';
 import { connectDb } from '../../core/lib/db';
-import type { NotificationEventId, Customer } from '../../core/types';
+import type { NotificationEventId } from '../../core/types';
 
 /**
  * Replaces placeholders in a template string using data from a payload.
@@ -84,12 +84,13 @@ export async function triggerNotificationEvent(eventId: NotificationEventId, pay
 
         const mainDb = await connectDb();
         
-        // Search by ID or Name
-        const customer = mainDb.prepare('SELECT email, telegramChatId, notifyTickets, notifyLicenses FROM customers WHERE name = ? OR id = ?').get(payload.customerName, payload.customerId) as Customer | undefined;
+        // Raw fetch from DB - SQLite stores booleans as 0/1
+        const customer = mainDb.prepare('SELECT email, telegramChatId, notifyTickets, notifyLicenses FROM customers WHERE name = ? OR id = ?').get(payload.customerName, payload.customerId) as { email: string, telegramChatId: string, notifyTickets: number, notifyLicenses: number } | undefined;
+        
         if (customer) {
             resolvedClientTelegramId = customer.telegramChatId;
             resolvedClientEmail = customer.email;
-            notifyTickets = customer.notifyTickets !== 0; // SQLite handle boolean as 0/1
+            notifyTickets = customer.notifyTickets !== 0; 
             notifyLicenses = customer.notifyLicenses !== 0;
         }
 
