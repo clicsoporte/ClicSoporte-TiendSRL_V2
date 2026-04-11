@@ -8,12 +8,11 @@ import React from 'react';
 import { useItNotes } from '@/modules/it-tools/hooks/useItNotes';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -23,7 +22,7 @@ import { SearchInput } from '@/components/ui/search-input';
 
 export default function ItNotesPage() {
     const { state, actions, selectors, isAuthorized, hasPermission } = useItNotes();
-    const { isLoading, isSubmitting, isFormOpen, searchTerm, customerFilter, noteToEdit, noteToDelete } = state;
+    const { isLoading, isSubmitting, isFormOpen, searchTerm, noteToEdit, noteToDelete } = state;
 
     if (!isAuthorized) return null;
 
