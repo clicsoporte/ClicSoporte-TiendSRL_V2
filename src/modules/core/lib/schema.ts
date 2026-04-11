@@ -29,7 +29,7 @@ export const MASTER_SCHEMA: ExpectedSchema = {
         'salesperson', 'active', 'email', 'electronicDocEmail', 'isManual', 'contacts', 
         'supportPackageId', 'taxRegime', 'taxStatus', 'isTaxMoroso', 'isTaxOmiso', 
         'taxAdministration', 'taxActivities', 'provinceId', 'cantonId', 'districtId', 'telegramChatId',
-        'isBlocked', 'blockedReason'
+        'isBlocked', 'blockedReason', 'notifyTickets', 'notifyLicenses'
     ],
     products: ['id', 'description', 'classification', 'lastEntry', 'active', 'notes', 'unit', 'isBasicGood', 'cabys'],
     stock: ['itemId', 'stockByWarehouse', 'totalStock'],
@@ -47,7 +47,6 @@ export const MASTER_SCHEMA: ExpectedSchema = {
         'notes', 'autoRenew', 'createdAt'
     ],
     contract_settings: ['key', 'value'],
-    client_companies: ['id', 'name', 'taxId', 'address', 'phone', 'email', 'telegramChatId', 'createdAt'],
     help_topics: ['id', 'name', 'defaultPriority', 'defaultAssigneeId', 'defaultServiceId'],
     tickets: [
         'id', 'consecutive', 'subject', 'status', 'priority', 'createdAt', 'updatedAt', 

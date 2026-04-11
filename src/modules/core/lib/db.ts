@@ -218,17 +218,6 @@ export async function initializeMainDatabase(db: Database) {
         );
 
         -- TICKETS MODULE
-        CREATE TABLE IF NOT EXISTS client_companies (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            taxId TEXT UNIQUE NOT NULL,
-            address TEXT,
-            phone TEXT,
-            email TEXT,
-            telegramChatId TEXT,
-            createdAt TEXT NOT NULL
-        );
-
         CREATE TABLE IF NOT EXISTS help_topics (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT UNIQUE NOT NULL,
@@ -526,26 +515,6 @@ export async function initializeMainDatabase(db: Database) {
     // Seeding geographic data
     seedGeographicData(db);
 
-    // Default Help Topics
-    const topics = [
-        { id: 1, name: 'Soporte General', defaultPriority: 'medium' },
-        { id: 2, name: 'Consulta de Facturación', defaultPriority: 'medium' },
-        { id: 3, name: 'Problema con Impresora', defaultPriority: 'high' }
-    ];
-    const insertTopic = db.prepare('INSERT OR IGNORE INTO help_topics (id, name, defaultPriority) VALUES (@id, @name, @defaultPriority)');
-    topics.forEach(t => insertTopic.run(t));
-
-    // Default Software Products (Enhanced for Third Party)
-    const software = [
-        { name: 'Clic-Soporte SaaS (Propio)', isInternal: 1 },
-        { name: 'Microsoft Office 365', isInternal: 0 },
-        { name: 'Antivirus Kaspersky', isInternal: 0 },
-        { name: 'Antivirus ESET NOD32', isInternal: 0 },
-        { name: 'PowerBI Pro', isInternal: 0 }
-    ];
-    const insertSoftware = db.prepare('INSERT OR IGNORE INTO software_products (name, isInternal) VALUES (@name, @isInternal)');
-    software.forEach(p => insertSoftware.run(p));
-
     // Seed Notification Templates
     seedNotificationTemplates(db);
 }
@@ -644,10 +613,6 @@ function seedNotificationTemplates(db: Database) {
     templates.forEach(t => insert.run(t));
 }
 
-/**
- * Robust seeding function for geographic data.
- * Overwrites official names but preserves hierarchical integrity.
- */
 function seedGeographicData(db: Database) {
     const insertProv = db.prepare('INSERT OR REPLACE INTO provinces (id, name) VALUES (?, ?)');
     const insertCant = db.prepare('INSERT OR REPLACE INTO cantons (id, provinceId, name) VALUES (?, ?, ?)');
@@ -659,12 +624,10 @@ function seedGeographicData(db: Database) {
             insertProv.run(provinceId, pData.nombre);
 
             for (const [cId, cData] of Object.entries(pData.cantones)) {
-                // Stable unique ID for cantons: ProvinceID + Code
                 const cantonId = provinceId * 100 + parseInt(cId, 10);
                 insertCant.run(cantonId, provinceId, cData.nombre);
 
                 for (const [dId, dName] of Object.entries(cData.distritos)) {
-                    // Stable unique ID for districts: CantonID + Code
                     const districtId = cantonId * 100 + parseInt(dId, 10);
                     insertDist.run(districtId, cantonId, dName);
                 }
@@ -677,35 +640,13 @@ export async function runMainMigrations(db: Database) {
     const tableInfo = (table: string) => db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
     const hasColumn = (table: string, col: string) => new Set(tableInfo(table).map(c => c.name)).has(col);
 
-    // Ensure geo data is always up to date with the latest official file
     seedGeographicData(db);
 
-    // CORE Migrations
     if (!hasColumn('users', 'forcePasswordChange')) db.exec(`ALTER TABLE users ADD COLUMN forcePasswordChange INTEGER DEFAULT 0;`);
     if (!hasColumn('company_settings', 'systemVersion')) db.exec(`ALTER TABLE company_settings ADD COLUMN systemVersion TEXT;`);
     if (!hasColumn('company_settings', 'publicUrl')) db.exec(`ALTER TABLE company_settings ADD COLUMN publicUrl TEXT;`);
     if (!hasColumn('company_settings', 'internalHourCost')) db.exec(`ALTER TABLE company_settings ADD COLUMN internalHourCost REAL DEFAULT 0;`);
 
-    // API SETTINGS Migrations (Fixing snake_case to camelCase discrepancy)
-    const apiSettingsFields = [
-        ['exchangeRateApi', 'TEXT'], 
-        ['haciendaExemptionApi', 'TEXT'], 
-        ['haciendaTributariaApi', 'TEXT']
-    ];
-    apiSettingsFields.forEach(([field, type]) => {
-        if (!hasColumn('api_settings', field)) db.exec(`ALTER TABLE api_settings ADD COLUMN ${field} ${type};`);
-    });
-
-    // HACIENDA Migrations
-    const haciendaFields = [
-        ['taxRegime', 'TEXT'], ['taxStatus', 'TEXT'], ['isTaxMoroso', 'INTEGER DEFAULT 0'],
-        ['isTaxOmiso', 'INTEGER DEFAULT 0'], ['taxAdministration', 'TEXT'], ['taxActivities', 'TEXT']
-    ];
-    haciendaFields.forEach(([field, type]) => {
-        if (!hasColumn('customers', field)) db.exec(`ALTER TABLE customers ADD COLUMN ${field} ${type};`);
-    });
-
-    // CUSTOMER GEOGRAPHIC Migrations
     const geoFields = [
         ['provinceId', 'INTEGER'], ['cantonId', 'INTEGER'], ['districtId', 'INTEGER'], ['telegramChatId', 'TEXT'], ['commercialName', 'TEXT'],
         ['isBlocked', 'INTEGER DEFAULT 0'], ['blockedReason', 'TEXT'],
@@ -715,7 +656,6 @@ export async function runMainMigrations(db: Database) {
         if (!hasColumn('customers', field)) db.exec(`ALTER TABLE customers ADD COLUMN ${field} ${type};`);
     });
 
-    // TICKETS Migrations
     const ticketFields = [
         ['companyName', 'TEXT'], ['helpTopicId', 'INTEGER'], ['serviceId', 'TEXT'],
         ['dueDate', 'TEXT'], ['contractId', 'INTEGER'], ['isBillable', 'INTEGER DEFAULT 0'],
@@ -725,69 +665,13 @@ export async function runMainMigrations(db: Database) {
         if (!hasColumn('tickets', field)) db.exec(`ALTER TABLE tickets ADD COLUMN ${field} ${type};`);
     });
 
-    if (!hasColumn('client_companies', 'telegramChatId')) db.exec(`ALTER TABLE client_companies ADD COLUMN telegramChatId TEXT;`);
-
-    // TIMESHEET Migrations
-    if (!hasColumn('time_entries', 'billableDuration')) db.exec(`ALTER TABLE time_entries ADD COLUMN billableDuration INTEGER;`);
-    if (!hasColumn('time_entries', 'billingStatus')) db.exec(`ALTER TABLE time_entries ADD COLUMN billingStatus TEXT DEFAULT 'pending';`);
-    if (!hasColumn('time_entries', 'externalInvoiceNumber')) db.exec(`ALTER TABLE time_entries ADD COLUMN externalInvoiceNumber TEXT;`);
-
-    // CUSTOMERS Migrations
     if (!hasColumn('customers', 'supportPackageId')) db.exec(`ALTER TABLE customers ADD COLUMN supportPackageId TEXT;`);
-
-    // PLANNER Migrations
     if (!hasColumn('projects', 'category')) db.exec(`ALTER TABLE projects ADD COLUMN category TEXT NOT NULL DEFAULT 'other';`);
     if (!hasColumn('projects', 'estimatedBudget')) db.exec(`ALTER TABLE projects ADD COLUMN estimatedBudget REAL DEFAULT 0;`);
-    
-    // LICENSES Migrations
     if (!hasColumn('licenses', 'customerId')) db.exec(`ALTER TABLE licenses ADD COLUMN customerId TEXT;`);
 
-    // IT TOOLS - NOTES Migrations
-    db.exec(`
-        CREATE TABLE IF NOT EXISTS it_notes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT NOT NULL,
-            content TEXT,
-            customerId TEXT,
-            tags TEXT,
-            createdBy TEXT,
-            createdAt TEXT NOT NULL,
-            updatedAt TEXT NOT NULL,
-            FOREIGN KEY (customerId) REFERENCES customers(id) ON DELETE SET NULL
-        );
-    `);
-
-    // PROVIDERS Migrations
     if (!hasColumn('third_party_providers', 'contacts')) db.exec(`ALTER TABLE third_party_providers ADD COLUMN contacts TEXT;`);
 
-    // PROVIDER PRICING Migrations
-    const providerServiceFields = [
-        ['buyPriceRemote', 'REAL DEFAULT 0'], ['marginRemote', 'REAL DEFAULT 0'], ['sellPriceRemote', 'REAL DEFAULT 0'],
-        ['buyPriceOnSite', 'REAL DEFAULT 0'], ['marginOnSite', 'REAL DEFAULT 0'], ['sellPriceOnSite', 'REAL DEFAULT 0'],
-        ['taxRate', 'REAL DEFAULT 13']
-    ];
-    providerServiceFields.forEach(([field, type]) => {
-        if (!hasColumn('provider_services', field)) db.exec(`ALTER TABLE provider_services ADD COLUMN ${field} ${type};`);
-    });
-
-    const providerGeoFields = [
-        ['buyTravelPrice', 'REAL DEFAULT 0'], ['marginTravel', 'REAL DEFAULT 0'], ['sellTravelPrice', 'REAL DEFAULT 0'],
-        ['taxRate', 'REAL DEFAULT 13']
-    ];
-    providerGeoFields.forEach(([field, type]) => {
-        if (!hasColumn('provider_geo_rates', field)) db.exec(`ALTER TABLE provider_geo_rates ADD COLUMN ${field} ${type};`);
-    });
-
-    // Templates table
-    db.exec(`
-        CREATE TABLE IF NOT EXISTS notification_templates (
-            eventId TEXT PRIMARY KEY,
-            subject TEXT NOT NULL,
-            body TEXT NOT NULL,
-            telegram TEXT NOT NULL,
-            internal TEXT NOT NULL
-        );
-    `);
     seedNotificationTemplates(db);
 }
 

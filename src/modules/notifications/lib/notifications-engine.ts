@@ -89,8 +89,8 @@ export async function triggerNotificationEvent(eventId: NotificationEventId, pay
         if (customer) {
             resolvedClientTelegramId = customer.telegramChatId;
             resolvedClientEmail = customer.email;
-            notifyTickets = customer.notifyTickets !== false;
-            notifyLicenses = customer.notifyLicenses !== false;
+            notifyTickets = customer.notifyTickets !== 0; // SQLite handle boolean as 0/1
+            notifyLicenses = customer.notifyLicenses !== 0;
         }
 
         for (const rule of matchingRules) {
