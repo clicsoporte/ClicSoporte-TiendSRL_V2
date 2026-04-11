@@ -123,7 +123,9 @@ export async function initializeMainDatabase(db: Database) {
             districtId INTEGER,
             telegramChatId TEXT,
             isBlocked INTEGER DEFAULT 0,
-            blockedReason TEXT
+            blockedReason TEXT,
+            notifyTickets INTEGER DEFAULT 1,
+            notifyLicenses INTEGER DEFAULT 1
         );
 
         CREATE TABLE IF NOT EXISTS products (
@@ -706,7 +708,8 @@ export async function runMainMigrations(db: Database) {
     // CUSTOMER GEOGRAPHIC Migrations
     const geoFields = [
         ['provinceId', 'INTEGER'], ['cantonId', 'INTEGER'], ['districtId', 'INTEGER'], ['telegramChatId', 'TEXT'], ['commercialName', 'TEXT'],
-        ['isBlocked', 'INTEGER DEFAULT 0'], ['blockedReason', 'TEXT']
+        ['isBlocked', 'INTEGER DEFAULT 0'], ['blockedReason', 'TEXT'],
+        ['notifyTickets', 'INTEGER DEFAULT 1'], ['notifyLicenses', 'INTEGER DEFAULT 1']
     ];
     geoFields.forEach(([field, type]) => {
         if (!hasColumn('customers', field)) db.exec(`ALTER TABLE customers ADD COLUMN ${field} ${type};`);

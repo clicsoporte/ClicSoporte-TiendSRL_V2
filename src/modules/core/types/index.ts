@@ -151,6 +151,9 @@ export type Customer = {
     // Administrative Status
     isBlocked?: boolean;
     blockedReason?: string | null;
+    // Notification Preferences
+    notifyTickets?: boolean;
+    notifyLicenses?: boolean;
 };
 
 /**

@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { PlusCircle, Search, Edit, Trash2, Loader2, UserPlus, Building2, Mail, Phone, Briefcase, SearchIcon, CheckCircle2, AlertCircle, MapPin, ShieldCheck, Send, RefreshCw, Users, MessageCircle, X, ShieldAlert } from 'lucide-react';
+import { PlusCircle, Search, Edit, Trash2, Loader2, UserPlus, Building2, Mail, Phone, Briefcase, SearchIcon, CheckCircle2, AlertCircle, MapPin, ShieldCheck, Send, RefreshCw, Users, MessageCircle, X, ShieldAlert, BellRing } from 'lucide-react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { upsertCustomer, deleteCustomer } from '@/modules/core/lib/data-access-db';
 import { getContributorInfo } from '@/modules/hacienda/lib/actions';
@@ -61,7 +61,9 @@ const emptyCustomer: Customer = {
     supportPackageId: null,
     telegramChatId: '',
     isBlocked: false,
-    blockedReason: ''
+    blockedReason: '',
+    notifyTickets: true,
+    notifyLicenses: true
 };
 
 export default function CustomersClient() {
@@ -193,7 +195,9 @@ export default function CustomersClient() {
             supportPackageId: customer.supportPackageId || null,
             telegramChatId: customer.telegramChatId || '',
             isBlocked: !!customer.isBlocked,
-            blockedReason: customer.blockedReason || ''
+            blockedReason: customer.blockedReason || '',
+            notifyTickets: customer.notifyTickets !== false,
+            notifyLicenses: customer.notifyLicenses !== false
         });
         setIsEditing(true);
         setFormOpen(true);
@@ -415,16 +419,38 @@ export default function CustomersClient() {
 
                                     <section>
                                         <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                                            <Send className="h-5 w-5 text-primary" /> Notificaciones Directas
+                                            <BellRing className="h-5 w-5 text-primary" /> Preferencias de Comunicación
                                         </h3>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            <div className="p-4 rounded-lg border bg-muted/10 space-y-4">
+                                                <div className="flex items-center justify-between">
+                                                    <div className="space-y-0.5">
+                                                        <Label className="text-sm font-bold">Notificar de Tickets</Label>
+                                                        <p className="text-[10px] text-muted-foreground">Alertas de apertura, cierre y cambios de estado.</p>
+                                                    </div>
+                                                    <Switch 
+                                                        checked={currentCustomer.notifyTickets}
+                                                        onCheckedChange={(checked) => setCurrentCustomer({...currentCustomer, notifyTickets: checked})}
+                                                    />
+                                                </div>
+                                                <div className="flex items-center justify-between">
+                                                    <div className="space-y-0.5">
+                                                        <Label className="text-sm font-bold">Notificar de Licencias</Label>
+                                                        <p className="text-[10px] text-muted-foreground">Alertas de asignación y avisos de vencimiento.</p>
+                                                    </div>
+                                                    <Switch 
+                                                        checked={currentCustomer.notifyLicenses}
+                                                        onCheckedChange={(checked) => setCurrentCustomer({...currentCustomer, notifyLicenses: checked})}
+                                                    />
+                                                </div>
+                                            </div>
                                             <div className="space-y-2">
                                                 <Label htmlFor="cust-telegram">Telegram Chat ID (Personal o Grupo)</Label>
                                                 <div className="relative">
                                                     <Input id="cust-telegram" value={currentCustomer.telegramChatId || ''} onChange={e => setCurrentCustomer({...currentCustomer, telegramChatId: e.target.value})} placeholder="Ej: 123456789" />
                                                     <Badge variant="outline" className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] uppercase font-bold">OPCIONAL</Badge>
                                                 </div>
-                                                <p className="text-[10px] text-muted-foreground">Si se completa, el sistema podrá enviar alertas automáticas vía Telegram a este destino.</p>
+                                                <p className="text-[10px] text-muted-foreground">Usado cuando una regla usa el destinatario <code className="font-bold">[TELEGRAM_CLIENTE]</code>.</p>
                                             </div>
                                         </div>
                                     </section>

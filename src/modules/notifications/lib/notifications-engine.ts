@@ -12,7 +12,7 @@ import { sendTelegramMessage } from './telegram-service';
 import { logInfo, logError } from '../../core/lib/logger';
 import { getAllUsers } from '../../core/lib/auth';
 import { connectDb } from '../../core/lib/db';
-import type { NotificationEventId, Customer, ClientCompany } from '../../core/types';
+import type { NotificationEventId, Customer } from '../../core/types';
 
 /**
  * Replaces placeholders in a template string using data from a payload.
@@ -79,23 +79,39 @@ export async function triggerNotificationEvent(eventId: NotificationEventId, pay
         // Resolve client data for dynamic placeholders
         let resolvedClientTelegramId = null;
         let resolvedClientEmail = null;
+        let notifyTickets = true;
+        let notifyLicenses = true;
 
         const mainDb = await connectDb();
         
         // Search by ID or Name
-        const customer = mainDb.prepare('SELECT email, telegramChatId FROM customers WHERE name = ? OR id = ?').get(payload.customerName, payload.customerId) as Customer | undefined;
+        const customer = mainDb.prepare('SELECT email, telegramChatId, notifyTickets, notifyLicenses FROM customers WHERE name = ? OR id = ?').get(payload.customerName, payload.customerId) as Customer | undefined;
         if (customer) {
             resolvedClientTelegramId = customer.telegramChatId;
             resolvedClientEmail = customer.email;
+            notifyTickets = customer.notifyTickets !== false;
+            notifyLicenses = customer.notifyLicenses !== false;
         }
 
         for (const rule of matchingRules) {
             const finalSubject = rule.subject || subject;
 
-            // Handle special recipient placeholders
+            // Handle special recipient placeholders with preference check
             const processedRecipients = rule.recipients.map(r => {
-                if (r === '[CORREO_CLIENTE]') return String(payload.customerEmail || resolvedClientEmail || '');
-                if (r === '[TELEGRAM_CLIENTE]') return String(payload.customerTelegramId || resolvedClientTelegramId || '');
+                const isClientPlaceholder = r === '[CORREO_CLIENTE]' || r === '[TELEGRAM_CLIENTE]';
+                
+                if (isClientPlaceholder) {
+                    // Check granular preference based on event type
+                    const isTicketEvent = eventId.startsWith('onTicket');
+                    const isLicenseEvent = eventId.startsWith('onLicense');
+                    
+                    if (isTicketEvent && !notifyTickets) return '';
+                    if (isLicenseEvent && !notifyLicenses) return '';
+
+                    if (r === '[CORREO_CLIENTE]') return String(payload.customerEmail || resolvedClientEmail || '');
+                    if (r === '[TELEGRAM_CLIENTE]') return String(payload.customerTelegramId || resolvedClientTelegramId || '');
+                }
+                
                 return r;
             }).filter(Boolean);
 

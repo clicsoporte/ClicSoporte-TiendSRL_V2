@@ -143,28 +143,22 @@ export default function HelpPage() {
         )
     },
     {
-        title: "Guía: Mensajería Híbrida (Email + Telegram)",
+        title: "Guía: Mensajería Híbrida y Preferencias del Cliente",
         icon: <BellRing className="mr-4 h-6 w-6 text-indigo-500" />,
         content: (
             <div className="space-y-4">
-                <p>Ahora puedes elegir cómo comunicarte con tus clientes y equipo técnico.</p>
+                <p>Puedes personalizar cómo y qué recibe cada cliente de forma individual.</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <Card className="p-3 bg-muted/20">
-                        <h4 className="font-bold text-xs uppercase mb-2 flex items-center gap-2"><Zap className="h-3 w-3" /> Para el Equipo</h4>
-                        <p className="text-xs">Usa <b>Telegram</b> para alertas operativas inmediatas: Nuevo Ticket, Prioridad Urgente, o Backup completado.</p>
+                        <h4 className="font-bold text-xs uppercase mb-2 flex items-center gap-2"><Zap className="h-3 w-3" /> Canales Dinámicos</h4>
+                        <p className="text-xs">Usa <b>[CORREO_CLIENTE]</b> o <b>[TELEGRAM_CLIENTE]</b> en tus reglas de notificación para que el motor resuelva los datos de contacto automáticamente.</p>
                     </Card>
                     <Card className="p-3 bg-muted/20">
-                        <h4 className="font-bold text-xs uppercase mb-2 flex items-center gap-2"><ShieldCheck className="h-3 w-3" /> Para Clientes</h4>
-                        <p className="text-xs">Usa <b>Email HTML</b> para comunicaciones formales como el cierre de un caso o estados de cuenta.</p>
+                        <h4 className="font-bold text-xs uppercase mb-2 flex items-center gap-2"><ShieldCheck className="h-3 w-3" /> Control de Privacidad</h4>
+                        <p className="text-xs">En la ficha de cada cliente, puedes activar o desactivar las notificaciones de <b>Tickets</b> o <b>Licencias</b> independientemente.</p>
                     </Card>
                 </div>
-                <div className="space-y-2">
-                    <p className="font-bold text-sm">Placeholders Inteligentes:</p>
-                    <ul className="space-y-1">
-                        <li><Badge variant="outline" className="font-mono">[CORREO_CLIENTE]</Badge> Envía al correo oficial de la ficha del cliente.</li>
-                        <li><Badge variant="outline" className="font-mono">[TELEGRAM_CLIENTE]</Badge> Envía al Chat ID de Telegram configurado para ese cliente.</li>
-                    </ul>
-                </div>
+                <p className="text-sm">Si un cliente tiene desactivada la opción de licencias, el sistema <b>no le enviará</b> correos ni mensajes de Telegram sobre ese tema, incluso si las reglas globales están activas.</p>
             </div>
         )
     },
@@ -177,7 +171,7 @@ export default function HelpPage() {
                 <ol className="list-decimal pl-6 space-y-2">
                     <li><strong>Registro:</strong> Al asignar una licencia de Antivirus u Office 365, define la fecha de vencimiento.</li>
                     <li><strong>Escaneo Diario:</strong> Cada madrugada, el sistema revisa todas las licencias y contratos activos.</li>
-                    <li><strong>Alertas Graduales:</strong> El sistema dispara notificaciones automáticas a los <b>30, 15 y 7 días</b> antes de la fecha final.</li>
+                    <li><strong>Alertas Graduales:</strong> El sistema dispara notificaciones automáticas a los <b>30, 15, 7 y 1 días</b> antes de la fecha final.</li>
                     <li><strong>Renovación:</strong> Al llegar al día final, si el contrato tiene el check de <b>Auto-Renovación</b>, el sistema creará la prórroga y enviará el informe.</li>
                 </ol>
             </div>
@@ -248,7 +242,7 @@ export default function HelpPage() {
             <div className="relative mt-8">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
               <Input
-                placeholder="¿Qué necesitas hacer hoy? (ej: 'rentabilidad', 'vencimientos', 'telegram')..."
+                placeholder="¿Qué necesitas hacer hoy? (ej: 'notificaciones', 'vencimientos', 'viáticos')..."
                 className="w-full pl-12 h-14 text-lg bg-white border-2 focus-visible:ring-primary shadow-sm"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
