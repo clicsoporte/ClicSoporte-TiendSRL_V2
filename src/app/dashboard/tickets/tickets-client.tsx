@@ -1,7 +1,7 @@
 
 /**
  * @fileoverview Client-side component for Support Tickets.
- * Enhanced with responsive Card view for mobile devices.
+ * Enhanced with responsive Card view for mobile devices and license integration.
  */
 'use client';
 
@@ -33,6 +33,7 @@ export default function TicketsClient() {
     const { state, actions, selectors } = useTickets();
     const { hasPermission } = useAuthorization(['tickets:admin:settings', 'view:provider:costs']);
     const canViewCosts = hasPermission('view:provider:costs');
+    const canAssignLicenses = hasPermission('tickets:license:assign');
     const router = useRouter();
     const { companyData, customers, users } = useAuth();
     
@@ -298,7 +299,7 @@ export default function TicketsClient() {
                                                 />
                                             </div>
                                             
-                                            {selectedCustomerId && !isCustomerBlocked && (
+                                            {selectedCustomerId && !isCustomerBlocked && canAssignLicenses && (
                                                 <div className="space-y-2">
                                                     <Label className="text-xs">Licencia Vinculada (Opcional)</Label>
                                                     <Select value={String(newTicket.licenseId || 'none')} onValueChange={(v) => actions.handleNewTicketChange('licenseId', v === 'none' ? null : Number(v))}>

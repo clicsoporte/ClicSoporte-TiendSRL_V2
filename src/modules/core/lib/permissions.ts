@@ -9,13 +9,14 @@ export const permissionGroups = {
     "Cotizador": ["quotes:create", "quotes:generate", "quotes:drafts:create", "quotes:drafts:read", "quotes:drafts:delete"],
     "Soporte Técnico": [
         "tickets:read:all", "tickets:create", "tickets:reply", "tickets:manage", 
-        "tickets:time-tracking", "tickets:delete", "tickets:admin:settings"
+        "tickets:time-tracking", "tickets:delete", "tickets:admin:settings",
+        "tickets:license:assign", "tickets:license:view"
     ],
     "Clientes": [
         "customers:read", "customers:create", "customers:update", "customers:delete", "customers:update:plan"
     ],
     "Contratos": [
-        "contracts:read", "contracts:create", "contracts:update", "contracts:delete"
+        "contracts:read", "customers:create", "contracts:update", "contracts:delete"
     ],
     "Gestión de Licencias": [
         "licenses:read", "licenses:manage", "licenses:admin:keys"
@@ -59,6 +60,8 @@ export const permissionTranslations: Record<string, string> = {
     "tickets:time-tracking": "Tickets: Control de Tiempo",
     "tickets:delete": "Tickets: Eliminar Casos",
     "tickets:admin:settings": "Tickets: Configuración Avanzada",
+    "tickets:license:assign": "Tickets: Vincular Licencias",
+    "tickets:license:view": "Tickets: Ver Claves de Activación",
     "customers:read": "Clientes: Ver Listado",
     "customers:create": "Clientes: Crear Nuevo",
     "customers:update": "Clientes: Editar Datos",
@@ -149,6 +152,8 @@ export const permissionTree: Record<string, string[]> = {
     "tickets:reply": ["tickets:read:all"],
     "tickets:create": ["tickets:read:all"],
     "tickets:delete": ["tickets:manage"],
+    "tickets:license:assign": ["tickets:manage"],
+    "tickets:license:view": ["tickets:read:all"],
 
     // Customers Hierarchy
     "customers:update:plan": ["customers:update"],

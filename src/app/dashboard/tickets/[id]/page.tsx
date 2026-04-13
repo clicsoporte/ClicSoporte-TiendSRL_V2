@@ -1,8 +1,9 @@
+
 'use client';
 
 /**
  * @fileoverview Ticket detail page with multi-column layout for operations and context info.
- * Enhanced with linked license information.
+ * Enhanced with linked license information and security controls.
  */
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
@@ -16,7 +17,7 @@ import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Send, Loader2, MoreVertical, CreditCard, ShieldCheck, ShieldAlert, Truck, CheckCircle2, XCircle, PlayCircle, PauseCircle, Info, UserCircle, FileText, Download, Mail, UserCheck, KeyRound } from 'lucide-react';
+import { Send, Loader2, MoreVertical, CreditCard, ShieldCheck, ShieldAlert, Truck, CheckCircle2, XCircle, PlayCircle, PauseCircle, Info, UserCircle, FileText, Download, Mail, UserCheck, KeyRound, Eye } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -286,6 +287,7 @@ export default function TicketDetailPage() {
     const LinkedLicenseCard = () => {
         if (!linkedLicense) return null;
         const software = selectors.softwareProducts.find(p => p.id === linkedLicense.softwareId);
+        const canViewKeys = hasPermission('tickets:license:view');
         
         return (
             <Card className="border-blue-200 bg-blue-50/20">
@@ -297,13 +299,62 @@ export default function TicketDetailPage() {
                 <CardContent className="p-4 pt-0 space-y-2">
                     <div className="text-xs">
                         <p className="font-bold text-blue-900">{software?.name || 'Software'}</p>
-                        <p className="text-muted-foreground mt-1">
-                            {software?.isInternal ? 'Hardware ID:' : 'Serial/Key:'}
-                        </p>
-                        <p className="font-mono bg-blue-100/50 p-1.5 rounded border border-blue-200 mt-1 select-all truncate">
-                            {software?.isInternal ? linkedLicense.hardwareId : linkedLicense.licenseKey}
-                        </p>
-                        <div className="flex justify-between items-center mt-2">
+                        
+                        <div className="flex items-center justify-between mt-3 p-2 bg-blue-100/50 rounded border border-blue-200">
+                            <span className="text-[10px] font-black uppercase text-blue-700">Clave / HWID</span>
+                            <Dialog>
+                                <DialogTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-blue-600 hover:bg-blue-200/50">
+                                        <Eye className="h-3.5 w-3.5" />
+                                    </Button>
+                                </DialogTrigger>
+                                <DialogContent className="sm:max-w-md">
+                                    <DialogHeader>
+                                        <DialogTitle className="flex items-center gap-2">
+                                            <ShieldCheck className="h-5 w-5 text-blue-600" /> Detalles de Activación
+                                        </DialogTitle>
+                                        <DialogDescription>Información técnica de la licencia para soporte.</DialogDescription>
+                                    </DialogHeader>
+                                    <div className="py-6">
+                                        {canViewKeys ? (
+                                            <div className="space-y-4">
+                                                <div className="space-y-1.5">
+                                                    <Label className="text-[10px] font-bold uppercase text-muted-foreground">
+                                                        {software?.isInternal ? 'Hardware ID (Firmado)' : 'Número de Serie / Licencia'}
+                                                    </Label>
+                                                    <div className="p-4 bg-muted font-mono text-xs rounded-lg border break-all select-all leading-relaxed">
+                                                        {software?.isInternal ? linkedLicense.hardwareId : linkedLicense.licenseKey}
+                                                    </div>
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-4 pt-2">
+                                                    <div className="space-y-1">
+                                                        <Label className="text-[10px] font-bold uppercase text-muted-foreground">Estado</Label>
+                                                        <p className="text-sm font-bold capitalize">{linkedLicense.status}</p>
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <Label className="text-[10px] font-bold uppercase text-muted-foreground">Vencimiento</Label>
+                                                        <p className="text-sm font-bold">{linkedLicense.isPerpetual ? 'Perpetua' : linkedLicense.expirationDate}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <Alert variant="destructive">
+                                                <ShieldAlert className="h-4 w-4" />
+                                                <AlertTitle>Acceso Denegado</AlertTitle>
+                                                <AlertDescription className="text-xs">
+                                                    No tienes permisos para visualizar las claves de activación de licencias. Contacta a un administrador.
+                                                </AlertDescription>
+                                            </Alert>
+                                        )}
+                                    </div>
+                                    <DialogFooter>
+                                        <DialogClose asChild><Button variant="outline">Cerrar</Button></DialogClose>
+                                    </DialogFooter>
+                                </DialogContent>
+                            </Dialog>
+                        </div>
+
+                        <div className="flex justify-between items-center mt-3">
                             <span className="text-[10px] text-muted-foreground">Vencimiento:</span>
                             <Badge variant={linkedLicense.isPerpetual ? 'default' : 'outline'} className="text-[9px] h-4">
                                 {linkedLicense.isPerpetual ? 'Perpetua' : (linkedLicense.expirationDate || 'N/A')}
@@ -389,7 +440,7 @@ export default function TicketDetailPage() {
                     </div>
                 )}
                 <p className="text-xs text-muted-foreground pt-2 flex items-center gap-1">
-                    <Info className="h-3 w-3" /> Creado el {format(parseISO(ticket.createdAt), 'dd/MM/yy HH:mm')}
+                    < Info className="h-3 w-3" /> Creado el {format(parseISO(ticket.createdAt), 'dd/MM/yy HH:mm')}
                 </p>
             </CardContent>
         </Card>

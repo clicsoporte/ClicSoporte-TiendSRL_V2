@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Centralized constants for database initialization and default settings.
  * This file helps break circular dependencies by isolating static data.
@@ -76,7 +77,8 @@ export const initialRoles: Role[] = [
     name: 'Técnico de Soporte',
     permissions: [
         "dashboard:access", "tickets:create", "tickets:read:all", "tickets:reply", 
-        "tickets:time-tracking", "customers:read", "contracts:read", "providers:read", "hacienda:query"
+        "tickets:time-tracking", "customers:read", "contracts:read", "providers:read", "hacienda:query",
+        "tickets:license:assign", "tickets:license:view"
     ]
   }
 ];
