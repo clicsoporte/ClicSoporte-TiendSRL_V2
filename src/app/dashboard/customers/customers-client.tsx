@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -24,6 +25,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { cn } from '@/lib/utils';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { Switch } from '@/components/ui/switch';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const emptyContact: CustomerContact = {
     id: '',
@@ -82,6 +84,10 @@ export default function CustomersClient() {
     // Contact editing state
     const [newContact, setNewContact] = useState<CustomerContact>(emptyContact);
     const [editingContactId, setEditingContactId] = useState<string | null>(null);
+
+    // View Contacts state
+    const [viewingCustomer, setViewingCustomer] = useState<Customer | null>(null);
+    const [isContactsViewOpen, setContactsViewOpen] = useState(false);
 
     const [geoData, setGeoData] = useState<{ provinces: Province[], cantons: Canton[], districts: District[] }>({ provinces: [], cantons: [], districts: [] });
 
@@ -202,6 +208,11 @@ export default function CustomersClient() {
         setFormOpen(true);
     };
 
+    const handleViewContacts = (customer: Customer) => {
+        setViewingCustomer(customer);
+        setContactsViewOpen(true);
+    };
+
     const handleDelete = async (id: string) => {
         if (!hasPermission('customers:delete')) {
             toast({ title: "Acceso denegado", variant: "destructive" });
@@ -278,6 +289,7 @@ export default function CustomersClient() {
     }
 
     const canChangePlan = hasPermission('customers:update:plan');
+    const canViewContacts = hasPermission('customers:contacts:read');
 
     return (
         <main className="flex-1 p-4 md:p-6 lg:p-8 space-y-6">
@@ -664,6 +676,7 @@ export default function CustomersClient() {
                                     <TableHead className="text-center">Consumido</TableHead>
                                     <TableHead className="text-center">Saldo</TableHead>
                                     <TableHead>Estado</TableHead>
+                                    <TableHead className="text-center">Contactos</TableHead>
                                     <TableHead className="text-right">Acciones</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -675,6 +688,7 @@ export default function CustomersClient() {
                                         const available = customer.availableHours || 0;
                                         const balance = available - consumed;
                                         const percentageUsed = available > 0 ? (consumed / available) * 100 : 0;
+                                        const contactCount = (customer.contacts || []).length;
 
                                         return (
                                             <TableRow key={customer.id} className={cn(customer.isBlocked && "bg-destructive/5")}>
@@ -729,6 +743,19 @@ export default function CustomersClient() {
                                                         </Badge>
                                                     )}
                                                 </TableCell>
+                                                <TableCell className="text-center">
+                                                    {canViewContacts ? (
+                                                        <Button 
+                                                            variant="ghost" 
+                                                            size="sm" 
+                                                            className={cn("h-8 px-2 gap-1.5", contactCount > 0 ? "text-primary" : "text-muted-foreground opacity-50")}
+                                                            onClick={() => handleViewContacts(customer)}
+                                                        >
+                                                            <Users className="h-4 w-4" />
+                                                            <span className="text-xs font-bold">{contactCount}</span>
+                                                        </Button>
+                                                    ) : '-'}
+                                                </TableCell>
                                                 <TableCell className="text-right">
                                                     <div className="flex justify-end gap-1">
                                                         {hasPermission('customers:update') && (
@@ -758,7 +785,7 @@ export default function CustomersClient() {
                                     })
                                 ) : (
                                     <TableRow>
-                                        <TableCell colSpan={9} className="h-24 text-center">No se encontraron clientes.</TableCell>
+                                        <TableCell colSpan={10} className="h-24 text-center">No se encontraron clientes.</TableCell>
                                     </TableRow>
                                 )}
                             </TableBody>
@@ -766,6 +793,81 @@ export default function CustomersClient() {
                     </div>
                 </CardContent>
             </Card>
+
+            {/* Dialog for Quick Viewing Contacts */}
+            <Dialog open={isContactsViewOpen} onOpenChange={setContactsViewOpen}>
+                <DialogContent className="sm:max-w-xl">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Users className="h-5 w-5 text-primary" />
+                            Directorio de Contactos
+                        </DialogTitle>
+                        <DialogDescription>
+                            Contactos registrados para <strong>{viewingCustomer?.name}</strong>.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <ScrollArea className="max-h-[60vh] pr-4">
+                            {viewingCustomer?.contacts && viewingCustomer.contacts.length > 0 ? (
+                                <div className="space-y-3">
+                                    {viewingCustomer.contacts.map((contact) => (
+                                        <div key={contact.id} className="p-4 rounded-lg border bg-card shadow-sm space-y-3">
+                                            <div className="flex justify-between items-start">
+                                                <div>
+                                                    <p className="font-bold text-sm">{contact.name}</p>
+                                                    <Badge variant="outline" className="text-[10px] uppercase h-4 mt-1">
+                                                        {contact.department || 'General'}
+                                                    </Badge>
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    {contact.email && (
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" asChild>
+                                                            <a href={`mailto:${contact.email}`} title="Enviar Correo">
+                                                                <Mail className="h-4 w-4" />
+                                                            </a>
+                                                        </Button>
+                                                    )}
+                                                    {contact.whatsapp && (
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600" asChild>
+                                                            <a href={`https://wa.me/${contact.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" title="WhatsApp">
+                                                                <MessageCircle className="h-4 w-4" />
+                                                            </a>
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-4 text-xs">
+                                                {contact.email && (
+                                                    <div className="flex items-center gap-2 text-muted-foreground">
+                                                        <Mail className="h-3 w-3" />
+                                                        <span className="truncate">{contact.email}</span>
+                                                    </div>
+                                                )}
+                                                {contact.phone && (
+                                                    <div className="flex items-center gap-2 text-muted-foreground">
+                                                        <Phone className="h-3 w-3" />
+                                                        <span>{contact.phone}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="text-center py-10 border-2 border-dashed rounded-lg bg-muted/20">
+                                    <Users className="h-10 w-10 mx-auto text-muted-foreground opacity-20 mb-2" />
+                                    <p className="text-sm text-muted-foreground">No hay contactos registrados para este cliente.</p>
+                                </div>
+                            )}
+                        </ScrollArea>
+                    </div>
+                    <DialogFooter>
+                        <DialogClose asChild>
+                            <Button variant="outline">Cerrar Directorio</Button>
+                        </DialogClose>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </main>
     );
 }

@@ -13,7 +13,7 @@ export const permissionGroups = {
         "tickets:license:assign", "tickets:license:view"
     ],
     "Clientes": [
-        "customers:read", "customers:create", "customers:update", "customers:delete", "customers:update:plan"
+        "customers:read", "customers:contacts:read", "customers:create", "customers:update", "customers:delete", "customers:update:plan"
     ],
     "Contratos": [
         "contracts:read", "contracts:create", "contracts:update", "contracts:delete"
@@ -63,6 +63,7 @@ export const permissionTranslations: Record<string, string> = {
     "tickets:license:assign": "Tickets: Vincular Licencias",
     "tickets:license:view": "Tickets: Ver Claves de Activación",
     "customers:read": "Clientes: Ver Listado",
+    "customers:contacts:read": "Clientes: Ver Contactos (Sin Editar)",
     "customers:create": "Clientes: Crear Nuevo",
     "customers:update": "Clientes: Editar Datos",
     "customers:delete": "Clientes: Eliminar",
@@ -156,6 +157,7 @@ export const permissionTree: Record<string, string[]> = {
     "tickets:license:view": ["tickets:read:all"],
 
     // Customers Hierarchy
+    "customers:contacts:read": ["customers:read"],
     "customers:update:plan": ["customers:update"],
     "customers:update": ["customers:read"],
     "customers:create": ["customers:read"],
