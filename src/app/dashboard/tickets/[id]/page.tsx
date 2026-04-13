@@ -1,4 +1,3 @@
-
 'use client';
 
 /**
@@ -35,6 +34,7 @@ import { getEntriesForTicket } from '@/modules/timesheet/lib/actions';
 import { generateDocument } from '@/modules/core/lib/pdf-generator';
 import { sendTicketReportByEmail } from '@/modules/tickets/lib/report-email-actions';
 import { getLicenses } from '@/modules/licenses/lib/actions';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const getInitials = (name: string) => {
     if (!name) return "??";
