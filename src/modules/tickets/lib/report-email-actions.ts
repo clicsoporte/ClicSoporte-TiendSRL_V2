@@ -36,7 +36,7 @@ export async function sendTicketReportByEmail(params: SendTicketReportParams) {
         <tr>
             <td style="padding: 8px; border-bottom: 1px solid #edf2f7; font-size: 12px;">${format(parseISO(entry.startTime), 'dd/MM/yy HH:mm')}</td>
             <td style="padding: 8px; border-bottom: 1px solid #edf2f7; font-size: 13px;">${entry.notes || 'Soporte técnico'}</td>
-            <td style="padding: 8px; border-bottom: 1px solid #edf2f7; font-size: 13px; text-align: center;">${entry.isBillable ? '✅' : '❌'}</td>
+            <td style="padding: 8px; border-bottom: 1px solid #edf2f7; font-size: 13px; text-align: center;">${!entry.isBillable ? '✅' : '❌'}</td>
             <td style="padding: 8px; border-bottom: 1px solid #edf2f7; font-size: 13px; text-align: right; font-family: monospace;">${formatDuration(entry.duration)}</td>
         </tr>
     `).join('');

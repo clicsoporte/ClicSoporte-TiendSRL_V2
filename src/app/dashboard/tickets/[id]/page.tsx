@@ -8,10 +8,10 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useTickets } from '@/modules/tickets/hooks/useTickets';
-import type { Ticket, TicketThread, TicketPriority, ThirdPartyProvider, TimeEntry, License } from '@/modules/core/types';
+import type { Ticket, TicketThread, TicketPriority, ThirdPartyProvider, TimeEntry, License, User } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
@@ -200,7 +200,7 @@ export default function TicketDetailPage() {
         const tableRows = timeEntries.map(e => [
             format(parseISO(e.startTime), 'dd/MM/yy HH:mm'),
             e.notes || 'Soporte Técnico',
-            e.isBillable ? 'Sí' : 'No',
+            !e.isBillable ? 'Sí' : 'No', // Fixed inversion logic: if NOT billable, it IS under contract
             { content: formatDuration(e.duration), styles: { halign: 'right' as const } }
         ]);
 
