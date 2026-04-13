@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Client-side functions for interacting with the ticket module's server-side DB functions.
  */
@@ -48,6 +47,21 @@ import { triggerNotificationEvent } from '@/modules/notifications/lib/notificati
 import { getUserPreferences, saveUserPreferences } from '@/modules/core/lib/db';
 import { getCompanySettings } from '@/modules/core/lib/settings-db';
 
+const statusLabels: Record<string, string> = {
+    open: 'Abierto',
+    in_progress: 'En Progreso',
+    on_hold: 'En Espera',
+    completed: 'Completado',
+    canceled: 'Cancelado'
+};
+
+const priorityLabels: Record<string, string> = {
+    low: 'Baja',
+    medium: 'Media',
+    high: 'Alta',
+    urgent: 'Urgente'
+};
+
 /**
  * Saves a new ticket to the database.
  */
@@ -56,20 +70,25 @@ export async function saveTicket(payload: NewTicketPayload, user: User): Promise
         const createdTicket = await addTicketServer(payload, user);
         const settings = await getCompanySettings();
         
-        // Enrich payload with price info for notifications
         const service = settings.servicesCatalog.find(s => s.id === payload.serviceId);
         const formattedPrice = service ? `¢${(service.price || 0).toLocaleString()} ${service.billingType === 'task' ? '(Monto Fijo)' : '/ h'}` : '';
 
-        // --- Integration with Notification Engine ---
+        // Trigger notification with translated labels
         await triggerNotificationEvent('onTicketCreated', {
             ...createdTicket,
+            status: statusLabels[createdTicket.status] || createdTicket.status,
+            priority: priorityLabels[createdTicket.priority] || createdTicket.priority,
             customerEmail: payload.customerEmail,
             isBillable: createdTicket.isBillable,
             formattedPrice
         });
         
         if (createdTicket.priority === 'urgent') {
-            await triggerNotificationEvent('onTicketPriorityUrgent', createdTicket);
+            await triggerNotificationEvent('onTicketPriorityUrgent', {
+                ...createdTicket,
+                status: statusLabels[createdTicket.status] || createdTicket.status,
+                priority: priorityLabels[createdTicket.priority] || createdTicket.priority
+            });
         }
 
         await logInfo(`New ticket #${createdTicket.consecutive} created by ${user.name}`, { 
@@ -122,7 +141,6 @@ export async function getTicketThread(ticketId: number): Promise<TicketThread[]>
 export async function addThreadEntry(payload: { ticketId: number; userId: number; userName: string; content: string; type: 'message' | 'note' | 'status_change' }): Promise<TicketThread> {
     const newEntry = await addThreadEntryServer(payload);
     
-    // Trigger notification for new message
     if (payload.type === 'message') {
         const ticket = await getTicketByIdServer(payload.ticketId);
         if (ticket) {
@@ -140,26 +158,35 @@ export async function addThreadEntry(payload: { ticketId: number; userId: number
 export async function updateTicketDetails(ticketId: number, updates: Partial<Pick<Ticket, 'status' | 'priority' | 'assigneeId' | 'isBillable' | 'providerId'>>, user: User): Promise<Ticket> {
     const updatedTicket = await updateTicketDetailsServer(ticketId, updates, user);
     
-    // Trigger notification for status change
+    // Notification with translations
     if (updates.status) {
+        const translatedTicket = {
+            ...updatedTicket,
+            status: statusLabels[updatedTicket.status] || updatedTicket.status,
+            priority: priorityLabels[updatedTicket.priority] || updatedTicket.priority
+        };
+
         if (updates.status === 'completed' || updates.status === 'canceled') {
             const event = updates.status === 'completed' ? 'onTicketCompleted' : 'onTicketCanceled';
-            // Fetch last message content to serve as "solution"
             const thread = await getTicketThreadServer(ticketId);
             const lastMessage = thread.filter(t => t.type === 'message').pop();
             
             await triggerNotificationEvent(event, {
-                ...updatedTicket,
+                ...translatedTicket,
                 content: lastMessage?.content || 'El caso fue resuelto satisfactoriamente.',
                 userName: user.name
             });
         } else {
-            await triggerNotificationEvent('onTicketStatusChanged', updatedTicket);
+            await triggerNotificationEvent('onTicketStatusChanged', translatedTicket);
         }
     }
 
     if (updates.priority === 'urgent') {
-        await triggerNotificationEvent('onTicketPriorityUrgent', updatedTicket);
+        await triggerNotificationEvent('onTicketPriorityUrgent', {
+            ...updatedTicket,
+            status: statusLabels[updatedTicket.status] || updatedTicket.status,
+            priority: priorityLabels[updatedTicket.priority] || updatedTicket.priority
+        });
     }
     
     return JSON.parse(JSON.stringify(updatedTicket));
@@ -193,7 +220,6 @@ export async function getCustomerSupportInfo(companyId: number | string): Promis
     return JSON.parse(JSON.stringify(info));
 }
 
-// --- Third Party Providers Actions ---
 export async function getThirdPartyProviders(): Promise<ThirdPartyProvider[]> {
     const providers = await getThirdPartyProvidersServer();
     return JSON.parse(JSON.stringify(providers));
@@ -233,8 +259,6 @@ export async function deleteProviderGeoRate(id: number): Promise<void> {
 export async function getCRGeoData(): Promise<{ provinces: Province[], cantons: Canton[], districts: District[] }> {
     return JSON.parse(JSON.stringify(await getCRGeoDataServer()));
 }
-
-// --- Geographic Management Actions ---
 
 export async function addProvince(name: string): Promise<Province> {
     return JSON.parse(JSON.stringify(await addProvinceServer(name)));
@@ -280,9 +304,6 @@ export async function saveTicketSettings(settings: { ticketPrefix: string; nextT
     return await saveTicketSettingsServer(settings);
 }
 
-/**
- * UI Preferences for tickets
- */
 export async function getTicketPreference(userId: number, key: string) {
     const prefs = await getUserPreferences(userId, 'tickets_ui_prefs');
     return prefs[key];

@@ -146,7 +146,6 @@ export async function getTicketThread(ticketId: number): Promise<TicketThread[]>
 }
 
 export async function addThreadEntry(payload: { ticketId: number; userId: number; userName: string; content: string; type: 'message' | 'note' | 'status_change' }): Promise<TicketThread> {
-    // Basic verification: user must have permission to reply
     await authorizeAction('tickets:reply');
     const db = await connectTicketsDb();
     const now = new Date().toISOString();
@@ -161,6 +160,21 @@ export async function updateTicketDetails(ticketId: number, updates: Partial<Pic
     const db = await connectTicketsDb();
     const currentTicket = db.prepare('SELECT * FROM tickets WHERE id = ?').get(ticketId) as DbTicketRow;
     if (!currentTicket) throw new Error("Ticket not found.");
+
+    const statusLabels: Record<string, string> = {
+        open: 'Abierto',
+        in_progress: 'En Progreso',
+        on_hold: 'En Espera',
+        completed: 'Completado',
+        canceled: 'Cancelado'
+    };
+
+    const priorityLabels: Record<string, string> = {
+        low: 'Baja',
+        medium: 'Media',
+        high: 'Alta',
+        urgent: 'Urgente'
+    };
     
     const transaction = db.transaction(() => {
         const now = new Date().toISOString();
@@ -172,7 +186,7 @@ export async function updateTicketDetails(ticketId: number, updates: Partial<Pic
         if (updates.status && updates.status !== currentTicket.status) {
             query += ', status = ?';
             params.push(updates.status);
-            notes.push(`Estado: ${updates.status}`);
+            notes.push(`Estado: ${statusLabels[updates.status] || updates.status}`);
 
             if (updates.status === 'in_progress') {
                 const running = db.prepare('SELECT id FROM time_entries WHERE ticketId = ? AND endTime IS NULL').get(ticketId);
@@ -196,10 +210,29 @@ export async function updateTicketDetails(ticketId: number, updates: Partial<Pic
             }
         }
 
-        if (updates.priority && updates.priority !== currentTicket.priority) { query += ', priority = ?'; params.push(updates.priority); notes.push(`Prioridad: ${updates.priority}`); }
-        if (updates.assigneeId !== undefined && updates.assigneeId !== currentTicket.assigneeId) { query += ', assigneeId = ?'; params.push(updates.assigneeId); notes.push(`Asignado`); }
-        if (updates.isBillable !== undefined && !!updates.isBillable !== (currentTicket.isBillable === 1)) { query += ', isBillable = ?'; params.push(updates.isBillable ? 1 : 0); notes.push(`Facturación: ${updates.isBillable ? 'Facturable' : 'No facturable'}`); }
-        if (updates.providerId !== undefined && updates.providerId !== currentTicket.providerId) { query += ', providerId = ?'; params.push(updates.providerId); notes.push(`Proveedor externo actualizado`); }
+        if (updates.priority && updates.priority !== currentTicket.priority) { 
+            query += ', priority = ?'; 
+            params.push(updates.priority); 
+            notes.push(`Prioridad: ${priorityLabels[updates.priority] || updates.priority}`); 
+        }
+        
+        if (updates.assigneeId !== undefined && updates.assigneeId !== currentTicket.assigneeId) { 
+            query += ', assigneeId = ?'; 
+            params.push(updates.assigneeId); 
+            notes.push(`Asignado`); 
+        }
+        
+        if (updates.isBillable !== undefined && !!updates.isBillable !== (currentTicket.isBillable === 1)) { 
+            query += ', isBillable = ?'; 
+            params.push(updates.isBillable ? 1 : 0); 
+            notes.push(`Facturación: ${updates.isBillable ? 'Facturable' : 'No facturable'}`); 
+        }
+        
+        if (updates.providerId !== undefined && updates.providerId !== currentTicket.providerId) { 
+            query += ', providerId = ?'; 
+            params.push(updates.providerId); 
+            notes.push(`Proveedor externo actualizado`); 
+        }
         
         query += ' WHERE id = ?';
         params.push(ticketId);
