@@ -1,3 +1,4 @@
+
 'use client';
 
 /**
@@ -16,7 +17,7 @@ import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Send, Loader2, MoreVertical, CreditCard, ShieldCheck, ShieldAlert, Truck, CheckCircle2, XCircle, PlayCircle, PauseCircle, Info, UserCircle, FileText, Download, Mail, UserCheck, KeyRound, Eye } from 'lucide-react';
+import { Send, Loader2, MoreVertical, CreditCard, ShieldCheck, ShieldAlert, Truck, CheckCircle2, XCircle, PlayCircle, PauseCircle, Info, UserCircle, FileText, Download, Mail, UserCheck, KeyRound, Eye, MessageCircle } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -173,7 +174,7 @@ export default function TicketDetailPage() {
         setIsDeleting(true);
         try {
             await actions.deleteTicket(ticket.id);
-            toast({ title: "Ticket Eliminado" });
+            toast({ title: "Ticket Eliminao" });
             router.push('/dashboard/tickets');
         } catch {
             toast({ title: "Error", variant: "destructive" });
@@ -200,7 +201,7 @@ export default function TicketDetailPage() {
         const tableRows = timeEntries.map(e => [
             format(parseISO(e.startTime), 'dd/MM/yy HH:mm'),
             e.notes || 'Soporte Técnico',
-            !e.isBillable ? 'Sí' : 'No', // Fixed inversion logic: if NOT billable, it IS under contract
+            !e.isBillable ? 'Sí' : 'No', 
             { content: formatDuration(e.duration), styles: { halign: 'right' as const } }
         ]);
 
@@ -283,7 +284,6 @@ export default function TicketDetailPage() {
 
     const selectedService = companyData?.servicesCatalog.find(s => s.id === ticket.serviceId);
 
-    // --- Sub-componentes de tarjetas para evitar duplicación en el layout adaptable ---
     const LinkedLicenseCard = () => {
         if (!linkedLicense) return null;
         const software = selectors.softwareProducts.find(p => p.id === linkedLicense.softwareId);
@@ -442,13 +442,33 @@ export default function TicketDetailPage() {
                 <p className="text-xs text-muted-foreground pt-2 flex items-center gap-1">
                     < Info className="h-3 w-3" /> Creado el {format(parseISO(ticket.createdAt), 'dd/MM/yy HH:mm')}
                 </p>
+                
+                <div className="flex flex-wrap gap-3 pt-3 border-t mt-2">
+                    {ticket.customerEmail && (
+                        <a 
+                            href={`mailto:${ticket.customerEmail}`} 
+                            className="text-[10px] text-primary hover:underline flex items-center gap-1 font-bold"
+                        >
+                            <Mail className="h-3 w-3" /> Enviar Correo
+                        </a>
+                    )}
+                    {linkedCustomer?.phone && (
+                        <a 
+                            href={`https://wa.me/${linkedCustomer.phone.replace(/\D/g, '')}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-[10px] text-green-600 hover:underline flex items-center gap-1 font-bold"
+                        >
+                            <MessageCircle className="h-3 w-3" /> WhatsApp
+                        </a>
+                    )}
+                </div>
             </CardContent>
         </Card>
     );
     
     return (
         <div className="flex h-[calc(100vh-4rem)] bg-muted/40 overflow-hidden">
-            {/* --- Columna 1: Conversación Central --- */}
             <div className="flex-1 flex flex-col min-0 bg-background border-r">
                 <header className="p-4 border-b bg-background flex justify-between items-center shrink-0">
                     <div>
@@ -580,7 +600,6 @@ export default function TicketDetailPage() {
                 </div>
             </div>
 
-            {/* --- Columna 2: Operaciones (Tiempo y Estado) --- */}
             <aside className="hidden md:flex flex-col w-80 lg:w-96 border-r bg-muted/5 p-4 space-y-6 overflow-y-auto shrink-0">
                 {hasPermission('tickets:time-tracking') && (
                     <TimeTracker 
@@ -669,7 +688,6 @@ export default function TicketDetailPage() {
                     </CardContent>
                 </Card>
 
-                {/* En pantallas menores a XL, mostramos aquí el resto de tarjetas */}
                 <div className="xl:hidden space-y-6 pt-4 border-t">
                     <BillingAndCoverageCard />
                     <ProviderCard />
@@ -677,7 +695,6 @@ export default function TicketDetailPage() {
                 </div>
             </aside>
 
-            {/* --- Columna 3: Información de Contexto (Solo XL+) --- */}
             <aside className="hidden xl:flex flex-col w-80 bg-background p-4 space-y-6 overflow-y-auto shrink-0 shadow-inner">
                 <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest px-1 mb-2">Contexto y Referencia</h3>
                 <BillingAndCoverageCard />
@@ -685,7 +702,6 @@ export default function TicketDetailPage() {
                 <CustomerCard />
             </aside>
 
-            {/* --- Diálogo de Cierre (Resolución/Cancelación) --- */}
             <Dialog open={isClosureDialogOpen} onOpenChange={setClosureDialogOpen}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>

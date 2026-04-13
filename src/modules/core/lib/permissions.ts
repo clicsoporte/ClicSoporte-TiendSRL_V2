@@ -16,7 +16,7 @@ export const permissionGroups = {
         "customers:read", "customers:create", "customers:update", "customers:delete", "customers:update:plan"
     ],
     "Contratos": [
-        "contracts:read", "customers:create", "contracts:update", "contracts:delete"
+        "contracts:read", "contracts:create", "contracts:update", "contracts:delete"
     ],
     "Gestión de Licencias": [
         "licenses:read", "licenses:manage", "licenses:admin:keys"
