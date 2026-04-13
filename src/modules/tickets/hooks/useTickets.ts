@@ -11,7 +11,7 @@ import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError } from '@/modules/core/lib/logger';
 import { useAuth } from '@/modules/core/hooks/useAuth';
-import type { NewTicketPayload, Ticket, TicketPriority, TicketStatus, TicketThread, User, HelpTopic, Contract, ThirdPartyProvider, CustomerContact } from '@/modules/core/types';
+import type { NewTicketPayload, Ticket, TicketPriority, TicketStatus, TicketThread, User, HelpTopic, Contract, ThirdPartyProvider, CustomerContact, License, SoftwareProduct } from '@/modules/core/types';
 import {
     saveTicket, getTickets, getTicketById as getTicketByIdServer,
     getTicketThread as getTicketThreadServer,
@@ -21,9 +21,11 @@ import {
     deleteTicket,
     getThirdPartyProviders,
     getTicketPreference,
-    saveTicketPreference
+    saveTicketPreference,
+    getLicensesByCustomer
 } from '../lib/actions';
 import { getActiveContractForCustomer } from '@/modules/contracts/lib/actions';
+import { getSoftwareProducts } from '@/modules/licenses/lib/actions';
 import { useDebounce } from 'use-debounce';
 
 const emptyTicket: NewTicketPayload = {
@@ -39,6 +41,7 @@ const emptyTicket: NewTicketPayload = {
     companyName: '',
     isBillable: false,
     contractId: null,
+    licenseId: null,
     providerId: null,
 };
 
@@ -58,6 +61,8 @@ const initialState = {
     currentThread: [] as TicketThread[],
     activeContract: null as Contract | null,
     providers: [] as ThirdPartyProvider[],
+    customerLicenses: [] as License[],
+    softwareProducts: [] as SoftwareProduct[],
     showOnlyMine: false,
 };
 
@@ -94,10 +99,11 @@ export const useTickets = () => {
     const loadInitialData = useCallback(async () => {
         updateState({ isLoading: true });
         try {
-            const [fetchedTickets, fetchedHelpTopics, fetchedProviders] = await Promise.all([
+            const [fetchedTickets, fetchedHelpTopics, fetchedProviders, fetchedSoftware] = await Promise.all([
                 getTickets(),
                 getHelpTopics(),
-                getThirdPartyProviders()
+                getThirdPartyProviders(),
+                getSoftwareProducts()
             ]);
             
             // Load user preference for filtering
@@ -107,13 +113,15 @@ export const useTickets = () => {
                     tickets: fetchedTickets, 
                     helpTopics: fetchedHelpTopics,
                     providers: fetchedProviders,
+                    softwareProducts: fetchedSoftware,
                     showOnlyMine: !!showOnlyMinePref
                 });
             } else {
                 updateState({ 
                     tickets: fetchedTickets, 
                     helpTopics: fetchedHelpTopics,
-                    providers: fetchedProviders
+                    providers: fetchedProviders,
+                    softwareProducts: fetchedSoftware
                 });
             }
         } catch (error) {
@@ -199,7 +207,10 @@ export const useTickets = () => {
         const customer = customers.find(c => c.id === customerId);
         if (!customer) return;
 
-        const contract = await getActiveContractForCustomer(customer.id);
+        const [contract, licenses] = await Promise.all([
+            getActiveContractForCustomer(customer.id),
+            getLicensesByCustomer(customer.id)
+        ]);
         
         setState(prevState => {
             const { isBillable } = validateCoverage(prevState.newTicket.serviceId, contract, customer.id);
@@ -213,9 +224,11 @@ export const useTickets = () => {
                     customerName: customer.name, 
                     customerEmail: customer.email || customer.electronicDocEmail,
                     contractId: contract?.id || null,
+                    licenseId: null, // Reset license on customer change
                     isBillable
                 },
                 activeContract: contract,
+                customerLicenses: licenses,
                 customerSearchTerm: customer.name,
                 isCustomerSearchOpen: false,
             };
@@ -278,6 +291,7 @@ export const useTickets = () => {
                     customerSearchTerm: '',
                     tickets: [createdTicket, ...prevState.tickets],
                     activeContract: null,
+                    customerLicenses: [],
                     isSubmitting: false
                 }));
 
@@ -320,7 +334,7 @@ export const useTickets = () => {
             }
         },
 
-        updateTicketDetails: async (ticketId: number, updates: Partial<Pick<Ticket, 'status' | 'priority' | 'assigneeId' | 'isBillable' | 'providerId'>>, u: User): Promise<Ticket | null> => {
+        updateTicketDetails: async (ticketId: number, updates: Partial<Pick<Ticket, 'status' | 'priority' | 'assigneeId' | 'isBillable' | 'providerId' | 'licenseId'>>, u: User): Promise<Ticket | null> => {
             try {
                 const updatedTicket = await updateTicketDetailsServer(ticketId, updates, u);
                 const thread = await getTicketThreadServer(ticketId);
@@ -341,7 +355,7 @@ export const useTickets = () => {
         },
 
         resetNewTicketForm: () => {
-            updateState({ newTicket: emptyTicket, selectedCustomerId: null, customerSearchTerm: '', activeContract: null });
+            updateState({ newTicket: emptyTicket, selectedCustomerId: null, customerSearchTerm: '', activeContract: null, customerLicenses: [] });
         }
     }), [updateState, toast, users, handleNewTicketChange, handleSelectCompany, user]);
 
@@ -364,8 +378,9 @@ export const useTickets = () => {
             return searchMatch && statusMatch && priorityMatch && assigneeMatch;
         }),
         coverageMessage: validateCoverage(state.newTicket.serviceId, state.activeContract, state.selectedCustomerId).message,
-        providers: state.providers
-    }), [users, customers, debouncedCustomerSearch, debouncedSearchTerm, state.tickets, state.statusFilter, state.priorityFilter, state.showOnlyMine, state.newTicket.serviceId, state.activeContract, state.selectedCustomerId, state.providers, validateCoverage, user]);
+        providers: state.providers,
+        softwareProducts: state.softwareProducts
+    }), [users, customers, debouncedCustomerSearch, debouncedSearchTerm, state.tickets, state.statusFilter, state.priorityFilter, state.showOnlyMine, state.newTicket.serviceId, state.activeContract, state.selectedCustomerId, state.providers, state.softwareProducts, validateCoverage, user]);
 
     return {
         state,

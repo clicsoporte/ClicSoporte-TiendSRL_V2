@@ -1,5 +1,7 @@
+
 /**
  * @fileoverview Client-side component for Support Tickets.
+ * Enhanced with responsive Card view for mobile devices.
  */
 'use client';
 
@@ -7,7 +9,7 @@ import { useTickets } from "@/modules/tickets/hooks/useTickets";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
-import { FilePlus, Loader2, FilterX, ShieldCheck, ShieldAlert, Clock, Info, EyeOff, MapPin, Zap, UserCircle, Mail, MessageCircle } from "lucide-react";
+import { FilePlus, Loader2, FilterX, ShieldCheck, ShieldAlert, Clock, Info, EyeOff, MapPin, Zap, UserCircle, Mail, MessageCircle, KeyRound, ChevronRight } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -22,7 +24,7 @@ import { useRouter } from "next/navigation";
 import { useAuthorization } from "@/modules/core/hooks/useAuthorization";
 import Link from "next/link";
 import { useAuth } from "@/modules/core/hooks/useAuth";
-import type { Ticket, CustomerContact } from '@/modules/core/types';
+import type { Ticket, CustomerContact, License } from '@/modules/core/types';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
 import { useMemo } from "react";
@@ -47,6 +49,7 @@ export default function TicketsClient() {
         activeContract,
         providers,
         selectedCustomerId,
+        customerLicenses,
         showOnlyMine
     } = state;
 
@@ -54,7 +57,7 @@ export default function TicketsClient() {
     const customerContacts = selectedCustomer?.contacts || [];
     const isCustomerBlocked = selectedCustomer?.isBlocked || false;
 
-    // Intelligence: Provider rate matching with Margin, VAT and Travel Logic
+    // Intelligence: Provider rate matching
     const providerRateInfo = useMemo(() => {
         if (!newTicket.providerId || !newTicket.serviceId) return null;
         const provider = providers.find(p => p.id === Number(newTicket.providerId));
@@ -65,12 +68,10 @@ export default function TicketsClient() {
         const billingType = serviceDefinition?.billingType || 'hour';
         const unitSuffix = billingType === 'task' ? 'Tarea' : 'Hora';
         
-        // Find travel rate matching customer location
         let travelRate = null;
         if (selectedCustomerId) {
             const customer = customers.find(c => c.id === selectedCustomerId);
             if (customer && provider.geoRates) {
-                // Priority: District match -> Canton match -> Province match
                 travelRate = provider.geoRates.find(g => 
                     g.provinceId === customer.provinceId && 
                     g.cantonId === customer.cantonId && 
@@ -166,13 +167,56 @@ export default function TicketsClient() {
         );
     }
 
+    const renderTicketCard = (ticket: Ticket) => {
+        const { priorityConfig, statusConfig } = selectors;
+        const assignee = users.find(u => u.id === ticket.assigneeId);
+
+        return (
+            <Card key={ticket.id} className="mb-3 cursor-pointer hover:border-primary transition-all active:scale-[0.98]" onClick={() => router.push(`/dashboard/tickets/${ticket.id}`)}>
+                <CardHeader className="p-4 pb-2">
+                    <div className="flex justify-between items-start">
+                        <Badge variant="outline" className="font-mono text-[10px] border-primary/20 text-primary">{ticket.consecutive}</Badge>
+                        <div className="flex gap-1">
+                            <Badge variant={priorityConfig[ticket.priority]?.variant} className="text-[9px] h-5">
+                                {priorityConfig[ticket.priority]?.label || ticket.priority}
+                            </Badge>
+                            <Badge className={cn("text-[9px] h-5 uppercase", statusConfig[ticket.status]?.color)}>
+                                {statusConfig[ticket.status]?.label || ticket.status}
+                            </Badge>
+                        </div>
+                    </div>
+                    <CardTitle className="text-sm font-bold mt-2 line-clamp-2">{ticket.subject}</CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 pt-0 space-y-3">
+                    <div className="flex flex-col">
+                        <span className="text-xs font-black uppercase text-muted-foreground tracking-tighter">Cliente</span>
+                        <span className="text-sm font-bold">{ticket.customerName}</span>
+                    </div>
+                    <div className="flex justify-between items-center pt-2 border-t border-dashed">
+                        <div className="flex items-center gap-2">
+                            <Clock className={cn("h-3.5 w-3.5", ticket.hasActiveTimer ? "text-green-600 animate-pulse" : "text-muted-foreground")} />
+                            <span className={cn("text-xs font-mono", ticket.hasActiveTimer && "text-green-600 font-bold")}>{formatDuration(ticket.totalDuration)}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                            <UserCircle className="h-3.5 w-3.5 text-primary/50" />
+                            <span className="text-[10px] font-medium">{assignee?.name.split(' ')[0] || 'S/A'}</span>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+        );
+    }
+
     return (
         <main className="flex-1 p-4 md:p-6 lg:p-8">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center justify-between mb-6 gap-4">
-                <h1 className="text-2xl font-bold">Mesa de Ayuda</h1>
-                <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold">Mesa de Ayuda</h1>
+                    <p className="text-xs text-muted-foreground mt-1">Gestión operativa de incidentes y servicios.</p>
+                </div>
+                <div className="flex gap-2 w-full sm:w-auto">
                      {hasPermission('tickets:admin:settings') && (
-                        <Button variant="outline" asChild size="sm">
+                        <Button variant="outline" asChild size="sm" className="flex-1 sm:flex-none">
                             <Link href="/dashboard/admin/tickets">
                                 <FilePlus className="mr-2 h-4 w-4" /> Configuración
                             </Link>
@@ -180,7 +224,7 @@ export default function TicketsClient() {
                     )}
                     <Dialog open={isNewTicketDialogOpen} onOpenChange={(open) => { actions.setNewTicketDialogOpen(open); if(!open) actions.resetNewTicketForm(); }}>
                         <DialogTrigger asChild>
-                            <Button size="sm"><FilePlus className="mr-2 h-4 w-4" /> Nuevo Ticket</Button>
+                            <Button size="sm" className="flex-1 sm:flex-none shadow-md"><FilePlus className="mr-2 h-4 w-4" /> Nuevo Ticket</Button>
                         </DialogTrigger>
                         <DialogContent className="sm:max-w-5xl h-[90vh] flex flex-col p-0 overflow-hidden" onPointerDownOutside={(e) => e.preventDefault()}>
                             <form onSubmit={(e) => { e.preventDefault(); actions.handleCreateTicket(); }} className="flex flex-col flex-1 h-full">
@@ -254,6 +298,29 @@ export default function TicketsClient() {
                                                 />
                                             </div>
                                             
+                                            {selectedCustomerId && !isCustomerBlocked && (
+                                                <div className="space-y-2">
+                                                    <Label className="text-xs">Licencia Vinculada (Opcional)</Label>
+                                                    <Select value={String(newTicket.licenseId || 'none')} onValueChange={(v) => actions.handleNewTicketChange('licenseId', v === 'none' ? null : Number(v))}>
+                                                        <SelectTrigger className="h-8 text-xs">
+                                                            <SelectValue placeholder="Vincular licencia instalada..." />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="none">Sin licencia asociada</SelectItem>
+                                                            {customerLicenses.map((lic: License) => {
+                                                                const software = selectors.softwareProducts.find(p => p.id === lic.softwareId);
+                                                                return (
+                                                                    <SelectItem key={lic.id} value={String(lic.id)}>
+                                                                        {software?.name || 'Software'} - {lic.isPerpetual ? 'Perpetua' : lic.expirationDate}
+                                                                    </SelectItem>
+                                                                );
+                                                            })}
+                                                        </SelectContent>
+                                                    </Select>
+                                                    <p className="text-[10px] text-muted-foreground italic">Vincule el ticket para saber qué licencia instalar o reparar.</p>
+                                                </div>
+                                            )}
+
                                             {activeContract && !isCustomerBlocked && (
                                                 <div className="bg-primary/5 p-3 rounded-lg border border-primary/20 space-y-1">
                                                     <p className="text-[10px] font-bold text-primary uppercase">Contrato Activo</p>
@@ -424,11 +491,16 @@ export default function TicketsClient() {
             <Card>
                 <CardHeader>
                     <div className="flex flex-col md:flex-row gap-4 items-center">
-                        <Input placeholder="Buscar por Nº ticket, asunto o cliente..." value={searchTerm} onChange={(e) => actions.setSearchTerm(e.target.value)} className="max-w-sm h-9" />
-                        <Select value={statusFilter} onValueChange={actions.setStatusFilter}><SelectTrigger className="w-full md:w-[180px] h-9"><SelectValue placeholder="Estado"/></SelectTrigger><SelectContent><SelectItem value="all">Todos los Estados</SelectItem>{Object.entries(selectors.statusConfig).map(([key, config]) => (<SelectItem key={key} value={key}>{config.label}</SelectItem>))}</SelectContent></Select>
-                        <Select value={priorityFilter} onValueChange={actions.setPriorityFilter}><SelectTrigger className="w-full md:w-[180px] h-9"><SelectValue placeholder="Prioridad"/></SelectTrigger><SelectContent><SelectItem value="all">Todas las Prioridades</SelectItem>{Object.entries(selectors.priorityConfig).map(([key, config]) => (<SelectItem key={key} value={key}>{config.label}</SelectItem>))}</SelectContent></Select>
+                        <div className="relative flex-1 w-full max-w-sm">
+                            <MessageCircle className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input placeholder="Buscar por Nº ticket, asunto o cliente..." value={searchTerm} onChange={(e) => actions.setSearchTerm(e.target.value)} className="pl-9 h-9" />
+                        </div>
+                        <div className="grid grid-cols-2 md:flex gap-2 w-full md:w-auto">
+                            <Select value={statusFilter} onValueChange={actions.setStatusFilter}><SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Estado"/></SelectTrigger><SelectContent><SelectItem value="all">Todos los Estados</SelectItem>{Object.entries(selectors.statusConfig).map(([key, config]) => (<SelectItem key={key} value={key}>{config.label}</SelectItem>))}</SelectContent></Select>
+                            <Select value={priorityFilter} onValueChange={actions.setPriorityFilter}><SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Prioridad"/></SelectTrigger><SelectContent><SelectItem value="all">Todas las Prioridades</SelectItem>{Object.entries(selectors.priorityConfig).map(([key, config]) => (<SelectItem key={key} value={key}>{config.label}</SelectItem>))}</SelectContent></Select>
+                        </div>
                         
-                        <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/30 rounded-md border border-dashed border-primary/20">
+                        <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/30 rounded-md border border-dashed border-primary/20 w-full md:w-auto">
                             <Checkbox 
                                 id="show-only-mine" 
                                 checked={showOnlyMine} 
@@ -437,11 +509,12 @@ export default function TicketsClient() {
                             <Label htmlFor="show-only-mine" className="text-xs whitespace-nowrap cursor-pointer font-bold text-primary/80">Solo mis tickets</Label>
                         </div>
 
-                        <Button variant="ghost" size="sm" onClick={actions.clearFilters} className="h-9"><FilterX className="mr-2 h-4 w-4"/>Limpiar</Button>
+                        <Button variant="ghost" size="sm" onClick={actions.clearFilters} className="h-9 w-full md:w-auto"><FilterX className="mr-2 h-4 w-4"/>Limpiar</Button>
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <div className="rounded-md border">
+                    {/* Desktop Table View */}
+                    <div className="hidden md:block rounded-md border">
                         <Table>
                             <TableHeader>
                                 <TableRow className="bg-muted/50">
@@ -463,6 +536,17 @@ export default function TicketsClient() {
                                 )}
                             </TableBody>
                         </Table>
+                    </div>
+
+                    {/* Mobile Card View (Optimized for 6" screens) */}
+                    <div className="md:hidden space-y-3">
+                        {selectors.filteredTickets.length > 0 ? (
+                            selectors.filteredTickets.map(renderTicketCard)
+                        ) : (
+                            <div className="text-center py-10 text-muted-foreground italic border-2 border-dashed rounded-lg">
+                                No se encontraron casos.
+                            </div>
+                        )}
                     </div>
                 </CardContent>
             </Card>

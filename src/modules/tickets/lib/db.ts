@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Server-side functions for the support tickets module.
  * Unified into intratool.db. Tables prefixed with ticket_.
@@ -9,7 +10,7 @@ import { connectDb } from '@/modules/core/lib/db';
 import { logError } from '@/modules/core/lib/logger';
 import { getCompanySettings } from '@/modules/core/lib/settings-db';
 import { authorizeAction } from '@/modules/core/lib/auth-guard';
-import type { Ticket, NewTicketPayload, User, TicketThread, HelpTopic, ClientCompany, SupportPackage, Service, ThirdPartyProvider, ProviderService, ProviderGeoRate, Province, Canton, District } from '@/modules/core/types';
+import type { Ticket, NewTicketPayload, User, TicketThread, HelpTopic, ClientCompany, SupportPackage, Service, ThirdPartyProvider, ProviderService, ProviderGeoRate, Province, Canton, District, License } from '@/modules/core/types';
 
 /**
  * Interface representing a Ticket row as it comes from the database.
@@ -64,9 +65,9 @@ export async function addTicket(payload: NewTicketPayload, user: User): Promise<
             }
 
             const info = db.prepare(`
-                INSERT INTO tickets (consecutive, subject, status, priority, createdAt, updatedAt, companyId, customerName, companyName, assigneeId, helpTopicId, serviceId, dueDate, contractId, isBillable, providerId)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `).run(consecutive, payload.subject, 'open', priority, now, now, payload.companyId, payload.customerName, companyName, assigneeId, payload.helpTopicId, payload.serviceId, payload.dueDate || null, payload.contractId, payload.isBillable ? 1 : 0, payload.providerId);
+                INSERT INTO tickets (consecutive, subject, status, priority, createdAt, updatedAt, companyId, customerName, companyName, assigneeId, helpTopicId, serviceId, dueDate, contractId, licenseId, isBillable, providerId)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `).run(consecutive, payload.subject, 'open', priority, now, now, payload.companyId, payload.customerName, companyName, assigneeId, payload.helpTopicId, payload.serviceId, payload.dueDate || null, payload.contractId, payload.licenseId || null, payload.isBillable ? 1 : 0, payload.providerId);
             
             db.prepare('INSERT INTO ticket_threads (ticketId, userId, userName, type, content, createdAt) VALUES (?, ?, ?, ?, ?, ?)')
               .run(info.lastInsertRowid, user.id, user.name, 'message', payload.content, now);
@@ -155,7 +156,7 @@ export async function addThreadEntry(payload: { ticketId: number; userId: number
     return JSON.parse(JSON.stringify(row));
 }
 
-export async function updateTicketDetails(ticketId: number, updates: Partial<Pick<Ticket, 'status' | 'priority' | 'assigneeId' | 'isBillable' | 'providerId'>>, user: User): Promise<Ticket> {
+export async function updateTicketDetails(ticketId: number, updates: Partial<Pick<Ticket, 'status' | 'priority' | 'assigneeId' | 'isBillable' | 'providerId' | 'licenseId'>>, user: User): Promise<Ticket> {
     await authorizeAction('tickets:manage');
     const db = await connectTicketsDb();
     const currentTicket = db.prepare('SELECT * FROM tickets WHERE id = ?').get(ticketId) as DbTicketRow;
@@ -232,6 +233,12 @@ export async function updateTicketDetails(ticketId: number, updates: Partial<Pic
             query += ', providerId = ?'; 
             params.push(updates.providerId); 
             notes.push(`Proveedor externo actualizado`); 
+        }
+
+        if (updates.licenseId !== undefined && updates.licenseId !== currentTicket.licenseId) { 
+            query += ', licenseId = ?'; 
+            params.push(updates.licenseId); 
+            notes.push(`Licencia vinculada actualizada`); 
         }
         
         query += ' WHERE id = ?';
@@ -464,4 +471,10 @@ export async function saveTicketSettings(settings: { ticketPrefix: string; nextT
     const db = await connectTicketsDb();
     db.prepare("INSERT OR REPLACE INTO ticket_settings (key, value) VALUES ('ticketPrefix', ?)").run(settings.ticketPrefix);
     db.prepare("INSERT OR REPLACE INTO ticket_settings (key, value) VALUES ('nextTicketNumber', ?)").run(String(settings.nextTicketNumber));
+}
+
+export async function getLicensesByCustomer(customerId: string): Promise<License[]> {
+    const db = await connectTicketsDb();
+    const rows = db.prepare("SELECT * FROM licenses WHERE customerId = ? AND status = 'active'").all(customerId) as License[];
+    return JSON.parse(JSON.stringify(rows));
 }

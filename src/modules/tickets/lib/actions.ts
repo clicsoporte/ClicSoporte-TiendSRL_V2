@@ -1,10 +1,11 @@
+
 /**
  * @fileoverview Client-side functions for interacting with the ticket module's server-side DB functions.
  */
 'use client';
 
 import { logInfo, logError } from '@/modules/core/lib/logger';
-import type { Ticket, NewTicketPayload, User, TicketThread, HelpTopic, ClientCompany, SupportPackage, Service, ThirdPartyProvider, ProviderService, ProviderGeoRate, Province, Canton, District } from '@/modules/core/types';
+import type { Ticket, NewTicketPayload, User, TicketThread, HelpTopic, ClientCompany, SupportPackage, Service, ThirdPartyProvider, ProviderService, ProviderGeoRate, Province, Canton, District, License } from '@/modules/core/types';
 import { 
     addTicket as addTicketServer, 
     getTickets as getTicketsServer, 
@@ -41,7 +42,8 @@ import {
     updateDistrict as updateDistrictServer,
     deleteDistrict as deleteDistrictServer,
     getTicketSettings as getTicketSettingsServer,
-    saveTicketSettings as saveTicketSettingsServer
+    saveTicketSettings as saveTicketSettingsServer,
+    getLicensesByCustomer as getLicensesByCustomerServer
 } from './db';
 import { triggerNotificationEvent } from '@/modules/notifications/lib/notifications-engine';
 import { getUserPreferences, saveUserPreferences } from '@/modules/core/lib/db';
@@ -155,7 +157,7 @@ export async function addThreadEntry(payload: { ticketId: number; userId: number
     return JSON.parse(JSON.stringify(newEntry));
 }
 
-export async function updateTicketDetails(ticketId: number, updates: Partial<Pick<Ticket, 'status' | 'priority' | 'assigneeId' | 'isBillable' | 'providerId'>>, user: User): Promise<Ticket> {
+export async function updateTicketDetails(ticketId: number, updates: Partial<Pick<Ticket, 'status' | 'priority' | 'assigneeId' | 'isBillable' | 'providerId' | 'licenseId'>>, user: User): Promise<Ticket> {
     const updatedTicket = await updateTicketDetailsServer(ticketId, updates, user);
     
     // Notification with translations
@@ -313,4 +315,9 @@ export async function saveTicketPreference(userId: number, key: string, value: u
     const prefs = await getUserPreferences(userId, 'tickets_ui_prefs');
     prefs[key] = value;
     await saveUserPreferences(userId, 'tickets_ui_prefs', prefs);
+}
+
+export async function getLicensesByCustomer(customerId: string): Promise<License[]> {
+    const results = await getLicensesByCustomerServer(customerId);
+    return JSON.parse(JSON.stringify(results));
 }

@@ -248,6 +248,7 @@ export async function initializeMainDatabase(db: Database) {
             helpTopicId INTEGER,
             serviceId TEXT,
             contractId INTEGER,
+            licenseId INTEGER,
             isBillable INTEGER DEFAULT 0,
             providerId INTEGER
         );
@@ -665,7 +666,7 @@ export async function runMainMigrations(db: Database) {
 
     const ticketFields = [
         ['companyName', 'TEXT'], ['helpTopicId', 'INTEGER'], ['serviceId', 'TEXT'],
-        ['dueDate', 'TEXT'], ['contractId', 'INTEGER'], ['isBillable', 'INTEGER DEFAULT 0'],
+        ['dueDate', 'TEXT'], ['contractId', 'INTEGER'], ['licenseId', 'INTEGER'], ['isBillable', 'INTEGER DEFAULT 0'],
         ['providerId', 'INTEGER']
     ];
     ticketFields.forEach(([field, type]) => {

@@ -679,6 +679,7 @@ export type Ticket = {
     helpTopicId?: number | null;
     serviceId?: string | null;
     contractId?: number | null;
+    licenseId?: number | null;
     isBillable: boolean;
     providerId?: number | null;
     totalDuration?: number;
@@ -710,6 +711,7 @@ export type NewTicketPayload = {
     assigneeId?: number | null;
     dueDate?: string;
     contractId?: number | null;
+    licenseId?: number | null;
     isBillable: boolean;
     providerId?: number | null;
 };

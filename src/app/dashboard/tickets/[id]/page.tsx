@@ -3,12 +3,13 @@
 
 /**
  * @fileoverview Ticket detail page with multi-column layout for operations and context info.
+ * Enhanced with linked license information.
  */
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useTickets } from '@/modules/tickets/hooks/useTickets';
-import type { Ticket, TicketThread, TicketPriority, ThirdPartyProvider, TimeEntry } from '@/modules/core/types';
+import type { Ticket, TicketThread, TicketPriority, ThirdPartyProvider, TimeEntry, License, SoftwareProduct } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,7 +17,7 @@ import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Send, Loader2, MoreVertical, CreditCard, ShieldCheck, ShieldAlert, Truck, CheckCircle2, XCircle, PlayCircle, PauseCircle, Info, UserCircle, FileText, Download, Mail, UserCheck } from 'lucide-react';
+import { Send, Loader2, MoreVertical, CreditCard, ShieldCheck, ShieldAlert, Truck, CheckCircle2, XCircle, PlayCircle, PauseCircle, Info, UserCircle, FileText, Download, Mail, UserCheck, KeyRound } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -24,7 +25,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose, DialogTrigger } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
@@ -33,6 +34,7 @@ import { TimeTracker } from '@/components/tickets/time-tracker';
 import { getEntriesForTicket } from '@/modules/timesheet/lib/actions';
 import { generateDocument } from '@/modules/core/lib/pdf-generator';
 import { sendTicketReportByEmail } from '@/modules/tickets/lib/report-email-actions';
+import { getLicenses } from '@/modules/licenses/lib/actions';
 
 const getInitials = (name: string) => {
     if (!name) return "??";
@@ -55,6 +57,7 @@ export default function TicketDetailPage() {
     const [isReplying, setIsReplying] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [isInitialLoading, setIsInitialLoading] = useState(true);
+    const [allLicenses, setAllLicenses] = useState<License[]>([]);
 
     const [isClosureDialogOpen, setClosureDialogOpen] = useState(false);
     const [closureType, setClosureType] = useState<'completed' | 'canceled'>('completed');
@@ -73,18 +76,25 @@ export default function TicketDetailPage() {
         return customers.find(c => c.name === ticket.customerName || c.name === ticket.companyName);
     }, [ticket, customers]);
 
+    const linkedLicense = useMemo(() => {
+        if (!ticket?.licenseId || allLicenses.length === 0) return null;
+        return allLicenses.find(l => l.id === ticket.licenseId);
+    }, [ticket?.licenseId, allLicenses]);
+
     const loadData = useCallback(async () => {
         if (ticketId && isAuthorized) {
-            const [ticketData, threadData, entriesData] = await Promise.all([
+            const [ticketData, threadData, entriesData, licensesData] = await Promise.all([
                 actions.getTicketById(ticketId),
                 actions.getTicketThread(ticketId),
-                getEntriesForTicket(ticketId)
+                getEntriesForTicket(ticketId),
+                getLicenses()
             ]);
             
             if (ticketData) {
                 setTicket(ticketData);
                 setThread(threadData);
                 setTimeEntries(entriesData);
+                setAllLicenses(licensesData);
             }
             setIsInitialLoading(false);
         }
@@ -111,7 +121,7 @@ export default function TicketDetailPage() {
         setIsReplying(false);
     };
 
-    const handleDetailUpdate = async (updates: Partial<Pick<Ticket, 'status' | 'priority' | 'assigneeId' | 'isBillable' | 'providerId'>>) => {
+    const handleDetailUpdate = async (updates: Partial<Pick<Ticket, 'status' | 'priority' | 'assigneeId' | 'isBillable' | 'providerId' | 'licenseId'>>) => {
         if (!currentUser || !hasPermission('tickets:manage')) {
              toast({ title: "Accion no permitida", description: "No tienes permiso para gestionar metadatos de tickets.", variant: "destructive" });
             return;
@@ -274,6 +284,38 @@ export default function TicketDetailPage() {
     const selectedService = companyData?.servicesCatalog.find(s => s.id === ticket.serviceId);
 
     // --- Sub-componentes de tarjetas para evitar duplicación en el layout adaptable ---
+    const LinkedLicenseCard = () => {
+        if (!linkedLicense) return null;
+        const software = selectors.softwareProducts.find(p => p.id === linkedLicense.softwareId);
+        
+        return (
+            <Card className="border-blue-200 bg-blue-50/20">
+                <CardHeader className="p-4 pb-2">
+                    <CardTitle className="text-sm font-bold flex items-center gap-2">
+                        <KeyRound className="h-4 w-4 text-blue-600" /> LICENCIA VINCULADA
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 pt-0 space-y-2">
+                    <div className="text-xs">
+                        <p className="font-bold text-blue-900">{software?.name || 'Software'}</p>
+                        <p className="text-muted-foreground mt-1">
+                            {software?.isInternal ? 'Hardware ID:' : 'Serial/Key:'}
+                        </p>
+                        <p className="font-mono bg-blue-100/50 p-1.5 rounded border border-blue-200 mt-1 select-all truncate">
+                            {software?.isInternal ? linkedLicense.hardwareId : linkedLicense.licenseKey}
+                        </p>
+                        <div className="flex justify-between items-center mt-2">
+                            <span className="text-[10px] text-muted-foreground">Vencimiento:</span>
+                            <Badge variant={linkedLicense.isPerpetual ? 'default' : 'outline'} className="text-[9px] h-4">
+                                {linkedLicense.isPerpetual ? 'Perpetua' : (linkedLicense.expirationDate || 'N/A')}
+                            </Badge>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+        );
+    };
+
     const BillingAndCoverageCard = () => (
         <Card className={cn(ticket.isBillable ? "border-destructive bg-destructive/5" : "border-green-200 bg-green-50/30")}>
             <CardHeader className="p-4 pb-2">
@@ -497,6 +539,8 @@ export default function TicketDetailPage() {
                         ticketStatus={ticket.status}
                     />
                 )}
+
+                <LinkedLicenseCard />
 
                 <Card>
                     <CardHeader className="p-4 pb-2"><CardTitle className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Flujo de Trabajo</CardTitle></CardHeader>
