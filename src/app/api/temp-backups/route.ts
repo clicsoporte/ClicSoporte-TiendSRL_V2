@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
         const backupDir = path.join(process.cwd(), 'dbs', 'update_backups');
         const filePath = path.join(backupDir, sanitizedFileName);
         
+        // Safety check for build time or missing files
         if (!fs.existsSync(filePath)) {
             return new NextResponse('File not found', { status: 404 });
         }

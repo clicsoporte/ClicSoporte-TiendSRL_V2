@@ -1,10 +1,11 @@
 /**
- * @fileoverview Redundant route handler.
+ * @fileoverview Redundant route handler. 
+ * Returning a minimal response to prevent build conflicts.
  */
 import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-    return new NextResponse('Route moved to /api/temp-backups', { status: 404 });
+    return new NextResponse('Redirected to /api/temp-backups', { status: 404 });
 }
