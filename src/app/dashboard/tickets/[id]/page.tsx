@@ -8,10 +8,10 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useTickets } from '@/modules/tickets/hooks/useTickets';
-import type { Ticket, TicketThread, TicketPriority, ThirdPartyProvider, TimeEntry, License, User } from '@/modules/core/types';
+import type { Ticket, TicketThread, TicketPriority, ThirdPartyProvider, TimeEntry, License } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
@@ -449,7 +449,7 @@ export default function TicketDetailPage() {
     return (
         <div className="flex h-[calc(100vh-4rem)] bg-muted/40 overflow-hidden">
             {/* --- Columna 1: Conversación Central --- */}
-            <div className="flex-1 flex flex-col min-w-0 bg-background border-r">
+            <div className="flex-1 flex flex-col min-0 bg-background border-r">
                 <header className="p-4 border-b bg-background flex justify-between items-center shrink-0">
                     <div>
                         <h1 className="text-xl font-bold truncate max-w-md lg:max-w-xl">{ticket.subject}</h1>
