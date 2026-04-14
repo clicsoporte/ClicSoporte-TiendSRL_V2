@@ -444,9 +444,9 @@ export default function TicketDetailPage() {
                 </p>
                 
                 <div className="flex flex-wrap gap-3 pt-3 border-t mt-2">
-                    {ticket.customerEmail && (
+                    {(ticket.customerEmail || linkedCustomer?.email) && (
                         <a 
-                            href={`mailto:${ticket.customerEmail}`} 
+                            href={`mailto:${ticket.customerEmail || linkedCustomer?.email}`} 
                             className="text-[10px] text-primary hover:underline flex items-center gap-1 font-bold"
                         >
                             <Mail className="h-3 w-3" /> Enviar Correo
