@@ -122,6 +122,7 @@ export async function initializeMainDatabase(db: Database) {
             isTaxMoroso INTEGER DEFAULT 0,
             isTaxOmiso INTEGER DEFAULT 0,
             taxAdministration TEXT,
+            taxAdministration TEXT,
             taxActivities TEXT,
             provinceId INTEGER,
             cantonId INTEGER,
@@ -243,6 +244,7 @@ export async function initializeMainDatabase(db: Database) {
             companyId INTEGER,
             customerName TEXT, 
             customerEmail TEXT,
+            customerPhone TEXT,
             companyName TEXT,
             assigneeId INTEGER,
             helpTopicId INTEGER,
@@ -667,7 +669,7 @@ export async function runMainMigrations(db: Database) {
     const ticketFields = [
         ['companyName', 'TEXT'], ['helpTopicId', 'INTEGER'], ['serviceId', 'TEXT'],
         ['dueDate', 'TEXT'], ['contractId', 'INTEGER'], ['licenseId', 'INTEGER'], ['isBillable', 'INTEGER DEFAULT 0'],
-        ['providerId', 'INTEGER']
+        ['providerId', 'INTEGER'], ['customerPhone', 'TEXT']
     ];
     ticketFields.forEach(([field, type]) => {
         if (!hasColumn('tickets', field)) db.exec(`ALTER TABLE tickets ADD COLUMN ${field} ${type};`);

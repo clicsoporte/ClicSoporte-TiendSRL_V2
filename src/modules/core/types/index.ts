@@ -674,6 +674,7 @@ export type Ticket = {
     companyId: number | null;
     customerName: string; 
     customerEmail: string;
+    customerPhone?: string;
     companyName?: string;
     assigneeId?: number | null;
     helpTopicId?: number | null;

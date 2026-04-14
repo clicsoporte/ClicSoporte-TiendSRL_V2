@@ -174,7 +174,7 @@ export default function TicketDetailPage() {
         setIsDeleting(true);
         try {
             await actions.deleteTicket(ticket.id);
-            toast({ title: "Ticket Eliminao" });
+            toast({ title: "Ticket Eliminado" });
             router.push('/dashboard/tickets');
         } catch {
             toast({ title: "Error", variant: "destructive" });
@@ -420,52 +420,57 @@ export default function TicketDetailPage() {
         </Card>
     );
 
-    const CustomerCard = () => (
-        <Card className={cn(linkedCustomer?.isBlocked && "border-destructive")}>
-            <CardHeader className="p-4 pb-2">
-                <CardTitle className="text-sm font-bold flex items-center gap-2">
-                    <UserCircle className="h-4 w-4" /> INFORMACIÓN DEL CLIENTE
-                </CardTitle>
-            </CardHeader>
-            <CardContent className="p-4 pt-0 text-sm space-y-1">
-                <div className="flex items-center justify-between">
-                    <p className="font-bold">{ticket.customerName}</p>
-                    {linkedCustomer?.isBlocked && <Badge variant="destructive" className="text-[8px] h-4">BLOQUEADO</Badge>}
-                </div>
-                {ticket.companyName && <p className="text-xs text-muted-foreground">{ticket.companyName}</p>}
-                {linkedCustomer?.isBlocked && (
-                    <div className="mt-2 p-2 bg-destructive/5 rounded border border-destructive/20">
-                        <p className="text-[10px] font-bold text-destructive uppercase">Motivo del Bloqueo:</p>
-                        <p className="text-[10px] italic">{linkedCustomer.blockedReason || 'Administrativo'}</p>
+    const CustomerCard = () => {
+        const displayEmail = ticket.customerEmail || linkedCustomer?.email;
+        const displayPhone = ticket.customerPhone || linkedCustomer?.phone;
+
+        return (
+            <Card className={cn(linkedCustomer?.isBlocked && "border-destructive")}>
+                <CardHeader className="p-4 pb-2">
+                    <CardTitle className="text-sm font-bold flex items-center gap-2">
+                        <UserCircle className="h-4 w-4" /> INFORMACIÓN DEL CLIENTE
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 pt-0 text-sm space-y-1">
+                    <div className="flex items-center justify-between">
+                        <p className="font-bold">{ticket.customerName}</p>
+                        {linkedCustomer?.isBlocked && <Badge variant="destructive" className="text-[8px] h-4">BLOQUEADO</Badge>}
                     </div>
-                )}
-                <p className="text-xs text-muted-foreground pt-2 flex items-center gap-1">
-                    < Info className="h-3 w-3" /> Creado el {format(parseISO(ticket.createdAt), 'dd/MM/yy HH:mm')}
-                </p>
-                
-                <div className="flex flex-wrap gap-3 pt-3 border-t mt-2">
-                    {(ticket.customerEmail || linkedCustomer?.email) && (
-                        <a 
-                            href={`mailto:${ticket.customerEmail || linkedCustomer?.email}`} 
-                            className="text-[10px] text-primary hover:underline flex items-center gap-1 font-bold"
-                        >
-                            <Mail className="h-3 w-3" /> Enviar Correo
-                        </a>
+                    {ticket.companyName && <p className="text-xs text-muted-foreground">{ticket.companyName}</p>}
+                    {linkedCustomer?.isBlocked && (
+                        <div className="mt-2 p-2 bg-destructive/5 rounded border border-destructive/20">
+                            <p className="text-[10px] font-bold text-destructive uppercase">Motivo del Bloqueo:</p>
+                            <p className="text-[10px] italic">{linkedCustomer.blockedReason || 'Administrativo'}</p>
+                        </div>
                     )}
-                    {linkedCustomer?.phone && (
-                        <a 
-                            href={`https://wa.me/${linkedCustomer.phone.replace(/\D/g, '')}`} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-[10px] text-green-600 hover:underline flex items-center gap-1 font-bold"
-                        >
-                            <MessageCircle className="h-3 w-3" /> WhatsApp
-                        </a>
-                    )}
-                </div>
-            </CardContent>
-        </Card>
-    );
+                    <p className="text-xs text-muted-foreground pt-2 flex items-center gap-1">
+                        < Info className="h-3 w-3" /> Creado el {format(parseISO(ticket.createdAt), 'dd/MM/yy HH:mm')}
+                    </p>
+                    
+                    <div className="flex flex-wrap gap-3 pt-3 border-t mt-2">
+                        {displayEmail && (
+                            <a 
+                                href={`mailto:${displayEmail}`} 
+                                className="text-[10px] text-primary hover:underline flex items-center gap-1 font-bold"
+                            >
+                                <Mail className="h-3 w-3" /> Enviar Correo
+                            </a>
+                        )}
+                        {displayPhone && (
+                            <a 
+                                href={`https://wa.me/${displayPhone.replace(/\D/g, '')}`} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-[10px] text-green-600 hover:underline flex items-center gap-1 font-bold"
+                            >
+                                <MessageCircle className="h-3 w-3" /> WhatsApp
+                            </a>
+                        )}
+                    </div>
+                </CardContent>
+            </Card>
+        );
+    };
     
     return (
         <div className="flex h-[calc(100vh-4rem)] bg-muted/40 overflow-hidden">

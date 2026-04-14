@@ -65,9 +65,9 @@ export async function addTicket(payload: NewTicketPayload, user: User): Promise<
             }
 
             const info = db.prepare(`
-                INSERT INTO tickets (consecutive, subject, status, priority, createdAt, updatedAt, companyId, customerName, companyName, assigneeId, helpTopicId, serviceId, dueDate, contractId, licenseId, isBillable, providerId)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `).run(consecutive, payload.subject, 'open', priority, now, now, payload.companyId, payload.customerName, companyName, assigneeId, payload.helpTopicId, payload.serviceId, payload.dueDate || null, payload.contractId, payload.licenseId || null, payload.isBillable ? 1 : 0, payload.providerId);
+                INSERT INTO tickets (consecutive, subject, status, priority, createdAt, updatedAt, companyId, customerName, customerEmail, customerPhone, companyName, assigneeId, helpTopicId, serviceId, dueDate, contractId, licenseId, isBillable, providerId)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `).run(consecutive, payload.subject, 'open', priority, now, now, payload.companyId, payload.customerName, payload.customerEmail, payload.customerPhone || null, companyName, assigneeId, payload.helpTopicId, payload.serviceId, payload.dueDate || null, payload.contractId, payload.licenseId || null, payload.isBillable ? 1 : 0, payload.providerId);
             
             db.prepare('INSERT INTO ticket_threads (ticketId, userId, userName, type, content, createdAt) VALUES (?, ?, ?, ?, ?, ?)')
               .run(info.lastInsertRowid, user.id, user.name, 'message', payload.content, now);
