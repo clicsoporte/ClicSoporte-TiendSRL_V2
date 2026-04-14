@@ -211,12 +211,14 @@ export async function addThreadEntry(payload: { ticketId: number; userId: number
     // --- NOTIFICATION ---
     if (payload.type === 'message') {
         try {
-            const ticket = db.prepare('SELECT consecutive, customerEmail FROM tickets WHERE id = ?').get(payload.ticketId) as { consecutive: string, customerEmail: string } | undefined;
+            const ticket = db.prepare('SELECT consecutive, customerEmail, companyName, customerName FROM tickets WHERE id = ?').get(payload.ticketId) as { consecutive: string, customerEmail: string, companyName: string, customerName: string } | undefined;
             if (ticket) {
                 await triggerNotificationEvent('onTicketReplyAdded', {
                     ...row,
                     consecutive: ticket.consecutive,
-                    customerEmail: ticket.customerEmail
+                    customerEmail: ticket.customerEmail,
+                    companyName: ticket.companyName,
+                    customerName: ticket.customerName
                 });
             }
         } catch (e) { console.error(e); }
@@ -310,8 +312,20 @@ export async function updateTicketDetails(ticketId: number, updates: Partial<Pic
 
     // --- NOTIFICATION ---
     try {
+        const settings = await getCompanySettings();
+        const service = settings.servicesCatalog.find(s => s.id === result.serviceId);
+        
+        let assigneeName = 'Sin asignar';
+        const assigneeId = result.assigneeId;
+        if (assigneeId) {
+            const assignee = db.prepare('SELECT name FROM users WHERE id = ?').get(assigneeId) as { name: string } | undefined;
+            if (assignee) assigneeName = assignee.name;
+        }
+
         const translatedTicket = {
             ...result,
+            serviceName: service?.name || 'No especificado',
+            assigneeName: assigneeName,
             status: statusLabels[result.status] || result.status,
             priority: priorityLabels[result.priority] || result.priority,
             isBillable: result.isBillable === 1
@@ -323,7 +337,7 @@ export async function updateTicketDetails(ticketId: number, updates: Partial<Pic
             
             await triggerNotificationEvent(event, {
                 ...translatedTicket,
-                content: thread?.content || 'El caso fue resuelto satisfactoriamente.',
+                content: thread?.content || 'El caso fue actualizado satisfactoriamente.',
                 userName: user.name
             });
         } else if (updates.status) {
