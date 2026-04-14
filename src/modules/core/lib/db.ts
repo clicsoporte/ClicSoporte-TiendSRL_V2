@@ -122,7 +122,6 @@ export async function initializeMainDatabase(db: Database) {
             isTaxMoroso INTEGER DEFAULT 0,
             isTaxOmiso INTEGER DEFAULT 0,
             taxAdministration TEXT,
-            taxAdministration TEXT,
             taxActivities TEXT,
             provinceId INTEGER,
             cantonId INTEGER,
@@ -535,10 +534,12 @@ function seedNotificationTemplates(db: Database) {
             body: `
                 <div style="font-family: sans-serif; color: #333; max-width: 600px; border: 1px solid #eee; padding: 20px; border-radius: 10px;">
                     <h2 style="color: #2563eb; margin-top: 0;">Nuevo Ticket Registrado</h2>
-                    <p>Hola <b>{{customerName}}</b>, hemos recibido tu solicitud de soporte.</p>
+                    <p>Hola <b>{{contactName}}</b>, hemos recibido tu solicitud de soporte para la empresa <b>{{companyName}}</b>.</p>
                     <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 20px 0;">
                         <p style="margin: 5px 0;"><b>ID del Caso:</b> {{consecutive}}</p>
+                        <p style="margin: 5px 0;"><b>Servicio:</b> {{serviceName}}</p>
                         <p style="margin: 5px 0;"><b>Asunto:</b> {{subject}}</p>
+                        <p style="margin: 5px 0;"><b>Técnico:</b> {{assigneeName}}</p>
                         {{#if isBillable}}
                         <p style="margin: 15px 0 5px 0; color: #dc2626; font-weight: bold;">⚠️ NOTA DE FACTURACIÓN:</p>
                         <p style="margin: 0; font-size: 13px;">Este servicio se encuentra fuera de su cobertura actual y genera un cargo adicional.</p>
@@ -547,8 +548,8 @@ function seedNotificationTemplates(db: Database) {
                     </div>
                     <p style="font-size: 13px; color: #666;">Un técnico revisará tu caso a la brevedad. Gracias por confiar en nosotros.</p>
                 </div>`,
-            telegram: '🆕 <b>NUEVO TICKET</b>\n\n<b>ID:</b> {{consecutive}}\n<b>Cliente:</b> {{customerName}}\n<b>Asunto:</b> {{subject}}\n\n{{#if isBillable}}⚠️ <b>FACTURABLE:</b> {{formattedPrice}}{{/if}}',
-            internal: 'Nuevo ticket {{consecutive}} creado por {{customerName}}'
+            telegram: '🆕 <b>NUEVO TICKET</b>\n\n<b>ID:</b> {{consecutive}}\n<b>Cliente:</b> {{companyName}}\n<b>Contacto:</b> {{customerName}}\n<b>Servicio:</b> {{serviceName}}\n<b>Asunto:</b> {{subject}}\n<b>Técnico:</b> {{assigneeName}}\n<b>Fecha:</b> {{formattedDateTime}}\n\n{{#if isBillable}}⚠️ <b>FACTURABLE:</b> {{formattedPrice}}{{/if}}',
+            internal: 'Nuevo ticket {{consecutive}} de {{companyName}} ({{customerName}})'
         },
         {
             eventId: 'onTicketStatusChanged',

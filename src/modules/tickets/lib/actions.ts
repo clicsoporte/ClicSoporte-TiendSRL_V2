@@ -45,59 +45,19 @@ import {
     saveTicketSettings as saveTicketSettingsServer,
     getLicensesByCustomer as getLicensesByCustomerServer
 } from './db';
-import { triggerNotificationEvent } from '@/modules/notifications/lib/notifications-engine';
 import { getUserPreferences, saveUserPreferences } from '@/modules/core/lib/db';
-import { getCompanySettings } from '@/modules/core/lib/settings-db';
-
-const statusLabels: Record<string, string> = {
-    open: 'Abierto',
-    in_progress: 'En Progreso',
-    on_hold: 'En Espera',
-    completed: 'Completado',
-    canceled: 'Cancelado'
-};
-
-const priorityLabels: Record<string, string> = {
-    low: 'Baja',
-    medium: 'Media',
-    high: 'Alta',
-    urgent: 'Urgente'
-};
 
 /**
  * Saves a new ticket to the database.
+ * The server-side function now handles all notification logic.
  */
 export async function saveTicket(payload: NewTicketPayload, user: User): Promise<Ticket> {
     try {
         const createdTicket = await addTicketServer(payload, user);
-        const settings = await getCompanySettings();
-        
-        const service = settings.servicesCatalog.find(s => s.id === payload.serviceId);
-        const formattedPrice = service ? `¢${(service.price || 0).toLocaleString()} ${service.billingType === 'task' ? '(Monto Fijo)' : '/ h'}` : '';
-
-        // Trigger notification with translated labels
-        await triggerNotificationEvent('onTicketCreated', {
-            ...createdTicket,
-            status: statusLabels[createdTicket.status] || createdTicket.status,
-            priority: priorityLabels[createdTicket.priority] || createdTicket.priority,
-            customerEmail: payload.customerEmail,
-            isBillable: createdTicket.isBillable,
-            formattedPrice
-        });
-        
-        if (createdTicket.priority === 'urgent') {
-            await triggerNotificationEvent('onTicketPriorityUrgent', {
-                ...createdTicket,
-                status: statusLabels[createdTicket.status] || createdTicket.status,
-                priority: priorityLabels[createdTicket.priority] || createdTicket.priority
-            });
-        }
-
         await logInfo(`New ticket #${createdTicket.consecutive} created by ${user.name}`, { 
             ticketId: createdTicket.id, 
             customer: payload.customerName 
         });
-        
         return JSON.parse(JSON.stringify(createdTicket));
     } catch (error: unknown) {
         const err = error as Error;
@@ -142,55 +102,11 @@ export async function getTicketThread(ticketId: number): Promise<TicketThread[]>
 
 export async function addThreadEntry(payload: { ticketId: number; userId: number; userName: string; content: string; type: 'message' | 'note' | 'status_change' }): Promise<TicketThread> {
     const newEntry = await addThreadEntryServer(payload);
-    
-    if (payload.type === 'message') {
-        const ticket = await getTicketByIdServer(payload.ticketId);
-        if (ticket) {
-            await triggerNotificationEvent('onTicketReplyAdded', {
-                ...newEntry,
-                consecutive: ticket.consecutive,
-                customerEmail: ticket.customerEmail
-            });
-        }
-    }
-    
     return JSON.parse(JSON.stringify(newEntry));
 }
 
 export async function updateTicketDetails(ticketId: number, updates: Partial<Pick<Ticket, 'status' | 'priority' | 'assigneeId' | 'isBillable' | 'providerId' | 'licenseId'>>, user: User): Promise<Ticket> {
     const updatedTicket = await updateTicketDetailsServer(ticketId, updates, user);
-    
-    // Notification with translations
-    if (updates.status) {
-        const translatedTicket = {
-            ...updatedTicket,
-            status: statusLabels[updatedTicket.status] || updatedTicket.status,
-            priority: priorityLabels[updatedTicket.priority] || updatedTicket.priority
-        };
-
-        if (updates.status === 'completed' || updates.status === 'canceled') {
-            const event = updates.status === 'completed' ? 'onTicketCompleted' : 'onTicketCanceled';
-            const thread = await getTicketThreadServer(ticketId);
-            const lastMessage = thread.filter(t => t.type === 'message').pop();
-            
-            await triggerNotificationEvent(event, {
-                ...translatedTicket,
-                content: lastMessage?.content || 'El caso fue resuelto satisfactoriamente.',
-                userName: user.name
-            });
-        } else {
-            await triggerNotificationEvent('onTicketStatusChanged', translatedTicket);
-        }
-    }
-
-    if (updates.priority === 'urgent') {
-        await triggerNotificationEvent('onTicketPriorityUrgent', {
-            ...updatedTicket,
-            status: statusLabels[updatedTicket.status] || updatedTicket.status,
-            priority: priorityLabels[updatedTicket.priority] || updatedTicket.priority
-        });
-    }
-    
     return JSON.parse(JSON.stringify(updatedTicket));
 }
 

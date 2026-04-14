@@ -10,6 +10,8 @@ import { connectDb } from '@/modules/core/lib/db';
 import { logError } from '@/modules/core/lib/logger';
 import { getCompanySettings } from '@/modules/core/lib/settings-db';
 import { authorizeAction } from '@/modules/core/lib/auth-guard';
+import { triggerNotificationEvent } from '@/modules/notifications/lib/notifications-engine';
+import { format, parseISO } from 'date-fns';
 import type { Ticket, NewTicketPayload, User, TicketThread, HelpTopic, ClientCompany, SupportPackage, Service, ThirdPartyProvider, ProviderService, ProviderGeoRate, Province, Canton, District, License } from '@/modules/core/types';
 
 /**
@@ -20,6 +22,21 @@ interface DbTicketRow extends Omit<Ticket, 'isBillable' | 'hasActiveTimer' | 'to
     hasActiveTimer?: number;
     totalDuration?: number;
 }
+
+const statusLabels: Record<string, string> = {
+    open: 'Abierto',
+    in_progress: 'En Progreso',
+    on_hold: 'En Espera',
+    completed: 'Completado',
+    canceled: 'Cancelado'
+};
+
+const priorityLabels: Record<string, string> = {
+    low: 'Baja',
+    medium: 'Media',
+    high: 'Alta',
+    urgent: 'Urgente'
+};
 
 export async function connectTicketsDb(): Promise<Database> {
     return connectDb();
@@ -77,6 +94,43 @@ export async function addTicket(payload: NewTicketPayload, user: User): Promise<
         });
 
         const result = transaction() as DbTicketRow;
+
+        // --- NOTIFICATION DISPATCH ---
+        try {
+            const settings = await getCompanySettings();
+            const service = settings.servicesCatalog.find(s => s.id === result.serviceId);
+            
+            let assigneeName = 'Sin asignar';
+            if (result.assigneeId) {
+                const assignee = db.prepare('SELECT name FROM users WHERE id = ?').get(result.assigneeId) as { name: string } | undefined;
+                if (assignee) assigneeName = assignee.name;
+            }
+
+            const formattedPrice = service ? `¢${(service.price || 0).toLocaleString()} ${service.billingType === 'task' ? '(Monto Fijo)' : '/ h'}` : '';
+
+            await triggerNotificationEvent('onTicketCreated', {
+                ...result,
+                serviceName: service?.name || 'No especificado',
+                assigneeName: assigneeName,
+                formattedDateTime: format(parseISO(result.createdAt), 'dd/MM/yyyy HH:mm'),
+                status: statusLabels[result.status] || result.status,
+                priority: priorityLabels[result.priority] || result.priority,
+                customerEmail: result.customerEmail,
+                isBillable: result.isBillable === 1,
+                formattedPrice
+            });
+
+            if (result.priority === 'urgent') {
+                await triggerNotificationEvent('onTicketPriorityUrgent', {
+                    ...result,
+                    status: statusLabels[result.status] || result.status,
+                    priority: priorityLabels[result.priority] || result.priority
+                });
+            }
+        } catch (notifErr) {
+            console.error("Failed to trigger onTicketCreated notifications:", notifErr);
+        }
+
         return JSON.parse(JSON.stringify({ ...result, isBillable: result.isBillable === 1 }));
     } catch (error: unknown) {
         const err = error as Error;
@@ -153,6 +207,21 @@ export async function addThreadEntry(payload: { ticketId: number; userId: number
     const info = db.prepare(`INSERT INTO ticket_threads (ticketId, userId, userName, type, content, createdAt) VALUES (?, ?, ?, ?, ?, ?)`).run(payload.ticketId, payload.userId, payload.userName, payload.type, payload.content, now);
     db.prepare('UPDATE tickets SET updatedAt = ? WHERE id = ?').run(now, payload.ticketId);
     const row = db.prepare('SELECT * FROM ticket_threads WHERE id = ?').get(info.lastInsertRowid) as TicketThread;
+
+    // --- NOTIFICATION ---
+    if (payload.type === 'message') {
+        try {
+            const ticket = db.prepare('SELECT consecutive, customerEmail FROM tickets WHERE id = ?').get(payload.ticketId) as { consecutive: string, customerEmail: string } | undefined;
+            if (ticket) {
+                await triggerNotificationEvent('onTicketReplyAdded', {
+                    ...row,
+                    consecutive: ticket.consecutive,
+                    customerEmail: ticket.customerEmail
+                });
+            }
+        } catch (e) { console.error(e); }
+    }
+
     return JSON.parse(JSON.stringify(row));
 }
 
@@ -161,21 +230,6 @@ export async function updateTicketDetails(ticketId: number, updates: Partial<Pic
     const db = await connectTicketsDb();
     const currentTicket = db.prepare('SELECT * FROM tickets WHERE id = ?').get(ticketId) as DbTicketRow;
     if (!currentTicket) throw new Error("Ticket not found.");
-
-    const statusLabels: Record<string, string> = {
-        open: 'Abierto',
-        in_progress: 'En Progreso',
-        on_hold: 'En Espera',
-        completed: 'Completado',
-        canceled: 'Cancelado'
-    };
-
-    const priorityLabels: Record<string, string> = {
-        low: 'Baja',
-        medium: 'Media',
-        high: 'Alta',
-        urgent: 'Urgente'
-    };
     
     const transaction = db.transaction(() => {
         const now = new Date().toISOString();
@@ -253,6 +307,34 @@ export async function updateTicketDetails(ticketId: number, updates: Partial<Pic
     });
 
     const result = transaction() as DbTicketRow;
+
+    // --- NOTIFICATION ---
+    try {
+        const translatedTicket = {
+            ...result,
+            status: statusLabels[result.status] || result.status,
+            priority: priorityLabels[result.priority] || result.priority,
+            isBillable: result.isBillable === 1
+        };
+
+        if (updates.status && (updates.status === 'completed' || updates.status === 'canceled')) {
+            const event = updates.status === 'completed' ? 'onTicketCompleted' : 'onTicketCanceled';
+            const thread = db.prepare('SELECT content FROM ticket_threads WHERE ticketId = ? AND type = "message" ORDER BY createdAt DESC LIMIT 1').get(ticketId) as { content: string } | undefined;
+            
+            await triggerNotificationEvent(event, {
+                ...translatedTicket,
+                content: thread?.content || 'El caso fue resuelto satisfactoriamente.',
+                userName: user.name
+            });
+        } else if (updates.status) {
+            await triggerNotificationEvent('onTicketStatusChanged', translatedTicket);
+        }
+
+        if (updates.priority === 'urgent') {
+            await triggerNotificationEvent('onTicketPriorityUrgent', translatedTicket);
+        }
+    } catch (e) { console.error(e); }
+
     return JSON.parse(JSON.stringify({ ...result, isBillable: result.isBillable === 1 }));
 }
 
