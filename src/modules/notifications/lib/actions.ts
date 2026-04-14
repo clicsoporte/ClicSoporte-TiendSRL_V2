@@ -18,8 +18,14 @@ import { sendTelegramMessage, getTelegramUpdates } from './telegram-service';
 import type { NotificationRule, ScheduledTask, NotificationServiceConfig } from '@/modules/core/types';
 import { logInfo, logError } from '@/modules/core/lib/logger';
 import { initScheduler } from './scheduler';
+import { authorizeAction } from '@/modules/core/lib/auth-guard';
 
+/**
+ * Retrieves all notification rules for the UI.
+ * Requires admin access.
+ */
 export async function getAllNotificationRules(): Promise<NotificationRule[]> {
+    await authorizeAction('admin:access');
     const rules = await getAllRulesServer();
     return JSON.parse(JSON.stringify(rules));
 }
@@ -47,7 +53,12 @@ export async function deleteNotificationRule(id: number): Promise<void> {
     }
 }
 
+/**
+ * Retrieves all scheduled tasks for the UI.
+ * Requires admin access.
+ */
 export async function getAllScheduledTasks(): Promise<ScheduledTask[]> {
+    await authorizeAction('admin:access');
     const tasks = await getAllTasksServer();
     return JSON.parse(JSON.stringify(tasks));
 }
@@ -79,7 +90,12 @@ export async function deleteScheduledTask(id: number): Promise<void> {
     }
 }
 
+/**
+ * Retrieves notification service settings for the UI.
+ * Requires admin access.
+ */
 export async function getNotificationServiceSettings(service: 'telegram'): Promise<NotificationServiceConfig> {
+    await authorizeAction('admin:access');
     const settings = await getSettingsServer(service);
     return JSON.parse(JSON.stringify(settings));
 }

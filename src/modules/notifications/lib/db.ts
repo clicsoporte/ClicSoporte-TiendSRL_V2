@@ -23,8 +23,11 @@ interface NotificationRuleRow {
     enabled: number;
 }
 
+/**
+ * Retrieves all notification rules. 
+ * Internal function: Does not check permissions to allow the engine to run for any user.
+ */
 export async function getAllNotificationRules(): Promise<NotificationRule[]> {
-    await authorizeAction('admin:access');
     const db = await connectNotificationsDb();
     try {
         const rows = db.prepare('SELECT * FROM notification_rules ORDER BY name ASC').all() as NotificationRuleRow[];
@@ -44,7 +47,6 @@ export async function saveNotificationRule(rule: Omit<NotificationRule, 'id'> | 
     await authorizeAction('admin:settings:general');
     const db = await connectNotificationsDb();
     
-    // Standardize params to avoid better-sqlite3 binding errors
     const params = {
         name: rule.name || '',
         event: rule.event || '',
@@ -91,8 +93,11 @@ interface ScheduledTaskRow {
     enabled: number;
 }
 
+/**
+ * Retrieves all scheduled tasks.
+ * Internal function: Used by the scheduler at startup.
+ */
 export async function getAllScheduledTasks(): Promise<ScheduledTask[]> {
-    await authorizeAction('admin:access');
     const db = await connectNotificationsDb();
     const rows = db.prepare('SELECT * FROM scheduled_tasks ORDER BY name ASC').all() as ScheduledTaskRow[];
     return rows.map(row => ({ ...row, enabled: Boolean(row.enabled) }));
@@ -131,8 +136,11 @@ export async function deleteScheduledTask(id: number): Promise<void> {
     db.prepare('DELETE FROM scheduled_tasks WHERE id = ?').run(id);
 }
 
+/**
+ * Retrieves notification service settings (e.g. Telegram config).
+ * Internal function: Used by the engine to deliver messages.
+ */
 export async function getNotificationServiceSettings(service: 'telegram'): Promise<NotificationServiceConfig> {
-    await authorizeAction('admin:access');
     const db = await connectNotificationsDb();
     const row = db.prepare('SELECT config FROM notification_settings WHERE service = ?').get(service) as { config: string } | undefined;
     return row ? JSON.parse(row.config) : {};
