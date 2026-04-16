@@ -55,7 +55,7 @@ export function EquipmentForm({ equipment, isOpen, onClose, onSuccess }: Equipme
         try {
             const id = formData.id || crypto.randomUUID();
             await saveEquipment({
-                ...formData as any,
+                ...formData as Equipment,
                 id,
                 status: formData.status || 'active'
             });

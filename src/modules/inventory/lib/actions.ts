@@ -64,7 +64,7 @@ export async function omniSearch(query: string, page: number = 1): Promise<{
             cleanQuery, cleanQuery, cleanQuery, cleanQuery, cleanQuery,
             cleanQuery, cleanQuery, cleanQuery,
             limit + 1, offset
-        ) as any[];
+        ) as { type: 'equipment' | 'warranty', id: string }[];
 
         const hasMore = broadResults.length > limit;
         const finalResults = broadResults.slice(0, limit).map(row => {

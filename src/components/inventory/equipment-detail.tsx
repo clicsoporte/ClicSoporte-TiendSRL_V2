@@ -16,14 +16,20 @@ import { useAuth } from '@/modules/core/hooks/useAuth';
 import { format, parseISO } from 'date-fns';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
+import type { Equipment, Consumable, SaleRecord } from '@/modules/core/types';
 
 interface EquipmentDetailProps {
     equipmentId: string | null;
     onClose: () => void;
 }
 
+interface EquipmentFullData extends Equipment {
+    consumables: Consumable[];
+    saleRecords: SaleRecord[];
+}
+
 export function EquipmentDetail({ equipmentId, onClose }: EquipmentDetailProps) {
-    const [data, setData] = useState<any>(null);
+    const [data, setData] = useState<EquipmentFullData | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const { customers } = useAuth();
 
@@ -31,7 +37,7 @@ export function EquipmentDetail({ equipmentId, onClose }: EquipmentDetailProps) 
         if (equipmentId) {
             setIsLoading(true);
             getEquipmentDetails(equipmentId)
-                .then(setData)
+                .then((res) => setData(res as EquipmentFullData))
                 .finally(() => setIsLoading(false));
         } else {
             setData(null);
@@ -108,7 +114,7 @@ export function EquipmentDetail({ equipmentId, onClose }: EquipmentDetailProps) 
                                         <p className="text-xs text-primary font-medium">Lista de repuestos e insumos específicos para este modelo.</p>
                                     </div>
                                     <div className="space-y-3">
-                                        {data.consumables?.map((c: any) => (
+                                        {data.consumables?.map((c) => (
                                             <div key={c.id} className="p-4 border rounded-xl bg-card hover:border-primary transition-colors group">
                                                 <div className="flex justify-between items-start mb-2">
                                                     <div>
@@ -132,7 +138,7 @@ export function EquipmentDetail({ equipmentId, onClose }: EquipmentDetailProps) 
                                 </TabsContent>
 
                                 <TabsContent value="warranty" className="m-0 space-y-4">
-                                    {data.saleRecords?.map((s: any) => {
+                                    {data.saleRecords?.map((s) => {
                                         const status = getWarrantyStatus(s.warrantyExpiry, s.warrantyStatus);
                                         return (
                                             <div key={s.id} className="p-4 border rounded-xl bg-card space-y-4 shadow-sm">

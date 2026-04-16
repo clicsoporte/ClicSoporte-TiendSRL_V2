@@ -5,7 +5,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,9 +14,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { saveSaleRecord, getEquipmentByClient } from '@/modules/inventory/lib/actions';
 import { useToast } from '@/modules/core/hooks/use-toast';
-import { Loader2, Receipt, Calendar } from 'lucide-react';
+import { Loader2, Receipt } from 'lucide-react';
 import type { SaleRecord, Equipment } from '@/modules/core/types';
-import { addMonths, format } from 'date-fns';
+import { addMonths } from 'date-fns';
 
 interface SaleRecordFormProps {
     isOpen: boolean;
@@ -56,7 +56,7 @@ export function SaleRecordForm({ isOpen, onClose, onSuccess }: SaleRecordFormPro
         try {
             const expiry = addMonths(new Date(formData.invoiceDate!), formData.warrantyMonths!);
             await saveSaleRecord({
-                ...formData as any,
+                ...formData as SaleRecord,
                 id: crypto.randomUUID(),
                 warrantyExpiry: expiry.toISOString()
             });

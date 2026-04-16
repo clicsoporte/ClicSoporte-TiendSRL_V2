@@ -1,4 +1,3 @@
-
 'use client';
 
 /**
@@ -50,7 +49,7 @@ export default function TicketDetailPage() {
     const ticketId = Number(params.id);
     const { isAuthorized, hasPermission } = useAuthorization(['tickets:read:all']);
     const { actions, selectors } = useTickets();
-    const { user: currentUser, companyData, customers } = useAuth();
+    const { user: currentUser, companyData, customers, users } = useAuth();
     const { toast } = useToast();
     
     const [ticket, setTicket] = useState<Ticket | null>(null);
@@ -62,7 +61,6 @@ export default function TicketDetailPage() {
     const [isInitialLoading, setIsInitialLoading] = useState(true);
     const [allLicenses, setAllLicenses] = useState<License[]>([]);
     const [linkedEquipment, setLinkedEquipment] = useState<Equipment | null>(null);
-    const [isEquipmentDetailOpen, setEquipmentDetailOpen] = useState(false);
 
     const [isClosureDialogOpen, setClosureDialogOpen] = useState(false);
     const [closureType, setClosureType] = useState<'completed' | 'canceled'>('completed');
@@ -102,7 +100,7 @@ export default function TicketDetailPage() {
 
                 if (ticketData.equipmentId) {
                     const eqData = await getEquipmentDetails(ticketData.equipmentId);
-                    if (eqData) setLinkedEquipment(eqData as any);
+                    if (eqData) setLinkedEquipment(eqData as Equipment);
                 }
             }
             setIsInitialLoading(false);
@@ -151,7 +149,7 @@ export default function TicketDetailPage() {
             
             if (updates.equipmentId) {
                 const eqData = await getEquipmentDetails(updates.equipmentId);
-                if (eqData) setLinkedEquipment(eqData as any);
+                if (eqData) setLinkedEquipment(eqData as Equipment);
             }
             
             if (updates.status === 'in_progress') toast({ title: "Cronómetro Iniciado Automáticamente" });
@@ -316,9 +314,6 @@ export default function TicketDetailPage() {
                                 <span className="text-[10px] font-black uppercase text-indigo-700">Serial</span>
                                 <span className="font-mono text-[10px] truncate max-w-[120px]">{linkedEquipment.serialNumber || 'N/A'}</span>
                             </div>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-indigo-600 hover:bg-indigo-200/50" onClick={() => setEquipmentDetailOpen(true)}>
-                                <Settings className="h-3.5 w-3.5" />
-                            </Button>
                         </div>
                     </div>
                 </CardContent>
@@ -792,7 +787,7 @@ export default function TicketDetailPage() {
 
             <EquipmentDetail 
                 equipmentId={linkedEquipment?.id || null} 
-                onClose={() => setEquipmentDetailOpen(false)} 
+                onClose={() => setLinkedEquipment(null)} 
             />
         </div>
     );

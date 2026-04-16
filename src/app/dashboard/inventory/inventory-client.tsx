@@ -7,7 +7,7 @@
 
 import { useState, useEffect } from 'react';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Search, Laptop, ShieldCheck, PlusCircle, Loader2, ArrowRight, ArrowLeft, History, Package, Receipt } from 'lucide-react';
