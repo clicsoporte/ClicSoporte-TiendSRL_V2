@@ -17,7 +17,7 @@ import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { PlusCircle, Trash2, Save, BellRing, Clock, Send, Loader2, Mail, RefreshCw, Play } from 'lucide-react';
+import { PlusCircle, Trash2, Edit, BellRing, Clock, Send, Loader2, Mail, RefreshCw, Play } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import type { NotificationRule, ScheduledTask, NotificationServiceConfig, EmailSettings } from '@/modules/core/types';
 import { 
@@ -305,7 +305,7 @@ export default function AutomationManagerPage() {
                                                 >
                                                     {isTestingRule === rule.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4 fill-current" />}
                                                 </Button>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setCurrentRule(rule); setRuleDialogOpen(true); }}><Save className="h-4 w-4" /></Button>
+                                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setCurrentRule(rule); setRuleDialogOpen(true); }}><Edit className="h-4 w-4" /></Button>
                                                 <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteNotificationRule(rule.id).then(fetchData)}><Trash2 className="h-4 w-4" /></Button>
                                             </TableCell>
                                         </TableRow>
@@ -349,7 +349,7 @@ export default function AutomationManagerPage() {
                                                 <Switch checked={task.enabled} onCheckedChange={() => toggleTaskStatus(task)} />
                                             </TableCell>
                                             <TableCell className="text-right">
-                                                <Button variant="ghost" size="icon" onClick={() => { setCurrentTask(task); setTaskDialogOpen(true); }}><Save className="h-4 w-4" /></Button>
+                                                <Button variant="ghost" size="icon" onClick={() => { setCurrentTask(task); setTaskDialogOpen(true); }}><Edit className="h-4 w-4" /></Button>
                                                 <Button variant="ghost" size="icon" className="text-destructive" onClick={() => deleteScheduledTask(task.id).then(fetchData)}><Trash2 className="h-4 w-4" /></Button>
                                             </TableCell>
                                         </TableRow>
@@ -412,7 +412,7 @@ export default function AutomationManagerPage() {
                                 Probar Conexión
                             </Button>
                             <Button onClick={handleSaveEmail} disabled={isSaving}>
-                                {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                                {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
                                 Guardar Configuración de Correo
                             </Button>
                         </CardFooter>
@@ -469,7 +469,7 @@ export default function AutomationManagerPage() {
                                 Enviar Mensaje de Prueba
                             </Button>
                             <Button onClick={handleSaveTelegram} disabled={isSaving}>
-                                {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4" />}
+                                {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <RefreshCw className="mr-2 h-4 w-4" />}
                                 Guardar Credenciales Telegram
                             </Button>
                         </CardFooter>
@@ -545,8 +545,8 @@ export default function AutomationManagerPage() {
                         </div>
                         <div className="space-y-2">
                             <Label>Frecuencia Cron</Label>
-                            <Input value={currentTask.schedule} onChange={e => setCurrentTask({...currentTask, schedule: e.target.value})} />
-                            <p className="text-[10px] text-muted-foreground">Ej: &quot;0 8 * * *&quot; para revisión diaria a las 8am.</p>
+                            <Input value={task.schedule} onChange={e => setCurrentTask({...currentTask, schedule: e.target.value})} />
+                            <p className="text-[10px] text-muted-foreground">Ej: "0 8 * * *" para revisión diaria a las 8am.</p>
                         </div>
                         <div className="space-y-2">
                             <Label>Acción del Sistema</Label>
