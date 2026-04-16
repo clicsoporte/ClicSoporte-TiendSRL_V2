@@ -707,6 +707,62 @@ export async function runMainMigrations(db: Database) {
     const tableInfo = (table: string) => db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
     const hasColumn = (table: string, col: string) => new Set(tableInfo(table).map(c => c.name)).has(col);
 
+    // Ensure inventory tables are created if base existed
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS inventory_equipment (
+            id TEXT PRIMARY KEY,
+            clientId TEXT NOT NULL,
+            nickname TEXT NOT NULL,
+            category TEXT NOT NULL,
+            brand TEXT NOT NULL,
+            model TEXT NOT NULL,
+            serialNumber TEXT,
+            location TEXT,
+            assignedUser TEXT,
+            status TEXT NOT NULL DEFAULT 'active',
+            notes TEXT,
+            createdAt TEXT NOT NULL,
+            updatedAt TEXT NOT NULL,
+            FOREIGN KEY (clientId) REFERENCES customers(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS inventory_consumables (
+            id TEXT PRIMARY KEY,
+            equipmentId TEXT NOT NULL,
+            type TEXT NOT NULL,
+            description TEXT NOT NULL,
+            partNumber TEXT NOT NULL,
+            brand TEXT,
+            specs TEXT,
+            isRecurring INTEGER DEFAULT 0,
+            lastReplaced TEXT,
+            notes TEXT,
+            createdAt TEXT NOT NULL,
+            FOREIGN KEY (equipmentId) REFERENCES inventory_equipment(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS inventory_sale_records (
+            id TEXT PRIMARY KEY,
+            clientId TEXT NOT NULL,
+            equipmentId TEXT,
+            invoiceNumber TEXT NOT NULL,
+            invoiceDate TEXT NOT NULL,
+            productName TEXT,
+            serialNumber TEXT NOT NULL,
+            partNumber TEXT,
+            warrantyMonths INTEGER NOT NULL,
+            warrantyExpiry TEXT NOT NULL,
+            warrantyNotes TEXT,
+            warrantyStatus TEXT NOT NULL DEFAULT 'active',
+            claimDate TEXT,
+            claimNotes TEXT,
+            createdAt TEXT NOT NULL,
+            updatedAt TEXT NOT NULL,
+            FOREIGN KEY (clientId) REFERENCES customers(id) ON DELETE CASCADE,
+            FOREIGN KEY (equipmentId) REFERENCES inventory_equipment(id) ON DELETE SET NULL
+        );
+    `);
+
     seedGeographicData(db);
 
     if (!hasColumn('users', 'forcePasswordChange')) db.exec(`ALTER TABLE users ADD COLUMN forcePasswordChange INTEGER DEFAULT 0;`);
