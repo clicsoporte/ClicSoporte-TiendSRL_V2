@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { saveEquipment } from '@/modules/inventory/lib/actions';
 import { useToast } from '@/modules/core/hooks/use-toast';
-import { Loader2, ShieldCheck, Laptop, Printer, Monitor, Radio, Phone, HardDrive, Cpu } from 'lucide-react';
+import { Loader2, ShieldCheck, Laptop, Printer, Monitor, Radio, Phone, HardDrive, Cpu, type LucideIcon } from 'lucide-react';
 import type { Equipment, EquipmentCategory } from '@/modules/core/types';
 
 interface EquipmentFormProps {
@@ -24,7 +24,7 @@ interface EquipmentFormProps {
     onSuccess: () => void;
 }
 
-const categories: { value: EquipmentCategory; label: string; icon: any }[] = [
+const categories: { value: EquipmentCategory; label: string; icon: LucideIcon }[] = [
     { value: 'laptop', label: 'Laptop', icon: Laptop },
     { value: 'desktop', label: 'Computadora Mesa', icon: Cpu },
     { value: 'printer', label: 'Impresora', icon: Printer },

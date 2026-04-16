@@ -16,7 +16,7 @@ import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Send, Loader2, MoreVertical, CreditCard, ShieldCheck, ShieldAlert, Truck, CheckCircle2, XCircle, PlayCircle, PauseCircle, Info, UserCircle, FileText, Download, Mail, UserCheck, KeyRound, Eye, MessageCircle, Laptop, Settings } from 'lucide-react';
+import { Send, Loader2, MoreVertical, CreditCard, ShieldCheck, ShieldAlert, Truck, CheckCircle2, XCircle, PlayCircle, PauseCircle, Info, UserCircle, FileText, Download, Mail, UserCheck, KeyRound, Eye, MessageCircle, Laptop } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -49,7 +49,7 @@ export default function TicketDetailPage() {
     const ticketId = Number(params.id);
     const { isAuthorized, hasPermission } = useAuthorization(['tickets:read:all']);
     const { actions, selectors } = useTickets();
-    const { user: currentUser, companyData, customers, users } = useAuth();
+    const { user: currentUser, companyData, customers } = useAuth();
     const { toast } = useToast();
     
     const [ticket, setTicket] = useState<Ticket | null>(null);
