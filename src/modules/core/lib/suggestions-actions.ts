@@ -61,13 +61,3 @@ export async function deleteSuggestion(id: number): Promise<void> {
   db.prepare('DELETE FROM suggestions WHERE id = ?').run(id);
   revalidatePath('/dashboard/admin/suggestions');
 }
-
-/**
- * Retrieves the count of unread suggestions.
- * @returns {Promise<number>} A promise that resolves to the number of unread suggestions.
- */
-export async function getUnreadSuggestionsCount(): Promise<number> {
-    const db = await connectDb();
-    const result = db.prepare('SELECT COUNT(*) as count FROM suggestions WHERE isRead = 0').get() as { count: number };
-    return result.count;
-}

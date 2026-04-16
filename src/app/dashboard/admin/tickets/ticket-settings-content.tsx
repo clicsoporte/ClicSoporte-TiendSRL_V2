@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Client Component logic for managing support ticket settings.
  * Extracted to resolve ESLint and circular dependency issues.
@@ -23,7 +22,7 @@ import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import type { TicketPriority, Province, Canton, District } from '@/modules/core/types';
+import type { TicketPriority, Province, Canton, District, Role } from '@/modules/core/types';
 import { checkPermissionInTree } from '@/modules/core/lib/permissions';
 
 export default function TicketSettingsPageContent() {
@@ -49,7 +48,7 @@ export default function TicketSettingsPageContent() {
         if (!selectors.allUsers) return [];
         // Hierarchical filtering: any role that has or inherits 'tickets:read:all'
         return selectors.allUsers.filter(u => {
-            const role = (allRoles || []).find(r => r.id === u.role);
+            const role = (allRoles || []).find((r: Role) => r.id === u.role);
             if (!role) return false;
             return checkPermissionInTree(role.permissions, 'tickets:read:all');
         });

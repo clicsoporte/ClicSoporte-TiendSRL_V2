@@ -4,7 +4,7 @@
 "use server";
 
 import { cookies } from 'next/headers';
-import { connectDb } from './db';
+import { connectDb, getUnreadSuggestionsCount } from './db';
 import type { User, ExchangeRateApiResponse, Company, Contract, Role } from '../types';
 import bcrypt from 'bcryptjs';
 import { logInfo, logWarn, logError } from './logger';
@@ -13,7 +13,6 @@ import { getAllRoles } from './roles-db';
 import { getCompanySettings } from './settings-db';
 import { getAllCustomers, getAllProducts, getAllStock, getAllExemptions } from './data-access-db';
 import { getExchangeRate } from './api-actions';
-import { getUnreadSuggestionsCount } from './suggestions-actions';
 import { getEmailSettings, sendEmail } from './email-service';
 import { getCurrentUser } from './session';
 

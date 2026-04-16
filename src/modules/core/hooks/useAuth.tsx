@@ -15,6 +15,7 @@ import { checkPermissionInTree } from "../lib/permissions";
 interface AuthContextType {
   user: User | null;
   userRole: Role | null;
+  allRoles: Role[];
   companyData: Company | null;
   customers: Customer[];
   products: Product[];
@@ -41,6 +42,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [userRole, setUserRole] = useState<Role | null>(null);
+  const [allRoles, setAllRoles] = useState<Role[]>([]);
   const [companyData, setCompanyData] = useState<Company | null>(null);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -82,6 +84,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
       setUnreadSuggestionsCount(data.unreadSuggestions);
       setExchangeRateData(data.exchangeRate);
       setNotifications(notifs);
+      setAllRoles(data.roles || []);
       
       const role = data.roles.find((r: Role) => r.id === currentUser.role);
       setUserRole(role || null);
@@ -131,6 +134,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
   const contextValue: AuthContextType = {
     user,
     userRole,
+    allRoles,
     companyData,
     customers,
     products,

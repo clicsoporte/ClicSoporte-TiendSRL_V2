@@ -1,4 +1,3 @@
-
 'use client';
 
 /**
@@ -11,7 +10,7 @@ import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError } from '@/modules/core/lib/logger';
 import { useAuth } from '@/modules/core/hooks/useAuth';
-import type { NewTicketPayload, Ticket, TicketPriority, TicketStatus, TicketThread, User, HelpTopic, Contract, ThirdPartyProvider, CustomerContact, License, SoftwareProduct } from '@/modules/core/types';
+import type { NewTicketPayload, Ticket, TicketPriority, TicketStatus, TicketThread, User, HelpTopic, Contract, ThirdPartyProvider, CustomerContact, License, SoftwareProduct, Role } from '@/modules/core/types';
 import {
     saveTicket, getTickets, getTicketById as getTicketByIdServer,
     getTicketThread as getTicketThreadServer,
@@ -86,7 +85,7 @@ export const useTickets = () => {
     const { isAuthorized } = useAuthorization(['tickets:read:all']);
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
-    const { companyData, users, customers, user, userRole } = useAuth();
+    const { companyData, users, customers, user, userRole, allRoles } = useAuth();
 
     const [state, setState] = useState(initialState);
     
@@ -364,11 +363,9 @@ export const useTickets = () => {
         priorityConfig,
         statusConfig,
         supportUsers: users.filter(u => {
-            const role = useAuth().userRole; // This might be tricky in useMemo, but in useTickets we have roles
-            // Better to use the global state 'allRoles' which we enriched
-            const userRoleData = useAuth().allRoles.find(r => r.id === u.role);
-            if (!userRoleData) return false;
-            return checkPermissionInTree(userRoleData.permissions, 'tickets:read:all');
+            const role = (allRoles || []).find((r: Role) => r.id === u.role);
+            if (!role) return false;
+            return checkPermissionInTree(role.permissions, 'tickets:read:all');
         }),
         customerOptions: debouncedCustomerSearch.length < 2 ? [] : customers.filter(c =>
             c.name.toLowerCase().includes(debouncedCustomerSearch.toLowerCase()) ||
@@ -387,7 +384,7 @@ export const useTickets = () => {
         coverageMessage: validateCoverage(state.newTicket.serviceId, state.activeContract, state.selectedCustomerId).message,
         providers: state.providers,
         softwareProducts: state.softwareProducts
-    }), [users, customers, debouncedCustomerSearch, debouncedSearchTerm, state.tickets, state.statusFilter, state.priorityFilter, state.showOnlyMine, state.newTicket.serviceId, state.activeContract, state.selectedCustomerId, state.providers, state.softwareProducts, validateCoverage, user]);
+    }), [users, customers, debouncedCustomerSearch, debouncedSearchTerm, state.tickets, state.statusFilter, state.priorityFilter, state.showOnlyMine, state.newTicket.serviceId, state.activeContract, state.selectedCustomerId, state.providers, state.softwareProducts, validateCoverage, user, allRoles]);
 
     return {
         state,

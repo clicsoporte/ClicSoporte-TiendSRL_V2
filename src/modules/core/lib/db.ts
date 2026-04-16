@@ -688,6 +688,12 @@ export async function getUserCount(): Promise<number> {
     return result.count;
 }
 
+export async function getUnreadSuggestionsCount(): Promise<number> {
+    const db = await connectDb();
+    const result = db.prepare('SELECT COUNT(*) as count FROM suggestions WHERE isRead = 0').get() as { count: number };
+    return result.count;
+}
+
 export async function getLogs(filters: { type?: string; search?: string; dateRange?: DateRange }): Promise<LogEntry[]> {
     const db = await connectDb();
     let query = 'SELECT * FROM logs';
@@ -715,7 +721,7 @@ export async function getLogs(filters: { type?: string; search?: string; dateRan
     }
 
     if (conditions.length > 0) query += ' WHERE ' + conditions.join(' AND ');
-    query += ' ORDER BY timestamp DESC LIMIT 500';
+    query += ' WHERE ' + (conditions.length > 0 ? conditions.join(' AND ') : '1=1') + ' ORDER BY timestamp DESC LIMIT 500';
 
     const rows = db.prepare(query).all(...params) as LogEntry[];
     return rows.map(r => ({ ...r, details: r.details ? JSON.parse(String(r.details)) : undefined }));
@@ -747,10 +753,4 @@ export async function getUserPreferences(userId: number, key: string): Promise<R
 export async function saveUserPreferences(userId: number, key: string, value: Record<string, unknown>): Promise<void> {
     const db = await connectDb();
     db.prepare('INSERT OR REPLACE INTO user_preferences (userId, key, value) VALUES (?, ?)').run(userId, key, JSON.stringify(value));
-}
-
-export async function getUnreadSuggestionsCount(): Promise<number> {
-    const db = await connectDb();
-    const result = db.prepare('SELECT COUNT(*) as count FROM suggestions WHERE isRead = 0').get() as { count: number };
-    return result.count;
 }
