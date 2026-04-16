@@ -27,6 +27,7 @@ import {
 import { getActiveContractForCustomer } from '@/modules/contracts/lib/actions';
 import { getSoftwareProducts } from '@/modules/licenses/lib/actions';
 import { useDebounce } from 'use-debounce';
+import { checkPermissionInTree } from '@/modules/core/lib/permissions';
 
 const emptyTicket: NewTicketPayload = {
     subject: '',
@@ -85,7 +86,7 @@ export const useTickets = () => {
     const { isAuthorized } = useAuthorization(['tickets:read:all']);
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
-    const { companyData, users, customers, user } = useAuth();
+    const { companyData, users, customers, user, userRole } = useAuth();
 
     const [state, setState] = useState(initialState);
     
@@ -267,7 +268,7 @@ export const useTickets = () => {
         },
 
         handleCreateTicket: async () => {
-            const usr = users[0]; 
+            const usr = user; 
             if (!usr) return;
             
             let currentNewTicket: NewTicketPayload | null = null;
@@ -357,12 +358,18 @@ export const useTickets = () => {
         resetNewTicketForm: () => {
             updateState({ newTicket: emptyTicket, selectedCustomerId: null, customerSearchTerm: '', activeContract: null, customerLicenses: [] });
         }
-    }), [updateState, toast, users, handleNewTicketChange, handleSelectCompany, user]);
+    }), [updateState, toast, user, handleNewTicketChange, handleSelectCompany]);
 
     const selectors = useMemo(() => ({
         priorityConfig,
         statusConfig,
-        supportUsers: users.filter(u => u.role === 'admin' || u.role === 'support-agent'),
+        supportUsers: users.filter(u => {
+            const role = useAuth().userRole; // This might be tricky in useMemo, but in useTickets we have roles
+            // Better to use the global state 'allRoles' which we enriched
+            const userRoleData = useAuth().allRoles.find(r => r.id === u.role);
+            if (!userRoleData) return false;
+            return checkPermissionInTree(userRoleData.permissions, 'tickets:read:all');
+        }),
         customerOptions: debouncedCustomerSearch.length < 2 ? [] : customers.filter(c =>
             c.name.toLowerCase().includes(debouncedCustomerSearch.toLowerCase()) ||
             (c.commercialName || "").toLowerCase().includes(debouncedCustomerSearch.toLowerCase()) ||

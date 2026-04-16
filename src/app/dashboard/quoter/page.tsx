@@ -4,6 +4,8 @@
 import { authorizePage } from "@/modules/core/lib/auth-guard";
 import QuoterClient from "./quoter-client";
 
+export const dynamic = 'force-dynamic';
+
 export default async function QuoterPage() {
     await authorizePage('quotes:create');
     return <QuoterClient />;

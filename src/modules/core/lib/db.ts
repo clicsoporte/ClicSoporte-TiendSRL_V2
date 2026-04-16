@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Main database initialization and shared utility functions.
  * Unified into a single source of truth: intratool.db
@@ -14,11 +13,6 @@ import type { LogEntry, DateRange } from '../types';
 
 const DB_FILE = 'intratool.db';
 const SALT_ROUNDS = 10;
-
-/**
- * Global flag to prevent redundant initializations in the same process
- */
-let _dbInitialized = false;
 
 /**
  * Connects to the central database.
@@ -646,8 +640,6 @@ function seedGeographicData(db: Database) {
 }
 
 export async function runMainMigrations(db: Database) {
-    if (_dbInitialized) return;
-
     const tableInfo = (table: string) => db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
     const hasColumn = (table: string, col: string) => new Set(tableInfo(table).map(c => c.name)).has(col);
 
@@ -683,8 +675,11 @@ export async function runMainMigrations(db: Database) {
 
     if (!hasColumn('third_party_providers', 'contacts')) db.exec(`ALTER TABLE third_party_providers ADD COLUMN contacts TEXT;`);
 
-    seedNotificationTemplates(db);
-    _dbInitialized = true;
+    // Ensure templates are always checked
+    const templateCount = db.prepare('SELECT COUNT(*) as count FROM notification_templates').get() as { count: number };
+    if (templateCount.count === 0) {
+        seedNotificationTemplates(db);
+    }
 }
 
 export async function getUserCount(): Promise<number> {

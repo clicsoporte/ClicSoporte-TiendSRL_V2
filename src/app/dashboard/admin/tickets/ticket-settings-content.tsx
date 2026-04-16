@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Client Component logic for managing support ticket settings.
  * Extracted to resolve ESLint and circular dependency issues.
@@ -23,10 +24,11 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import type { TicketPriority, Province, Canton, District } from '@/modules/core/types';
+import { checkPermissionInTree } from '@/modules/core/lib/permissions';
 
 export default function TicketSettingsPageContent() {
     const { setTitle } = usePageTitle();
-    const { companyData } = useAuth();
+    const { companyData, allRoles } = useAuth();
     const {
         state,
         actions,
@@ -45,12 +47,13 @@ export default function TicketSettingsPageContent() {
 
     const supportUsers = useMemo(() => {
         if (!selectors.allUsers) return [];
-        const supportRoleIds = (selectors.allRoles || [])
-            .filter(r => r.permissions.includes('tickets:read:all'))
-            .map(r => r.id);
-        
-        return selectors.allUsers.filter(u => u.role && supportRoleIds.includes(u.role));
-    }, [selectors.allUsers, selectors.allRoles]);
+        // Hierarchical filtering: any role that has or inherits 'tickets:read:all'
+        return selectors.allUsers.filter(u => {
+            const role = (allRoles || []).find(r => r.id === u.role);
+            if (!role) return false;
+            return checkPermissionInTree(role.permissions, 'tickets:read:all');
+        });
+    }, [selectors.allUsers, allRoles]);
     
     useEffect(() => {
         setTitle("Configuración de Tickets");

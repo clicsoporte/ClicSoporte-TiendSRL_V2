@@ -9,7 +9,6 @@ import { getAllNotificationRules, createNotification, connectNotificationsDb } f
 import { sendEmail } from '../../core/lib/email-service';
 import { sendTelegramMessage } from './telegram-service';
 import { logInfo, logError } from '../../core/lib/logger';
-import { getAllUsers } from '../../core/lib/auth';
 import { connectDb } from '../../core/lib/db';
 import type { NotificationEventId } from '../../core/types';
 
@@ -59,8 +58,8 @@ export async function triggerNotificationEvent(eventId: NotificationEventId, pay
         const internal = applyTemplate(template.internal, payload);
 
         // --- Internal App Notifications (Bell icon) ---
-        const allUsers = await getAllUsers();
-        const targetUsers = allUsers.filter(u => u.role === 'admin' || u.role === 'support-agent');
+        // Query users directly to avoid circular dependency with auth module
+        const targetUsers = db.prepare("SELECT id, name, role FROM users WHERE role IN ('admin', 'support-agent')").all() as { id: number, name: string, role: string }[];
         
         for (const targetUser of targetUsers) {
             await createNotification({

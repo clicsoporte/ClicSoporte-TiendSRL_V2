@@ -95,7 +95,7 @@ export async function addTicket(payload: NewTicketPayload, user: User): Promise<
 
         const result = transaction() as DbTicketRow;
 
-        // --- NOTIFICATION DISPATCH ---
+        // --- NOTIFICATION DISPATCH (Server Side Enrichment) ---
         try {
             const settings = await getCompanySettings();
             const service = settings.servicesCatalog.find(s => s.id === result.serviceId);
@@ -310,7 +310,7 @@ export async function updateTicketDetails(ticketId: number, updates: Partial<Pic
 
     const result = transaction() as DbTicketRow;
 
-    // --- NOTIFICATION ---
+    // --- NOTIFICATION DISPATCH (Server Side Enrichment) ---
     try {
         const settings = await getCompanySettings();
         const service = settings.servicesCatalog.find(s => s.id === result.serviceId);
