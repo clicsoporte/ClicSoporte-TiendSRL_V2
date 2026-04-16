@@ -43,6 +43,18 @@ export async function getAllNotificationRules(): Promise<NotificationRule[]> {
     }
 }
 
+export async function getNotificationRuleById(id: number): Promise<NotificationRule | null> {
+    const db = await connectNotificationsDb();
+    const row = db.prepare('SELECT * FROM notification_rules WHERE id = ?').get(id) as NotificationRuleRow | undefined;
+    if (!row) return null;
+    return {
+        ...row,
+        action: row.action as 'sendEmail' | 'sendTelegram',
+        enabled: Boolean(row.enabled),
+        recipients: JSON.parse(row.recipients || '[]'),
+    };
+}
+
 export async function saveNotificationRule(rule: Omit<NotificationRule, 'id'> | NotificationRule): Promise<NotificationRule> {
     await authorizeAction('admin:settings:general');
     const db = await connectNotificationsDb();

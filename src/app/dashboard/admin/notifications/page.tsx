@@ -1,4 +1,3 @@
-
 'use client';
 
 /**
@@ -18,14 +17,14 @@ import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { PlusCircle, Trash2, Save, BellRing, Clock, Send, Loader2, Mail, RefreshCw } from 'lucide-react';
+import { PlusCircle, Trash2, Save, BellRing, Clock, Send, Loader2, Mail, RefreshCw, Play } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import type { NotificationRule, ScheduledTask, NotificationServiceConfig, EmailSettings } from '@/modules/core/types';
 import { 
     getAllNotificationRules, saveNotificationRule, deleteNotificationRule,
     getAllScheduledTasks, saveScheduledTask, deleteScheduledTask,
     getNotificationServiceSettings, saveNotificationServiceSettings,
-    testTelegram, fetchTelegramChatId
+    testTelegram, fetchTelegramChatId, testNotificationRule
 } from '@/modules/notifications/lib/actions';
 import { getEmailSettings, saveEmailSettings, testEmailSettings } from '@/modules/core/lib/email-service';
 import { Badge } from '@/components/ui/badge';
@@ -57,6 +56,7 @@ export default function AutomationManagerPage() {
     const [isSaving, setIsSaving] = useState(false);
     const [isTestingEmail, setIsTestingEmail] = useState(false);
     const [isTestingTelegram, setIsTestingTelegram] = useState(false);
+    const [isTestingRule, setIsTestingRule] = useState<number | null>(null);
     const [isFetchingChatId, setIsFetchingChatId] = useState(false);
 
     const [currentRule, setCurrentRule] = useState<Partial<NotificationRule>>({
@@ -105,6 +105,22 @@ export default function AutomationManagerPage() {
             toast({ title: 'Error', variant: 'destructive' });
         } finally {
             setIsSaving(false);
+        }
+    };
+
+    const handleTestRuleAction = async (ruleId: number) => {
+        setIsTestingRule(ruleId);
+        try {
+            const res = await testNotificationRule(ruleId);
+            if (res.success) {
+                toast({ title: 'Prueba Exitosa', description: res.message });
+            } else {
+                toast({ title: 'Fallo en Prueba', description: res.message, variant: 'destructive' });
+            }
+        } catch (error: any) {
+            toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        } finally {
+            setIsTestingRule(null);
         }
     };
 
@@ -278,9 +294,19 @@ export default function AutomationManagerPage() {
                                             <TableCell>
                                                 <Switch checked={rule.enabled} onCheckedChange={() => toggleRuleStatus(rule)} />
                                             </TableCell>
-                                            <TableCell className="text-right">
-                                                <Button variant="ghost" size="icon" onClick={() => { setCurrentRule(rule); setRuleDialogOpen(true); }}><Save className="h-4 w-4" /></Button>
-                                                <Button variant="ghost" size="icon" className="text-destructive" onClick={() => deleteNotificationRule(rule.id).then(fetchData)}><Trash2 className="h-4 w-4" /></Button>
+                                            <TableCell className="text-right space-x-1">
+                                                <Button 
+                                                    variant="outline" 
+                                                    size="icon" 
+                                                    className="h-8 w-8 text-blue-600"
+                                                    title="Enviar notificación de prueba"
+                                                    disabled={isTestingRule !== null}
+                                                    onClick={() => handleTestRuleAction(rule.id)}
+                                                >
+                                                    {isTestingRule === rule.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4 fill-current" />}
+                                                </Button>
+                                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setCurrentRule(rule); setRuleDialogOpen(true); }}><Save className="h-4 w-4" /></Button>
+                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteNotificationRule(rule.id).then(fetchData)}><Trash2 className="h-4 w-4" /></Button>
                                             </TableCell>
                                         </TableRow>
                                     ))}
@@ -493,7 +519,7 @@ export default function AutomationManagerPage() {
                         <div className="space-y-2">
                             <Label>Destinatarios (uno por línea)</Label>
                             <p className="text-[10px] text-muted-foreground mb-1">
-                                Usa <b>[CORREO_CLIENTE]</b> para Email o <b>[TELEGRAM_CLIENTE]</b> para Telegram del cliente.
+                                Usa <b>[CORREO_CLIENTE]</b> para Email o <b>[TELEGRAM_CLIENTE]</b> para Telegram del cliente. Escribe varios IDs de chat para enviar a varios destinos.
                             </p>
                             <Textarea 
                                 className="w-full min-h-[100px]" 
