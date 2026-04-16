@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Master schema definition for database auditing.
  * This defines the "ideal" state of the central intratool.db database.
@@ -51,7 +50,7 @@ export const MASTER_SCHEMA: ExpectedSchema = {
     tickets: [
         'id', 'consecutive', 'subject', 'status', 'priority', 'createdAt', 'updatedAt', 
         'dueDate', 'companyId', 'customerName', 'customerEmail', 'customerPhone', 'companyName', 
-        'assigneeId', 'helpTopicId', 'serviceId', 'contractId', 'licenseId', 'isBillable', 'providerId'
+        'assigneeId', 'helpTopicId', 'serviceId', 'contractId', 'licenseId', 'equipmentId', 'isBillable', 'providerId'
     ],
     ticket_threads: ['id', 'ticketId', 'userId', 'userName', 'type', 'content', 'createdAt'],
     ticket_settings: ['key', 'value'],

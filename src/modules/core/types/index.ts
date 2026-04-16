@@ -681,6 +681,7 @@ export type Ticket = {
     serviceId?: string | null;
     contractId?: number | null;
     licenseId?: number | null;
+    equipmentId?: string | null;
     isBillable: boolean;
     providerId?: number | null;
     totalDuration?: number;
@@ -713,6 +714,7 @@ export type NewTicketPayload = {
     dueDate?: string;
     contractId?: number | null;
     licenseId?: number | null;
+    equipmentId?: string | null;
     isBillable: boolean;
     providerId?: number | null;
 };

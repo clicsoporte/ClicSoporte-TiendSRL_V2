@@ -1,7 +1,6 @@
-
 /**
  * @fileoverview Client-side component for Support Tickets.
- * Enhanced with responsive Card view for mobile devices and license integration.
+ * Enhanced with responsive Card view for mobile devices and license/equipment integration.
  */
 'use client';
 
@@ -9,7 +8,7 @@ import { useTickets } from "@/modules/tickets/hooks/useTickets";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
-import { FilePlus, Loader2, FilterX, ShieldCheck, ShieldAlert, Clock, Info, EyeOff, MapPin, Zap, UserCircle, Mail, MessageCircle } from "lucide-react";
+import { FilePlus, Loader2, FilterX, ShieldCheck, ShieldAlert, Clock, Info, EyeOff, MapPin, Zap, UserCircle, Mail, MessageCircle, Laptop } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -24,7 +23,7 @@ import { useRouter } from "next/navigation";
 import { useAuthorization } from "@/modules/core/hooks/useAuthorization";
 import Link from "next/link";
 import { useAuth } from "@/modules/core/hooks/useAuth";
-import type { Ticket, CustomerContact, License } from '@/modules/core/types';
+import type { Ticket, CustomerContact, License, Equipment } from '@/modules/core/types';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
 import { useMemo } from "react";
@@ -51,6 +50,7 @@ export default function TicketsClient() {
         providers,
         selectedCustomerId,
         customerLicenses,
+        customerEquipment,
         showOnlyMine
     } = state;
 
@@ -299,26 +299,44 @@ export default function TicketsClient() {
                                                 />
                                             </div>
                                             
-                                            {selectedCustomerId && !isCustomerBlocked && canAssignLicenses && (
-                                                <div className="space-y-2">
-                                                    <Label className="text-xs">Licencia Vinculada (Opcional)</Label>
-                                                    <Select value={String(newTicket.licenseId || 'none')} onValueChange={(v) => actions.handleNewTicketChange('licenseId', v === 'none' ? null : Number(v))}>
-                                                        <SelectTrigger className="h-8 text-xs">
-                                                            <SelectValue placeholder="Vincular licencia instalada..." />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            <SelectItem value="none">Sin licencia asociada</SelectItem>
-                                                            {customerLicenses.map((lic: License) => {
-                                                                const software = selectors.softwareProducts.find(p => p.id === lic.softwareId);
-                                                                return (
-                                                                    <SelectItem key={lic.id} value={String(lic.id)}>
-                                                                        {software?.name || 'Software'} - {lic.isPerpetual ? 'Perpetua' : lic.expirationDate}
-                                                                    </SelectItem>
-                                                                );
-                                                            })}
-                                                        </SelectContent>
-                                                    </Select>
-                                                    <p className="text-[10px] text-muted-foreground italic">Vincule el ticket para saber qué licencia instalar o reparar.</p>
+                                            {selectedCustomerId && !isCustomerBlocked && (
+                                                <div className="space-y-4 pt-2">
+                                                    <div className="space-y-2">
+                                                        <Label className="text-xs flex items-center gap-1.5"><Laptop className="h-3 w-3" /> Equipo afectado (Inventario)</Label>
+                                                        <Select value={newTicket.equipmentId || 'none'} onValueChange={v => actions.handleNewTicketChange('equipmentId', v === 'none' ? null : v)}>
+                                                            <SelectTrigger className="h-8 text-xs bg-muted/20">
+                                                                <SelectValue placeholder="Seleccionar hardware..." />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="none">Equipo no registrado</SelectItem>
+                                                                {customerEquipment.map((eq: Equipment) => (
+                                                                    <SelectItem key={eq.id} value={eq.id}>{eq.nickname} ({eq.brand})</SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+
+                                                    {canAssignLicenses && (
+                                                        <div className="space-y-2">
+                                                            <Label className="text-xs">Licencia Vinculada (Opcional)</Label>
+                                                            <Select value={String(newTicket.licenseId || 'none')} onValueChange={(v) => actions.handleNewTicketChange('licenseId', v === 'none' ? null : Number(v))}>
+                                                                <SelectTrigger className="h-8 text-xs">
+                                                                    <SelectValue placeholder="Vincular licencia instalada..." />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    <SelectItem value="none">Sin licencia asociada</SelectItem>
+                                                                    {customerLicenses.map((lic: License) => {
+                                                                        const software = selectors.softwareProducts.find(p => p.id === lic.softwareId);
+                                                                        return (
+                                                                            <SelectItem key={lic.id} value={String(lic.id)}>
+                                                                                {software?.name || 'Software'} - {lic.isPerpetual ? 'Perpetua' : lic.expirationDate}
+                                                                            </SelectItem>
+                                                                        );
+                                                                    })}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             )}
 

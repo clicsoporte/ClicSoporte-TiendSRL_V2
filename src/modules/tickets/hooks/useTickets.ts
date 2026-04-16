@@ -10,7 +10,7 @@ import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { logError } from '@/modules/core/lib/logger';
 import { useAuth } from '@/modules/core/hooks/useAuth';
-import type { NewTicketPayload, Ticket, TicketPriority, TicketStatus, TicketThread, User, HelpTopic, Contract, ThirdPartyProvider, CustomerContact, License, SoftwareProduct, Role } from '@/modules/core/types';
+import type { NewTicketPayload, Ticket, TicketPriority, TicketStatus, TicketThread, User, HelpTopic, Contract, ThirdPartyProvider, CustomerContact, License, SoftwareProduct, Role, Equipment } from '@/modules/core/types';
 import {
     saveTicket, getTickets, getTicketById as getTicketByIdServer,
     getTicketThread as getTicketThreadServer,
@@ -21,10 +21,11 @@ import {
     getThirdPartyProviders,
     getTicketPreference,
     saveTicketPreference,
-    getLicensesByCustomer
+    getLicensesByCustomer,
 } from '../lib/actions';
 import { getActiveContractForCustomer } from '@/modules/contracts/lib/actions';
 import { getSoftwareProducts } from '@/modules/licenses/lib/actions';
+import { getEquipmentByClient } from '@/modules/inventory/lib/actions';
 import { useDebounce } from 'use-debounce';
 import { checkPermissionInTree } from '@/modules/core/lib/permissions';
 
@@ -42,6 +43,7 @@ const emptyTicket: NewTicketPayload = {
     isBillable: false,
     contractId: null,
     licenseId: null,
+    equipmentId: null,
     providerId: null,
 };
 
@@ -62,6 +64,7 @@ const initialState = {
     activeContract: null as Contract | null,
     providers: [] as ThirdPartyProvider[],
     customerLicenses: [] as License[],
+    customerEquipment: [] as Equipment[],
     softwareProducts: [] as SoftwareProduct[],
     showOnlyMine: false,
 };
@@ -106,7 +109,6 @@ export const useTickets = () => {
                 getSoftwareProducts()
             ]);
             
-            // Load user preference for filtering
             if (user) {
                 const showOnlyMinePref = await getTicketPreference(user.id, 'showOnlyMine');
                 updateState({ 
@@ -145,7 +147,6 @@ export const useTickets = () => {
         const service = companyData?.servicesCatalog.find(s => s.id === serviceId);
         const priceLabel = service ? ` (Tarifa: ¢${(service.price || 0).toLocaleString()} ${service.billingType === 'task' ? '/tarea' : '/hora'})` : '';
 
-        // Priority 1: Check active contract
         if (contract) {
             if (contract.includedServices.includes(serviceId)) {
                 return { isBillable: false, message: `Servicio cubierto por CONTRATO VIGENTE: ${contract.name}` };
@@ -154,11 +155,9 @@ export const useTickets = () => {
                 return { isBillable: true, message: `Servicio EXCLUIDO del contrato. Se generará cobro adicional${priceLabel}.` };
             }
         } else if (customerId) {
-            // Check for customer without any active contract
             return { isBillable: true, message: `¡ATENCIÓN! El cliente NO tiene contrato vigente. El servicio es de ALTO RIESGO FINANCIERO${priceLabel}.` };
         }
 
-        // Priority 2: Check support package linked to customer profile
         if (customerId) {
             const customer = customers.find(c => c.id === customerId);
             if (customer?.supportPackageId) {
@@ -207,9 +206,10 @@ export const useTickets = () => {
         const customer = customers.find(c => c.id === customerId);
         if (!customer) return;
 
-        const [contract, licenses] = await Promise.all([
+        const [contract, licenses, equipment] = await Promise.all([
             getActiveContractForCustomer(customer.id),
-            getLicensesByCustomer(customer.id)
+            getLicensesByCustomer(customer.id),
+            getEquipmentByClient(customer.id)
         ]);
         
         setState(prevState => {
@@ -224,11 +224,13 @@ export const useTickets = () => {
                     customerName: customer.name, 
                     customerEmail: customer.email || customer.electronicDocEmail,
                     contractId: contract?.id || null,
-                    licenseId: null, // Reset license on customer change
+                    licenseId: null,
+                    equipmentId: null,
                     isBillable
                 },
                 activeContract: contract,
                 customerLicenses: licenses,
+                customerEquipment: equipment,
                 customerSearchTerm: customer.name,
                 isCustomerSearchOpen: false,
             };
@@ -292,6 +294,7 @@ export const useTickets = () => {
                     tickets: [createdTicket, ...prevState.tickets],
                     activeContract: null,
                     customerLicenses: [],
+                    customerEquipment: [],
                     isSubmitting: false
                 }));
 
@@ -334,7 +337,7 @@ export const useTickets = () => {
             }
         },
 
-        updateTicketDetails: async (ticketId: number, updates: Partial<Pick<Ticket, 'status' | 'priority' | 'assigneeId' | 'isBillable' | 'providerId' | 'licenseId'>>, u: User): Promise<Ticket | null> => {
+        updateTicketDetails: async (ticketId: number, updates: Partial<Pick<Ticket, 'status' | 'priority' | 'assigneeId' | 'isBillable' | 'providerId' | 'licenseId' | 'equipmentId'>>, u: User): Promise<Ticket | null> => {
             try {
                 const updatedTicket = await updateTicketDetailsServer(ticketId, updates, u);
                 const thread = await getTicketThreadServer(ticketId);
@@ -355,7 +358,7 @@ export const useTickets = () => {
         },
 
         resetNewTicketForm: () => {
-            updateState({ newTicket: emptyTicket, selectedCustomerId: null, customerSearchTerm: '', activeContract: null, customerLicenses: [] });
+            updateState({ newTicket: emptyTicket, selectedCustomerId: null, customerSearchTerm: '', activeContract: null, customerLicenses: [], customerEquipment: [] });
         }
     }), [updateState, toast, user, handleNewTicketChange, handleSelectCompany]);
 

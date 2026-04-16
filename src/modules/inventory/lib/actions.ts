@@ -1,31 +1,14 @@
 /**
  * @fileoverview Server Actions for the Inventory & Warranty module.
- * Implements high-performance search and pagination for a 1GB RAM environment.
+ * Implements high-performance search and CRUD for a 1GB RAM environment.
  */
 'use server';
 
 import { connectDb } from "@/modules/core/lib/db";
 import { authorizeAction } from "@/modules/core/lib/auth-guard";
-import type { Equipment, SaleRecord, InventorySearchResult, WarrantyStatus, Consumable } from "@/modules/core/types";
-import { logError } from "@/modules/core/lib/logger";
+import type { Equipment, SaleRecord, InventorySearchResult, Consumable } from "@/modules/core/types";
+import { logError, logInfo } from "@/modules/core/lib/logger";
 import { revalidatePath } from "next/cache";
-
-/**
- * Computes the real-time warranty status without storing it in the DB.
- */
-export function getWarrantyStatus(expiryDateStr: string, currentStatus: string): WarrantyStatus {
-    if (currentStatus === 'claimed') return 'claimed';
-    if (currentStatus === 'void') return 'void';
-
-    const expiryDate = new Date(expiryDateStr);
-    const now = new Date();
-    const diffTime = expiryDate.getTime() - now.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    if (diffDays < 0) return 'expired';
-    if (diffDays <= 30) return 'expiring';
-    return 'active';
-}
 
 /**
  * Omnibox search with hierarchical priority and pagination.
@@ -42,7 +25,6 @@ export async function omniSearch(query: string, page: number = 1): Promise<{
     const cleanQuery = `%${query.trim()}%`;
 
     try {
-        // Priority 1: Check for exact Serial Number in Equipment
         if (page === 1) {
             const exactEquipment = db.prepare(`
                 SELECT * FROM inventory_equipment WHERE serialNumber = ? LIMIT 1
@@ -56,7 +38,6 @@ export async function omniSearch(query: string, page: number = 1): Promise<{
                 };
             }
 
-            // Priority 2: Check for exact Invoice Number in Sales
             const exactSale = db.prepare(`
                 SELECT * FROM inventory_sale_records WHERE invoiceNumber = ? LIMIT 1
             `).get(query.trim()) as SaleRecord | undefined;
@@ -70,7 +51,6 @@ export async function omniSearch(query: string, page: number = 1): Promise<{
             }
         }
 
-        // Broad Search with Pagination
         const broadResults = db.prepare(`
             SELECT 'equipment' as type, id, nickname as mainLabel, brand || ' ' || model as subLabel, serialNumber, clientId
             FROM inventory_equipment 
@@ -88,7 +68,6 @@ export async function omniSearch(query: string, page: number = 1): Promise<{
 
         const hasMore = broadResults.length > limit;
         const finalResults = broadResults.slice(0, limit).map(row => {
-            // Re-fetch full data based on type to ensure consistency
             if (row.type === 'equipment') {
                 const data = db.prepare('SELECT * FROM inventory_equipment WHERE id = ?').get(row.id) as Equipment;
                 return { type: 'equipment' as const, data };
@@ -98,21 +77,13 @@ export async function omniSearch(query: string, page: number = 1): Promise<{
             }
         });
 
-        return { 
-            results: finalResults, 
-            hasMore, 
-            totalCount: 0 // Count is expensive on broad UNION queries, omitting for RAM protection
-        };
-
+        return { results: finalResults, hasMore, totalCount: 0 };
     } catch (error: unknown) {
         logError("OmniSearch failed", { error: (error as Error).message, query });
         return { results: [], hasMore: false, totalCount: 0 };
     }
 }
 
-/**
- * Gets full details for an equipment including consumables and sales.
- */
 export async function getEquipmentDetails(id: string) {
     await authorizeAction('inventory:read');
     const db = await connectDb();
@@ -123,34 +94,87 @@ export async function getEquipmentDetails(id: string) {
     const consumables = db.prepare('SELECT * FROM inventory_consumables WHERE equipmentId = ?').all(id) as Consumable[];
     const sales = db.prepare('SELECT * FROM inventory_sale_records WHERE equipmentId = ? OR serialNumber = ?').all(id, equipment.serialNumber) as SaleRecord[];
 
-    return {
-        ...equipment,
-        consumables,
-        saleRecords: sales
-    };
+    return { ...equipment, consumables, saleRecords: sales };
 }
 
-/**
- * Registers a warranty claim.
- */
-export async function claimWarranty(saleId: string, notes: string) {
+export async function saveEquipment(data: Omit<Equipment, 'createdAt' | 'updatedAt'>) {
+    await authorizeAction('inventory:manage');
+    const db = await connectDb();
+    const now = new Date().toISOString();
+    
+    try {
+        db.prepare(`
+            INSERT INTO inventory_equipment (id, clientId, nickname, category, brand, model, serialNumber, location, assignedUser, status, notes, createdAt, updatedAt)
+            VALUES (@id, @clientId, @nickname, @category, @brand, @model, @serialNumber, @location, @assignedUser, @status, @notes, @now, @now)
+            ON CONFLICT(id) DO UPDATE SET
+                clientId=@clientId, nickname=@nickname, category=@category, brand=@brand, model=@model, 
+                serialNumber=@serialNumber, location=@location, assignedUser=@assignedUser, 
+                status=@status, notes=@notes, updatedAt=@now
+        `).run({ ...data, now });
+
+        await logInfo(`Equipment saved: ${data.nickname}`, { id: data.id });
+        revalidatePath('/dashboard/inventory');
+        return { success: true };
+    } catch (e) {
+        logError("Failed to save equipment", { error: (e as Error).message });
+        throw e;
+    }
+}
+
+export async function saveSaleRecord(data: Omit<SaleRecord, 'createdAt' | 'updatedAt'>) {
+    await authorizeAction('inventory:manage');
+    const db = await connectDb();
+    const now = new Date().toISOString();
+    
+    try {
+        db.prepare(`
+            INSERT INTO inventory_sale_records (id, clientId, equipmentId, invoiceNumber, invoiceDate, productName, serialNumber, partNumber, warrantyMonths, warrantyExpiry, warrantyNotes, warrantyStatus, claimDate, claimNotes, createdAt, updatedAt)
+            VALUES (@id, @clientId, @equipmentId, @invoiceNumber, @invoiceDate, @productName, @serialNumber, @partNumber, @warrantyMonths, @warrantyExpiry, @warrantyNotes, @warrantyStatus, @claimDate, @claimNotes, @now, @now)
+            ON CONFLICT(id) DO UPDATE SET
+                clientId=@clientId, equipmentId=@equipmentId, invoiceNumber=@invoiceNumber, invoiceDate=@invoiceDate, 
+                productName=@productName, serialNumber=@serialNumber, partNumber=@partNumber, 
+                warrantyMonths=@warrantyMonths, warrantyExpiry=@warrantyExpiry, warrantyNotes=@warrantyNotes, 
+                warrantyStatus=@warrantyStatus, claimDate=@claimDate, claimNotes=@claimNotes, updatedAt=@now
+        `).run({ ...data, now });
+
+        await logInfo(`Sale record saved: ${data.invoiceNumber}`, { id: data.id });
+        revalidatePath('/dashboard/inventory');
+        return { success: true };
+    } catch (e) {
+        logError("Failed to save sale record", { error: (e as Error).message });
+        throw e;
+    }
+}
+
+export async function saveConsumable(data: Consumable) {
     await authorizeAction('inventory:manage');
     const db = await connectDb();
     const now = new Date().toISOString();
     
     db.prepare(`
-        UPDATE inventory_sale_records 
-        SET warrantyStatus = 'claimed', claimDate = ?, claimNotes = ?, updatedAt = ?
-        WHERE id = ?
-    `).run(now, notes, now, saleId);
+        INSERT INTO inventory_consumables (id, equipmentId, type, description, partNumber, brand, specs, isRecurring, lastReplaced, notes, createdAt)
+        VALUES (@id, @equipmentId, @type, @description, @partNumber, @brand, @specs, @isRecurring, @lastReplaced, @notes, @now)
+        ON CONFLICT(id) DO UPDATE SET
+            type=@type, description=@description, partNumber=@partNumber, brand=@brand, 
+            specs=@specs, isRecurring=@isRecurring, lastReplaced=@lastReplaced, notes=@notes
+    `).run({ ...data, isRecurring: data.isRecurring ? 1 : 0, now });
     
-    revalidatePath('/dashboard/inventory');
     return { success: true };
 }
 
-/**
- * Retrieves all sale records for the Warranty Hub.
- */
+export async function deleteEquipment(id: string) {
+    await authorizeAction('inventory:manage');
+    const db = await connectDb();
+    db.prepare('DELETE FROM inventory_equipment WHERE id = ?').run(id);
+    revalidatePath('/dashboard/inventory');
+}
+
+export async function getEquipmentByClient(clientId: string): Promise<Equipment[]> {
+    await authorizeAction('inventory:read');
+    const db = await connectDb();
+    return db.prepare('SELECT * FROM inventory_equipment WHERE clientId = ? ORDER BY nickname').all(clientId) as Equipment[];
+}
+
 export async function getAllSaleRecords(): Promise<SaleRecord[]> {
     await authorizeAction('inventory:warranty:hub');
     const db = await connectDb();

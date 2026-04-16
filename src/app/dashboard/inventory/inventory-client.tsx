@@ -10,13 +10,16 @@ import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, Laptop, ShieldCheck, PlusCircle, Loader2, ArrowRight, ArrowLeft, History, Package } from 'lucide-react';
+import { Search, Laptop, ShieldCheck, PlusCircle, Loader2, ArrowRight, ArrowLeft, History, Package, Receipt } from 'lucide-react';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
-import { omniSearch, getWarrantyStatus } from '@/modules/inventory/lib/actions';
+import { omniSearch } from '@/modules/inventory/lib/actions';
+import { getWarrantyStatus } from '@/modules/inventory/lib/inventory-utils';
 import type { InventorySearchResult } from '@/modules/core/types';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { EquipmentDetail } from '@/components/inventory/equipment-detail';
+import { EquipmentForm } from '@/components/inventory/equipment-form';
+import { SaleRecordForm } from '@/components/inventory/sale-record-form';
 import Link from 'next/link';
 
 export default function InventoryClient() {
@@ -30,6 +33,8 @@ export default function InventoryClient() {
     const [hasMore, setHasMore] = useState(false);
     
     const [selectedEquipmentId, setSelectedEquipmentId] = useState<string | null>(null);
+    const [isEqFormOpen, setEqFormOpen] = useState(false);
+    const [isSaleFormOpen, setSaleFormOpen] = useState(false);
 
     useEffect(() => {
         setTitle("Control de Hardware e Inventario");
@@ -62,9 +67,14 @@ export default function InventoryClient() {
                         </Link>
                     </Button>
                     {hasPermission('inventory:manage') && (
-                        <Button>
-                            <PlusCircle className="mr-2 h-4 w-4" /> Registrar Hardware
-                        </Button>
+                        <div className="flex gap-2">
+                            <Button variant="outline" onClick={() => setSaleFormOpen(true)}>
+                                <Receipt className="mr-2 h-4 w-4" /> Venta/Garantía
+                            </Button>
+                            <Button onClick={() => setEqFormOpen(true)}>
+                                <PlusCircle className="mr-2 h-4 w-4" /> Registrar Equipo
+                            </Button>
+                        </div>
                     )}
                 </div>
             </div>
@@ -112,14 +122,14 @@ export default function InventoryClient() {
                                             <div>
                                                 <div className="flex items-center gap-2">
                                                     <p className="font-bold text-lg">
-                                                        {result.type === 'equipment' ? result.data.nickname : result.data.productName}
+                                                        {result.type === 'equipment' ? result.data.nickname : (result.data as any).productName}
                                                     </p>
                                                     <Badge variant="outline" className="text-[10px] uppercase">{result.type}</Badge>
                                                 </div>
                                                 <p className="text-sm text-muted-foreground font-mono">
                                                     {result.type === 'equipment' 
                                                         ? `${result.data.brand} ${result.data.model} | S/N: ${result.data.serialNumber}`
-                                                        : `Factura: ${result.data.invoiceNumber} | S/N: ${result.data.serialNumber}`}
+                                                        : `Factura: ${(result.data as any).invoiceNumber} | S/N: ${result.data.serialNumber}`}
                                                 </p>
                                             </div>
                                         </div>
@@ -128,7 +138,7 @@ export default function InventoryClient() {
                                                 <div className="text-right hidden sm:block">
                                                     <p className="text-[10px] font-black uppercase text-muted-foreground">Estado Garantía</p>
                                                     <Badge className="capitalize">
-                                                        {getWarrantyStatus(result.data.warrantyExpiry, result.data.warrantyStatus)}
+                                                        {getWarrantyStatus((result.data as any).warrantyExpiry, (result.data as any).warrantyStatus)}
                                                     </Badge>
                                                 </div>
                                             )}
@@ -174,6 +184,18 @@ export default function InventoryClient() {
             <EquipmentDetail 
                 equipmentId={selectedEquipmentId} 
                 onClose={() => setSelectedEquipmentId(null)} 
+            />
+
+            <EquipmentForm 
+                isOpen={isEqFormOpen} 
+                onClose={() => setEqFormOpen(false)} 
+                onSuccess={() => handleSearch(page)} 
+            />
+
+            <SaleRecordForm 
+                isOpen={isSaleFormOpen} 
+                onClose={() => setSaleFormOpen(false)} 
+                onSuccess={() => handleSearch(page)} 
             />
         </main>
     );

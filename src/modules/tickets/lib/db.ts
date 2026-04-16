@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Server-side functions for the support tickets module.
  * Unified into intratool.db. Tables prefixed with ticket_.
@@ -53,7 +52,6 @@ export async function addTicket(payload: NewTicketPayload, user: User): Promise<
     try {
         const db = await connectTicketsDb();
         
-        // Anti-Fraud check: Ensure customer is not blocked
         const customer = db.prepare("SELECT isBlocked, blockedReason FROM customers WHERE name = ? OR commercialName = ?").get(payload.customerName, payload.customerName) as { isBlocked: number, blockedReason: string } | undefined;
         if (customer && customer.isBlocked === 1) {
             throw new Error(`OPERACIÓN DENEGADA: El cliente se encuentra BLOQUEADO por razones administrativas. Motivo: ${customer.blockedReason || 'Sin especificar'}`);
@@ -82,9 +80,9 @@ export async function addTicket(payload: NewTicketPayload, user: User): Promise<
             }
 
             const info = db.prepare(`
-                INSERT INTO tickets (consecutive, subject, status, priority, createdAt, updatedAt, companyId, customerName, customerEmail, customerPhone, companyName, assigneeId, helpTopicId, serviceId, dueDate, contractId, licenseId, isBillable, providerId)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `).run(consecutive, payload.subject, 'open', priority, now, now, payload.companyId, payload.customerName, payload.customerEmail, payload.customerPhone || null, companyName, assigneeId, payload.helpTopicId, payload.serviceId, payload.dueDate || null, payload.contractId, payload.licenseId || null, payload.isBillable ? 1 : 0, payload.providerId);
+                INSERT INTO tickets (consecutive, subject, status, priority, createdAt, updatedAt, companyId, customerName, customerEmail, customerPhone, companyName, assigneeId, helpTopicId, serviceId, dueDate, contractId, licenseId, equipmentId, isBillable, providerId)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `).run(consecutive, payload.subject, 'open', priority, now, now, payload.companyId, payload.customerName, payload.customerEmail, payload.customerPhone || null, companyName, assigneeId, payload.helpTopicId, payload.serviceId, payload.dueDate || null, payload.contractId, payload.licenseId || null, payload.equipmentId || null, payload.isBillable ? 1 : 0, payload.providerId);
             
             db.prepare('INSERT INTO ticket_threads (ticketId, userId, userName, type, content, createdAt) VALUES (?, ?, ?, ?, ?, ?)')
               .run(info.lastInsertRowid, user.id, user.name, 'message', payload.content, now);
@@ -95,7 +93,6 @@ export async function addTicket(payload: NewTicketPayload, user: User): Promise<
 
         const result = transaction() as DbTicketRow;
 
-        // --- NOTIFICATION DISPATCH (Server Side Enrichment) ---
         try {
             const settings = await getCompanySettings();
             const service = settings.servicesCatalog.find(s => s.id === result.serviceId);
@@ -208,7 +205,6 @@ export async function addThreadEntry(payload: { ticketId: number; userId: number
     db.prepare('UPDATE tickets SET updatedAt = ? WHERE id = ?').run(now, payload.ticketId);
     const row = db.prepare('SELECT * FROM ticket_threads WHERE id = ?').get(info.lastInsertRowid) as TicketThread;
 
-    // --- NOTIFICATION ---
     if (payload.type === 'message') {
         try {
             const ticket = db.prepare('SELECT consecutive, customerEmail, companyName, customerName FROM tickets WHERE id = ?').get(payload.ticketId) as { consecutive: string, customerEmail: string, companyName: string, customerName: string } | undefined;
@@ -227,7 +223,7 @@ export async function addThreadEntry(payload: { ticketId: number; userId: number
     return JSON.parse(JSON.stringify(row));
 }
 
-export async function updateTicketDetails(ticketId: number, updates: Partial<Pick<Ticket, 'status' | 'priority' | 'assigneeId' | 'isBillable' | 'providerId' | 'licenseId'>>, user: User): Promise<Ticket> {
+export async function updateTicketDetails(ticketId: number, updates: Partial<Pick<Ticket, 'status' | 'priority' | 'assigneeId' | 'isBillable' | 'providerId' | 'licenseId' | 'equipmentId'>>, user: User): Promise<Ticket> {
     await authorizeAction('tickets:manage');
     const db = await connectTicketsDb();
     const currentTicket = db.prepare('SELECT * FROM tickets WHERE id = ?').get(ticketId) as DbTicketRow;
@@ -239,7 +235,6 @@ export async function updateTicketDetails(ticketId: number, updates: Partial<Pic
         const params: (string | number | null)[] = [now];
         const notes: string[] = [];
 
-        // Workflow logic: Sync Timer with Status
         if (updates.status && updates.status !== currentTicket.status) {
             query += ', status = ?';
             params.push(updates.status);
@@ -296,6 +291,12 @@ export async function updateTicketDetails(ticketId: number, updates: Partial<Pic
             params.push(updates.licenseId); 
             notes.push(`Licencia vinculada actualizada`); 
         }
+
+        if (updates.equipmentId !== undefined && updates.equipmentId !== currentTicket.equipmentId) { 
+            query += ', equipmentId = ?'; 
+            params.push(updates.equipmentId); 
+            notes.push(`Equipo de inventario vinculado`); 
+        }
         
         query += ' WHERE id = ?';
         params.push(ticketId);
@@ -310,7 +311,6 @@ export async function updateTicketDetails(ticketId: number, updates: Partial<Pic
 
     const result = transaction() as DbTicketRow;
 
-    // --- NOTIFICATION DISPATCH (Server Side Enrichment) ---
     try {
         const settings = await getCompanySettings();
         const service = settings.servicesCatalog.find(s => s.id === result.serviceId);

@@ -12,7 +12,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ShieldCheck, Search, FilterX, Loader2, Calendar, FileText, UserCircle } from 'lucide-react';
-import { getAllSaleRecords, getWarrantyStatus } from '@/modules/inventory/lib/actions';
+import { getAllSaleRecords } from '@/modules/inventory/lib/actions';
+import { getWarrantyStatus } from '@/modules/inventory/lib/inventory-utils';
 import type { SaleRecord } from '@/modules/core/types';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
