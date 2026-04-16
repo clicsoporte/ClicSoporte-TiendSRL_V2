@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview This file centralizes all permission-related constants and logic.
  * Features hierarchical dependencies and granular categorization for MSP operations.
@@ -14,6 +13,9 @@ export const permissionGroups = {
     ],
     "Clientes": [
         "customers:read", "customers:contacts:read", "customers:create", "customers:update", "customers:delete", "customers:update:plan"
+    ],
+    "Inventario y Garantías": [
+        "inventory:read", "inventory:manage", "inventory:warranty:hub", "inventory:consumables:update"
     ],
     "Contratos": [
         "contracts:read", "contracts:create", "contracts:update", "contracts:delete"
@@ -68,6 +70,10 @@ export const permissionTranslations: Record<string, string> = {
     "customers:update": "Clientes: Editar Datos",
     "customers:delete": "Clientes: Eliminar",
     "customers:update:plan": "Clientes: Cambiar Plan de Soporte",
+    "inventory:read": "Inventario: Ver Equipos",
+    "inventory:manage": "Inventario: Gestionar Hardware",
+    "inventory:warranty:hub": "Inventario: Panel de Garantías",
+    "inventory:consumables:update": "Inventario: Editar Insumos",
     "contracts:read": "Contratos: Ver Listado",
     "contracts:create": "Contratos: Crear Nuevo",
     "contracts:update": "Contratos: Editar / Renovar",
@@ -131,6 +137,7 @@ export const permissionTree: Record<string, string[]> = {
     "admin:access": ["dashboard:access"],
     "tickets:read:all": ["dashboard:access"],
     "customers:read": ["dashboard:access"],
+    "inventory:read": ["dashboard:access"],
     "contracts:read": ["dashboard:access"],
     "planner:read": ["dashboard:access"],
     "licenses:read": ["dashboard:access"],
@@ -139,6 +146,11 @@ export const permissionTree: Record<string, string[]> = {
     "billing:manage": ["dashboard:access"],
     "cost-assistant:access": ["dashboard:access"],
     "hacienda:query": ["dashboard:access"],
+
+    // Inventory Hierarchy
+    "inventory:manage": ["inventory:read"],
+    "inventory:warranty:hub": ["inventory:read"],
+    "inventory:consumables:update": ["inventory:manage"],
 
     // IT Tools Hierarchy
     "it-tools:notes:read": ["it-tools:access"],

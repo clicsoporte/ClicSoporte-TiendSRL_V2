@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Main database initialization and shared utility functions.
  * Unified into a single source of truth: intratool.db
@@ -491,6 +490,68 @@ export async function initializeMainDatabase(db: Database) {
             telegram TEXT NOT NULL,
             internal TEXT NOT NULL
         );
+
+        -- INVENTORY & WARRANTY MODULE
+        CREATE TABLE IF NOT EXISTS inventory_equipment (
+            id TEXT PRIMARY KEY,
+            clientId TEXT NOT NULL,
+            nickname TEXT NOT NULL,
+            category TEXT NOT NULL,
+            brand TEXT NOT NULL,
+            model TEXT NOT NULL,
+            serialNumber TEXT,
+            location TEXT,
+            assignedUser TEXT,
+            status TEXT NOT NULL DEFAULT 'active',
+            notes TEXT,
+            createdAt TEXT NOT NULL,
+            updatedAt TEXT NOT NULL,
+            FOREIGN KEY (clientId) REFERENCES customers(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS inventory_consumables (
+            id TEXT PRIMARY KEY,
+            equipmentId TEXT NOT NULL,
+            type TEXT NOT NULL,
+            description TEXT NOT NULL,
+            partNumber TEXT NOT NULL,
+            brand TEXT,
+            specs TEXT,
+            isRecurring INTEGER DEFAULT 0,
+            lastReplaced TEXT,
+            notes TEXT,
+            createdAt TEXT NOT NULL,
+            FOREIGN KEY (equipmentId) REFERENCES inventory_equipment(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS inventory_sale_records (
+            id TEXT PRIMARY KEY,
+            clientId TEXT NOT NULL,
+            equipmentId TEXT,
+            invoiceNumber TEXT NOT NULL,
+            invoiceDate TEXT NOT NULL,
+            productName TEXT,
+            serialNumber TEXT NOT NULL,
+            partNumber TEXT,
+            warrantyMonths INTEGER NOT NULL,
+            warrantyExpiry TEXT NOT NULL,
+            warrantyNotes TEXT,
+            warrantyStatus TEXT NOT NULL DEFAULT 'active',
+            claimDate TEXT,
+            claimNotes TEXT,
+            createdAt TEXT NOT NULL,
+            updatedAt TEXT NOT NULL,
+            FOREIGN KEY (clientId) REFERENCES customers(id) ON DELETE CASCADE,
+            FOREIGN KEY (equipmentId) REFERENCES inventory_equipment(id) ON DELETE SET NULL
+        );
+
+        -- INDICES FOR INVENTORY
+        CREATE INDEX IF NOT EXISTS idx_inv_equip_client ON inventory_equipment(clientId);
+        CREATE INDEX IF NOT EXISTS idx_inv_equip_serial ON inventory_equipment(serialNumber);
+        CREATE INDEX IF NOT EXISTS idx_inv_cons_equip ON inventory_consumables(equipmentId);
+        CREATE INDEX IF NOT EXISTS idx_inv_sales_client ON inventory_sale_records(clientId);
+        CREATE INDEX IF NOT EXISTS idx_inv_sales_serial ON inventory_sale_records(serialNumber);
+        CREATE INDEX IF NOT EXISTS idx_inv_sales_invoice ON inventory_sale_records(invoiceNumber);
     `;
 
     db.exec(mainSchema);

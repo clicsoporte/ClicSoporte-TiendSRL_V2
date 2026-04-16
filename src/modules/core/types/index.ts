@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview This file defines the core TypeScript types used throughout the application.
  */
@@ -797,4 +796,65 @@ export type Notification = {
     taskType?: string;
     isSuggestion?: boolean;
     suggestionId?: number;
+};
+
+// --- Inventory & Warranty Module Types ---
+
+export type EquipmentCategory = 'laptop' | 'desktop' | 'printer' | 'scanner' | 'monitor' | 'network' | 'phone' | 'other';
+export type EquipmentStatus = 'active' | 'inactive' | 'retired';
+export type ConsumableType = 'ink' | 'toner' | 'drum' | 'ram' | 'storage' | 'battery' | 'charger' | 'cable' | 'other';
+export type WarrantyStatus = 'active' | 'expiring' | 'expired' | 'claimed' | 'void';
+
+export type Equipment = {
+    id: string;
+    clientId: string;
+    nickname: string;
+    category: EquipmentCategory;
+    brand: string;
+    model: string;
+    serialNumber: string | null;
+    location?: string | null;
+    assignedUser?: string | null;
+    status: EquipmentStatus;
+    notes?: string | null;
+    createdAt: string;
+    updatedAt: string;
+};
+
+export type Consumable = {
+    id: string;
+    equipmentId: string;
+    type: ConsumableType;
+    description: string;
+    partNumber: string;
+    brand?: string | null;
+    specs?: string | null;
+    isRecurring: boolean;
+    lastReplaced?: string | null;
+    notes?: string | null;
+    createdAt: string;
+};
+
+export type SaleRecord = {
+    id: string;
+    clientId: string;
+    equipmentId?: string | null;
+    invoiceNumber: string;
+    invoiceDate: string;
+    productName?: string | null;
+    serialNumber: string;
+    partNumber?: string | null;
+    warrantyMonths: number;
+    warrantyExpiry: string;
+    warrantyNotes?: string | null;
+    warrantyStatus: 'active' | 'claimed' | 'void'; // 'expired' and 'expiring' are calculated
+    claimDate?: string | null;
+    claimNotes?: string | null;
+    createdAt: string;
+    updatedAt: string;
+};
+
+export type InventorySearchResult = {
+    type: 'equipment' | 'warranty' | 'customer';
+    data: Equipment | SaleRecord | Customer;
 };

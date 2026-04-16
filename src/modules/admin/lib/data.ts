@@ -2,7 +2,7 @@
  * @fileoverview This file contains the configuration data for the admin section tools.
  */
 import type { Tool } from "@/modules/core/types";
-import { Users, ShieldCheck, Briefcase, MessageSquare, DollarSign, FileUp, ServerCog, Network, Factory, Boxes, Ticket, FileTerminal, KeyRound, Truck, Zap } from "lucide-react";
+import { Users, ShieldCheck, Briefcase, MessageSquare, DollarSign, FileUp, ServerCog, Network, Factory, Boxes, Ticket, FileTerminal, KeyRound, Truck, Zap, Laptop } from "lucide-react";
 
 /**
  * List of tools available in the admin section.
@@ -42,6 +42,15 @@ export const adminTools: Tool[] = [
         href: "/dashboard/admin/notifications",
         icon: Zap,
         bgColor: "bg-yellow-600",
+        textColor: "text-white",
+      },
+      {
+        id: "inventory-warranty",
+        name: "Inventario y Garantías",
+        description: "Control de hardware de clientes y vencimiento de garantías.",
+        href: "/dashboard/inventory",
+        icon: Laptop,
+        bgColor: "bg-indigo-600",
         textColor: "text-white",
       },
       {
