@@ -133,6 +133,7 @@ export type Customer = {
     isManual?: boolean;
     contacts: CustomerContact[];
     supportPackageId?: string | null;
+    parentCustomerId?: string | null; // Hierarchy: Parent company that owns the contract
     // Real-time enrichment
     consumedHours?: number;
     availableHours?: number;

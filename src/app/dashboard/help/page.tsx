@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Help Center page with advanced mini-tutorials for MSP operations.
  * Enhanced with practical examples and business logic explanations.
@@ -8,7 +9,7 @@ import { useEffect, useState, useMemo } from "react";
 import { usePageTitle } from "@/modules/core/hooks/usePageTitle";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Search, LifeBuoy, Rocket, Wrench, AlertTriangle, ShieldCheck, MapPin, Zap, Wallet, BellRing, KeyRound } from "lucide-react";
+import { Search, LifeBuoy, Rocket, Wrench, AlertTriangle, ShieldCheck, MapPin, Zap, Wallet, BellRing, KeyRound, GitFork } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/modules/core/hooks/useAuth";
 import { Input } from "@/components/ui/input";
@@ -112,6 +113,30 @@ export default function HelpPage() {
                     <li><span className="font-bold">Control Financiero:</span> Ningún servicio se realiza sin validar primero su rentabilidad o cobertura.</li>
                     <li><span className="font-bold">Comunicación Omnicanal:</span> Notificaciones instantáneas por Email y Telegram para que nada se pase por alto.</li>
                 </ul>
+            </div>
+        )
+    },
+    {
+        title: "Tutorial: Bolsa de Horas Compartida (Jerarquía de Clientes)",
+        icon: <GitFork className="mr-4 h-6 w-6 text-blue-700" />,
+        content: (
+            <div className="space-y-4">
+                <p>Esta funcionalidad permite que un grupo corporativo (varias empresas con distinta cédula jurídica) compartan una misma bolsa de horas de soporte.</p>
+                <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                    <p className="text-sm font-bold text-blue-800 uppercase mb-2">Configuración Paso a Paso:</p>
+                    <ol className="list-decimal pl-6 text-sm space-y-2">
+                        <li><b>Identificar al Padre:</b> Selecciona o crea la empresa "Principal" (la que firma el contrato). Asígnala con su plan de 10h, por ejemplo.</li>
+                        <li><b>Vincular a los Hijos:</b> Edita las otras empresas del grupo y en la sección <b>Jerarquía Corporativa</b>, selecciona a la empresa principal como "Empresa Principal (Pagadora)".</li>
+                        <li><b>Operación:</b> Al abrir un ticket para una empresa hija, el sistema detectará automáticamente que debe descontar tiempo del contrato de la empresa principal.</li>
+                    </ol>
+                </div>
+                <Alert className="bg-amber-50 border-amber-200">
+                    <ShieldCheck className="h-4 w-4 text-amber-600" />
+                    <AlertTitle className="text-amber-800 text-xs">Visibilidad del Consumo</AlertTitle>
+                    <AlertDescription className="text-amber-700 text-[10px]">
+                        En el listado de clientes, la columna "Consumido" muestra las horas que esa empresa específica ha usado, pero el "Saldo" y la barra de progreso reflejan el estado de la <b>bolsa compartida</b> de todo el grupo.
+                    </AlertDescription>
+                </Alert>
             </div>
         )
     },
@@ -240,7 +265,7 @@ export default function HelpPage() {
             <div className="relative mt-8">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
               <Input
-                placeholder="¿Qué necesitas hacer hoy? (ej: 'notificaciones', 'vencimientos', 'viáticos')..."
+                placeholder="¿Qué necesitas hacer hoy? (ej: 'jerarquia', 'bolsa', 'vencimientos')..."
                 className="w-full pl-12 h-14 text-lg bg-white border-2 focus-visible:ring-primary shadow-sm"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}

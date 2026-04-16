@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Lógica de autenticación del servidor.
  */
@@ -5,7 +6,7 @@
 
 import { cookies } from 'next/headers';
 import { connectDb, getUnreadSuggestionsCount } from './db';
-import type { User, ExchangeRateApiResponse, Company, Contract, Role } from '../types';
+import type { User, ExchangeRateApiResponse, Company, Contract, Role, Customer } from '../types';
 import bcrypt from 'bcryptjs';
 import { logInfo, logWarn, logError } from './logger';
 import { SESSION_COOKIE, SALT_ROUNDS, SESSION_DURATION } from './auth-constants';
@@ -188,6 +189,7 @@ export async function sendPasswordRecoveryEmail(email: string): Promise<void> {
 
 /**
  * Obtiene todos los datos iniciales para el AuthProvider.
+ * Actualizado con lógica de jerarquía de clientes para bolsa de horas compartida.
  */
 export async function getInitialAuthData() {
     try {
@@ -207,6 +209,7 @@ export async function getInitialAuthData() {
             getAllUsers().catch(() => [])
         ]);
 
+        // 1. Obtener consumo individual de este mes
         const consumptionRows = db.prepare(`
             SELECT 
                 c.id as customerId,
@@ -220,22 +223,46 @@ export async function getInitialAuthData() {
             GROUP BY c.id
         `).all() as { customerId: string, consumedMs: number }[];
 
-        const consumptionMap = new Map(consumptionRows.map(r => [r.customerId, r.consumedMs / 3600000]));
+        const rawConsumptionMap = new Map(consumptionRows.map(r => [r.customerId, r.consumedMs]));
+        
+        // 2. Obtener contratos vigentes
         const activeContracts = db.prepare("SELECT * FROM contracts WHERE status = 'active'").all() as Contract[];
         const contractMap = new Map(activeContracts.map(c => [c.customerId, c.monthlyHours]));
 
-        const enrichedCustomers = customersData.map(customer => {
-            const consumedHours = consumptionMap.get(customer.id) || 0;
-            let availableHours = contractMap.get(customer.id) || 0;
-            if (availableHours === 0 && customer.supportPackageId) {
-                const pkg = companySettings.supportPackages.find(p => p.id === customer.supportPackageId);
-                availableHours = pkg?.defaultHours || 0;
+        // 3. Consolidar consumo por jerarquía (Pool Global)
+        const poolMap = new Map<string, number>(); // Root ID -> totalMs
+        customersData.forEach((c: Customer) => {
+            const raw = rawConsumptionMap.get(c.id) || 0;
+            const rootId = c.parentCustomerId || c.id;
+            poolMap.set(rootId, (poolMap.get(rootId) || 0) + raw);
+        });
+
+        const enrichedCustomers = customersData.map((customer: Customer) => {
+            const rootId = customer.parentCustomerId || customer.id;
+            
+            // Consumo individual para la fila
+            const consumedHours = (rawConsumptionMap.get(customer.id) || 0) / 3600000;
+            
+            // Horas disponibles: provienen del dueño del contrato (padre o el mismo si es root)
+            const ownerId = customer.parentCustomerId || customer.id;
+            let availableHours = contractMap.get(ownerId) || 0;
+            
+            if (availableHours === 0) {
+                const owner = customersData.find(x => x.id === ownerId);
+                if (owner?.supportPackageId) {
+                    const pkg = companySettings.supportPackages.find(p => p.id === owner.supportPackageId);
+                    availableHours = pkg?.defaultHours || 0;
+                }
             }
+
+            // El consumo total de la bolsa (para calcular saldo correctamente)
+            const poolConsumedHours = (poolMap.get(rootId) || 0) / 3600000;
 
             return {
                 ...customer,
                 consumedHours: parseFloat(consumedHours.toFixed(2)),
-                availableHours
+                poolConsumedHours: parseFloat(poolConsumedHours.toFixed(2)),
+                availableHours: availableHours
             };
         });
 
@@ -246,7 +273,6 @@ export async function getInitialAuthData() {
             rateData.date = erRes.venta.fecha;
         }
 
-        // Return a strictly serialized plain object to avoid hydration/Server Action errors
         return JSON.parse(JSON.stringify({
             roles, 
             companySettings, 

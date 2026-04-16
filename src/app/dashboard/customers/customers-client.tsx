@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -11,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogClose, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { PlusCircle, Search, Edit, Trash2, Loader2, UserPlus, Building2, Mail, Phone, Briefcase, SearchIcon, CheckCircle2, AlertCircle, MapPin, ShieldCheck, RefreshCw, Users, MessageCircle, X, ShieldAlert, BellRing } from 'lucide-react';
+import { PlusCircle, Search, Edit, Trash2, Loader2, UserPlus, Building2, Mail, Phone, Briefcase, SearchIcon, CheckCircle2, AlertCircle, MapPin, ShieldCheck, RefreshCw, Users, MessageCircle, X, ShieldAlert, BellRing, GitFork } from 'lucide-react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { upsertCustomer, deleteCustomer } from '@/modules/core/lib/data-access-db';
 import { getContributorInfo } from '@/modules/hacienda/lib/actions';
@@ -59,6 +60,7 @@ const emptyCustomer: Customer = {
     cantonId: null,
     districtId: null,
     supportPackageId: null,
+    parentCustomerId: null,
     telegramChatId: '',
     isBlocked: false,
     blockedReason: '',
@@ -145,6 +147,11 @@ export default function CustomersClient() {
         );
     }, [customers, searchTerm]);
 
+    // Parent candidate options: Companies that are NOT currently children of others
+    const parentCandidates = useMemo(() => {
+        return (customers || []).filter(c => !c.parentCustomerId && c.id !== currentCustomer.id);
+    }, [customers, currentCustomer.id]);
+
     const cantonsForProvince = useMemo(() => geoData.cantons.filter(c => c.provinceId === currentCustomer.provinceId), [geoData.cantons, currentCustomer.provinceId]);
     const districtsForCanton = useMemo(() => geoData.districts.filter(d => d.cantonId === currentCustomer.cantonId), [geoData.districts, currentCustomer.cantonId]);
 
@@ -197,6 +204,7 @@ export default function CustomersClient() {
             contacts: Array.isArray(customer.contacts) ? customer.contacts : [],
             taxActivities: customer.taxActivities || '[]',
             supportPackageId: customer.supportPackageId || null,
+            parentCustomerId: customer.parentCustomerId || null,
             telegramChatId: customer.telegramChatId || '',
             isBlocked: !!customer.isBlocked,
             blockedReason: customer.blockedReason || '',
@@ -429,6 +437,37 @@ export default function CustomersClient() {
 
                                     <section>
                                         <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                                            <GitFork className="h-5 w-5 text-primary" /> Jerarquía Corporativa
+                                        </h3>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            <div className="space-y-2">
+                                                <Label htmlFor="parent-customer">Empresa Principal (Pagadora / Dueña del Contrato)</Label>
+                                                <Select 
+                                                    value={currentCustomer.parentCustomerId || 'none'} 
+                                                    onValueChange={v => setCurrentCustomer({...currentCustomer, parentCustomerId: v === 'none' ? null : v})}
+                                                    disabled={!canChangePlan}
+                                                >
+                                                    <SelectTrigger className={cn(!canChangePlan && "bg-muted cursor-not-allowed")}>
+                                                        <SelectValue placeholder="Sin empresa principal (Independiente)"/>
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="none">Empresa Independiente (Dueña de su propio contrato)</SelectItem>
+                                                        {parentCandidates.map(p => (
+                                                            <SelectItem key={p.id} value={p.id}>{p.name} ({p.id})</SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                                <p className="text-[10px] text-muted-foreground italic">
+                                                    Si se asigna una empresa principal, esta empresa compartirá la <b>bolsa de horas</b> y el <b>plan de soporte</b> de la principal.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </section>
+
+                                    <Separator />
+
+                                    <section>
+                                        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                                             <BellRing className="h-5 w-5 text-primary" /> Preferencias de Comunicación
                                         </h3>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -473,13 +512,13 @@ export default function CustomersClient() {
                                         </h3>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             <div className="space-y-2">
-                                                <Label className={cn(!canChangePlan && "opacity-50")}>Paquete de Soporte Mensual</Label>
+                                                <Label className={cn((!canChangePlan || !!currentCustomer.parentCustomerId) && "opacity-50")}>Paquete de Soporte Mensual</Label>
                                                 <Select 
                                                     value={currentCustomer.supportPackageId || 'none'} 
                                                     onValueChange={v => setCurrentCustomer({...currentCustomer, supportPackageId: v === 'none' ? null : v})}
-                                                    disabled={!canChangePlan}
+                                                    disabled={!canChangePlan || !!currentCustomer.parentCustomerId}
                                                 >
-                                                    <SelectTrigger className={cn(!canChangePlan && "bg-muted cursor-not-allowed")}><SelectValue placeholder="Sin plan asignado"/></SelectTrigger>
+                                                    <SelectTrigger className={cn((!canChangePlan || !!currentCustomer.parentCustomerId) && "bg-muted cursor-not-allowed")}><SelectValue placeholder="Sin plan asignado"/></SelectTrigger>
                                                     <SelectContent>
                                                         <SelectItem value="none">Sin plan (Soporte por evento)</SelectItem>
                                                         {(companyData?.supportPackages || []).map(pkg => (
@@ -487,8 +526,13 @@ export default function CustomersClient() {
                                                         ))}
                                                     </SelectContent>
                                                 </Select>
-                                                {!canChangePlan && <p className="text-[10px] text-destructive font-bold">No tienes permiso para cambiar el plan del cliente.</p>}
-                                                {canChangePlan && <p className="text-[10px] text-muted-foreground">Define la lógica de redondeo y servicios incluidos para este cliente.</p>}
+                                                {currentCustomer.parentCustomerId && (
+                                                    <p className="text-[10px] text-primary font-bold">
+                                                        Heredado de la Empresa Principal.
+                                                    </p>
+                                                )}
+                                                {!canChangePlan && !currentCustomer.parentCustomerId && <p className="text-[10px] text-destructive font-bold">No tienes permiso para cambiar el plan del cliente.</p>}
+                                                {canChangePlan && !currentCustomer.parentCustomerId && <p className="text-[10px] text-muted-foreground">Define la lógica de redondeo y servicios incluidos para este cliente.</p>}
                                             </div>
                                         </div>
                                     </section>
@@ -685,18 +729,27 @@ export default function CustomersClient() {
                                         const pkg = companyData?.supportPackages.find(p => p.id === customer.supportPackageId);
                                         const consumed = customer.consumedHours || 0;
                                         const available = customer.availableHours || 0;
-                                        const balance = available - consumed;
-                                        const percentageUsed = available > 0 ? (consumed / available) * 100 : 0;
+                                        
+                                        // Use consolidated pool for balance if it's a hierarchy participant
+                                        const poolConsumed = (customer as any).poolConsumedHours || consumed;
+                                        const balance = available - poolConsumed;
+                                        const percentageUsed = available > 0 ? (poolConsumed / available) * 100 : 0;
+                                        
                                         const contactCount = (customer.contacts || []).length;
 
                                         return (
-                                            <TableRow key={customer.id} className={cn(customer.isBlocked && "bg-destructive/5")}>
+                                            <TableRow key={customer.id} className={cn(customer.isBlocked && "bg-destructive/5", customer.parentCustomerId && "bg-blue-50/20")}>
                                                 <TableCell className="font-mono text-xs">{customer.id}</TableCell>
                                                 <TableCell>
                                                     <div className="flex flex-col">
                                                         <span className="font-bold text-sm">{customer.name}</span>
                                                         {customer.commercialName && (
                                                             <span className="text-[10px] text-primary font-black uppercase tracking-tighter">★ {customer.commercialName}</span>
+                                                        )}
+                                                        {customer.parentCustomerId && (
+                                                            <span className="text-[9px] text-blue-600 font-bold flex items-center gap-1 mt-0.5">
+                                                                <GitFork className="h-2 w-2" /> Hijo de: {customer.parentCustomerId}
+                                                            </span>
                                                         )}
                                                     </div>
                                                 </TableCell>
@@ -713,9 +766,11 @@ export default function CustomersClient() {
                                                 <TableCell className="text-center font-mono font-bold text-xs">{available > 0 ? `${available}h` : '-'}</TableCell>
                                                 <TableCell className="text-center">
                                                     <div className="flex flex-col items-center">
-                                                        <span className={cn("font-mono text-xs", consumed > 0 ? "font-bold" : "text-muted-foreground")}>{consumed.toFixed(1)}h</span>
+                                                        <span className={cn("font-mono text-xs", consumed > 0 ? "font-bold" : "text-muted-foreground")} title="Uso individual">
+                                                            {consumed.toFixed(1)}h
+                                                        </span>
                                                         {available > 0 && (
-                                                            <div className="w-12 h-1 bg-muted rounded-full mt-1 overflow-hidden">
+                                                            <div className="w-12 h-1 bg-muted rounded-full mt-1 overflow-hidden" title={`Uso del grupo: ${poolConsumed.toFixed(1)}h`}>
                                                                 <div 
                                                                     className={cn("h-full", percentageUsed > 90 ? "bg-red-500" : percentageUsed > 70 ? "bg-orange-500" : "bg-green-500")} 
                                                                     style={{ width: `${Math.min(percentageUsed, 100)}%` }} 

@@ -56,7 +56,8 @@ export async function getAllCustomers(): Promise<Customer[]> {
             isBlocked: !!c.isBlocked,
             blockedReason: c.blockedReason as string | null,
             notifyTickets: c.notifyTickets === 1,
-            notifyLicenses: c.notifyLicenses === 1
+            notifyLicenses: c.notifyLicenses === 1,
+            parentCustomerId: c.parentCustomerId as string | null
         }));
         return JSON.parse(JSON.stringify(enrichedResults));
     } catch (error) {
@@ -86,13 +87,13 @@ export async function upsertCustomer(customer: Customer): Promise<Customer> {
             INSERT INTO customers (
                 id, name, commercialName, address, phone, taxId, currency, creditLimit, paymentCondition, salesperson, active, email, electronicDocEmail, isManual, contacts,
                 taxRegime, taxStatus, isTaxMoroso, isTaxOmiso, taxAdministration, taxActivities,
-                provinceId, cantonId, districtId, supportPackageId, telegramChatId, isBlocked, blockedReason,
+                provinceId, cantonId, districtId, supportPackageId, parentCustomerId, telegramChatId, isBlocked, blockedReason,
                 notifyTickets, notifyLicenses
             )
             VALUES (
                 @id, @name, @commercialName, @address, @phone, @taxId, @currency, @creditLimit, @paymentCondition, @salesperson, @active, @email, @electronicDocEmail, 1, @contacts,
                 @taxRegime, @taxStatus, @isTaxMoroso, @isTaxOmiso, @taxAdministration, @taxActivities,
-                @provinceId, @cantonId, @districtId, @supportPackageId, @telegramChatId, @isBlocked, @blockedReason,
+                @provinceId, @cantonId, @districtId, @supportPackageId, @parentCustomerId, @telegramChatId, @isBlocked, @blockedReason,
                 @notifyTickets, @notifyLicenses
             )
             ON CONFLICT(id) DO UPDATE SET
@@ -102,7 +103,7 @@ export async function upsertCustomer(customer: Customer): Promise<Customer> {
                 taxRegime = excluded.taxRegime, taxStatus = excluded.taxStatus, isTaxMoroso = excluded.isTaxMoroso, isTaxOmiso = excluded.isTaxOmiso,
                 taxAdministration = excluded.taxAdministration, taxActivities = excluded.taxActivities,
                 provinceId = excluded.provinceId, cantonId = excluded.cantonId, districtId = excluded.districtId,
-                supportPackageId = excluded.supportPackageId, telegramChatId = excluded.telegramChatId,
+                supportPackageId = excluded.supportPackageId, parentCustomerId = excluded.parentCustomerId, telegramChatId = excluded.telegramChatId,
                 isBlocked = excluded.isBlocked, blockedReason = excluded.blockedReason,
                 notifyTickets = excluded.notifyTickets, notifyLicenses = excluded.notifyLicenses
         `);
@@ -132,6 +133,7 @@ export async function upsertCustomer(customer: Customer): Promise<Customer> {
             cantonId: customer.cantonId || null,
             districtId: customer.districtId || null,
             supportPackageId: customer.supportPackageId || null,
+            parentCustomerId: customer.parentCustomerId || null,
             telegramChatId: customer.telegramChatId || null,
             isBlocked: customer.isBlocked ? 1 : 0,
             blockedReason: customer.blockedReason || null,

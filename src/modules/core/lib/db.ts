@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Main database initialization and shared utility functions.
  * Unified into a single source of truth: intratool.db
@@ -111,6 +112,7 @@ export async function initializeMainDatabase(db: Database) {
             isManual INTEGER DEFAULT 0,
             contacts TEXT,
             supportPackageId TEXT,
+            parentCustomerId TEXT,
             taxRegime TEXT,
             taxStatus TEXT,
             isTaxMoroso INTEGER DEFAULT 0,
@@ -653,7 +655,8 @@ export async function runMainMigrations(db: Database) {
     const geoFields = [
         ['provinceId', 'INTEGER'], ['cantonId', 'INTEGER'], ['districtId', 'INTEGER'], ['telegramChatId', 'TEXT'], ['commercialName', 'TEXT'],
         ['isBlocked', 'INTEGER DEFAULT 0'], ['blockedReason', 'TEXT'],
-        ['notifyTickets', 'INTEGER DEFAULT 1'], ['notifyLicenses', 'INTEGER DEFAULT 1']
+        ['notifyTickets', 'INTEGER DEFAULT 1'], ['notifyLicenses', 'INTEGER DEFAULT 1'],
+        ['parentCustomerId', 'TEXT']
     ];
     geoFields.forEach(([field, type]) => {
         if (!hasColumn('customers', field)) db.exec(`ALTER TABLE customers ADD COLUMN ${field} ${type};`);
