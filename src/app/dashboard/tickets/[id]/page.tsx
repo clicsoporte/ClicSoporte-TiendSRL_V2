@@ -3,13 +3,13 @@
 
 /**
  * @fileoverview Ticket detail page with multi-column layout for operations and context info.
- * Enhanced with linked license information and security controls.
+ * Enhanced with linked hardware and license information.
  */
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useTickets } from '@/modules/tickets/hooks/useTickets';
-import type { Ticket, TicketThread, TicketPriority, ThirdPartyProvider, TimeEntry, License } from '@/modules/core/types';
+import type { Ticket, TicketThread, TicketPriority, ThirdPartyProvider, TimeEntry, License, Equipment } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,7 +17,7 @@ import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Send, Loader2, MoreVertical, CreditCard, ShieldCheck, ShieldAlert, Truck, CheckCircle2, XCircle, PlayCircle, PauseCircle, Info, UserCircle, FileText, Download, Mail, UserCheck, KeyRound, Eye, MessageCircle } from 'lucide-react';
+import { Send, Loader2, MoreVertical, CreditCard, ShieldCheck, ShieldAlert, Truck, CheckCircle2, XCircle, PlayCircle, PauseCircle, Info, UserCircle, FileText, Download, Mail, UserCheck, KeyRound, Eye, MessageCircle, Laptop, Settings } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -35,6 +35,8 @@ import { getEntriesForTicket } from '@/modules/timesheet/lib/actions';
 import { generateDocument } from '@/modules/core/lib/pdf-generator';
 import { sendTicketReportByEmail } from '@/modules/tickets/lib/report-email-actions';
 import { getLicenses } from '@/modules/licenses/lib/actions';
+import { getEquipmentDetails } from '@/modules/inventory/lib/actions';
+import { EquipmentDetail } from '@/components/inventory/equipment-detail';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const getInitials = (name: string) => {
@@ -59,6 +61,8 @@ export default function TicketDetailPage() {
     const [isDeleting, setIsDeleting] = useState(false);
     const [isInitialLoading, setIsInitialLoading] = useState(true);
     const [allLicenses, setAllLicenses] = useState<License[]>([]);
+    const [linkedEquipment, setLinkedEquipment] = useState<Equipment | null>(null);
+    const [isEquipmentDetailOpen, setEquipmentDetailOpen] = useState(false);
 
     const [isClosureDialogOpen, setClosureDialogOpen] = useState(false);
     const [closureType, setClosureType] = useState<'completed' | 'canceled'>('completed');
@@ -71,7 +75,6 @@ export default function TicketDetailPage() {
     
     const supportUsers = useMemo(() => selectors.supportUsers, [selectors.supportUsers]);
 
-    // Find the linked customer to get contacts
     const linkedCustomer = useMemo(() => {
         if (!ticket) return null;
         return customers.find(c => c.name === ticket.customerName || c.name === ticket.companyName);
@@ -96,6 +99,11 @@ export default function TicketDetailPage() {
                 setThread(threadData);
                 setTimeEntries(entriesData);
                 setAllLicenses(licensesData);
+
+                if (ticketData.equipmentId) {
+                    const eqData = await getEquipmentDetails(ticketData.equipmentId);
+                    if (eqData) setLinkedEquipment(eqData as any);
+                }
             }
             setIsInitialLoading(false);
         }
@@ -122,7 +130,7 @@ export default function TicketDetailPage() {
         setIsReplying(false);
     };
 
-    const handleDetailUpdate = async (updates: Partial<Pick<Ticket, 'status' | 'priority' | 'assigneeId' | 'isBillable' | 'providerId' | 'licenseId'>>) => {
+    const handleDetailUpdate = async (updates: Partial<Pick<Ticket, 'status' | 'priority' | 'assigneeId' | 'isBillable' | 'providerId' | 'licenseId' | 'equipmentId'>>) => {
         if (!currentUser || !hasPermission('tickets:manage')) {
              toast({ title: "Accion no permitida", description: "No tienes permiso para gestionar metadatos de tickets.", variant: "destructive" });
             return;
@@ -140,6 +148,12 @@ export default function TicketDetailPage() {
             setTicket(updatedTicket);
             const threadData = await actions.getTicketThread(ticketId);
             setThread(threadData);
+            
+            if (updates.equipmentId) {
+                const eqData = await getEquipmentDetails(updates.equipmentId);
+                if (eqData) setLinkedEquipment(eqData as any);
+            }
+            
             if (updates.status === 'in_progress') toast({ title: "Cronómetro Iniciado Automáticamente" });
             if (updates.status === 'on_hold') toast({ title: "Tiempo Pausado" });
         }
@@ -182,27 +196,26 @@ export default function TicketDetailPage() {
         }
     };
 
-    // --- Report Actions ---
-    const formatDuration = (ms: number | null | undefined) => {
-        if (ms === null || ms === undefined) return "00:00:00";
-        const totalSeconds = Math.floor(ms / 1000);
-        const hours = Math.floor(totalSeconds / 3600).toString().padStart(2, '0');
-        const minutes = Math.floor((totalSeconds % 3600) / 60).toString().padStart(2, '0');
-        const seconds = (totalSeconds % 60).toString().padStart(2, '0');
-        return `${hours}:${minutes}:${seconds}`;
-    };
-
     const handleGeneratePDF = () => {
         if (!ticket || !companyData) return;
 
         const totalMs = timeEntries.reduce((acc, e) => acc + (e.duration || 0), 0);
         const billableMs = timeEntries.reduce((acc, e) => acc + (e.billableDuration || 0), 0);
 
+        const formatDurationStr = (ms: number | null | undefined) => {
+            if (ms === null || ms === undefined) return "00:00:00";
+            const totalSeconds = Math.floor(ms / 1000);
+            const hours = Math.floor(totalSeconds / 3600).toString().padStart(2, '0');
+            const minutes = Math.floor((totalSeconds % 3600) / 60).toString().padStart(2, '0');
+            const seconds = (totalSeconds % 60).toString().padStart(2, '0');
+            return `${hours}:${minutes}:${seconds}`;
+        };
+
         const tableRows = timeEntries.map(e => [
             format(parseISO(e.startTime), 'dd/MM/yy HH:mm'),
             e.notes || 'Soporte Técnico',
             !e.isBillable ? 'Sí' : 'No', 
-            { content: formatDuration(e.duration), styles: { halign: 'right' as const } }
+            { content: formatDurationStr(e.duration), styles: { halign: 'right' as const } }
         ]);
 
         const doc = generateDocument({
@@ -216,7 +229,7 @@ export default function TicketDetailPage() {
             ],
             blocks: [
                 { title: 'Información del Caso', content: `Asunto: ${ticket.subject}\nCliente: ${ticket.customerName}\nAbierto el: ${format(parseISO(ticket.createdAt), 'dd/MM/yyyy HH:mm')}` },
-                { title: 'Resumen de Tiempos', content: `Tiempo Real: ${formatDuration(totalMs)}\nTiempo Facturable: ${formatDuration(billableMs)}` }
+                { title: 'Resumen de Tiempos', content: `Tiempo Real: ${formatDurationStr(totalMs)}\nTiempo Facturable: ${formatDurationStr(billableMs)}` }
             ],
             table: {
                 columns: ["Fecha", "Actividad / Notas", "Bajo Contrato", "Duración"],
@@ -225,8 +238,8 @@ export default function TicketDetailPage() {
             },
             notes: "Este reporte detalla las actividades realizadas y el tiempo consumido. Si tiene dudas sobre este reporte, favor contactar a soporte técnico.",
             totals: [
-                { label: 'Total Tiempo Real:', value: formatDuration(totalMs) },
-                { label: 'Total Tiempo Facturable:', value: formatDuration(billableMs) }
+                { label: 'Total Tiempo Real:', value: formatDurationStr(totalMs) },
+                { label: 'Total Tiempo Facturable:', value: formatDurationStr(billableMs) }
             ]
         });
 
@@ -283,6 +296,35 @@ export default function TicketDetailPage() {
     }
 
     const selectedService = companyData?.servicesCatalog.find(s => s.id === ticket.serviceId);
+
+    const LinkedHardwareCard = () => {
+        if (!linkedEquipment) return null;
+        return (
+            <Card className="border-indigo-200 bg-indigo-50/20">
+                <CardHeader className="p-4 pb-2">
+                    <CardTitle className="text-sm font-bold flex items-center gap-2">
+                        <Laptop className="h-4 w-4 text-indigo-600" /> HARDWARE ASOCIADO
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 pt-0 space-y-3">
+                    <div className="text-xs">
+                        <p className="font-bold text-indigo-900 uppercase">{linkedEquipment.nickname}</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">{linkedEquipment.brand} {linkedEquipment.model}</p>
+                        
+                        <div className="flex items-center justify-between mt-3 p-2 bg-indigo-100/50 rounded border border-indigo-200">
+                            <div className="flex flex-col">
+                                <span className="text-[10px] font-black uppercase text-indigo-700">Serial</span>
+                                <span className="font-mono text-[10px] truncate max-w-[120px]">{linkedEquipment.serialNumber || 'N/A'}</span>
+                            </div>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-indigo-600 hover:bg-indigo-200/50" onClick={() => setEquipmentDetailOpen(true)}>
+                                <Settings className="h-3.5 w-3.5" />
+                            </Button>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+        );
+    };
 
     const LinkedLicenseCard = () => {
         if (!linkedLicense) return null;
@@ -556,7 +598,7 @@ export default function TicketDetailPage() {
                                             <AlertDialogFooter>
                                                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
                                                 <AlertDialogAction onClick={handleDeleteTicket} disabled={isDeleting}>
-                                                    {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                                                    {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                                     Sí, eliminar
                                                 </AlertDialogAction>
                                             </AlertDialogFooter>
@@ -614,6 +656,7 @@ export default function TicketDetailPage() {
                     />
                 )}
 
+                <LinkedHardwareCard />
                 <LinkedLicenseCard />
 
                 <Card>
@@ -683,7 +726,7 @@ export default function TicketDetailPage() {
                          <div className="space-y-1.5 pt-2">
                             <Label className="text-xs">Técnico Asignado</Label>
                             <Select value={String(ticket.assigneeId || 'null')} onValueChange={(v) => handleDetailUpdate({ assigneeId: v === 'null' ? null : Number(v) })} disabled={!hasPermission('tickets:manage') || ticket.status === 'completed' || ticket.status === 'canceled'}>
-                                <SelectTrigger className="h-8"><SelectValue placeholder="Sin Asignar"/></SelectTrigger>
+                                <SelectTrigger className="h-8"><SelectValue placeholder="Sin Asignar" /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="null">Sin Asignar</SelectItem>
                                     {supportUsers.map(u => (<SelectItem key={u.id} value={String(u.id)}>{u.name}</SelectItem>))}
@@ -746,6 +789,11 @@ export default function TicketDetailPage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <EquipmentDetail 
+                equipmentId={linkedEquipment?.id || null} 
+                onClose={() => setEquipmentDetailOpen(false)} 
+            />
         </div>
     );
 }
