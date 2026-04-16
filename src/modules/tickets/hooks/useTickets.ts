@@ -85,7 +85,7 @@ export const useTickets = () => {
     const { isAuthorized } = useAuthorization(['tickets:read:all']);
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
-    const { companyData, users, customers, user, userRole, allRoles } = useAuth();
+    const { companyData, users, customers, user, allRoles } = useAuth();
 
     const [state, setState] = useState(initialState);
     
