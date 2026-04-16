@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Help Center page with advanced mini-tutorials for MSP operations.
  * Enhanced with practical examples and business logic explanations.
@@ -9,7 +8,7 @@ import { useEffect, useState, useMemo } from "react";
 import { usePageTitle } from "@/modules/core/hooks/usePageTitle";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Search, LifeBuoy, Rocket, Wrench, AlertTriangle, ShieldCheck, MapPin, Zap, Wallet, BellRing, KeyRound, GitFork } from "lucide-react";
+import { Search, LifeBuoy, Rocket, Wrench, AlertTriangle, ShieldCheck, MapPin, Zap, Wallet, BellRing, GitFork } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/modules/core/hooks/useAuth";
 import { Input } from "@/components/ui/input";
@@ -125,8 +124,8 @@ export default function HelpPage() {
                 <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
                     <p className="text-sm font-bold text-blue-800 uppercase mb-2">Configuración Paso a Paso:</p>
                     <ol className="list-decimal pl-6 text-sm space-y-2">
-                        <li><b>Identificar al Padre:</b> Selecciona o crea la empresa "Principal" (la que firma el contrato). Asígnala con su plan de 10h, por ejemplo.</li>
-                        <li><b>Vincular a los Hijos:</b> Edita las otras empresas del grupo y en la sección <b>Jerarquía Corporativa</b>, selecciona a la empresa principal como "Empresa Principal (Pagadora)".</li>
+                        <li><b>Identificar al Padre:</b> Selecciona o crea la empresa &quot;Principal&quot; (la que firma el contrato). Asígnala con su plan de 10h, por ejemplo.</li>
+                        <li><b>Vincular a los Hijos:</b> Edita las otras empresas del grupo y en la sección <b>Jerarquía Corporativa</b>, selecciona a la empresa principal como &quot;Empresa Principal (Pagadora)&quot;.</li>
                         <li><b>Operación:</b> Al abrir un ticket para una empresa hija, el sistema detectará automáticamente que debe descontar tiempo del contrato de la empresa principal.</li>
                     </ol>
                 </div>
@@ -134,7 +133,7 @@ export default function HelpPage() {
                     <ShieldCheck className="h-4 w-4 text-amber-600" />
                     <AlertTitle className="text-amber-800 text-xs">Visibilidad del Consumo</AlertTitle>
                     <AlertDescription className="text-amber-700 text-[10px]">
-                        En el listado de clientes, la columna "Consumido" muestra las horas que esa empresa específica ha usado, pero el "Saldo" y la barra de progreso reflejan el estado de la <b>bolsa compartida</b> de todo el grupo.
+                        En el listado de clientes, la columna &quot;Consumido&quot; muestra las horas que esa empresa específica ha usado, pero el &quot;Saldo&quot; y la barra de progreso reflejan el estado de la <b>bolsa compartida</b> de todo el grupo.
                     </AlertDescription>
                 </Alert>
             </div>

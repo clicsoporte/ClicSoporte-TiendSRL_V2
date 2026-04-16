@@ -98,7 +98,7 @@ export async function testNotificationRule(ruleId: number): Promise<{ success: b
         };
 
         // Helper to apply simple template syntax
-        const apply = (str: string, p: any) => str.replace(/\{\{(\w+)\}\}/g, (_, k) => String(p[k] ?? _));
+        const apply = (str: string, p: Record<string, unknown>) => str.replace(/\{\{(\w+)\}\}/g, (_, k) => String(p[k] ?? _));
 
         const finalSubject = apply(rule.subject || template.subject, dummyPayload);
         const finalBody = apply(template.body, dummyPayload);

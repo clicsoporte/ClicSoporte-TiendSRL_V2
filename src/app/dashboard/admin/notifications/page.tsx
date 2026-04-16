@@ -117,8 +117,9 @@ export default function AutomationManagerPage() {
             } else {
                 toast({ title: 'Fallo en Prueba', description: res.message, variant: 'destructive' });
             }
-        } catch (error: any) {
-            toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        } catch (error: unknown) {
+            const err = error as Error;
+            toast({ title: 'Error', description: err.message, variant: 'destructive' });
         } finally {
             setIsTestingRule(null);
         }
@@ -546,7 +547,7 @@ export default function AutomationManagerPage() {
                         <div className="space-y-2">
                             <Label>Frecuencia Cron</Label>
                             <Input value={currentTask.schedule} onChange={e => setCurrentTask({...currentTask, schedule: e.target.value})} />
-                            <p className="text-[10px] text-muted-foreground">Ej: "0 8 * * *" para revisión diaria a las 8am.</p>
+                            <p className="text-[10px] text-muted-foreground">Ej: &quot;0 8 * * *&quot; para revisión diaria a las 8am.</p>
                         </div>
                         <div className="space-y-2">
                             <Label>Acción del Sistema</Label>

@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -731,7 +730,7 @@ export default function CustomersClient() {
                                         const available = customer.availableHours || 0;
                                         
                                         // Use consolidated pool for balance if it's a hierarchy participant
-                                        const poolConsumed = (customer as any).poolConsumedHours || consumed;
+                                        const poolConsumed = (customer as Customer & { poolConsumedHours?: number }).poolConsumedHours || consumed;
                                         const balance = available - poolConsumed;
                                         const percentageUsed = available > 0 ? (poolConsumed / available) * 100 : 0;
                                         
