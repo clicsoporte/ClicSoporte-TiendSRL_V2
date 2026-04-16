@@ -545,7 +545,7 @@ export default function AutomationManagerPage() {
                         </div>
                         <div className="space-y-2">
                             <Label>Frecuencia Cron</Label>
-                            <Input value={task.schedule} onChange={e => setCurrentTask({...currentTask, schedule: e.target.value})} />
+                            <Input value={currentTask.schedule} onChange={e => setCurrentTask({...currentTask, schedule: e.target.value})} />
                             <p className="text-[10px] text-muted-foreground">Ej: "0 8 * * *" para revisión diaria a las 8am.</p>
                         </div>
                         <div className="space-y-2">
