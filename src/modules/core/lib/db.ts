@@ -516,7 +516,7 @@ export async function initializeMainDatabase(db: Database) {
     // Seeding geographic data
     seedGeographicData(db);
 
-    // Seed Notification Templates
+    // Seed Notification Templates (Force update to ensure all events exist)
     seedNotificationTemplates(db);
 }
 
@@ -676,10 +676,7 @@ export async function runMainMigrations(db: Database) {
     if (!hasColumn('third_party_providers', 'contacts')) db.exec(`ALTER TABLE third_party_providers ADD COLUMN contacts TEXT;`);
 
     // Ensure templates are always checked
-    const templateCount = db.prepare('SELECT COUNT(*) as count FROM notification_templates').get() as { count: number };
-    if (templateCount.count === 0) {
-        seedNotificationTemplates(db);
-    }
+    seedNotificationTemplates(db);
 }
 
 export async function getUserCount(): Promise<number> {
@@ -720,8 +717,8 @@ export async function getLogs(filters: { type?: string; search?: string; dateRan
         params.push(filters.dateRange.to.toISOString());
     }
 
-    if (conditions.length > 0) query += ' WHERE ' + conditions.join(' AND ');
-    query += ' WHERE ' + (conditions.length > 0 ? conditions.join(' AND ') : '1=1') + ' ORDER BY timestamp DESC LIMIT 500';
+    const whereClause = conditions.length > 0 ? ` WHERE ${conditions.join(' AND ')}` : ' WHERE 1=1';
+    query += whereClause + ' ORDER BY timestamp DESC LIMIT 500';
 
     const rows = db.prepare(query).all(...params) as LogEntry[];
     return rows.map(r => ({ ...r, details: r.details ? JSON.parse(String(r.details)) : undefined }));

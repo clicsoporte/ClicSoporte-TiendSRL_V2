@@ -72,7 +72,6 @@ export async function triggerNotificationEvent(eventId: NotificationEventId, pay
         const internal = applyTemplate(template.internal, payload);
 
         // --- Internal App Notifications (Bell icon) ---
-        // Fetch all roles and users to check permissions hierarchically
         const roles = db.prepare('SELECT * FROM roles').all() as { id: string, permissions: string }[];
         const roleMap = new Map(roles.map(r => [r.id, JSON.parse(r.permissions)]));
         
@@ -103,8 +102,16 @@ export async function triggerNotificationEvent(eventId: NotificationEventId, pay
 
         const mainDb = await connectDb();
         
-        // Raw fetch from DB - SQLite stores booleans as 0/1
-        const customer = mainDb.prepare('SELECT email, telegramChatId, notifyTickets, notifyLicenses FROM customers WHERE name = ? OR id = ?').get(payload.customerName, payload.customerId) as { email: string, telegramChatId: string, notifyTickets: number, notifyLicenses: number } | undefined;
+        // REFINED LOOKUP: Try companyName first, then customerName, then ID
+        const companyName = String(payload.companyName || '');
+        const customerName = String(payload.customerName || '');
+        const customerId = String(payload.customerId || '');
+
+        const customer = mainDb.prepare(`
+            SELECT email, telegramChatId, notifyTickets, notifyLicenses 
+            FROM customers 
+            WHERE name = ? OR name = ? OR id = ? OR commercialName = ? OR commercialName = ?
+        `).get(companyName, customerName, customerId, companyName, customerName) as { email: string, telegramChatId: string, notifyTickets: number, notifyLicenses: number } | undefined;
         
         if (customer) {
             resolvedClientTelegramId = customer.telegramChatId;
@@ -121,7 +128,6 @@ export async function triggerNotificationEvent(eventId: NotificationEventId, pay
                 const isClientPlaceholder = r === '[CORREO_CLIENTE]' || r === '[TELEGRAM_CLIENTE]';
                 
                 if (isClientPlaceholder) {
-                    // Check granular preference based on event type
                     const isTicketEvent = eventId.startsWith('onTicket');
                     const isLicenseEvent = eventId.startsWith('onLicense');
                     
