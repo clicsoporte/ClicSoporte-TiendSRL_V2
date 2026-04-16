@@ -12,7 +12,7 @@ import { sendTelegramMessage } from './telegram-service';
 import { logInfo, logError } from '../../core/lib/logger';
 import { connectDb } from '../../core/lib/db';
 import { checkPermissionInTree } from '../../core/lib/permissions';
-import type { NotificationEventId, Role } from '../../core/types';
+import type { NotificationEventId } from '../../core/types';
 
 /**
  * Replaces placeholders in a template string using data from a payload.
