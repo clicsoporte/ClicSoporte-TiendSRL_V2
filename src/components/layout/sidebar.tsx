@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Sidebar component for the main application layout.
  */
@@ -37,7 +36,8 @@ import {
   FileText,
   Receipt,
   Wallet,
-  BookCopy
+  BookCopy,
+  Laptop
 } from "lucide-react";
 import type { Tool } from "../../modules/core/types";
 import { UserNav } from "./user-nav";
@@ -106,6 +106,16 @@ export function AppSidebar() {
       textColor: "text-white",
       permission: "tickets:read:all"
     },
+    {
+        id: "inventory",
+        name: "Inventario TI",
+        description: "Control de hardware y garantías.",
+        href: "/dashboard/inventory",
+        icon: Laptop,
+        bgColor: "bg-indigo-600",
+        textColor: "text-white",
+        permission: "inventory:read"
+      },
     {
       id: "customers",
       name: "Clientes",
