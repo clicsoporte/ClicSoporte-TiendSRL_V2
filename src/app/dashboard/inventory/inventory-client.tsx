@@ -14,7 +14,7 @@ import { Search, Laptop, ShieldCheck, PlusCircle, Loader2, ArrowRight, ArrowLeft
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { omniSearch } from '@/modules/inventory/lib/actions';
 import { getWarrantyStatus } from '@/modules/inventory/lib/inventory-utils';
-import type { InventorySearchResult } from '@/modules/core/types';
+import type { InventorySearchResult, Equipment, SaleRecord } from '@/modules/core/types';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { EquipmentDetail } from '@/components/inventory/equipment-detail';
@@ -104,48 +104,53 @@ export default function InventoryClient() {
                     <div className="space-y-4">
                         {results.length > 0 ? (
                             <div className="divide-y border rounded-lg overflow-hidden bg-card">
-                                {results.map((result, idx) => (
-                                    <div 
-                                        key={`${result.type}-${idx}`}
-                                        className="p-4 hover:bg-muted/50 cursor-pointer flex items-center justify-between group transition-colors"
-                                        onClick={() => {
-                                            if (result.type === 'equipment') setSelectedEquipmentId(result.data.id);
-                                        }}
-                                    >
-                                        <div className="flex items-center gap-4">
-                                            <div className={cn(
-                                                "p-3 rounded-xl",
-                                                result.type === 'equipment' ? "bg-blue-100 text-blue-600" : "bg-green-100 text-green-600"
-                                            )}>
-                                                {result.type === 'equipment' ? <Laptop className="h-6 w-6" /> : <ShieldCheck className="h-6 w-6" />}
-                                            </div>
-                                            <div>
-                                                <div className="flex items-center gap-2">
-                                                    <p className="font-bold text-lg">
-                                                        {result.type === 'equipment' ? result.data.nickname : (result.data as any).productName}
+                                {results.map((result, idx) => {
+                                    const eqData = result.type === 'equipment' ? result.data as Equipment : null;
+                                    const saleData = result.type === 'warranty' ? result.data as SaleRecord : null;
+                                    
+                                    return (
+                                        <div 
+                                            key={`${result.type}-${idx}`}
+                                            className="p-4 hover:bg-muted/50 cursor-pointer flex items-center justify-between group transition-colors"
+                                            onClick={() => {
+                                                if (result.type === 'equipment' && eqData) setSelectedEquipmentId(eqData.id);
+                                            }}
+                                        >
+                                            <div className="flex items-center gap-4">
+                                                <div className={cn(
+                                                    "p-3 rounded-xl",
+                                                    result.type === 'equipment' ? "bg-blue-100 text-blue-600" : "bg-green-100 text-green-600"
+                                                )}>
+                                                    {result.type === 'equipment' ? <Laptop className="h-6 w-6" /> : <ShieldCheck className="h-6 w-6" />}
+                                                </div>
+                                                <div>
+                                                    <div className="flex items-center gap-2">
+                                                        <p className="font-bold text-lg">
+                                                            {eqData ? eqData.nickname : (saleData?.productName || 'Hardware')}
+                                                        </p>
+                                                        <Badge variant="outline" className="text-[10px] uppercase">{result.type}</Badge>
+                                                    </div>
+                                                    <p className="text-sm text-muted-foreground font-mono">
+                                                        {eqData 
+                                                            ? `${eqData.brand} ${eqData.model} | S/N: ${eqData.serialNumber}`
+                                                            : `Factura: ${saleData?.invoiceNumber} | S/N: ${saleData?.serialNumber}`}
                                                     </p>
-                                                    <Badge variant="outline" className="text-[10px] uppercase">{result.type}</Badge>
                                                 </div>
-                                                <p className="text-sm text-muted-foreground font-mono">
-                                                    {result.type === 'equipment' 
-                                                        ? `${result.data.brand} ${result.data.model} | S/N: ${result.data.serialNumber}`
-                                                        : `Factura: ${(result.data as any).invoiceNumber} | S/N: ${result.data.serialNumber}`}
-                                                </p>
+                                            </div>
+                                            <div className="flex items-center gap-4">
+                                                {result.type === 'warranty' && saleData && (
+                                                    <div className="text-right hidden sm:block">
+                                                        <p className="text-[10px] font-black uppercase text-muted-foreground">Estado Garantía</p>
+                                                        <Badge className="capitalize">
+                                                            {getWarrantyStatus(saleData.warrantyExpiry, saleData.warrantyStatus)}
+                                                        </Badge>
+                                                    </div>
+                                                )}
+                                                <ArrowRight className="h-5 w-5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-all group-hover:translate-x-1" />
                                             </div>
                                         </div>
-                                        <div className="flex items-center gap-4">
-                                            {result.type === 'warranty' && (
-                                                <div className="text-right hidden sm:block">
-                                                    <p className="text-[10px] font-black uppercase text-muted-foreground">Estado Garantía</p>
-                                                    <Badge className="capitalize">
-                                                        {getWarrantyStatus((result.data as any).warrantyExpiry, (result.data as any).warrantyStatus)}
-                                                    </Badge>
-                                                </div>
-                                            )}
-                                            <ArrowRight className="h-5 w-5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-all group-hover:translate-x-1" />
-                                        </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         ) : query && !isSearching ? (
                             <div className="text-center py-20 border-2 border-dashed rounded-xl">
