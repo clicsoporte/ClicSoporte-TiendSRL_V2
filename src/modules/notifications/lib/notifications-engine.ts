@@ -3,6 +3,7 @@
 /**
  * @fileoverview The "Brain" of the notification system. 
  * Orchestrates events, templates from DB, and delivery services.
+ * Refined to use hierarchical permissions for internal notifications.
  */
 
 import { getAllNotificationRules, createNotification, connectNotificationsDb } from './db';
@@ -10,7 +11,8 @@ import { sendEmail } from '../../core/lib/email-service';
 import { sendTelegramMessage } from './telegram-service';
 import { logInfo, logError } from '../../core/lib/logger';
 import { connectDb } from '../../core/lib/db';
-import type { NotificationEventId } from '../../core/types';
+import { checkPermissionInTree } from '../../core/lib/permissions';
+import type { NotificationEventId, Role } from '../../core/types';
 
 /**
  * Replaces placeholders in a template string using data from a payload.
@@ -27,6 +29,18 @@ function applyTemplate(template: string, payload: Record<string, unknown>): stri
     return processed.replace(/\{\{(\w+)\}\}/g, (match, key) => {
         return String(payload[key] ?? match);
     });
+}
+
+/**
+ * Determines which permission is required to be notified about an event.
+ */
+function getRequiredPermissionForEvent(eventId: string): string {
+    if (eventId.startsWith('onTicket')) return 'tickets:read:all';
+    if (eventId.startsWith('onProject')) return 'planner:read';
+    if (eventId.startsWith('onLicense')) return 'licenses:read';
+    if (eventId === 'onNewSuggestion') return 'admin:suggestions:read';
+    if (eventId === 'onBackupCompleted') return 'admin:maintenance:backup';
+    return 'dashboard:access';
 }
 
 /**
@@ -58,17 +72,24 @@ export async function triggerNotificationEvent(eventId: NotificationEventId, pay
         const internal = applyTemplate(template.internal, payload);
 
         // --- Internal App Notifications (Bell icon) ---
-        // Query users directly to avoid circular dependency with auth module
-        const targetUsers = db.prepare("SELECT id, name, role FROM users WHERE role IN ('admin', 'support-agent')").all() as { id: number, name: string, role: string }[];
+        // Fetch all roles and users to check permissions hierarchically
+        const roles = db.prepare('SELECT * FROM roles').all() as { id: string, permissions: string }[];
+        const roleMap = new Map(roles.map(r => [r.id, JSON.parse(r.permissions)]));
         
-        for (const targetUser of targetUsers) {
-            await createNotification({
-                userId: targetUser.id,
-                message: internal,
-                href: getHrefForEvent(eventId, payload),
-                entityId: typeof payload.id === 'number' ? payload.id : undefined,
-                entityType: getEntityTypeForEvent(eventId)
-            });
+        const allSystemUsers = db.prepare("SELECT id, role FROM users").all() as { id: number, role: string }[];
+        const requiredPerm = getRequiredPermissionForEvent(eventId);
+
+        for (const targetUser of allSystemUsers) {
+            const userPermissions = roleMap.get(targetUser.role) || [];
+            if (checkPermissionInTree(userPermissions, requiredPerm)) {
+                await createNotification({
+                    userId: targetUser.id,
+                    message: internal,
+                    href: getHrefForEvent(eventId, payload),
+                    entityId: typeof payload.id === 'number' ? payload.id : undefined,
+                    entityType: getEntityTypeForEvent(eventId)
+                });
+            }
         }
 
         // --- External/Rule-Based Notifications ---

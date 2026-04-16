@@ -528,7 +528,7 @@ function seedNotificationTemplates(db: Database) {
             body: `
                 <div style="font-family: sans-serif; color: #333; max-width: 600px; border: 1px solid #eee; padding: 20px; border-radius: 10px;">
                     <h2 style="color: #2563eb; margin-top: 0;">Nuevo Ticket Registrado</h2>
-                    <p>Hola <b>{{contactName}}</b>, hemos recibido tu solicitud de soporte para la empresa <b>{{companyName}}</b>.</p>
+                    <p>Hola <b>{{customerName}}</b>, hemos recibido tu solicitud de soporte para la empresa <b>{{companyName}}</b>.</p>
                     <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 20px 0;">
                         <p style="margin: 5px 0;"><b>ID del Caso:</b> {{consecutive}}</p>
                         <p style="margin: 5px 0;"><b>Servicio:</b> {{serviceName}}</p>
