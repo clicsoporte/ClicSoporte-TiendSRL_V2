@@ -450,7 +450,7 @@ export default function TicketSettingsPageContent() {
                                                 </p>
                                             </div>
                                             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <Button variant="ghost" size="icon" onClick={() => handleEditServiceClick(service)}><Edit className="h-4 w-4" /></Button>
+                                                <Button variant="ghost" size="icon" onClick={() => actions.handleEditServiceClick(service)}><Edit className="h-4 w-4" /></Button>
                                                 <Button variant="ghost" size="icon" className="text-destructive" onClick={() => actions.handleDeleteService(service.id)}><Trash2 className="h-4 w-4"/></Button>
                                             </div>
                                         </div>
@@ -545,7 +545,7 @@ export default function TicketSettingsPageContent() {
                     <AlertDialogContent>
                         <AlertDialogHeader><AlertDialogTitle>¿Eliminar Tema?</AlertDialogTitle><AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription></AlertDialogHeader>
                         <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AccordionCancel>Cancelar</AccordionCancel>
                             <AlertDialogAction onClick={actions.handleDeleteTopic}>Sí, eliminar</AlertDialogAction>
                         </AlertDialogFooter>
                     </AlertDialogContent>
