@@ -545,7 +545,7 @@ export default function TicketSettingsPageContent() {
                     <AlertDialogContent>
                         <AlertDialogHeader><AlertDialogTitle>¿Eliminar Tema?</AlertDialogTitle><AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription></AlertDialogHeader>
                         <AlertDialogFooter>
-                            <AccordionCancel>Cancelar</AccordionCancel>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
                             <AlertDialogAction onClick={actions.handleDeleteTopic}>Sí, eliminar</AlertDialogAction>
                         </AlertDialogFooter>
                     </AlertDialogContent>
