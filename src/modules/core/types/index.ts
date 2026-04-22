@@ -62,7 +62,8 @@ export type SupportPackage = {
   excludedServices: string[];
   defaultHours?: number;
   roundingMultiple: number; // In minutes (e.g., 15, 30, 60)
-  graceMinutes: number; // In minutes
+  graceMinutes: number; // In minutes (Initial Grace)
+  graceFinal?: number; // New: Final Grace / Tolerance threshold
   basePrice?: number; // Base commercial price for reference
 };
 

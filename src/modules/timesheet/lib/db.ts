@@ -12,24 +12,37 @@ import type { Database } from 'better-sqlite3';
 /**
  * Calculates the rounded billable duration based on the client's support package.
  * Logic: 
- * 1. If actual time <= grace minutes, billable is 0.
- * 2. Otherwise, round up to the next multiple.
+ * 1. Initial Grace (graceMinutes): If total time <= this, session is FREE (0 min).
+ * 2. Tolerance Threshold (graceFinal): If excess over block <= this, block is IGNORED.
+ * 3. Ceiling Rounding: Otherwise, round UP to next block.
+ * 4. Minimum: If it passes initial grace, it bills at least 1 block.
  */
 function calculateBillableDuration(actualMs: number, pkg: SupportPackage | null): number {
     if (!pkg) return actualMs;
 
     const actualMin = actualMs / 60000;
-    
-    // Check grace period
-    if (pkg.graceMinutes > 0 && actualMin <= pkg.graceMinutes) {
+    const graceInitial = pkg.graceMinutes || 0;
+    const graceFinal = pkg.graceFinal || 0;
+    const multiple = pkg.roundingMultiple || 1;
+
+    // 1. Check Initial Grace (Absolute exclusion)
+    if (actualMin <= graceInitial) {
         return 0;
     }
 
-    // Apply rounding multiple (e.g., 15, 30, 60 min)
-    const multiple = pkg.roundingMultiple || 1;
-    const roundedMin = Math.ceil(actualMin / multiple) * multiple;
-    
-    return roundedMin * 60000;
+    // 2. Calculate complete blocks and the remaining residue
+    const completeBlocks = Math.floor(actualMin / multiple);
+    const residue = actualMin % multiple;
+
+    // 3. Apply tolerance logic
+    if (residue <= graceFinal) {
+        // If residue is within tolerance, we stay at the floor (complete blocks)
+        // Ensure at least 1 block is billed if it passed initial grace
+        return Math.max(1, completeBlocks) * multiple * 60000;
+    } else {
+        // Round up to next block
+        return (completeBlocks + 1) * multiple * 60000;
+    }
 }
 
 /**

@@ -1,6 +1,6 @@
 /**
  * @fileoverview System maintenance page for administrators.
- * Enhanced with the "Centro de Actualización y Verificación" (Database Audit).
+ * Enhanced with Database Audit and Legacy Migrator.
  */
 "use client";
 
@@ -23,7 +23,7 @@ import {
   } from "../../../../components/ui/select"
 import { useToast } from "../../../../modules/core/hooks/use-toast";
 import { logError, logInfo, logWarn } from "../../../../modules/core/lib/logger";
-import { UploadCloud, RotateCcw, Loader2, Save, LifeBuoy, Trash2 as TrashIcon, Download, Skull, AlertTriangle, DatabaseZap, SearchCheck, CheckCircle2, XCircle } from "lucide-react";
+import { UploadCloud, RotateCcw, Loader2, Save, LifeBuoy, Trash2 as TrashIcon, Download, Skull, AlertTriangle, DatabaseZap, SearchCheck, CheckCircle2, XCircle, Database, History } from "lucide-react";
 import { useDropzone } from 'react-dropzone';
 import { usePageTitle } from "../../../../modules/core/hooks/usePageTitle";
 import { Checkbox } from '../../../../components/ui/checkbox';
@@ -39,8 +39,9 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/modules/core/hooks/useAuth';
-import { runDatabaseAudit, type AuditResult } from '@/modules/core/lib/maintenance-actions';
+import { runDatabaseAudit, detectLegacyFiles, runLegacyMigration, type AuditResult } from '@/modules/core/lib/maintenance-actions';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 
 export default function MaintenancePage() {
@@ -52,9 +53,11 @@ export default function MaintenancePage() {
     const [processingAction, setProcessingAction] = useState<string | null>(null);
     const { setTitle } = usePageTitle();
 
-    // Audit State
+    // Audit & Migration State
     const [auditResults, setAuditResults] = useState<AuditResult[] | null>(null);
     const [isAuditing, setIsAuditing] = useState(false);
+    const [legacyFiles, setLegacyFiles] = useState<string[]>([]);
+    const [isMigrating, setIsMigrating] = useState(false);
 
     // State for update backups
     const [updateBackups, setUpdateBackups] = useState<UpdateBackupInfo[]>([]);
@@ -80,12 +83,14 @@ export default function MaintenancePage() {
     const fetchMaintenanceData = useCallback(async () => {
         setIsLoading(true);
         try {
-            const [backups, modules] = await Promise.all([
+            const [backups, modules, legacy] = await Promise.all([
                 listAllUpdateBackups(),
-                getDbModules()
+                getDbModules(),
+                detectLegacyFiles()
             ]);
             setUpdateBackups(backups);
             setDbModules(modules);
+            setLegacyFiles(legacy);
             if (backups.length > 0) {
                 const latestTimestamp = backups.reduce((latest: string, current: UpdateBackupInfo) => new Date(current.date) > new Date(latest) ? current.date : latest, backups[0].date);
                 setSelectedRestoreTimestamp(latestTimestamp);
@@ -120,6 +125,23 @@ export default function MaintenancePage() {
             toast({ title: "Error en Auditoría", variant: "destructive" });
         } finally {
             setIsAuditing(false);
+        }
+    };
+
+    const handleLegacyMigration = async () => {
+        setIsMigrating(true);
+        try {
+            const result = await runLegacyMigration();
+            if (result.success) {
+                toast({ title: "Migración Exitosa", description: result.message });
+                fetchMaintenanceData();
+            } else {
+                toast({ title: "Falla en Migración", description: result.message, variant: "destructive" });
+            }
+        } catch (e: unknown) {
+            toast({ title: "Error Crítico", description: (e as Error).message, variant: "destructive" });
+        } finally {
+            setIsMigrating(false);
         }
     };
 
@@ -360,6 +382,31 @@ export default function MaintenancePage() {
                         )}
                     </CardContent>
                 </Card>
+
+                {/* --- Migrador de Legado (Para versiones anteriores) --- */}
+                {legacyFiles.length > 0 && (
+                    <Alert className="border-amber-500 bg-amber-50 shadow-md">
+                        <History className="h-5 w-5 text-amber-600" />
+                        <AlertTitle className="font-black text-amber-800 uppercase tracking-wider">¡SISTEMA ANTERIOR DETECTADO!</AlertTitle>
+                        <AlertDescription className="space-y-4 pt-2">
+                            <p className="text-sm text-amber-700">
+                                Se han detectado {legacyFiles.length} archivos de base de datos de una arquitectura anterior fragmentada. 
+                                Para asegurar que el sistema funcione correctamente con la base de datos unificada, debe migrar estos registros.
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                                {legacyFiles.map(f => <Badge key={f} variant="outline" className="bg-white/50">{f}</Badge>)}
+                            </div>
+                            <Button 
+                                onClick={handleLegacyMigration} 
+                                disabled={isMigrating} 
+                                className="bg-amber-600 hover:bg-amber-700 text-white font-bold"
+                            >
+                                {isMigrating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Database className="mr-2 h-4 w-4" />}
+                                Iniciar Migración a Base de Datos Unificada
+                            </Button>
+                        </AlertDescription>
+                    </Alert>
+                )}
 
                  <Card className="border-primary/50">
                     <CardHeader>
