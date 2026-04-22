@@ -10,6 +10,7 @@ import fs from 'fs';
 import path from 'path';
 import Database from 'better-sqlite3';
 import { logInfo, logError, logWarn } from "./logger";
+import type { Ticket, TicketThread, ITNote } from "@/modules/core/types";
 
 export type AuditResult = {
     table: string;
@@ -86,8 +87,8 @@ export async function runLegacyMigration(): Promise<{ success: boolean, message:
             
             try {
                 if (file === 'tickets.db') {
-                    const tickets = legacyDb.prepare('SELECT * FROM tickets').all() as any[];
-                    const threads = legacyDb.prepare('SELECT * FROM ticket_threads').all() as any[];
+                    const tickets = legacyDb.prepare('SELECT * FROM tickets').all() as Ticket[];
+                    const threads = legacyDb.prepare('SELECT * FROM ticket_threads').all() as TicketThread[];
                     
                     const insertTicket = mainDb.prepare(`INSERT OR IGNORE INTO tickets (id, consecutive, subject, status, priority, createdAt, updatedAt, customerName, customerEmail, assigneeId) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
                     const insertThread = mainDb.prepare(`INSERT OR IGNORE INTO ticket_threads (id, ticketId, userId, userName, type, content, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)`);
@@ -100,7 +101,7 @@ export async function runLegacyMigration(): Promise<{ success: boolean, message:
                 }
 
                 if (file === 'it_tools.db') {
-                    const notes = legacyDb.prepare('SELECT * FROM it_notes').all() as any[];
+                    const notes = legacyDb.prepare('SELECT * FROM it_notes').all() as ITNote[];
                     const insertNote = mainDb.prepare(`INSERT OR IGNORE INTO it_notes (id, title, content, customerId, createdBy, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)`);
                     mainDb.transaction(() => {
                         notes.forEach(n => insertNote.run(n.id, n.title, n.content, n.customerId, n.createdBy, n.createdAt, n.updatedAt));
