@@ -27,7 +27,7 @@ export async function omniSearch(query: string, page: number = 1): Promise<{
 
     try {
         if (page === 1) {
-            // Priority 1: Exact matches for Serial or Invoice
+            // Priority 1: Exact matches for Serial or ID
             const exactEquipment = db.prepare(`
                 SELECT * FROM inventory_equipment WHERE serialNumber = ? OR id = ? LIMIT 1
             `).get(query.trim(), query.trim()) as Equipment | undefined;
@@ -116,12 +116,12 @@ export async function getEquipmentDetails(id: string) {
     return { ...equipment, consumables, saleRecords: sales };
 }
 
-export async function saveEquipment(data: Omit<Equipment, 'createdAt' | 'updatedAt'>) {
+export async function saveEquipment(data: Omit<Equipment, 'createdAt' | 'updatedAt'>, consumables?: Omit<Consumable, 'createdAt'>[]) {
     await authorizeAction('inventory:manage');
     const db = await connectDb();
     const now = new Date().toISOString();
     
-    try {
+    const transaction = db.transaction(() => {
         db.prepare(`
             INSERT INTO inventory_equipment (id, clientId, nickname, category, brand, model, serialNumber, location, assignedUser, status, notes, createdAt, updatedAt)
             VALUES (@id, @clientId, @nickname, @category, @brand, @model, @serialNumber, @location, @assignedUser, @status, @notes, @now, @now)
@@ -144,6 +144,29 @@ export async function saveEquipment(data: Omit<Equipment, 'createdAt' | 'updated
             now 
         });
 
+        if (consumables) {
+            // Remove existing consumables to re-sync
+            db.prepare('DELETE FROM inventory_consumables WHERE equipmentId = ?').run(data.id);
+            
+            const insertConsumable = db.prepare(`
+                INSERT INTO inventory_consumables (id, equipmentId, type, description, partNumber, brand, specs, isRecurring, lastReplaced, notes, createdAt)
+                VALUES (@id, @equipmentId, @type, @description, @partNumber, @brand, @specs, @isRecurring, @lastReplaced, @notes, @now)
+            `);
+
+            for (const c of consumables) {
+                insertConsumable.run({ 
+                    ...c, 
+                    id: c.id || crypto.randomUUID(),
+                    equipmentId: data.id,
+                    isRecurring: c.isRecurring ? 1 : 0, 
+                    now 
+                });
+            }
+        }
+    });
+
+    try {
+        transaction();
         await logInfo(`Equipment saved: ${data.nickname}`, { id: data.id });
         revalidatePath('/dashboard/inventory');
         return { success: true };
@@ -215,6 +238,12 @@ export async function deleteEquipment(id: string) {
     const db = await connectDb();
     db.prepare('DELETE FROM inventory_equipment WHERE id = ?').run(id);
     revalidatePath('/dashboard/inventory');
+}
+
+export async function deleteConsumable(id: string) {
+    await authorizeAction('inventory:manage');
+    const db = await connectDb();
+    db.prepare('DELETE FROM inventory_consumables WHERE id = ?').run(id);
 }
 
 export async function getEquipmentByClient(clientId: string): Promise<Equipment[]> {
