@@ -223,9 +223,35 @@ export async function getEquipmentByClient(clientId: string): Promise<Equipment[
     return db.prepare('SELECT * FROM inventory_equipment WHERE clientId = ? ORDER BY nickname').all(clientId) as Equipment[];
 }
 
-export async function getAllSaleRecords(): Promise<SaleRecord[]> {
+/**
+ * Retrieves sale records with pagination and server-side filtering.
+ */
+export async function getAllSaleRecords(page: number = 1, limit: number = 20, search: string = ""): Promise<{ data: SaleRecord[], hasMore: boolean }> {
     await authorizeAction('inventory:warranty:hub');
     const db = await connectDb();
-    const rows = db.prepare('SELECT * FROM inventory_sale_records ORDER BY warrantyExpiry ASC').all() as SaleRecord[];
-    return JSON.parse(JSON.stringify(rows));
+    const offset = (page - 1) * limit;
+    const cleanSearch = `%${search.trim()}%`;
+    
+    try {
+        let query = 'SELECT * FROM inventory_sale_records';
+        const params: (string | number)[] = [];
+        
+        if (search.trim()) {
+            query += ' WHERE invoiceNumber LIKE ? OR serialNumber LIKE ? OR productName LIKE ?';
+            params.push(cleanSearch, cleanSearch, cleanSearch);
+        }
+        
+        query += ' ORDER BY warrantyExpiry ASC LIMIT ? OFFSET ?';
+        params.push(limit + 1, offset);
+
+        const rows = db.prepare(query).all(...params) as SaleRecord[];
+        
+        const hasMore = rows.length > limit;
+        const data = hasMore ? rows.slice(0, limit) : rows;
+
+        return JSON.parse(JSON.stringify({ data, hasMore }));
+    } catch (error: unknown) {
+        logError("Failed to fetch paginated sale records", { error: (error as Error).message, page, search });
+        return { data: [], hasMore: false };
+    }
 }
