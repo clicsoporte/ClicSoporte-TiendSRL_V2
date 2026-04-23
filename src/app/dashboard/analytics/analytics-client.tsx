@@ -6,14 +6,14 @@
 
 import { useAnalytics } from '@/modules/analytics/hooks/useAnalytics';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/card';
-import { Skeleton } from '@/skeleton';
-import { AreaChart, Ticket, Coins, Receipt, CheckCircle2, PieChart as PieIcon, BarChart3, Users, Wrench, FileText, Calendar as CalendarIcon, Download, Mail, Loader2, UserCircle, Search, ChevronRight } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { AreaChart, Ticket, Coins, Receipt, CheckCircle2, PieChart as PieIcon, BarChart3, Users, Wrench, FileText, Calendar as CalendarIcon, Download, Mail, Loader2, UserCircle, Search } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { format, parseISO, startOfMonth, endOfMonth, subDays } from 'date-fns';
+import { format, parseISO, startOfMonth, endOfMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/modules/core/hooks/useAuth';
@@ -27,7 +27,6 @@ import { useToast } from '@/modules/core/hooks/use-toast';
 import { generateDocument } from '@/modules/core/lib/pdf-generator';
 import { sendServiceReportByEmail } from '@/modules/billing/lib/email-actions';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
@@ -165,11 +164,13 @@ export default function AnalyticsClient() {
     };
 
     if (!isAuthReady || state.isLoading) {
-        return <div className="p-8 space-y-6">
-            <div className="flex justify-between items-center"><Skeleton className="h-10 w-64" /><Skeleton className="h-10 w-48" /></div>
-            <div className="grid gap-4 md:grid-cols-4">{[1,2,3,4].map(i => <Skeleton key={i} className="h-32 w-full" />)}</div>
-            <Skeleton className="h-[400px] w-full" />
-        </div>;
+        return (
+            <div className="p-8 space-y-6">
+                <div className="flex justify-between items-center"><Skeleton className="h-10 w-64" /><Skeleton className="h-10 w-48" /></div>
+                <div className="grid gap-4 md:grid-cols-4">{[1,2,3,4].map(i => <Skeleton key={i} className="h-32 w-full" />)}</div>
+                <Skeleton className="h-[400px] w-full" />
+            </div>
+        );
     }
 
     const canViewFinancials = hasPermission('view:provider:costs');
@@ -236,7 +237,12 @@ export default function AnalyticsClient() {
                             <CardHeader><CardTitle className="flex items-center gap-2 text-base"><Wrench className="h-4 w-4 text-primary"/> Distribución por Tema</CardTitle></CardHeader>
                             <CardContent className="h-[300px]">
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <PieChart><Pie data={state.kpis?.byTopic} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value" nameKey="label" label={({ label }: VolumeKpi) => label}>{state.kpis?.byTopic.map((_entry: VolumeKpi, index: number) => (<Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />))}</Pie><Tooltip /></PieChart>
+                                    <PieChart>
+                                        <Pie data={state.kpis?.byTopic} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value" nameKey="label" label={({ label }) => label}>
+                                            {state.kpis?.byTopic?.map((_entry: VolumeKpi, index: number) => (<Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />))}
+                                        </Pie>
+                                        <Tooltip />
+                                    </PieChart>
                                 </ResponsiveContainer>
                             </CardContent>
                         </Card>
@@ -250,20 +256,60 @@ export default function AnalyticsClient() {
                             <StatCard title="Pendiente por Cobrar" value={formatCurrency(state.kpis?.timeTracking.totalAmountPending || 0)} icon={Receipt} isLoading={state.isLoading} color="text-orange-600" />
                         </div>
                         <div className="grid gap-6 md:grid-cols-3">
-                            <Card className="md:col-span-1"><CardHeader><CardTitle className="text-base">Mix de Modalidades</CardTitle></CardHeader><CardContent className="h-[250px]"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={state.kpis?.byBillingType} cx="50%" cy="50%" outerRadius={80} dataKey="value" label>{state.kpis?.byBillingType.map((_entry: VolumeKpi, index: number) => (<Cell key={`cell-${index}`} fill={index === 0 ? '#3B82F6' : '#10B981'} />))}</Pie><Tooltip /><Legend verticalAlign="bottom" /></PieChart></ResponsiveContainer></CardContent></Card>
-                            <Card className="md:col-span-2"><CardHeader><CardTitle className="text-base">Productividad por Técnico</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Técnico</TableHead><TableHead className="text-right">Horas Bajo Contrato</TableHead><TableHead className="text-right">Monto Facturable</TableHead></TableRow></TableHeader><TableBody>{state.kpis?.timeTracking.byUser.map((u: any) => (<TableRow key={u.userId}><TableCell className="font-medium">{u.userName}</TableCell><TableCell className="text-right font-mono">{u.billable.toFixed(2)} h</TableCell><TableCell className="text-right font-bold text-primary">{formatCurrency(u.amount)}</TableCell></TableRow>))}</TableBody></Table></CardContent></Card>
+                            <Card className="md:col-span-1">
+                                <CardHeader><CardTitle className="text-base">Mix de Modalidades</CardTitle></CardHeader>
+                                <CardContent className="h-[250px]">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <PieChart>
+                                            <Pie data={state.kpis?.byBillingType} cx="50%" cy="50%" outerRadius={80} dataKey="value" label>
+                                                {state.kpis?.byBillingType?.map((_entry: VolumeKpi, index: number) => (<Cell key={`cell-${index}`} fill={index === 0 ? '#3B82F6' : '#10B981'} />))}
+                                            </Pie>
+                                            <Tooltip /><Legend verticalAlign="bottom" />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                </CardContent>
+                            </Card>
+                            <Card className="md:col-span-2">
+                                <CardHeader><CardTitle className="text-base">Productividad por Técnico</CardTitle></CardHeader>
+                                <CardContent>
+                                    <Table>
+                                        <TableHeader><TableRow><TableHead>Técnico</TableHead><TableHead className="text-right">Horas Bajo Contrato</TableHead><TableHead className="text-right">Monto Facturable</TableHead></TableRow></TableHeader>
+                                        <TableBody>{state.kpis?.timeTracking.byUser.map((u) => (<TableRow key={u.userId}><TableCell className="font-medium">{u.userName}</TableCell><TableCell className="text-right font-mono">{u.billable.toFixed(2)} h</TableCell><TableCell className="text-right font-bold text-primary">{formatCurrency(u.amount)}</TableCell></TableRow>))}</TableBody>
+                                    </Table>
+                                </CardContent>
+                            </Card>
                         </div>
                     </TabsContent>
                 )}
 
                 <TabsContent value="efficiency" className="space-y-6">
                     <div className="grid gap-4 md:grid-cols-7">
-                        <Card className="col-span-4"><CardHeader><CardTitle className="text-base">Inversión de Tiempo por Técnico</CardTitle></CardHeader><CardContent className="h-80"><ChartContainer config={{}} className="h-full w-full"><ResponsiveContainer width="100%" height="100%"><BarChart data={state.kpis?.timeTracking.byUser}><CartesianGrid vertical={false} strokeDasharray="3 3" /><XAxis dataKey="userName" tick={{ fontSize: 10 }} axisLine={false} /><YAxis /><Tooltip content={<ChartTooltipContent />} /><Legend /><Bar dataKey="billable" fill="#10B981" radius={4} name="Bajo Contrato" /><Bar dataKey="nonBillable" fill="#F97316" radius={4} name="Fuera de Contrato" /></BarChart></ResponsiveContainer></ChartContainer></CardContent>
-                        <Card className="col-span-3"><CardHeader><CardTitle className="text-base">Desglose Global de Tiempo</CardTitle></CardHeader><CardContent className="space-y-4">
+                        <Card className="col-span-4">
+                            <CardHeader><CardTitle className="text-base">Inversión de Tiempo por Técnico</CardTitle></CardHeader>
+                            <CardContent className="h-80">
+                                <ChartContainer config={{}} className="h-full w-full">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart data={state.kpis?.timeTracking.byUser}>
+                                            <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                                            <XAxis dataKey="userName" tick={{ fontSize: 10 }} axisLine={false} />
+                                            <YAxis />
+                                            <Tooltip content={<ChartTooltipContent />} />
+                                            <Legend />
+                                            <Bar dataKey="billable" fill="#10B981" radius={4} name="Bajo Contrato" />
+                                            <Bar dataKey="nonBillable" fill="#F97316" radius={4} name="Fuera de Contrato" />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </ChartContainer>
+                            </CardContent>
+                        </Card>
+                        <Card className="col-span-3">
+                            <CardHeader><CardTitle className="text-base">Desglose Global de Tiempo</CardTitle></CardHeader>
+                            <CardContent className="space-y-4">
                                 <div className="p-4 border rounded-lg bg-green-50/50 flex items-center justify-between"><div className="flex items-center gap-3"><div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center text-green-600"><Coins className="h-5 w-5" /></div><div><p className="text-[10px] text-muted-foreground uppercase font-black">Bajo Contrato</p><p className="text-xl font-black">{(state.kpis?.timeTracking.totalBillable || 0).toFixed(1)} h</p></div></div></div>
                                 <div className="p-4 border rounded-lg bg-orange-50/50 flex items-center justify-between"><div className="flex items-center gap-3"><div className="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-600"><Coins className="h-5 w-5" /></div><div><p className="text-[10px] text-muted-foreground uppercase font-black">Fuera de Contrato</p><p className="text-xl font-black">{(state.kpis?.timeTracking.totalNonBillable || 0).toFixed(1)} h</p></div></div></div>
                                 <div className="p-4 border rounded-lg bg-blue-50/50 flex items-center justify-between"><div className="flex items-center gap-3"><div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600"><AreaChart className="h-5 w-5" /></div><div><p className="text-[10px] text-muted-foreground uppercase font-black">Total Invertido</p><p className="text-xl font-black">{(state.kpis?.timeTracking.totalHours || 0).toFixed(1)} h</p></div></div></div>
-                        </CardContent></Card>
+                            </CardContent>
+                        </Card>
                     </div>
                 </TabsContent>
 
