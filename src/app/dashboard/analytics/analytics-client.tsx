@@ -1,27 +1,37 @@
 /**
  * @fileoverview Client Component for the Analytics module.
- * Redesigned for comprehensive Management Reporting (Volume, Profitability, and Operations).
+ * Redesigned to centralize Management reporting and Operational reports for clients.
  */
 'use client';
 
 import { useAnalytics } from '@/modules/analytics/hooks/useAnalytics';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AreaChart, Ticket, Coins, Receipt, CheckCircle2, PieChart as PieIcon, BarChart3, Users, Wrench } from 'lucide-react';
+import { AreaChart, Ticket, Coins, Receipt, CheckCircle2, PieChart as PieIcon, BarChart3, Users, Wrench, FileText, Calendar as CalendarIcon, Download, Mail, Loader2, UserCircle, Search, ChevronRight } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
 import { Button } from '@/components/ui/button';
-import { Calendar as CalendarIcon } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { format } from 'date-fns';
+import { format, parseISO, startOfMonth, endOfMonth, subDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import type { VolumeKpi } from '@/modules/core/types';
+import type { VolumeKpi, Customer, TimeEntry } from '@/modules/core/types';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
+import { useState, useMemo, useEffect } from 'react';
+import { getServiceReportEntries } from '@/modules/billing/lib/actions';
+import { useToast } from '@/modules/core/hooks/use-toast';
+import { generateDocument } from '@/modules/core/lib/pdf-generator';
+import { sendServiceReportByEmail } from '@/modules/billing/lib/email-actions';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
+import type { RowInput } from 'jspdf-autotable';
 
 const StatCard = ({ title, value, icon: Icon, isLoading, color = "text-muted-foreground" }: { title: string, value: string | number, icon: React.ElementType, isLoading: boolean, color?: string }) => (
     <Card>
@@ -39,18 +49,125 @@ const COLORS = ['#F97316', '#3B82F6', '#10B981', '#8B5CF6', '#EF4444', '#06B6D4'
 
 export default function AnalyticsClient() {
     const { state, actions } = useAnalytics();
-    const { isAuthReady } = useAuth();
+    const { isAuthReady, customers: allCustomers, companyData, user: currentUser } = useAuth();
     const { hasPermission } = useAuthorization();
+    const { toast } = useToast();
     
+    // Reporting States
+    const [selectedCustomerForReport, setSelectedCustomerForReport] = useState<Customer | null>(null);
+    const [customerSearchTerm, setCustomerSearchTerm] = useState("");
+    const [reportEntries, setReportEntries] = useState<(TimeEntry & { ticketConsecutive: string, serviceName: string, userName: string })[]>([]);
+    const [isLoadingReport, setIsLoadingReport] = useState(false);
+    const [reportRange, setReportRange] = useState<DateRange | undefined>({
+        from: startOfMonth(new Date()),
+        to: endOfMonth(new Date())
+    });
+
+    // Email/PDF Reporting States
+    const [isEmailDialogOpen, setEmailDialogOpen] = useState(false);
+    const [selectedEmailRecipients, setSelectedEmailRecipients] = useState<string[]>([]);
+    const [isSendingEmail, setIsSendingEmail] = useState(false);
+    const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+
+    const filteredCustomers = useMemo(() => {
+        if (!customerSearchTerm) return allCustomers;
+        const lower = customerSearchTerm.toLowerCase();
+        return allCustomers.filter(c => c.name.toLowerCase().includes(lower) || c.id.toLowerCase().includes(lower));
+    }, [allCustomers, customerSearchTerm]);
+
+    const fetchReportData = async () => {
+        if (!selectedCustomerForReport || !reportRange?.from || !reportRange?.to) return;
+        setIsLoadingReport(true);
+        try {
+            const data = await getServiceReportEntries(
+                selectedCustomerForReport.id,
+                reportRange.from.toISOString(),
+                reportRange.to.toISOString()
+            );
+            setReportEntries(data);
+        } catch {
+            toast({ title: "Error al cargar reporte", variant: "destructive" });
+        } finally {
+            setIsLoadingReport(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchReportData();
+    }, [selectedCustomerForReport, reportRange]);
+
+    const handleGeneratePDF = () => {
+        if (!selectedCustomerForReport || !companyData) return;
+        setIsGeneratingPDF(true);
+        try {
+            const columns = ["Fecha/Hora", "Ticket", "Labor / Actividad", "Técnico", "Cobertura", "Duración"];
+            const tableRows: RowInput[] = reportEntries.map(e => [
+                format(parseISO(e.startTime), 'dd/MM/yy HH:mm'),
+                e.ticketConsecutive,
+                { content: `${e.serviceName}\n${e.notes || ''}`, styles: { fontSize: 8 } },
+                e.userName,
+                e.isBillable ? 'EXTRA' : 'CONTRATO',
+                { content: ((e.duration || 0) / 3600000).toFixed(2) + ' h', styles: { halign: 'right' as const } }
+            ]);
+
+            const doc = generateDocument({
+                docTitle: "REPORTE DE ACTIVIDADES TÉCNICAS",
+                docId: selectedCustomerForReport.id,
+                companyData,
+                meta: [
+                    { label: 'Fecha Emisión', value: format(new Date(), 'dd/MM/yyyy') },
+                    { label: 'Cliente', value: selectedCustomerForReport.name },
+                    { label: 'Periodo', value: `${format(reportRange?.from!, 'dd/MM/yy')} al ${format(reportRange?.to!, 'dd/MM/yy')}` }
+                ],
+                blocks: [
+                    { title: 'Información del Cliente', content: `Nombre: ${selectedCustomerForReport.name}\nIdentificación: ${selectedCustomerForReport.taxId}` }
+                ],
+                table: {
+                    columns,
+                    rows: tableRows,
+                    columnStyles: { 5: { halign: 'right' } }
+                },
+                notes: `Reporte consolidado generado desde el panel de analíticas.`,
+                totals: [{ label: 'Total Horas Invertidas:', value: (reportEntries.reduce((acc, e) => acc + (e.duration || 0), 0) / 3600000).toFixed(2) + ' h' }]
+            });
+
+            doc.save(`reporte_actividades_${selectedCustomerForReport.id}.pdf`);
+            toast({ title: "PDF Descargado" });
+        } catch {
+            toast({ title: "Error al generar PDF", variant: "destructive" });
+        } finally {
+            setIsGeneratingPDF(false);
+        }
+    };
+
+    const handleSendEmail = async () => {
+        if (!selectedCustomerForReport || selectedEmailRecipients.length === 0 || !companyData || !currentUser) return;
+        setIsSendingEmail(true);
+        try {
+            await sendServiceReportByEmail({
+                recipients: selectedEmailRecipients,
+                companyData,
+                customerName: selectedCustomerForReport.name,
+                entries: reportEntries,
+                dateRange: { 
+                    from: format(reportRange?.from!, 'dd/MM/yyyy'), 
+                    to: format(reportRange?.to!, 'dd/MM/yyyy') 
+                },
+                sender: currentUser
+            });
+            toast({ title: "Correo Enviado", description: `Se envió el reporte a ${selectedEmailRecipients.length} destinatario(s).` });
+            setEmailDialogOpen(false);
+        } catch (error: unknown) {
+            toast({ title: "Error al enviar correo", description: (error as Error).message, variant: "destructive" });
+        } finally {
+            setIsSendingEmail(false);
+        }
+    };
+
     if (!isAuthReady || state.isLoading) {
         return <div className="p-8 space-y-6">
-            <div className="flex justify-between items-center">
-                <Skeleton className="h-10 w-64" />
-                <Skeleton className="h-10 w-48" />
-            </div>
-            <div className="grid gap-4 md:grid-cols-4">
-                {[1,2,3,4].map(i => <Skeleton key={i} className="h-32 w-full" />)}
-            </div>
+            <div className="flex justify-between items-center"><Skeleton className="h-10 w-64" /><Skeleton className="h-10 w-48" /></div>
+            <div className="grid gap-4 md:grid-cols-4">{[1,2,3,4].map(i => <Skeleton key={i} className="h-32 w-full" />)}</div>
             <Skeleton className="h-[400px] w-full" />
         </div>;
     }
@@ -60,13 +177,12 @@ export default function AnalyticsClient() {
 
     return (
         <main className="flex-1 p-4 md:p-6 lg:p-8 space-y-6">
-            {/* Header / Date Filter */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div className="flex items-center gap-4">
                     <AreaChart className="h-8 w-8 text-primary" />
                     <div>
-                        <h1 className="text-2xl font-bold">Inteligencia de Negocio</h1>
-                        <p className="text-xs text-muted-foreground">Desempeño operativo y métricas financieras.</p>
+                        <h1 className="text-2xl font-bold">Centro de Inteligencia y Reportes</h1>
+                        <p className="text-xs text-muted-foreground">Analíticas globales y generación de informes para clientes.</p>
                     </div>
                 </div>
                  <div className="flex items-center gap-2">
@@ -91,12 +207,12 @@ export default function AnalyticsClient() {
 
             <Tabs defaultValue="overview" className="space-y-6">
                 <TabsList className="bg-muted p-1">
-                    <TabsTrigger value="overview" className="flex items-center gap-2"><PieIcon className="h-4 w-4"/> Casos y Volumen</TabsTrigger>
+                    <TabsTrigger value="overview" className="flex items-center gap-2"><PieIcon className="h-4 w-4"/> Resumen General</TabsTrigger>
                     {canViewFinancials && <TabsTrigger value="billing" className="flex items-center gap-2"><Coins className="h-4 w-4"/> Rentabilidad</TabsTrigger>}
-                    <TabsTrigger value="efficiency" className="flex items-center gap-2"><BarChart3 className="h-4 w-4"/> Eficiencia Técnica</TabsTrigger>
+                    <TabsTrigger value="efficiency" className="flex items-center gap-2"><BarChart3 className="h-4 w-4"/> Eficiencia</TabsTrigger>
+                    <TabsTrigger value="client-reports" className="flex items-center gap-2 text-blue-600 data-[state=active]:text-blue-600"><FileText className="h-4 w-4"/> Reportes de Cliente</TabsTrigger>
                 </TabsList>
 
-                {/* --- TAB 1: CASOS Y VOLUMEN --- */}
                 <TabsContent value="overview" className="space-y-6">
                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                         <StatCard title="Total de Casos" value={state.kpis?.tickets.total || 0} icon={Ticket} isLoading={state.isLoading} color="text-primary" />
@@ -106,177 +222,117 @@ export default function AnalyticsClient() {
                     </div>
 
                     <div className="grid gap-6 md:grid-cols-2">
-                        {/* Top Clientes */}
                         <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2 text-base"><Users className="h-4 w-4 text-primary"/> Top 10 Clientes por Volumen</CardTitle>
-                                <CardDescription>Empresas con mayor demanda de soporte.</CardDescription>
-                            </CardHeader>
+                            <CardHeader><CardTitle className="flex items-center gap-2 text-base"><Users className="h-4 w-4 text-primary"/> Top 10 Clientes por Volumen</CardTitle></CardHeader>
                             <CardContent className="h-[300px]">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <BarChart data={state.kpis?.byCustomer} layout="vertical">
-                                        <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                                        <XAxis type="number" hide />
-                                        <YAxis dataKey="label" type="category" width={120} tick={{ fontSize: 10 }} />
-                                        <Tooltip />
-                                        <Bar dataKey="value" fill="#F97316" radius={[0, 4, 4, 0]} name="Tickets" />
+                                        <CartesianGrid strokeDasharray="3 3" horizontal={false} /><XAxis type="number" hide /><YAxis dataKey="label" type="category" width={120} tick={{ fontSize: 10 }} /><Tooltip /><Bar dataKey="value" fill="#F97316" radius={[0, 4, 4, 0]} name="Tickets" />
                                     </BarChart>
                                 </ResponsiveContainer>
                             </CardContent>
                         </Card>
-
-                        {/* Distribución por Tema */}
                         <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2 text-base"><Wrench className="h-4 w-4 text-primary"/> Distribución por Tema de Ayuda</CardTitle>
-                                <CardDescription>Categorías de problemas más comunes.</CardDescription>
-                            </CardHeader>
+                            <CardHeader><CardTitle className="flex items-center gap-2 text-base"><Wrench className="h-4 w-4 text-primary"/> Distribución por Tema</CardTitle></CardHeader>
                             <CardContent className="h-[300px]">
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <PieChart>
-                                        <Pie
-                                            data={state.kpis?.byTopic}
-                                            cx="50%" cy="50%"
-                                            innerRadius={60}
-                                            outerRadius={80}
-                                            paddingAngle={5}
-                                            dataKey="value"
-                                            nameKey="label"
-                                            label={({ label }: VolumeKpi) => label}
-                                        >
-                                            {state.kpis?.byTopic.map((_entry: VolumeKpi, index: number) => (
-                                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                            ))}
-                                        </Pie>
-                                        <Tooltip />
-                                    </PieChart>
+                                    <PieChart><Pie data={state.kpis?.byTopic} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value" nameKey="label" label={({ label }: VolumeKpi) => label}>{state.kpis?.byTopic.map((_entry: VolumeKpi, index: number) => (<Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />))}</Pie><Tooltip /></PieChart>
                                 </ResponsiveContainer>
                             </CardContent>
                         </Card>
                     </div>
                 </TabsContent>
 
-                {/* --- TAB 2: RENTABILIDAD (Only for Managers) --- */}
                 {canViewFinancials && (
                     <TabsContent value="billing" className="space-y-6">
                         <div className="grid gap-4 md:grid-cols-2">
                             <StatCard title="Facturación Realizada" value={formatCurrency(state.kpis?.timeTracking.totalAmountInvoiced || 0)} icon={CheckCircle2} isLoading={state.isLoading} color="text-green-600" />
                             <StatCard title="Pendiente por Cobrar" value={formatCurrency(state.kpis?.timeTracking.totalAmountPending || 0)} icon={Receipt} isLoading={state.isLoading} color="text-orange-600" />
                         </div>
-
                         <div className="grid gap-6 md:grid-cols-3">
-                            {/* Mix de Cobro */}
-                            <Card className="md:col-span-1">
-                                <CardHeader>
-                                    <CardTitle className="text-base">Mix de Modalidades</CardTitle>
-                                    <CardDescription>Proporción Hora vs Tarea.</CardDescription>
-                                </CardHeader>
-                                <CardContent className="h-[250px]">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <PieChart>
-                                            <Pie
-                                                data={state.kpis?.byBillingType}
-                                                cx="50%" cy="50%"
-                                                outerRadius={80}
-                                                dataKey="value"
-                                                label
-                                            >
-                                                {state.kpis?.byBillingType.map((_entry: VolumeKpi, index: number) => (
-                                                    <Cell key={`cell-${index}`} fill={index === 0 ? '#3B82F6' : '#10B981'} />
-                                                ))}
-                                            </Pie>
-                                            <Tooltip />
-                                            <Legend verticalAlign="bottom" />
-                                        </PieChart>
-                                    </ResponsiveContainer>
-                                </CardContent>
-                            </Card>
-
-                            {/* Facturación por Técnico */}
-                            <Card className="md:col-span-2">
-                                <CardHeader>
-                                    <CardTitle className="text-base">Productividad Financiera por Técnico</CardTitle>
-                                    <CardDescription>Monto facturable generado por cada colaborador.</CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead>Técnico</TableHead>
-                                                <TableHead className="text-right">Horas Bajo Contrato</TableHead>
-                                                <TableHead className="text-right">Monto Facturable (Extra)</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {state.kpis?.timeTracking.byUser.map((user: { userId: number; userName: string; billable: number; nonBillable: number; amount: number }) => (
-                                                <TableRow key={user.userId}>
-                                                    <TableCell className="font-medium">{user.userName}</TableCell>
-                                                    <TableCell className="text-right font-mono">{user.billable.toFixed(2)} h</TableCell>
-                                                    <TableCell className="text-right font-bold text-primary">{formatCurrency(user.amount)}</TableCell>
-                                                </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
-                                </CardContent>
-                            </Card>
+                            <Card className="md:col-span-1"><CardHeader><CardTitle className="text-base">Mix de Modalidades</CardTitle></CardHeader><CardContent className="h-[250px]"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={state.kpis?.byBillingType} cx="50%" cy="50%" outerRadius={80} dataKey="value" label>{state.kpis?.byBillingType.map((_entry: VolumeKpi, index: number) => (<Cell key={`cell-${index}`} fill={index === 0 ? '#3B82F6' : '#10B981'} />))}</Pie><Tooltip /><Legend verticalAlign="bottom" /></PieChart></ResponsiveContainer></CardContent></Card>
+                            <Card className="md:col-span-2"><CardHeader><CardTitle className="text-base">Productividad por Técnico</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Técnico</TableHead><TableHead className="text-right">Horas Bajo Contrato</TableHead><TableHead className="text-right">Monto Facturable</TableHead></TableRow></TableHeader><TableBody>{state.kpis?.timeTracking.byUser.map((u: any) => (<TableRow key={u.userId}><TableCell className="font-medium">{u.userName}</TableCell><TableCell className="text-right font-mono">{u.billable.toFixed(2)} h</TableCell><TableCell className="text-right font-bold text-primary">{formatCurrency(u.amount)}</TableCell></TableRow>))}</TableBody></Table></CardContent></Card>
                         </div>
                     </TabsContent>
                 )}
 
-                {/* --- TAB 3: EFICIENCIA TÉCNICA --- */}
                 <TabsContent value="efficiency" className="space-y-6">
                     <div className="grid gap-4 md:grid-cols-7">
-                        <Card className="col-span-4">
-                            <CardHeader>
-                                <CardTitle className="text-base">Consumo de Horas por Técnico</CardTitle>
-                                <CardDescription>Comparativa de tiempo invertido.</CardDescription>
-                            </CardHeader>
-                            <CardContent className="h-80">
-                                <ChartContainer config={{}} className="h-full w-full">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart data={state.kpis?.timeTracking.byUser}>
-                                            <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                                            <XAxis dataKey="userName" tick={{ fontSize: 10 }} axisLine={false} />
-                                            <YAxis />
-                                            <Tooltip content={<ChartTooltipContent />} />
-                                            <Legend />
-                                            <Bar dataKey="billable" fill="#10B981" radius={4} name="Bajo Contrato" />
-                                            <Bar dataKey="nonBillable" fill="#F97316" radius={4} name="Fuera de Contrato" />
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                </ChartContainer>
-                            </CardContent>
-                        </Card>
-                        
-                        <Card className="col-span-3">
-                            <CardHeader>
-                                <CardTitle className="text-base">Desglose de Tiempo Global</CardTitle>
-                                <CardDescription>Total de la operación en el periodo.</CardDescription>
-                            </CardHeader>
+                        <Card className="col-span-4"><CardHeader><CardTitle className="text-base">Inversión de Tiempo por Técnico</CardTitle></CardHeader><CardContent className="h-80"><ChartContainer config={{}} className="h-full w-full"><ResponsiveContainer width="100%" height="100%"><BarChart data={state.kpis?.timeTracking.byUser}><CartesianGrid vertical={false} strokeDasharray="3 3" /><XAxis dataKey="userName" tick={{ fontSize: 10 }} axisLine={false} /><YAxis /><Tooltip content={<ChartTooltipContent />} /><Legend /><Bar dataKey="billable" fill="#10B981" radius={4} name="Bajo Contrato" /><Bar dataKey="nonBillable" fill="#F97316" radius={4} name="Fuera de Contrato" /></BarChart></ResponsiveContainer></ChartContainer></CardContent></Card>
+                        <Card className="col-span-3"><CardHeader><CardTitle className="text-base">Desglose Global de Tiempo</CardTitle></CardHeader><CardContent className="space-y-4">
+                                <div className="p-4 border rounded-lg bg-green-50/50 flex items-center justify-between"><div className="flex items-center gap-3"><div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center text-green-600"><Coins className="h-5 w-5" /></div><div><p className="text-[10px] text-muted-foreground uppercase font-black">Bajo Contrato</p><p className="text-xl font-black">{(state.kpis?.timeTracking.totalBillable || 0).toFixed(1)} h</p></div></div></div>
+                                <div className="p-4 border rounded-lg bg-orange-50/50 flex items-center justify-between"><div className="flex items-center gap-3"><div className="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-600"><Coins className="h-5 w-5" /></div><div><p className="text-[10px] text-muted-foreground uppercase font-black">Fuera de Contrato</p><p className="text-xl font-black">{(state.kpis?.timeTracking.totalNonBillable || 0).toFixed(1)} h</p></div></div></div>
+                                <div className="p-4 border rounded-lg bg-blue-50/50 flex items-center justify-between"><div className="flex items-center gap-3"><div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600"><AreaChart className="h-5 w-5" /></div><div><p className="text-[10px] text-muted-foreground uppercase font-black">Total Invertido</p><p className="text-xl font-black">{(state.kpis?.timeTracking.totalHours || 0).toFixed(1)} h</p></div></div></div>
+                        </CardContent></Card>
+                    </div>
+                </TabsContent>
+
+                <TabsContent value="client-reports" className="space-y-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                        <Card className="lg:col-span-1">
+                            <CardHeader><CardTitle className="text-sm uppercase font-black">1. Seleccionar Cliente</CardTitle></CardHeader>
                             <CardContent className="space-y-4">
-                                <div className="p-4 border rounded-lg bg-green-50/50 flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center text-green-600"><Coins className="h-5 w-5" /></div>
-                                        <div><p className="text-[10px] text-muted-foreground uppercase font-black">Bajo Contrato</p><p className="text-xl font-black">{(state.kpis?.timeTracking.totalBillable || 0).toFixed(1)} h</p></div>
-                                    </div>
-                                </div>
-                                <div className="p-4 border rounded-lg bg-orange-50/50 flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <div className="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-600"><Coins className="h-5 w-5" /></div>
-                                        <div><p className="text-[10px] text-muted-foreground uppercase font-black">Fuera de Contrato</p><p className="text-xl font-black">{(state.kpis?.timeTracking.totalNonBillable || 0).toFixed(1)} h</p></div>
-                                    </div>
-                                </div>
-                                <div className="p-4 border rounded-lg bg-blue-50/50 flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600"><AreaChart className="h-5 w-5" /></div>
-                                        <div><p className="text-[10px] text-muted-foreground uppercase font-black">Total Invertido</p><p className="text-xl font-black">{(state.kpis?.timeTracking.totalHours || 0).toFixed(1)} h</p></div>
-                                    </div>
-                                </div>
+                                <div className="relative"><Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" /><Input placeholder="Buscar..." value={customerSearchTerm} onChange={e => setCustomerSearchTerm(e.target.value)} className="pl-8" /></div>
+                                <ScrollArea className="h-[400px] pr-2">
+                                    {filteredCustomers.map(c => (
+                                        <div key={c.id} onClick={() => setSelectedCustomerForReport(c)} className={cn("p-3 border rounded-md mb-2 cursor-pointer transition-colors hover:bg-muted/50", selectedCustomerForReport?.id === c.id ? "border-primary bg-primary/5" : "border-transparent")}>
+                                            <p className="text-xs font-bold truncate">{c.name}</p>
+                                            <p className="text-[10px] text-muted-foreground font-mono">{c.id}</p>
+                                        </div>
+                                    ))}
+                                </ScrollArea>
                             </CardContent>
                         </Card>
+
+                        <div className="lg:col-span-3 space-y-6">
+                            {selectedCustomerForReport ? (
+                                <>
+                                    <div className="flex flex-col sm:flex-row justify-between items-center gap-4 bg-blue-50 p-4 rounded-xl border border-blue-200">
+                                        <div className="flex items-center gap-4">
+                                            <UserCircle className="h-10 w-10 text-blue-600" />
+                                            <div><p className="text-[10px] font-bold text-blue-700 uppercase">Cliente Seleccionado</p><p className="font-black text-blue-900">{selectedCustomerForReport.name}</p></div>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Popover>
+                                                <PopoverTrigger asChild><Button variant="outline" size="sm" className="h-9 gap-2"><CalendarIcon className="h-4 w-4" /> {reportRange?.from ? (reportRange.to ? <>{format(reportRange.from, "dd/MM/yy")} - {format(reportRange.to, "dd/MM/yy")}</> : format(reportRange.from, "dd/MM/yy")) : "Rango"}</Button></PopoverTrigger>
+                                                <PopoverContent className="w-auto p-0" align="end"><Calendar mode="range" selected={reportRange} onSelect={setReportRange} numberOfMonths={2} locale={es} /></PopoverContent>
+                                            </Popover>
+                                            <Button size="sm" variant="outline" onClick={handleGeneratePDF} disabled={isGeneratingPDF}>{isGeneratingPDF ? <Loader2 className="animate-spin h-4 w-4" /> : <Download className="h-4 w-4 mr-2" />} PDF</Button>
+                                            <Button size="sm" onClick={() => { setSelectedEmailRecipients([]); setEmailDialogOpen(true); }}><Mail className="h-4 w-4 mr-2" /> Email</Button>
+                                        </div>
+                                    </div>
+
+                                    <Card>
+                                        <CardContent className="p-0">
+                                            <Table>
+                                                <TableHeader className="bg-muted/50"><TableRow><TableHead className="text-xs">Fecha/Hora</TableHead><TableHead className="text-xs">Ticket</TableHead><TableHead className="text-xs">Actividad</TableHead><TableHead className="text-xs">Técnico</TableHead><TableHead className="text-xs">Cobertura</TableHead><TableHead className="text-right text-xs">Duración</TableHead></TableRow></TableHeader>
+                                                <TableBody>
+                                                    {isLoadingReport ? <TableRow><TableCell colSpan={6} className="h-40 text-center"><Loader2 className="animate-spin inline-block" /></TableCell></TableRow> : (
+                                                        reportEntries.length > 0 ? reportEntries.map(e => (
+                                                            <TableRow key={e.id}><TableCell className="text-[11px]">{format(parseISO(e.startTime), 'dd/MM HH:mm')}</TableCell><TableCell className="font-mono text-[11px] font-bold">{e.ticketConsecutive}</TableCell><TableCell><p className="text-xs font-bold">{e.serviceName}</p><p className="text-[10px] text-muted-foreground italic line-clamp-1">{e.notes}</p></TableCell><TableCell className="text-[11px]">{e.userName}</TableCell><TableCell><Badge variant={e.isBillable ? "destructive" : "secondary"} className="text-[9px] h-4 uppercase">{e.isBillable ? 'Extra' : 'Contrato'}</Badge></TableCell><TableCell className="text-right text-[11px] font-mono">{((e.duration || 0) / 3600000).toFixed(2)}h</TableCell></TableRow>
+                                                        )) : <TableRow><TableCell colSpan={6} className="h-40 text-center text-muted-foreground italic">No hay actividades en este rango.</TableCell></TableRow>
+                                                    )}
+                                                </TableBody>
+                                            </Table>
+                                        </CardContent>
+                                        <CardFooter className="bg-muted/10 p-4 border-t flex justify-between items-center"><span className="text-xs font-bold text-muted-foreground uppercase">Total Invertido en Periodo:</span><span className="text-xl font-black text-primary">{(reportEntries.reduce((acc, e) => acc + (e.duration || 0), 0) / 3600000).toFixed(2)} horas</span></CardFooter>
+                                    </Card>
+                                </>
+                            ) : (
+                                <div className="h-full flex flex-col items-center justify-center text-center p-20 border-2 border-dashed rounded-2xl opacity-40"><FileText className="h-20 w-20 mb-4" /><p className="text-lg font-bold">Generador de Reportes de Servicio</p><p className="text-sm">Seleccione un cliente a la izquierda para ver su historial y generar informes.</p></div>
+                            )}
+                        </div>
                     </div>
                 </TabsContent>
             </Tabs>
+
+            <Dialog open={isEmailDialogOpen} onOpenChange={setEmailDialogOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader><DialogTitle className="flex items-center gap-2"><Mail className="h-5 w-5 text-primary" /> Enviar Reporte</DialogTitle><DialogDescription>Seleccione los destinatarios de <strong>{selectedCustomerForReport?.name}</strong>.</DialogDescription></DialogHeader>
+                    <div className="py-4"><ScrollArea className="max-h-60 pr-2">{selectedCustomerForReport?.contacts && selectedCustomerForReport.contacts.length > 0 ? selectedCustomerForReport.contacts.map(c => (<div key={c.id} className="flex items-center space-x-3 p-3 rounded-md border mb-2 hover:bg-muted/50 cursor-pointer" onClick={() => setSelectedEmailRecipients(prev => prev.includes(c.email) ? prev.filter(e => e !== c.email) : [...prev, c.email])}><Checkbox checked={selectedEmailRecipients.includes(c.email)} /><div className="flex-1 min-w-0"><p className="text-sm font-bold truncate">{c.name}</p><p className="text-xs text-muted-foreground truncate">{c.email}</p></div></div>)) : <div className="text-center py-6 text-xs text-muted-foreground italic border-2 border-dashed rounded-lg">Sin contactos registrados.</div>}</ScrollArea></div>
+                    <DialogFooter><DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose><Button onClick={handleSendEmail} disabled={isSendingEmail || selectedEmailRecipients.length === 0}>{isSendingEmail ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />} Enviar Informe</Button></DialogFooter>
+                </DialogContent>
+            </Dialog>
         </main>
     );
 }
