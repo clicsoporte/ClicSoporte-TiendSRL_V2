@@ -6,7 +6,7 @@
 
 import { useAnalytics } from '@/modules/analytics/hooks/useAnalytics';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Skeleton } from '@/skeleton';
 import { AreaChart, Ticket, Coins, Receipt, CheckCircle2, PieChart as PieIcon, BarChart3, Users, Wrench, FileText, Calendar as CalendarIcon, Download, Mail, Loader2, UserCircle, Search, ChevronRight } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
@@ -19,7 +19,7 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import type { VolumeKpi, Customer, TimeEntry } from '@/modules/core/types';
+import type { VolumeKpi, Customer, TimeEntry, DateRange } from '@/modules/core/types';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { useState, useMemo, useEffect } from 'react';
 import { getServiceReportEntries } from '@/modules/billing/lib/actions';
@@ -258,7 +258,7 @@ export default function AnalyticsClient() {
 
                 <TabsContent value="efficiency" className="space-y-6">
                     <div className="grid gap-4 md:grid-cols-7">
-                        <Card className="col-span-4"><CardHeader><CardTitle className="text-base">Inversión de Tiempo por Técnico</CardTitle></CardHeader><CardContent className="h-80"><ChartContainer config={{}} className="h-full w-full"><ResponsiveContainer width="100%" height="100%"><BarChart data={state.kpis?.timeTracking.byUser}><CartesianGrid vertical={false} strokeDasharray="3 3" /><XAxis dataKey="userName" tick={{ fontSize: 10 }} axisLine={false} /><YAxis /><Tooltip content={<ChartTooltipContent />} /><Legend /><Bar dataKey="billable" fill="#10B981" radius={4} name="Bajo Contrato" /><Bar dataKey="nonBillable" fill="#F97316" radius={4} name="Fuera de Contrato" /></BarChart></ResponsiveContainer></ChartContainer></CardContent></Card>
+                        <Card className="col-span-4"><CardHeader><CardTitle className="text-base">Inversión de Tiempo por Técnico</CardTitle></CardHeader><CardContent className="h-80"><ChartContainer config={{}} className="h-full w-full"><ResponsiveContainer width="100%" height="100%"><BarChart data={state.kpis?.timeTracking.byUser}><CartesianGrid vertical={false} strokeDasharray="3 3" /><XAxis dataKey="userName" tick={{ fontSize: 10 }} axisLine={false} /><YAxis /><Tooltip content={<ChartTooltipContent />} /><Legend /><Bar dataKey="billable" fill="#10B981" radius={4} name="Bajo Contrato" /><Bar dataKey="nonBillable" fill="#F97316" radius={4} name="Fuera de Contrato" /></BarChart></ResponsiveContainer></ChartContainer></CardContent>
                         <Card className="col-span-3"><CardHeader><CardTitle className="text-base">Desglose Global de Tiempo</CardTitle></CardHeader><CardContent className="space-y-4">
                                 <div className="p-4 border rounded-lg bg-green-50/50 flex items-center justify-between"><div className="flex items-center gap-3"><div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center text-green-600"><Coins className="h-5 w-5" /></div><div><p className="text-[10px] text-muted-foreground uppercase font-black">Bajo Contrato</p><p className="text-xl font-black">{(state.kpis?.timeTracking.totalBillable || 0).toFixed(1)} h</p></div></div></div>
                                 <div className="p-4 border rounded-lg bg-orange-50/50 flex items-center justify-between"><div className="flex items-center gap-3"><div className="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-600"><Coins className="h-5 w-5" /></div><div><p className="text-[10px] text-muted-foreground uppercase font-black">Fuera de Contrato</p><p className="text-xl font-black">{(state.kpis?.timeTracking.totalNonBillable || 0).toFixed(1)} h</p></div></div></div>
