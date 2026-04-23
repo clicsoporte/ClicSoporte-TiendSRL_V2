@@ -12,6 +12,7 @@ import { revalidatePath } from "next/cache";
 
 /**
  * Omnibox search with hierarchical priority and pagination.
+ * Supports searching by Nickname, Serial, Invoice, Brand, Model, Client Name, and ID.
  */
 export async function omniSearch(query: string, page: number = 1): Promise<{ 
     results: InventorySearchResult[], 
@@ -26,9 +27,10 @@ export async function omniSearch(query: string, page: number = 1): Promise<{
 
     try {
         if (page === 1) {
+            // Priority 1: Exact matches for Serial or Invoice
             const exactEquipment = db.prepare(`
-                SELECT * FROM inventory_equipment WHERE serialNumber = ? LIMIT 1
-            `).get(query.trim()) as Equipment | undefined;
+                SELECT * FROM inventory_equipment WHERE serialNumber = ? OR id = ? LIMIT 1
+            `).get(query.trim(), query.trim()) as Equipment | undefined;
 
             if (exactEquipment) {
                 return { 
@@ -51,18 +53,35 @@ export async function omniSearch(query: string, page: number = 1): Promise<{
             }
         }
 
+        // Broad Search: Equipment & Warranties joined with Customer data
         const broadResults = db.prepare(`
-            SELECT 'equipment' as type, id, nickname as mainLabel, brand || ' ' || model as subLabel, serialNumber, clientId
-            FROM inventory_equipment 
-            WHERE nickname LIKE ? OR brand LIKE ? OR model LIKE ? OR serialNumber LIKE ? OR assignedUser LIKE ?
+            SELECT 'equipment' as type, e.id
+            FROM inventory_equipment e
+            LEFT JOIN customers c ON e.clientId = c.id
+            WHERE e.nickname LIKE ? 
+               OR e.brand LIKE ? 
+               OR e.model LIKE ? 
+               OR e.serialNumber LIKE ? 
+               OR e.assignedUser LIKE ? 
+               OR e.id LIKE ? 
+               OR e.location LIKE ?
+               OR c.name LIKE ? 
+               OR c.commercialName LIKE ?
             UNION ALL
-            SELECT 'warranty' as type, id, productName as mainLabel, invoiceNumber as subLabel, serialNumber, clientId
-            FROM inventory_sale_records
-            WHERE invoiceNumber LIKE ? OR serialNumber LIKE ? OR productName LIKE ?
+            SELECT 'warranty' as type, s.id
+            FROM inventory_sale_records s
+            LEFT JOIN customers c ON s.clientId = c.id
+            WHERE s.invoiceNumber LIKE ? 
+               OR s.serialNumber LIKE ? 
+               OR s.productName LIKE ? 
+               OR c.name LIKE ? 
+               OR c.commercialName LIKE ?
             LIMIT ? OFFSET ?
         `).all(
+            // Equipment params
+            cleanQuery, cleanQuery, cleanQuery, cleanQuery, cleanQuery, cleanQuery, cleanQuery, cleanQuery, cleanQuery,
+            // Warranty params
             cleanQuery, cleanQuery, cleanQuery, cleanQuery, cleanQuery,
-            cleanQuery, cleanQuery, cleanQuery,
             limit + 1, offset
         ) as { type: 'equipment' | 'warranty', id: string }[];
 
@@ -110,7 +129,20 @@ export async function saveEquipment(data: Omit<Equipment, 'createdAt' | 'updated
                 clientId=@clientId, nickname=@nickname, category=@category, brand=@brand, model=@model, 
                 serialNumber=@serialNumber, location=@location, assignedUser=@assignedUser, 
                 status=@status, notes=@notes, updatedAt=@now
-        `).run({ ...data, now });
+        `).run({ 
+            id: data.id,
+            clientId: data.clientId,
+            nickname: data.nickname,
+            category: data.category,
+            brand: data.brand,
+            model: data.model,
+            serialNumber: data.serialNumber ?? null,
+            location: data.location ?? null,
+            assignedUser: data.assignedUser ?? null,
+            status: data.status,
+            notes: data.notes ?? null,
+            now 
+        });
 
         await logInfo(`Equipment saved: ${data.nickname}`, { id: data.id });
         revalidatePath('/dashboard/inventory');
@@ -135,7 +167,23 @@ export async function saveSaleRecord(data: Omit<SaleRecord, 'createdAt' | 'updat
                 productName=@productName, serialNumber=@serialNumber, partNumber=@partNumber, 
                 warrantyMonths=@warrantyMonths, warrantyExpiry=@warrantyExpiry, warrantyNotes=@warrantyNotes, 
                 warrantyStatus=@warrantyStatus, claimDate=@claimDate, claimNotes=@claimNotes, updatedAt=@now
-        `).run({ ...data, now });
+        `).run({ 
+            id: data.id,
+            clientId: data.clientId,
+            equipmentId: data.equipmentId ?? null,
+            invoiceNumber: data.invoiceNumber,
+            invoiceDate: data.invoiceDate,
+            productName: data.productName ?? null,
+            serialNumber: data.serialNumber,
+            partNumber: data.partNumber ?? null,
+            warrantyMonths: data.warrantyMonths,
+            warrantyExpiry: data.warrantyExpiry,
+            warrantyNotes: data.warrantyNotes ?? null,
+            warrantyStatus: data.warrantyStatus,
+            claimDate: data.claimDate ?? null,
+            claimNotes: data.claimNotes ?? null,
+            now 
+        });
 
         await logInfo(`Sale record saved: ${data.invoiceNumber}`, { id: data.id });
         revalidatePath('/dashboard/inventory');

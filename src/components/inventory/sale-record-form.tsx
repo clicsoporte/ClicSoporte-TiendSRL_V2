@@ -35,6 +35,7 @@ export function SaleRecordForm({ isOpen, onClose, onSuccess }: SaleRecordFormPro
         equipmentId: null,
         invoiceNumber: '',
         invoiceDate: new Date().toISOString().split('T')[0],
+        productName: '',
         warrantyMonths: 12,
         serialNumber: '',
         warrantyStatus: 'active'
@@ -50,7 +51,10 @@ export function SaleRecordForm({ isOpen, onClose, onSuccess }: SaleRecordFormPro
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!formData.clientId || !formData.invoiceNumber || !formData.serialNumber) return;
+        if (!formData.clientId || !formData.invoiceNumber || !formData.serialNumber) {
+            toast({ title: "Datos incompletos", description: "Cédula, factura y serial son obligatorios.", variant: "destructive" });
+            return;
+        }
 
         setIsLoading(true);
         try {
@@ -60,11 +64,22 @@ export function SaleRecordForm({ isOpen, onClose, onSuccess }: SaleRecordFormPro
                 id: crypto.randomUUID(),
                 warrantyExpiry: expiry.toISOString()
             });
-            toast({ title: "Garantía Registrada" });
+            toast({ title: "Garantía Registrada", description: "El registro ha sido guardado exitosamente." });
             onSuccess();
             onClose();
-        } catch {
-            toast({ title: "Error", variant: "destructive" });
+            // Reset form
+            setFormData({
+                clientId: '',
+                equipmentId: null,
+                invoiceNumber: '',
+                invoiceDate: new Date().toISOString().split('T')[0],
+                productName: '',
+                warrantyMonths: 12,
+                serialNumber: '',
+                warrantyStatus: 'active'
+            });
+        } catch (error: unknown) {
+            toast({ title: "Error al guardar", description: (error as Error).message, variant: "destructive" });
         } finally {
             setIsLoading(false);
         }
@@ -103,14 +118,14 @@ export function SaleRecordForm({ isOpen, onClose, onSuccess }: SaleRecordFormPro
                         {!formData.equipmentId && (
                             <div className="space-y-2">
                                 <Label>Nombre del Producto</Label>
-                                <Input value={formData.productName || ''} onChange={e => setFormData({...formData, productName: e.target.value})} required />
+                                <Input value={formData.productName || ''} onChange={e => setFormData({...formData, productName: e.target.value})} required placeholder="Ej: Mouse Logitech, Monitor HP..." />
                             </div>
                         )}
 
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label>Número de Factura</Label>
-                                <Input value={formData.invoiceNumber} onChange={e => setFormData({...formData, invoiceNumber: e.target.value})} required />
+                                <Input value={formData.invoiceNumber} onChange={e => setFormData({...formData, invoiceNumber: e.target.value})} required placeholder="Ej: F-001-23" />
                             </div>
                             <div className="space-y-2">
                                 <Label>Fecha de Venta</Label>
@@ -120,7 +135,7 @@ export function SaleRecordForm({ isOpen, onClose, onSuccess }: SaleRecordFormPro
 
                         <div className="space-y-2">
                             <Label>Número de Serie (S/N)</Label>
-                            <Input value={formData.serialNumber} onChange={e => setFormData({...formData, serialNumber: e.target.value})} required />
+                            <Input value={formData.serialNumber} onChange={e => setFormData({...formData, serialNumber: e.target.value})} required placeholder="S/N del fabricante" />
                         </div>
 
                         <div className="space-y-3">
@@ -138,7 +153,7 @@ export function SaleRecordForm({ isOpen, onClose, onSuccess }: SaleRecordFormPro
 
                     <DialogFooter>
                         <Button type="submit" disabled={isLoading} className="w-full">
-                            {isLoading ? <Loader2 className="mr-2 animate-spin" /> : <Receipt className="mr-2 h-4 w-4" />}
+                            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Receipt className="mr-2 h-4 w-4" />}
                             Registrar Garantía
                         </Button>
                     </DialogFooter>
