@@ -5,7 +5,7 @@
 'use client';
 
 import { useAnalytics } from '@/modules/analytics/hooks/useAnalytics';
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AreaChart, Ticket, Coins, Receipt, CheckCircle2, PieChart as PieIcon, BarChart3, Users, Wrench, FileText, Calendar as CalendarIcon, Download, Mail, Loader2, UserCircle, Search, Package } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
@@ -78,7 +78,10 @@ export default function AnalyticsClient() {
     const filteredCustomers = useMemo(() => {
         if (!customerSearchTerm) return allCustomers;
         const lower = customerSearchTerm.toLowerCase();
-        return allCustomers.filter(c => c.name.toLowerCase().includes(lower) || c.id.toLowerCase().includes(lower));
+        return allCustomers.filter(c => 
+            c.name.toLowerCase().includes(lower) || 
+            (c.id && c.id.toLowerCase().includes(lower))
+        );
     }, [allCustomers, customerSearchTerm]);
 
     const fetchReportData = useCallback(async () => {
@@ -359,7 +362,7 @@ export default function AnalyticsClient() {
                             <CardContent className="h-80">
                                 <ChartContainer config={{}} className="h-full w-full">
                                     <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart data={state.kpis?.timeTracking.byUser}>
+                                        <BarChart data={state.kpis?.timeTracking.byUser || []}>
                                             <CartesianGrid vertical={false} strokeDasharray="3 3" />
                                             <XAxis dataKey="userName" tick={{ fontSize: 10 }} axisLine={false} />
                                             <YAxis />
@@ -446,7 +449,7 @@ export default function AnalyticsClient() {
                         <CardHeader className="flex flex-row items-center justify-between">
                             <div>
                                 <CardTitle className="flex items-center gap-2"><Package className="h-5 w-5 text-orange-600"/> Reporte Maestro de Consumibles</CardTitle>
-                                <p className="text-sm text-muted-foreground">Listado de insumos y piezas críticas por cliente y equipo de hardware.</p>
+                                <CardDescription>Listado de insumos y piezas críticas por cliente y equipo de hardware.</CardDescription>
                             </div>
                             <Button variant="outline" size="sm" onClick={handleGenerateConsumablesPDF} disabled={isGeneratingPDF || filteredConsumables.length === 0}>
                                 {isGeneratingPDF ? <Loader2 className="animate-spin h-4 w-4" /> : <Download className="h-4 w-4 mr-2" />} Exportar PDF

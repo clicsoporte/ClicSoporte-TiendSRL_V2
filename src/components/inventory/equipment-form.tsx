@@ -17,8 +17,6 @@ import { saveEquipment, getEquipmentDetails } from '@/modules/inventory/lib/acti
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { Loader2, ShieldCheck, Laptop, Printer, Monitor, Radio, Phone, HardDrive, Cpu, type LucideIcon, Package, PlusCircle, Trash2, Zap } from 'lucide-react';
 import type { Equipment, EquipmentCategory, Consumable, ConsumableType } from '@/modules/core/types';
-import { Separator } from '@/components/ui/separator';
-import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 
 interface EquipmentFormProps {
