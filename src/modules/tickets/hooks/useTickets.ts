@@ -1,4 +1,3 @@
-
 'use client';
 
 /**
@@ -181,7 +180,8 @@ export const useTickets = () => {
 
         if (contract) {
             if (contract.includedServices.includes(serviceId)) {
-                return { isBillable: false, message: `Servicio cubierto por CONTRATO VIGENTE: ${contract.name}` };
+                const inheritanceMsg = contract.customerId !== customerId ? `Heredado de ${customers.find(c => c.id === contract.customerId)?.name || 'Principal'}` : '';
+                return { isBillable: false, message: `Servicio cubierto por CONTRATO VIGENTE: ${contract.name} ${inheritanceMsg}` };
             }
             if (contract.excludedServices.includes(serviceId)) {
                 return { isBillable: true, message: `Servicio EXCLUIDO del contrato. Se generará cobro adicional${priceLabel}.` };

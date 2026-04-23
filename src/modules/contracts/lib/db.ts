@@ -93,15 +93,29 @@ export async function deleteContract(id: number): Promise<void> {
     db.prepare('DELETE FROM contracts WHERE id = ?').run(id);
 }
 
+/**
+ * Retrieves the active contract for a customer. 
+ * If the customer has no contract but has a parent company, it recursively checks the parent.
+ */
 export async function getActiveContractForCustomer(customerId: string): Promise<Contract | null> {
     const db = await connectContractsDb();
     const now = new Date().toISOString().split('T')[0];
-    const row = db.prepare(`
+    
+    // 1. Try to find a direct contract first
+    let row = db.prepare(`
         SELECT * FROM contracts 
         WHERE customerId = ? AND status = 'active' AND startDate <= ? AND endDate >= ?
         LIMIT 1
     `).get(customerId, now, now) as Record<string, unknown> | undefined;
     
+    // 2. If not found, check if it's a child company and get the parent's contract
+    if (!row) {
+        const customer = db.prepare('SELECT parentCustomerId FROM customers WHERE id = ?').get(customerId) as { parentCustomerId: string | null } | undefined;
+        if (customer?.parentCustomerId) {
+            return getActiveContractForCustomer(customer.parentCustomerId);
+        }
+    }
+
     if (!row) return null;
     
     return {
@@ -113,7 +127,6 @@ export async function getActiveContractForCustomer(customerId: string): Promise<
 }
 
 export async function autoRenewContract(contractId: number): Promise<Contract> {
-    // This is a system task, usually called by scheduler, but we verify active session just in case
     const db = await connectContractsDb();
     const old = db.prepare('SELECT * FROM contracts WHERE id = ?').get(contractId) as {
         name: string; customerId: string; startDate: string; endDate: string;
