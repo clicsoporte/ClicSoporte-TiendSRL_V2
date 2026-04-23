@@ -11,6 +11,7 @@ import { AreaChart, Ticket, Coins, Receipt, CheckCircle2, PieChart as PieIcon, B
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { format, parseISO, startOfMonth, endOfMonth } from 'date-fns';
@@ -318,7 +319,7 @@ export default function AnalyticsClient() {
                         <Card className="lg:col-span-1">
                             <CardHeader><CardTitle className="text-sm uppercase font-black">1. Seleccionar Cliente</CardTitle></CardHeader>
                             <CardContent className="space-y-4">
-                                <div className="relative"><Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" /><Input placeholder="Buscar..." value={customerSearchTerm} onChange={e => setCustomerSearchTerm(e.target.value)} className="pl-8" /></div>
+                                <div className="relative"><Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" /><Input placeholder="Buscar..." value={customerSearchTerm} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCustomerSearchTerm(e.target.value)} className="pl-8" /></div>
                                 <ScrollArea className="h-[400px] pr-2">
                                     {filteredCustomers.map(c => (
                                         <div key={c.id} onClick={() => setSelectedCustomerForReport(c)} className={cn("p-3 border rounded-md mb-2 cursor-pointer transition-colors hover:bg-muted/50", selectedCustomerForReport?.id === c.id ? "border-primary bg-primary/5" : "border-transparent")}>
