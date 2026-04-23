@@ -153,10 +153,46 @@ export async function getBillingEntriesForCustomer(customerId: string, status: '
 }
 
 /**
- * Retrieves all pending entries for a specific customer (legacy wrapper).
+ * Retrieves ALL service entries (Contract and Extra) for a customer within a date range.
+ * Used for Activity Reports.
  */
-export async function getPendingEntriesForCustomer(customerId: string) {
-    return getBillingEntriesForCustomer(customerId, 'pending');
+export async function getServiceReportEntries(customerId: string, fromDate: string, toDate: string): Promise<(TimeEntry & { ticketConsecutive: string, serviceName: string, userName: string })[]> {
+    const db = await connectDb();
+    const settings = await getCompanySettings();
+    const serviceMap = new Map(settings.servicesCatalog.map(s => [s.id, s]));
+
+    try {
+        const rows = db.prepare(`
+            SELECT 
+                te.*,
+                t.consecutive as ticketConsecutive,
+                t.serviceId,
+                u.name as userName
+            FROM time_entries te
+            JOIN tickets t ON te.ticketId = t.id
+            JOIN customers c ON (t.customerName = c.name OR t.companyName = c.name OR t.id = c.id)
+            JOIN users u ON te.userId = u.id
+            WHERE c.id = ? 
+              AND te.startTime >= ? 
+              AND te.startTime <= ?
+            ORDER BY te.startTime DESC
+        `).all(customerId, fromDate, toDate) as (TimeEntry & { ticketConsecutive: string, serviceId: string, userName: string })[];
+
+        const results = rows.map(row => {
+            const service = serviceMap.get(row.serviceId);
+            return {
+                ...row,
+                isBillable: !!row.isBillable,
+                serviceName: service?.name || 'Servicio General',
+                userName: row.userName
+            };
+        });
+
+        return JSON.parse(JSON.stringify(results));
+    } catch (error) {
+        console.error("Failed to fetch service report entries:", error);
+        return [];
+    }
 }
 
 /**
