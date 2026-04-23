@@ -102,7 +102,7 @@ export async function getActiveContractForCustomer(customerId: string): Promise<
     const now = new Date().toISOString().split('T')[0];
     
     // 1. Try to find a direct contract first
-    let row = db.prepare(`
+    const row = db.prepare(`
         SELECT * FROM contracts 
         WHERE customerId = ? AND status = 'active' AND startDate <= ? AND endDate >= ?
         LIMIT 1
