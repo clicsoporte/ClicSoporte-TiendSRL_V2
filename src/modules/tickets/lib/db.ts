@@ -177,7 +177,7 @@ export async function getTickets(
     const { search, status, priority, assigneeId } = filters;
 
     try {
-        let whereClauses: string[] = [];
+        const whereClauses: string[] = [];
         const params: (string | number)[] = [];
 
         if (search?.trim()) {
@@ -622,3 +622,4 @@ export async function getLicensesByCustomer(customerId: string): Promise<License
     const rows = db.prepare("SELECT * FROM licenses WHERE customerId = ? AND status = 'active'").all(customerId) as License[];
     return JSON.parse(JSON.stringify(rows));
 }
+
