@@ -1,6 +1,6 @@
 /**
- * @fileoverview This file centralizes all permission-related constants and logic.
- * Features hierarchical dependencies and granular categorization for MSP operations.
+ * @fileoverview Este archivo centraliza todos los permisos y su lógica jerárquica.
+ * Organizado por módulos para facilitar la gestión en la UI de Roles.
  */
 
 export const permissionGroups = {
@@ -41,7 +41,8 @@ export const permissionGroups = {
     "Administración del Sistema": [
         "admin:access",
         "admin:settings:general", "admin:settings:api", "admin:settings:planner", "admin:settings:stock",
-        "admin:suggestions:read", "admin:import:run", "admin:logs:read", "admin:logs:clear",
+        "admin:suggestions:read", "admin:import:run", "admin:import:files", "admin:import:sql", "admin:import:sql-config",
+        "admin:logs:read", "admin:logs:clear",
         "admin:maintenance:backup", "admin:maintenance:restore", "admin:maintenance:reset"
     ],
     "Super Admin": ["admin:all"]
@@ -118,6 +119,9 @@ export const permissionTranslations: Record<string, string> = {
     "admin:settings:stock": "Admin: Ajustes Inventario",
     "admin:suggestions:read": "Admin: Ver Sugerencias",
     "admin:import:run": "Admin: Sincronizar con ERP",
+    "admin:import:files": "Admin: Importar desde Archivos",
+    "admin:import:sql": "Admin: Importar desde SQL Server",
+    "admin:import:sql-config": "Admin: Configurar Consultas SQL",
     "admin:logs:read": "Admin: Ver Logs del Sistema",
     "admin:logs:clear": "Admin: Limpiar Logs",
     "admin:maintenance:backup": "Admin: Gestión de Backups",
@@ -129,11 +133,10 @@ export const permissionTranslations: Record<string, string> = {
 export type AppPermission = keyof typeof permissionTranslations;
 
 /**
- * Defines the hierarchical dependencies between permissions.
- * The Key is the PARENT (Advanced). The Value is an array of CHILDREN (Requirements).
+ * Define las dependencias jerárquicas.
+ * La llave es el PADRE (Avanzado). El valor es un arreglo de HIJOS (Requisitos).
  */
 export const permissionTree: Record<string, string[]> = {
-    // Top-Level Access (Requires Dashboard Access)
     "admin:access": ["dashboard:access"],
     "tickets:read:all": ["dashboard:access"],
     "customers:read": ["dashboard:access"],
@@ -147,18 +150,15 @@ export const permissionTree: Record<string, string[]> = {
     "cost-assistant:access": ["dashboard:access"],
     "hacienda:query": ["dashboard:access"],
 
-    // Inventory Hierarchy
     "inventory:manage": ["inventory:read"],
     "inventory:warranty:hub": ["inventory:read"],
     "inventory:consumables:update": ["inventory:manage"],
 
-    // IT Tools Hierarchy
     "it-tools:notes:read": ["it-tools:access"],
     "it-tools:notes:create": ["it-tools:notes:read"],
     "it-tools:notes:update": ["it-tools:notes:read"],
     "it-tools:notes:delete": ["it-tools:notes:update"],
 
-    // Tickets Hierarchy
     "tickets:admin:settings": ["tickets:manage"],
     "tickets:manage": ["tickets:read:all"],
     "tickets:time-tracking": ["tickets:read:all"],
@@ -168,19 +168,16 @@ export const permissionTree: Record<string, string[]> = {
     "tickets:license:assign": ["tickets:manage"],
     "tickets:license:view": ["tickets:read:all"],
 
-    // Customers Hierarchy
     "customers:contacts:read": ["customers:read"],
     "customers:update:plan": ["customers:update"],
     "customers:update": ["customers:read"],
     "customers:create": ["customers:read"],
     "customers:delete": ["customers:update"],
 
-    // Contracts
     "contracts:update": ["contracts:read"],
     "contracts:create": ["contracts:read"],
     "contracts:delete": ["contracts:update"],
 
-    // Planner
     "planner:financials:view": ["planner:read"],
     "planner:status:completed": ["planner:status:in-progress"],
     "planner:status:in-progress": ["planner:status:approve"],
@@ -188,19 +185,20 @@ export const permissionTree: Record<string, string[]> = {
     "planner:create": ["planner:read"],
     "planner:priority:update": ["planner:read"],
 
-    // Cost Assistant
     "cost-assistant:export": ["cost-assistant:process"],
     "cost-assistant:margins": ["cost-assistant:process"],
     "cost-assistant:process": ["cost-assistant:view"],
     "cost-assistant:view": ["cost-assistant:access"],
 
-    // Admin & Maintenance
     "admin:maintenance:reset": ["admin:maintenance:restore"],
     "admin:maintenance:restore": ["admin:maintenance:backup"],
     "admin:maintenance:backup": ["admin:access"],
     "admin:logs:clear": ["admin:logs:read"],
     "admin:logs:read": ["admin:access"],
     "admin:import:run": ["admin:access"],
+    "admin:import:files": ["admin:access"],
+    "admin:import:sql": ["admin:access"],
+    "admin:import:sql-config": ["admin:import:sql"],
     "admin:suggestions:read": ["admin:access"],
     "admin:settings:general": ["admin:access"],
     "admin:settings:api": ["admin:access"],
@@ -217,8 +215,8 @@ export const permissionTree: Record<string, string[]> = {
 };
 
 /**
- * Pure recursive function to check if a set of permissions contains a specific one, 
- * respecting the defined hierarchy (Parent grants Children).
+ * Función pura recursiva para verificar si un conjunto de permisos contiene uno específico,
+ * respetando la jerarquía definida (El Padre otorga a los Hijos).
  */
 export function checkPermissionInTree(userPermissions: string[], permissionToSearch: string): boolean {
     if (userPermissions.includes('admin:all') || userPermissions.includes('admin')) return true;
@@ -226,7 +224,6 @@ export function checkPermissionInTree(userPermissions: string[], permissionToSea
 
     const memo = new Set<string>();
     
-    // Helper to see if 'current' permission grants 'target' permission
     const grantsPermission = (current: string, target: string): boolean => {
         const children = permissionTree[current] || [];
         if (children.includes(target)) return true;
