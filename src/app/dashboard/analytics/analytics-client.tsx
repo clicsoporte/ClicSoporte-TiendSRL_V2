@@ -5,7 +5,7 @@
 'use client';
 
 import { useAnalytics } from '@/modules/analytics/hooks/useAnalytics';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AreaChart, Ticket, Coins, Receipt, CheckCircle2, PieChart as PieIcon, BarChart3, Users, Wrench, FileText, Calendar as CalendarIcon, Download, Mail, Loader2, UserCircle, Search } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
@@ -22,7 +22,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { VolumeKpi, Customer, TimeEntry, DateRange } from '@/modules/core/types';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { getServiceReportEntries } from '@/modules/billing/lib/actions';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { generateDocument } from '@/modules/core/lib/pdf-generator';
@@ -75,7 +75,7 @@ export default function AnalyticsClient() {
         return allCustomers.filter(c => c.name.toLowerCase().includes(lower) || c.id.toLowerCase().includes(lower));
     }, [allCustomers, customerSearchTerm]);
 
-    const fetchReportData = async () => {
+    const fetchReportData = useCallback(async () => {
         if (!selectedCustomerForReport || !reportRange?.from || !reportRange?.to) return;
         setIsLoadingReport(true);
         try {
@@ -90,14 +90,14 @@ export default function AnalyticsClient() {
         } finally {
             setIsLoadingReport(false);
         }
-    };
+    }, [selectedCustomerForReport, reportRange, toast]);
 
     useEffect(() => {
         fetchReportData();
-    }, [selectedCustomerForReport, reportRange]);
+    }, [fetchReportData]);
 
     const handleGeneratePDF = () => {
-        if (!selectedCustomerForReport || !companyData) return;
+        if (!selectedCustomerForReport || !companyData || !reportRange?.from || !reportRange?.to) return;
         setIsGeneratingPDF(true);
         try {
             const columns = ["Fecha/Hora", "Ticket", "Labor / Actividad", "Técnico", "Cobertura", "Duración"];
@@ -117,7 +117,7 @@ export default function AnalyticsClient() {
                 meta: [
                     { label: 'Fecha Emisión', value: format(new Date(), 'dd/MM/yyyy') },
                     { label: 'Cliente', value: selectedCustomerForReport.name },
-                    { label: 'Periodo', value: `${format(reportRange?.from!, 'dd/MM/yy')} al ${format(reportRange?.to!, 'dd/MM/yy')}` }
+                    { label: 'Periodo', value: `${format(reportRange.from, 'dd/MM/yy')} al ${format(reportRange.to, 'dd/MM/yy')}` }
                 ],
                 blocks: [
                     { title: 'Información del Cliente', content: `Nombre: ${selectedCustomerForReport.name}\nIdentificación: ${selectedCustomerForReport.taxId}` }
@@ -141,7 +141,7 @@ export default function AnalyticsClient() {
     };
 
     const handleSendEmail = async () => {
-        if (!selectedCustomerForReport || selectedEmailRecipients.length === 0 || !companyData || !currentUser) return;
+        if (!selectedCustomerForReport || selectedEmailRecipients.length === 0 || !companyData || !currentUser || !reportRange?.from || !reportRange?.to) return;
         setIsSendingEmail(true);
         try {
             await sendServiceReportByEmail({
@@ -150,8 +150,8 @@ export default function AnalyticsClient() {
                 customerName: selectedCustomerForReport.name,
                 entries: reportEntries,
                 dateRange: { 
-                    from: format(reportRange?.from!, 'dd/MM/yyyy'), 
-                    to: format(reportRange?.to!, 'dd/MM/yyyy') 
+                    from: format(reportRange.from, 'dd/MM/yyyy'), 
+                    to: format(reportRange.to, 'dd/MM/yyyy') 
                 },
                 sender: currentUser
             });

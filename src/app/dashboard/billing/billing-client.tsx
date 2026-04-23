@@ -16,7 +16,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { getCustomersWithPendingBilling, getBillingEntriesForCustomer, markEntriesAsInvoiced, type PendingCustomer } from '@/modules/billing/lib/actions';
 import { format, parseISO } from 'date-fns';
-import { Loader2, Receipt, CheckCircle2, Search, UserCircle, ChevronRight, History, Clock } from 'lucide-react';
+import { Loader2, Receipt, CheckCircle2, Search, History, Clock } from 'lucide-react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/modules/core/hooks/useAuth';
@@ -33,7 +33,7 @@ interface BillingEntry extends TimeEntry {
 
 export default function BillingClient() {
     const { toast } = useToast();
-    const { user: currentUser, customers: allCustomers } = useAuth();
+    const { customers: allCustomers } = useAuth();
     const [customersWithActivity, setCustomersWithActivity] = useState<PendingCustomer[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
