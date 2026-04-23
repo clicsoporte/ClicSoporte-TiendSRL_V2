@@ -1,3 +1,4 @@
+
 'use client';
 
 /**
@@ -49,6 +50,7 @@ const emptyTicket: NewTicketPayload = {
 
 const initialState = {
     isLoading: true,
+    isLoadingMore: false,
     isSubmitting: false,
     isNewTicketDialogOpen: false,
     newTicket: emptyTicket,
@@ -67,6 +69,8 @@ const initialState = {
     customerEquipment: [] as Equipment[],
     softwareProducts: [] as SoftwareProduct[],
     showOnlyMine: false,
+    page: 1,
+    hasMore: false,
 };
 
 const priorityConfig: { [key in TicketPriority]: { label: string, variant: 'default' | 'secondary' | 'destructive' | 'outline' } } = {
@@ -99,11 +103,37 @@ export const useTickets = () => {
     const [debouncedCustomerSearch] = useDebounce(state.customerSearchTerm, companyData?.searchDebounceTime ?? 500);
     const [debouncedSearchTerm] = useDebounce(state.searchTerm, companyData?.searchDebounceTime ?? 500);
 
-    const loadInitialData = useCallback(async () => {
-        updateState({ isLoading: true });
+    const fetchTicketsData = useCallback(async (p: number, isLoadMore: boolean = false) => {
+        if (isLoadMore) updateState({ isLoadingMore: true });
+        else updateState({ isLoading: true });
+
         try {
-            const [fetchedTickets, fetchedHelpTopics, fetchedProviders, fetchedSoftware] = await Promise.all([
-                getTickets(),
+            const filters = {
+                search: state.searchTerm,
+                status: state.statusFilter,
+                priority: state.priorityFilter,
+                assigneeId: state.showOnlyMine ? user?.id : null
+            };
+
+            const result = await getTickets(p, 20, filters);
+            
+            setState(prev => ({
+                ...prev,
+                tickets: isLoadMore ? [...prev.tickets, ...result.data] : result.data,
+                hasMore: result.hasMore,
+                page: p,
+                isLoading: false,
+                isLoadingMore: false
+            }));
+        } catch (error) {
+            logError("Failed to fetch tickets", { error: (error as Error).message });
+            updateState({ isLoading: false, isLoadingMore: false });
+        }
+    }, [state.searchTerm, state.statusFilter, state.priorityFilter, state.showOnlyMine, user?.id, updateState]);
+
+    const loadInitialMetadata = useCallback(async () => {
+        try {
+            const [fetchedHelpTopics, fetchedProviders, fetchedSoftware] = await Promise.all([
                 getHelpTopics(),
                 getThirdPartyProviders(),
                 getSoftwareProducts()
@@ -112,7 +142,6 @@ export const useTickets = () => {
             if (user) {
                 const showOnlyMinePref = await getTicketPreference(user.id, 'showOnlyMine');
                 updateState({ 
-                    tickets: fetchedTickets, 
                     helpTopics: fetchedHelpTopics,
                     providers: fetchedProviders,
                     softwareProducts: fetchedSoftware,
@@ -120,26 +149,29 @@ export const useTickets = () => {
                 });
             } else {
                 updateState({ 
-                    tickets: fetchedTickets, 
                     helpTopics: fetchedHelpTopics,
                     providers: fetchedProviders,
                     softwareProducts: fetchedSoftware
                 });
             }
         } catch (error) {
-            logError("Failed to load tickets", { error: (error as Error).message });
-            toast({ title: "Error", description: "No se pudieron cargar los datos.", variant: "destructive" });
-        } finally {
-            updateState({ isLoading: false });
+            console.error("Failed to load ticket metadata", error);
         }
-    }, [toast, updateState, user]);
+    }, [user, updateState]);
 
     useEffect(() => {
         setTitle("Soporte Técnico");
         if (isAuthorized) {
-            loadInitialData();
+            loadInitialMetadata();
         }
-    }, [setTitle, isAuthorized, loadInitialData]);
+    }, [setTitle, isAuthorized, loadInitialMetadata]);
+
+    // Refresh list when filters change
+    useEffect(() => {
+        if (isAuthorized) {
+            fetchTicketsData(1, false);
+        }
+    }, [debouncedSearchTerm, state.statusFilter, state.priorityFilter, state.showOnlyMine, isAuthorized, fetchTicketsData]);
 
     const validateCoverage = useCallback((serviceId: string | null, contract: Contract | null, customerId: string | null) => {
         if (!serviceId) return { isBillable: false, message: 'Seleccione un servicio para validar cobertura.' };
@@ -248,6 +280,12 @@ export const useTickets = () => {
             updateState({ showOnlyMine: val });
             if (user) {
                 await saveTicketPreference(user.id, 'showOnlyMine', val);
+            }
+        },
+
+        handleLoadMore: () => {
+            if (state.hasMore && !state.isLoadingMore) {
+                fetchTicketsData(state.page + 1, true);
             }
         },
 
@@ -360,7 +398,7 @@ export const useTickets = () => {
         resetNewTicketForm: () => {
             updateState({ newTicket: emptyTicket, selectedCustomerId: null, customerSearchTerm: '', activeContract: null, customerLicenses: [], customerEquipment: [] });
         }
-    }), [updateState, toast, user, handleNewTicketChange, handleSelectCompany]);
+    }), [updateState, toast, user, handleNewTicketChange, handleSelectCompany, state.hasMore, state.isLoadingMore, state.page, fetchTicketsData]);
 
     const selectors = useMemo(() => ({
         priorityConfig,
@@ -375,19 +413,14 @@ export const useTickets = () => {
             (c.commercialName || "").toLowerCase().includes(debouncedCustomerSearch.toLowerCase()) ||
             c.id.toLowerCase().includes(debouncedCustomerSearch.toLowerCase())
         ).map(c => ({ value: c.id, label: `${c.name} (${c.id})` })),
-        filteredTickets: state.tickets.filter(ticket => {
-            const searchMatch = debouncedSearchTerm
-                ? `${ticket.consecutive} ${ticket.subject} ${ticket.customerName}`.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
-                : true;
-            const statusMatch = state.statusFilter === 'all' || ticket.status === state.statusFilter;
-            const priorityMatch = state.priorityFilter === 'all' || ticket.priority === state.priorityFilter;
-            const assigneeMatch = !state.showOnlyMine || ticket.assigneeId === user?.id;
-            return searchMatch && statusMatch && priorityMatch && assigneeMatch;
-        }),
+        
+        // Final tickets list for display (already filtered and paginated from server)
+        filteredTickets: state.tickets,
+        
         coverageMessage: validateCoverage(state.newTicket.serviceId, state.activeContract, state.selectedCustomerId).message,
         providers: state.providers,
         softwareProducts: state.softwareProducts
-    }), [users, customers, debouncedCustomerSearch, debouncedSearchTerm, state.tickets, state.statusFilter, state.priorityFilter, state.showOnlyMine, state.newTicket.serviceId, state.activeContract, state.selectedCustomerId, state.providers, state.softwareProducts, validateCoverage, user, allRoles]);
+    }), [users, customers, debouncedCustomerSearch, state.tickets, state.newTicket.serviceId, state.activeContract, state.selectedCustomerId, state.providers, state.softwareProducts, validateCoverage, allRoles]);
 
     return {
         state,

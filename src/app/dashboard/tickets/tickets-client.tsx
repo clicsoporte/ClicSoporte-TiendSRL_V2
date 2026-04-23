@@ -1,6 +1,8 @@
+
 /**
  * @fileoverview Client-side component for Support Tickets.
  * Enhanced with responsive Card view for mobile devices and license/equipment integration.
+ * Includes incremental "Load More" pagination.
  */
 'use client';
 
@@ -8,7 +10,7 @@ import { useTickets } from "@/modules/tickets/hooks/useTickets";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
-import { FilePlus, Loader2, FilterX, ShieldCheck, ShieldAlert, Clock, Info, EyeOff, MapPin, Zap, UserCircle, Mail, MessageCircle, Laptop } from "lucide-react";
+import { FilePlus, Loader2, FilterX, ShieldCheck, ShieldAlert, Clock, Info, EyeOff, MapPin, Zap, UserCircle, Mail, MessageCircle, Laptop, ChevronDown } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -51,7 +53,9 @@ export default function TicketsClient() {
         selectedCustomerId,
         customerLicenses,
         customerEquipment,
-        showOnlyMine
+        showOnlyMine,
+        hasMore,
+        isLoadingMore
     } = state;
 
     const selectedCustomer = customers.find(c => c.id === selectedCustomerId);
@@ -531,7 +535,7 @@ export default function TicketsClient() {
                         <Button variant="ghost" size="sm" onClick={actions.clearFilters} className="h-9 w-full md:w-auto"><FilterX className="mr-2 h-4 w-4"/>Limpiar</Button>
                     </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-4">
                     {/* Desktop Table View */}
                     <div className="hidden md:block rounded-md border">
                         <Table>
@@ -548,7 +552,9 @@ export default function TicketsClient() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {selectors.filteredTickets.length > 0 ? (
+                                {state.isLoading ? (
+                                    <TableRow><TableCell colSpan={8} className="h-24 text-center"><Loader2 className="animate-spin inline-block mr-2" /> Cargando...</TableCell></TableRow>
+                                ) : selectors.filteredTickets.length > 0 ? (
                                     selectors.filteredTickets.map(renderTicketRow)
                                 ) : (
                                     <TableRow><TableCell colSpan={8} className="h-24 text-center text-muted-foreground italic">No se encontraron casos con los filtros actuales.</TableCell></TableRow>
@@ -559,7 +565,9 @@ export default function TicketsClient() {
 
                     {/* Mobile Card View (Optimized for 6" screens) */}
                     <div className="md:hidden space-y-3">
-                        {selectors.filteredTickets.length > 0 ? (
+                        {state.isLoading ? (
+                            <div className="text-center py-10"><Loader2 className="animate-spin h-8 w-8 mx-auto" /></div>
+                        ) : selectors.filteredTickets.length > 0 ? (
                             selectors.filteredTickets.map(renderTicketCard)
                         ) : (
                             <div className="text-center py-10 text-muted-foreground italic border-2 border-dashed rounded-lg">
@@ -567,6 +575,25 @@ export default function TicketsClient() {
                             </div>
                         )}
                     </div>
+
+                    {/* Load More Pagination */}
+                    {hasMore && (
+                        <div className="flex justify-center pt-4">
+                            <Button 
+                                variant="outline" 
+                                onClick={actions.handleLoadMore} 
+                                disabled={isLoadingMore}
+                                className="w-full sm:w-auto min-w-[200px] shadow-sm"
+                            >
+                                {isLoadingMore ? (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                ) : (
+                                    <ChevronDown className="mr-2 h-4 w-4" />
+                                )}
+                                Cargar más casos
+                            </Button>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
         </main>

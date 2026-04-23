@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Server-side functions for the support tickets module.
  * Unified into intratool.db. Tables prefixed with ticket_.
@@ -163,25 +164,72 @@ export async function getClientCompanies(): Promise<ClientCompany[]> {
     return JSON.parse(JSON.stringify(rows));
 }
 
-export async function getTickets(): Promise<Ticket[]> {
+/**
+ * Retrieves tickets with pagination and server-side filtering.
+ */
+export async function getTickets(
+    page: number = 1, 
+    limit: number = 20, 
+    filters: { search?: string, status?: string, priority?: string, assigneeId?: number | null } = {}
+): Promise<{ data: Ticket[], hasMore: boolean }> {
     const db = await connectTicketsDb();
-    
-    const rows = db.prepare(`
-        SELECT t.*, 
-               COALESCE(SUM(te.duration), 0) as totalDuration,
-               MAX(CASE WHEN te.endTime IS NULL THEN 1 ELSE 0 END) as hasActiveTimer
-        FROM tickets t
-        LEFT JOIN time_entries te ON t.id = te.ticketId
-        GROUP BY t.id
-        ORDER BY t.createdAt DESC
-    `).all() as DbTicketRow[];
-    
-    return JSON.parse(JSON.stringify(rows.map(r => ({ 
-        ...r, 
-        isBillable: r.isBillable === 1,
-        hasActiveTimer: r.hasActiveTimer === 1,
-        totalDuration: r.totalDuration || 0
-    }))));
+    const offset = (page - 1) * limit;
+    const { search, status, priority, assigneeId } = filters;
+
+    try {
+        let whereClauses: string[] = [];
+        const params: (string | number)[] = [];
+
+        if (search?.trim()) {
+            whereClauses.push("(t.consecutive LIKE ? OR t.subject LIKE ? OR t.customerName LIKE ? OR t.companyName LIKE ?)");
+            const searchParam = `%${search.trim()}%`;
+            params.push(searchParam, searchParam, searchParam, searchParam);
+        }
+
+        if (status && status !== 'all') {
+            whereClauses.push("t.status = ?");
+            params.push(status);
+        }
+
+        if (priority && priority !== 'all') {
+            whereClauses.push("t.priority = ?");
+            params.push(priority);
+        }
+
+        if (assigneeId !== undefined && assigneeId !== null) {
+            whereClauses.push("t.assigneeId = ?");
+            params.push(assigneeId);
+        }
+
+        const whereString = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+
+        const query = `
+            SELECT t.*, 
+                   COALESCE(SUM(te.duration), 0) as totalDuration,
+                   MAX(CASE WHEN te.endTime IS NULL THEN 1 ELSE 0 END) as hasActiveTimer
+            FROM tickets t
+            LEFT JOIN time_entries te ON t.id = te.ticketId
+            ${whereString}
+            GROUP BY t.id
+            ORDER BY t.createdAt DESC
+            LIMIT ? OFFSET ?
+        `;
+
+        const rows = db.prepare(query).all(...params, limit + 1, offset) as DbTicketRow[];
+        
+        const hasMore = rows.length > limit;
+        const data = (hasMore ? rows.slice(0, limit) : rows).map(r => ({ 
+            ...r, 
+            isBillable: r.isBillable === 1,
+            hasActiveTimer: r.hasActiveTimer === 1,
+            totalDuration: r.totalDuration || 0
+        }));
+
+        return JSON.parse(JSON.stringify({ data, hasMore }));
+    } catch (error: unknown) {
+        logError("Failed to fetch paginated tickets", { error: (error as Error).message, filters, page });
+        return { data: [], hasMore: false };
+    }
 }
 
 export async function getTicketById(id: number): Promise<Ticket | null> {

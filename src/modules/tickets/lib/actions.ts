@@ -85,9 +85,9 @@ export async function getClientCompanies(): Promise<ClientCompany[]> {
     return JSON.parse(JSON.stringify(companies));
 }
 
-export async function getTickets(): Promise<Ticket[]> {
-    const tickets = await getTicketsServer();
-    return JSON.parse(JSON.stringify(tickets));
+export async function getTickets(page: number = 1, limit: number = 20, filters: { search?: string, status?: string, priority?: string, assigneeId?: number | null } = {}): Promise<{ data: Ticket[], hasMore: boolean }> {
+    const result = await getTicketsServer(page, limit, filters);
+    return JSON.parse(JSON.stringify(result));
 }
 
 export async function getTicketById(id: number): Promise<Ticket | null> {
