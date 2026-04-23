@@ -7,7 +7,7 @@
 import { useAnalytics } from '@/modules/analytics/hooks/useAnalytics';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AreaChart, Ticket, Coins, Receipt, CheckCircle2, PieChart as PieIcon, BarChart3, Users, Wrench, FileText, Calendar as CalendarIcon, Download, Mail, Loader2, UserCircle, Search } from 'lucide-react';
+import { AreaChart, Ticket, Coins, Receipt, CheckCircle2, PieChart as PieIcon, BarChart3, Users, Wrench, FileText, Calendar as CalendarIcon, Download, Mail, Loader2, UserCircle, Search, Package } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
 import { Button } from '@/components/ui/button';
@@ -20,10 +20,11 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import type { VolumeKpi, Customer, TimeEntry, DateRange } from '@/modules/core/types';
+import type { Customer, TimeEntry, DateRange, Consumable } from '@/modules/core/types';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { getServiceReportEntries } from '@/modules/billing/lib/actions';
+import { getConsumablesReport } from '@/modules/analytics/lib/actions';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { generateDocument } from '@/modules/core/lib/pdf-generator';
 import { sendServiceReportByEmail } from '@/modules/billing/lib/email-actions';
@@ -53,7 +54,7 @@ export default function AnalyticsClient() {
     const { hasPermission } = useAuthorization();
     const { toast } = useToast();
     
-    // Reporting States
+    // Service Reporting States
     const [selectedCustomerForReport, setSelectedCustomerForReport] = useState<Customer | null>(null);
     const [customerSearchTerm, setCustomerSearchTerm] = useState("");
     const [reportEntries, setReportEntries] = useState<(TimeEntry & { ticketConsecutive: string, serviceName: string, userName: string })[]>([]);
@@ -62,6 +63,11 @@ export default function AnalyticsClient() {
         from: startOfMonth(new Date()),
         to: endOfMonth(new Date())
     });
+
+    // Consumables Reporting States
+    const [consumablesData, setConsumablesData] = useState<(Consumable & { clientId: string, customerName: string, equipmentName: string })[]>([]);
+    const [isLoadingConsumables, setIsLoadingConsumables] = useState(false);
+    const [consumableSearch, setConsumablesSearch] = useState("");
 
     // Email/PDF Reporting States
     const [isEmailDialogOpen, setEmailDialogOpen] = useState(false);
@@ -92,9 +98,32 @@ export default function AnalyticsClient() {
         }
     }, [selectedCustomerForReport, reportRange, toast]);
 
+    const fetchConsumables = useCallback(async () => {
+        setIsLoadingConsumables(true);
+        try {
+            const data = await getConsumablesReport();
+            setConsumablesData(data);
+        } finally {
+            setIsLoadingConsumables(false);
+        }
+    }, []);
+
     useEffect(() => {
-        fetchReportData();
-    }, [fetchReportData]);
+        if (selectedCustomerForReport && reportRange?.from && reportRange?.to) {
+            fetchReportData();
+        }
+    }, [selectedCustomerForReport, reportRange, fetchReportData]);
+
+    const filteredConsumables = useMemo(() => {
+        if (!consumableSearch) return consumablesData;
+        const lower = consumableSearch.toLowerCase();
+        return consumablesData.filter(c => 
+            (c.customerName || "").toLowerCase().includes(lower) || 
+            (c.description || "").toLowerCase().includes(lower) || 
+            (c.partNumber || "").toLowerCase().includes(lower) || 
+            (c.equipmentName || "").toLowerCase().includes(lower)
+        );
+    }, [consumablesData, consumableSearch]);
 
     const handleGeneratePDF = () => {
         if (!selectedCustomerForReport || !companyData || !reportRange?.from || !reportRange?.to) return;
@@ -133,6 +162,43 @@ export default function AnalyticsClient() {
 
             doc.save(`reporte_actividades_${selectedCustomerForReport.id}.pdf`);
             toast({ title: "PDF Descargado" });
+        } catch {
+            toast({ title: "Error al generar PDF", variant: "destructive" });
+        } finally {
+            setIsGeneratingPDF(false);
+        }
+    };
+
+    const handleGenerateConsumablesPDF = () => {
+        if (!companyData) return;
+        setIsGeneratingPDF(true);
+        try {
+            const columns = ["Cliente", "Equipo", "Tipo", "Descripción", "Número de Parte"];
+            const tableRows: RowInput[] = filteredConsumables.map(c => [
+                c.customerName,
+                c.equipmentName,
+                c.type.toUpperCase(),
+                c.description,
+                { content: c.partNumber, styles: { font: 'courier' } }
+            ]);
+
+            const doc = generateDocument({
+                docTitle: "AUDITORÍA DE CONSUMIBLES POR CLIENTE",
+                docId: "REPORTE-INSUMOS",
+                companyData,
+                meta: [{ label: 'Fecha Emisión', value: format(new Date(), 'dd/MM/yyyy') }],
+                blocks: [{ title: 'Resumen', content: `Este reporte detalla los consumibles e insumos críticos vinculados a los equipos de hardware de la cartera de clientes.` }],
+                table: {
+                    columns,
+                    rows: tableRows,
+                    columnStyles: { 4: { fontStyle: 'bold' } }
+                },
+                notes: "Listado informativo para gestión de compras y preventa de insumos.",
+                totals: [{ label: 'Total Insumos Listados:', value: filteredConsumables.length.toString() }]
+            });
+
+            doc.save(`auditoria_consumibles_${format(new Date(), 'yyyyMMdd')}.pdf`);
+            toast({ title: "PDF Generado" });
         } catch {
             toast({ title: "Error al generar PDF", variant: "destructive" });
         } finally {
@@ -208,11 +274,12 @@ export default function AnalyticsClient() {
             </div>
 
             <Tabs defaultValue="overview" className="space-y-6">
-                <TabsList className="bg-muted p-1">
+                <TabsList className="bg-muted p-1 flex flex-wrap h-auto gap-1">
                     <TabsTrigger value="overview" className="flex items-center gap-2"><PieIcon className="h-4 w-4"/> Resumen General</TabsTrigger>
                     {canViewFinancials && <TabsTrigger value="billing" className="flex items-center gap-2"><Coins className="h-4 w-4"/> Rentabilidad</TabsTrigger>}
                     <TabsTrigger value="efficiency" className="flex items-center gap-2"><BarChart3 className="h-4 w-4"/> Eficiencia</TabsTrigger>
                     <TabsTrigger value="client-reports" className="flex items-center gap-2 text-blue-600 data-[state=active]:text-blue-600"><FileText className="h-4 w-4"/> Reportes de Cliente</TabsTrigger>
+                    <TabsTrigger value="consumables" onClick={fetchConsumables} className="flex items-center gap-2 text-orange-600 data-[state=active]:text-orange-600"><Package className="h-4 w-4"/> Consumibles</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="overview" className="space-y-6">
@@ -240,7 +307,7 @@ export default function AnalyticsClient() {
                                 <ResponsiveContainer width="100%" height="100%">
                                     <PieChart>
                                         <Pie data={state.kpis?.byTopic} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value" nameKey="label" label={({ label }) => label}>
-                                            {state.kpis?.byTopic?.map((_entry: VolumeKpi, index: number) => (<Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />))}
+                                            {state.kpis?.byTopic?.map((_entry, index: number) => (<Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />))}
                                         </Pie>
                                         <Tooltip />
                                     </PieChart>
@@ -263,7 +330,7 @@ export default function AnalyticsClient() {
                                     <ResponsiveContainer width="100%" height="100%">
                                         <PieChart>
                                             <Pie data={state.kpis?.byBillingType} cx="50%" cy="50%" outerRadius={80} dataKey="value" label>
-                                                {state.kpis?.byBillingType?.map((_entry: VolumeKpi, index: number) => (<Cell key={`cell-${index}`} fill={index === 0 ? '#3B82F6' : '#10B981'} />))}
+                                                {state.kpis?.byBillingType?.map((_entry, index: number) => (<Cell key={`cell-${index}`} fill={index === 0 ? '#3B82F6' : '#10B981'} />))}
                                             </Pie>
                                             <Tooltip /><Legend verticalAlign="bottom" />
                                         </PieChart>
@@ -286,7 +353,9 @@ export default function AnalyticsClient() {
                 <TabsContent value="efficiency" className="space-y-6">
                     <div className="grid gap-4 md:grid-cols-7">
                         <Card className="col-span-4">
-                            <CardHeader><CardTitle className="text-base">Inversión de Tiempo por Técnico</CardTitle></CardHeader>
+                            <CardHeader>
+                                <CardTitle className="text-base">Inversión de Tiempo por Técnico</CardTitle>
+                            </CardHeader>
                             <CardContent className="h-80">
                                 <ChartContainer config={{}} className="h-full w-full">
                                     <ResponsiveContainer width="100%" height="100%">
@@ -370,6 +439,66 @@ export default function AnalyticsClient() {
                             )}
                         </div>
                     </div>
+                </TabsContent>
+
+                <TabsContent value="consumables" className="space-y-6">
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between">
+                            <div>
+                                <CardTitle className="flex items-center gap-2"><Package className="h-5 w-5 text-orange-600"/> Reporte Maestro de Consumibles</CardTitle>
+                                <p className="text-sm text-muted-foreground">Listado de insumos y piezas críticas por cliente y equipo de hardware.</p>
+                            </div>
+                            <Button variant="outline" size="sm" onClick={handleGenerateConsumablesPDF} disabled={isGeneratingPDF || filteredConsumables.length === 0}>
+                                {isGeneratingPDF ? <Loader2 className="animate-spin h-4 w-4" /> : <Download className="h-4 w-4 mr-2" />} Exportar PDF
+                            </Button>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="relative max-w-md">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input 
+                                    placeholder="Buscar por cliente, consumible o P/N..." 
+                                    value={consumableSearch} 
+                                    onChange={e => setConsumablesSearch(e.target.value)} 
+                                    className="pl-9"
+                                />
+                            </div>
+
+                            <div className="rounded-md border">
+                                <Table>
+                                    <TableHeader className="bg-muted/50">
+                                        <TableRow>
+                                            <TableHead className="text-xs">Cliente</TableHead>
+                                            <TableHead className="text-xs">Equipo</TableHead>
+                                            <TableHead className="text-xs">Tipo Insumo</TableHead>
+                                            <TableHead className="text-xs">Descripción</TableHead>
+                                            <TableHead className="text-xs">Número de Parte (P/N)</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {isLoadingConsumables ? (
+                                            <TableRow><TableCell colSpan={5} className="h-40 text-center"><Loader2 className="animate-spin inline-block" /></TableCell></TableRow>
+                                        ) : filteredConsumables.length > 0 ? (
+                                            filteredConsumables.map((c, idx) => (
+                                                <TableRow key={`${c.id}-${idx}`} className="group hover:bg-muted/30">
+                                                    <TableCell className="text-xs font-bold">{c.customerName}</TableCell>
+                                                    <TableCell className="text-xs text-muted-foreground">{c.equipmentName}</TableCell>
+                                                    <TableCell><Badge variant="secondary" className="text-[10px] uppercase">{c.type}</Badge></TableCell>
+                                                    <TableCell className="text-xs font-medium">{c.description}</TableCell>
+                                                    <TableCell className="font-mono text-xs font-black text-primary">{c.partNumber}</TableCell>
+                                                </TableRow>
+                                            ))
+                                        ) : (
+                                            <TableRow><TableCell colSpan={5} className="h-40 text-center text-muted-foreground italic">No se encontraron consumibles registrados.</TableCell></TableRow>
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        </CardContent>
+                        <CardFooter className="bg-muted/10 border-t p-4 flex justify-between items-center">
+                            <span className="text-xs font-bold text-muted-foreground uppercase">Total de Insumos Registrados:</span>
+                            <span className="text-xl font-black text-orange-600">{filteredConsumables.length}</span>
+                        </CardFooter>
+                    </Card>
                 </TabsContent>
             </Tabs>
 

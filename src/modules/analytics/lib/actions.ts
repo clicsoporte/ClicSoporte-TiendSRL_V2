@@ -5,7 +5,7 @@
 'use server';
 
 import { connectDb } from "@/modules/core/lib/db";
-import type { Ticket, TIProject, User, Service, TimeEntry, AnalyticsData, DashboardStats, VolumeKpi } from "@/modules/core/types";
+import type { Ticket, TIProject, User, Service, TimeEntry, AnalyticsData, DashboardStats, VolumeKpi, Consumable } from "@/modules/core/types";
 import { DateRange } from 'react-day-picker';
 import { differenceInDays, parseISO } from 'date-fns';
 
@@ -161,5 +161,29 @@ export async function getDashboardStats(): Promise<DashboardStats> {
         return { activeTickets: activeTickets.count, urgentTickets: urgentTickets.count, activeProjects: activeProjects.count, expiringContracts };
     } catch {
         return { activeTickets: 0, urgentTickets: 0, activeProjects: 0, expiringContracts: 0 };
+    }
+}
+
+/**
+ * Retrieves all consumables with enriched customer and equipment info for auditing.
+ */
+export async function getConsumablesReport() {
+    const db = await connectDb();
+    try {
+        const rows = db.prepare(`
+            SELECT 
+                c.id as clientId,
+                c.name as customerName,
+                e.nickname as equipmentName,
+                ic.*
+            FROM inventory_consumables ic
+            JOIN inventory_equipment e ON ic.equipmentId = e.id
+            JOIN customers c ON e.clientId = c.id
+            ORDER BY c.name, e.nickname
+        `).all() as (Consumable & { clientId: string, customerName: string, equipmentName: string })[];
+        return JSON.parse(JSON.stringify(rows));
+    } catch (error) {
+        console.error("Failed to fetch consumables report:", error);
+        return [];
     }
 }
