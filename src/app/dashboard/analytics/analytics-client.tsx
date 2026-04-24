@@ -20,7 +20,7 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import type { Customer, TimeEntry, DateRange, Consumable } from '@/modules/core/types';
+import type { Customer, TimeEntry, DateRange, Consumable, Service } from '@/modules/core/types';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { getServiceReportEntries } from '@/modules/billing/lib/actions';
@@ -236,7 +236,10 @@ export default function AnalyticsClient() {
         }
     };
 
-    if (!isAuthReady || state.isLoading) {
+    // Flickering Prevention Logic: Only show skeleton on first data load
+    const isInitialLoading = !isAuthReady || (state.isLoading && !state.kpis);
+
+    if (isInitialLoading) {
         return (
             <div className="p-8 space-y-6">
                 <div className="flex justify-between items-center"><Skeleton className="h-10 w-64" /><Skeleton className="h-10 w-48" /></div>
@@ -250,7 +253,15 @@ export default function AnalyticsClient() {
     const formatCurrency = (val: number) => `¢${val.toLocaleString('es-CR', { minimumFractionDigits: 2 })}`;
 
     return (
-        <main className="flex-1 p-4 md:p-6 lg:p-8 space-y-6">
+        <main className="flex-1 p-4 md:p-6 lg:p-8 space-y-6 relative">
+            {/* Subtle Refresh Indicator to prevent skeleton swap */}
+            {state.isRefreshing && (
+                <div className="absolute top-2 right-8 z-50 flex items-center gap-2 bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-bold animate-in fade-in slide-in-from-top-1">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Actualizando datos...
+                </div>
+            )}
+
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div className="flex items-center gap-4">
                     <AreaChart className="h-8 w-8 text-primary" />
@@ -279,234 +290,236 @@ export default function AnalyticsClient() {
                 </div>
             </div>
 
-            <Tabs defaultValue="overview" className="space-y-6">
-                <TabsList className="bg-muted p-1 flex flex-wrap h-auto gap-1">
-                    <TabsTrigger value="overview" className="flex items-center gap-2"><PieIcon className="h-4 w-4"/> Resumen General</TabsTrigger>
-                    {canViewFinancials && <TabsTrigger value="billing" className="flex items-center gap-2"><Coins className="h-4 w-4"/> Rentabilidad</TabsTrigger>}
-                    <TabsTrigger value="efficiency" className="flex items-center gap-2"><BarChart3 className="h-4 w-4"/> Eficiencia</TabsTrigger>
-                    <TabsTrigger value="client-reports" className="flex items-center gap-2 text-blue-600 data-[state=active]:text-blue-600"><FileText className="h-4 w-4"/> Reportes de Cliente</TabsTrigger>
-                    <TabsTrigger value="consumables" onClick={fetchConsumables} className="flex items-center gap-2 text-orange-600 data-[state=active]:text-orange-600"><Package className="h-4 w-4"/> Consumibles</TabsTrigger>
-                </TabsList>
+            <div className={cn("transition-opacity duration-300", state.isRefreshing ? "opacity-50 pointer-events-none" : "opacity-100")}>
+                <Tabs defaultValue="overview" className="space-y-6">
+                    <TabsList className="bg-muted p-1 flex flex-wrap h-auto gap-1">
+                        <TabsTrigger value="overview" className="flex items-center gap-2"><PieIcon className="h-4 w-4"/> Resumen General</TabsTrigger>
+                        {canViewFinancials && <TabsTrigger value="billing" className="flex items-center gap-2"><Coins className="h-4 w-4"/> Rentabilidad</TabsTrigger>}
+                        <TabsTrigger value="efficiency" className="flex items-center gap-2"><BarChart3 className="h-4 w-4"/> Eficiencia</TabsTrigger>
+                        <TabsTrigger value="client-reports" className="flex items-center gap-2 text-blue-600 data-[state=active]:text-blue-600"><FileText className="h-4 w-4"/> Reportes de Cliente</TabsTrigger>
+                        <TabsTrigger value="consumables" onClick={fetchConsumables} className="flex items-center gap-2 text-orange-600 data-[state=active]:text-orange-600"><Package className="h-4 w-4"/> Consumibles</TabsTrigger>
+                    </TabsList>
 
-                <TabsContent value="overview" className="space-y-6">
-                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                        <StatCard title="Total de Casos" value={state.kpis?.tickets.total || 0} icon={Ticket} isLoading={state.isLoading} color="text-primary" />
-                        <StatCard title="Proyectos TI" value={state.kpis?.projects.total || 0} icon={AreaChart} isLoading={state.isLoading} color="text-purple-600" />
-                        <StatCard title="Tickets Abiertos" value={state.kpis?.tickets.open || 0} icon={CheckCircle2} isLoading={state.isLoading} color="text-blue-600" />
-                        <StatCard title="Casos Resueltos" value={state.kpis?.tickets.completed || 0} icon={CheckCircle2} isLoading={state.isLoading} color="text-green-600" />
-                    </div>
-
-                    <div className="grid gap-6 md:grid-cols-2">
-                        <Card>
-                            <CardHeader><CardTitle className="flex items-center gap-2 text-base"><Users className="h-4 w-4 text-primary"/> Top 10 Clientes por Volumen</CardTitle></CardHeader>
-                            <CardContent className="h-[300px]">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart data={state.kpis?.byCustomer || []} layout="vertical">
-                                        <CartesianGrid strokeDasharray="3 3" horizontal={false} /><XAxis type="number" hide /><YAxis dataKey="label" type="category" width={120} tick={{ fontSize: 10 }} /><Tooltip /><Bar dataKey="value" fill="#F97316" radius={[0, 4, 4, 0]} name="Tickets" />
-                                    </BarChart>
-                                </ResponsiveContainer>
-                            </CardContent>
-                        </Card>
-                        <Card>
-                            <CardHeader><CardTitle className="flex items-center gap-2 text-base"><Wrench className="h-4 w-4 text-primary"/> Distribución por Tema</CardTitle></CardHeader>
-                            <CardContent className="h-[300px]">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <PieChart>
-                                        <Pie data={state.kpis?.byTopic || []} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value" nameKey="label" label={({ label }) => label}>
-                                            {(state.kpis?.byTopic || []).map((_entry, index: number) => (<Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />))}
-                                        </Pie>
-                                        <Tooltip />
-                                    </PieChart>
-                                </ResponsiveContainer>
-                            </CardContent>
-                        </Card>
-                    </div>
-                </TabsContent>
-
-                {canViewFinancials && (
-                    <TabsContent value="billing" className="space-y-6">
-                        <div className="grid gap-4 md:grid-cols-2">
-                            <StatCard title="Facturación Realizada" value={formatCurrency(state.kpis?.timeTracking.totalAmountInvoiced || 0)} icon={CheckCircle2} isLoading={state.isLoading} color="text-green-600" />
-                            <StatCard title="Pendiente por Cobrar" value={formatCurrency(state.kpis?.timeTracking.totalAmountPending || 0)} icon={Receipt} isLoading={state.isLoading} color="text-orange-600" />
+                    <TabsContent value="overview" className="space-y-6">
+                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                            <StatCard title="Total de Casos" value={state.kpis?.tickets.total || 0} icon={Ticket} isLoading={state.isLoading} color="text-primary" />
+                            <StatCard title="Proyectos TI" value={state.kpis?.projects.total || 0} icon={AreaChart} isLoading={state.isLoading} color="text-purple-600" />
+                            <StatCard title="Tickets Abiertos" value={state.kpis?.tickets.open || 0} icon={CheckCircle2} isLoading={state.isLoading} color="text-blue-600" />
+                            <StatCard title="Casos Resueltos" value={state.kpis?.tickets.completed || 0} icon={CheckCircle2} isLoading={state.isLoading} color="text-green-600" />
                         </div>
-                        <div className="grid gap-6 md:grid-cols-3">
-                            <Card className="md:col-span-1">
-                                <CardHeader><CardTitle className="text-base">Mix de Modalidades</CardTitle></CardHeader>
-                                <CardContent className="h-[250px]">
+
+                        <div className="grid gap-6 md:grid-cols-2">
+                            <Card>
+                                <CardHeader><CardTitle className="flex items-center gap-2 text-base"><Users className="h-4 w-4 text-primary"/> Top 10 Clientes por Volumen</CardTitle></CardHeader>
+                                <CardContent className="h-[300px]">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart data={state.kpis?.byCustomer || []} layout="vertical">
+                                            <CartesianGrid strokeDasharray="3 3" horizontal={false} /><XAxis type="number" hide /><YAxis dataKey="label" type="category" width={120} tick={{ fontSize: 10 }} /><Tooltip /><Bar dataKey="value" fill="#F97316" radius={[0, 4, 4, 0]} name="Tickets" />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader><CardTitle className="flex items-center gap-2 text-base"><Wrench className="h-4 w-4 text-primary"/> Distribución por Tema</CardTitle></CardHeader>
+                                <CardContent className="h-[300px]">
                                     <ResponsiveContainer width="100%" height="100%">
                                         <PieChart>
-                                            <Pie data={state.kpis?.byBillingType || []} cx="50%" cy="50%" outerRadius={80} dataKey="value" label>
-                                                {(state.kpis?.byBillingType || []).map((_entry, index: number) => (<Cell key={`cell-${index}`} fill={index === 0 ? '#3B82F6' : '#10B981'} />))}
+                                            <Pie data={state.kpis?.byTopic || []} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value" nameKey="label" label={({ label }) => label}>
+                                                {(state.kpis?.byTopic || []).map((_entry, index: number) => (<Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />))}
                                             </Pie>
-                                            <Tooltip /><Legend verticalAlign="bottom" />
+                                            <Tooltip />
                                         </PieChart>
                                     </ResponsiveContainer>
                                 </CardContent>
                             </Card>
-                            <Card className="md:col-span-2">
-                                <CardHeader><CardTitle className="text-base">Productividad por Técnico</CardTitle></CardHeader>
-                                <CardContent>
-                                    <Table>
-                                        <TableHeader><TableRow><TableHead>Técnico</TableHead><TableHead className="text-right">Horas Bajo Contrato</TableHead><TableHead className="text-right">Monto Facturable</TableHead></TableRow></TableHeader>
-                                        <TableBody>{(state.kpis?.timeTracking.byUser || []).map((u) => (<TableRow key={u.userId}><TableCell className="font-medium">{u.userName}</TableCell><TableCell className="text-right font-mono">{u.billable.toFixed(2)} h</TableCell><TableCell className="text-right font-bold text-primary">{formatCurrency(u.amount)}</TableCell></TableRow>))}</TableBody>
-                                    </Table>
+                        </div>
+                    </TabsContent>
+
+                    {canViewFinancials && (
+                        <TabsContent value="billing" className="space-y-6">
+                            <div className="grid gap-4 md:grid-cols-2">
+                                <StatCard title="Facturación Realizada" value={formatCurrency(state.kpis?.timeTracking.totalAmountInvoiced || 0)} icon={CheckCircle2} isLoading={state.isLoading} color="text-green-600" />
+                                <StatCard title="Pendiente por Cobrar" value={formatCurrency(state.kpis?.timeTracking.totalAmountPending || 0)} icon={Receipt} isLoading={state.isLoading} color="text-orange-600" />
+                            </div>
+                            <div className="grid gap-6 md:grid-cols-3">
+                                <Card className="md:col-span-1">
+                                    <CardHeader><CardTitle className="text-base">Mix de Modalidades</CardTitle></CardHeader>
+                                    <CardContent className="h-[250px]">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <PieChart>
+                                                <Pie data={state.kpis?.byBillingType || []} cx="50%" cy="50%" outerRadius={80} dataKey="value" label>
+                                                    {(state.kpis?.byBillingType || []).map((_entry, index: number) => (<Cell key={`cell-${index}`} fill={index === 0 ? '#3B82F6' : '#10B981'} />))}
+                                                </Pie>
+                                                <Tooltip /><Legend verticalAlign="bottom" />
+                                            </PieChart>
+                                        </ResponsiveContainer>
+                                    </CardContent>
+                                </Card>
+                                <Card className="md:col-span-2">
+                                    <CardHeader><CardTitle className="text-base">Productividad por Técnico</CardTitle></CardHeader>
+                                    <CardContent>
+                                        <Table>
+                                            <TableHeader><TableRow><TableHead>Técnico</TableHead><TableHead className="text-right">Horas Bajo Contrato</TableHead><TableHead className="text-right">Monto Facturable</TableHead></TableRow></TableHeader>
+                                            <TableBody>{(state.kpis?.timeTracking.byUser || []).map((u) => (<TableRow key={u.userId}><TableCell className="font-medium">{u.userName}</TableCell><TableCell className="text-right font-mono">{u.billable.toFixed(2)} h</TableCell><TableCell className="text-right font-bold text-primary">{formatCurrency(u.amount)}</TableCell></TableRow>))}</TableBody>
+                                        </Table>
+                                    </CardContent>
+                                </Card>
+                            </div>
+                        </TabsContent>
+                    )}
+
+                    <TabsContent value="efficiency" className="space-y-6">
+                        <div className="grid gap-4 md:grid-cols-7">
+                            <Card className="col-span-4">
+                                <CardHeader>
+                                    <CardTitle className="text-base">Inversión de Tiempo por Técnico</CardTitle>
+                                </CardHeader>
+                                <CardContent className="h-80">
+                                    <ChartContainer config={{}} className="h-full w-full">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <BarChart data={state.kpis?.timeTracking.byUser || []}>
+                                                <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                                                <XAxis dataKey="userName" tick={{ fontSize: 10 }} axisLine={false} />
+                                                <YAxis />
+                                                <Tooltip content={<ChartTooltipContent />} />
+                                                <Legend />
+                                                <Bar dataKey="billable" fill="#10B981" radius={4} name="Bajo Contrato" />
+                                                <Bar dataKey="nonBillable" fill="#F97316" radius={4} name="Fuera de Contrato" />
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </ChartContainer>
+                                </CardContent>
+                            </Card>
+                            <Card className="col-span-3">
+                                <CardHeader><CardTitle className="text-base">Desglose Global de Tiempo</CardTitle></CardHeader>
+                                <CardContent className="space-y-4">
+                                    <div className="p-4 border rounded-lg bg-green-50/50 flex items-center justify-between"><div className="flex items-center gap-3"><div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center text-green-600"><Coins className="h-5 w-5" /></div><div><p className="text-[10px] text-muted-foreground uppercase font-black">Bajo Contrato</p><p className="text-xl font-black">{(state.kpis?.timeTracking.totalBillable || 0).toFixed(1)} h</p></div></div></div>
+                                    <div className="p-4 border rounded-lg bg-orange-50/50 flex items-center justify-between"><div className="flex items-center gap-3"><div className="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-600"><Coins className="h-5 w-5" /></div><div><p className="text-[10px] text-muted-foreground uppercase font-black">Fuera de Contrato</p><p className="text-xl font-black">{(state.kpis?.timeTracking.totalNonBillable || 0).toFixed(1)} h</p></div></div></div>
+                                    <div className="p-4 border rounded-lg bg-blue-50/50 flex items-center justify-between"><div className="flex items-center gap-3"><div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600"><AreaChart className="h-5 w-5" /></div><div><p className="text-[10px] text-muted-foreground uppercase font-black">Total Invertido</p><p className="text-xl font-black">{(state.kpis?.timeTracking.totalHours || 0).toFixed(1)} h</p></div></div></div>
                                 </CardContent>
                             </Card>
                         </div>
                     </TabsContent>
-                )}
 
-                <TabsContent value="efficiency" className="space-y-6">
-                    <div className="grid gap-4 md:grid-cols-7">
-                        <Card className="col-span-4">
-                            <CardHeader>
-                                <CardTitle className="text-base">Inversión de Tiempo por Técnico</CardTitle>
-                            </CardHeader>
-                            <CardContent className="h-80">
-                                <ChartContainer config={{}} className="h-full w-full">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart data={state.kpis?.timeTracking.byUser || []}>
-                                            <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                                            <XAxis dataKey="userName" tick={{ fontSize: 10 }} axisLine={false} />
-                                            <YAxis />
-                                            <Tooltip content={<ChartTooltipContent />} />
-                                            <Legend />
-                                            <Bar dataKey="billable" fill="#10B981" radius={4} name="Bajo Contrato" />
-                                            <Bar dataKey="nonBillable" fill="#F97316" radius={4} name="Fuera de Contrato" />
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                </ChartContainer>
-                            </CardContent>
-                        </Card>
-                        <Card className="col-span-3">
-                            <CardHeader><CardTitle className="text-base">Desglose Global de Tiempo</CardTitle></CardHeader>
-                            <CardContent className="space-y-4">
-                                <div className="p-4 border rounded-lg bg-green-50/50 flex items-center justify-between"><div className="flex items-center gap-3"><div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center text-green-600"><Coins className="h-5 w-5" /></div><div><p className="text-[10px] text-muted-foreground uppercase font-black">Bajo Contrato</p><p className="text-xl font-black">{(state.kpis?.timeTracking.totalBillable || 0).toFixed(1)} h</p></div></div></div>
-                                <div className="p-4 border rounded-lg bg-orange-50/50 flex items-center justify-between"><div className="flex items-center gap-3"><div className="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-600"><Coins className="h-5 w-5" /></div><div><p className="text-[10px] text-muted-foreground uppercase font-black">Fuera de Contrato</p><p className="text-xl font-black">{(state.kpis?.timeTracking.totalNonBillable || 0).toFixed(1)} h</p></div></div></div>
-                                <div className="p-4 border rounded-lg bg-blue-50/50 flex items-center justify-between"><div className="flex items-center gap-3"><div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600"><AreaChart className="h-5 w-5" /></div><div><p className="text-[10px] text-muted-foreground uppercase font-black">Total Invertido</p><p className="text-xl font-black">{(state.kpis?.timeTracking.totalHours || 0).toFixed(1)} h</p></div></div></div>
-                            </CardContent>
-                        </Card>
-                    </div>
-                </TabsContent>
+                    <TabsContent value="client-reports" className="space-y-6">
+                        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                            <Card className="lg:col-span-1">
+                                <CardHeader><CardTitle className="text-sm uppercase font-black">1. Seleccionar Cliente</CardTitle></CardHeader>
+                                <CardContent className="space-y-4">
+                                    <div className="relative"><Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" /><Input placeholder="Buscar..." value={customerSearchTerm} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCustomerSearchTerm(e.target.value)} className="pl-8" /></div>
+                                    <ScrollArea className="h-[400px] pr-2">
+                                        {filteredCustomers.map(c => (
+                                            <div key={c.id} onClick={() => setSelectedCustomerForReport(c)} className={cn("p-3 border rounded-md mb-2 cursor-pointer transition-colors hover:bg-muted/50", selectedCustomerForReport?.id === c.id ? "border-primary bg-primary/5" : "border-transparent")}>
+                                                <p className="text-xs font-bold truncate">{c.name}</p>
+                                                <p className="text-[10px] text-muted-foreground font-mono">{c.id}</p>
+                                            </div>
+                                        ))}
+                                    </ScrollArea>
+                                </CardContent>
+                            </Card>
 
-                <TabsContent value="client-reports" className="space-y-6">
-                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                        <Card className="lg:col-span-1">
-                            <CardHeader><CardTitle className="text-sm uppercase font-black">1. Seleccionar Cliente</CardTitle></CardHeader>
-                            <CardContent className="space-y-4">
-                                <div className="relative"><Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" /><Input placeholder="Buscar..." value={customerSearchTerm} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCustomerSearchTerm(e.target.value)} className="pl-8" /></div>
-                                <ScrollArea className="h-[400px] pr-2">
-                                    {filteredCustomers.map(c => (
-                                        <div key={c.id} onClick={() => setSelectedCustomerForReport(c)} className={cn("p-3 border rounded-md mb-2 cursor-pointer transition-colors hover:bg-muted/50", selectedCustomerForReport?.id === c.id ? "border-primary bg-primary/5" : "border-transparent")}>
-                                            <p className="text-xs font-bold truncate">{c.name}</p>
-                                            <p className="text-[10px] text-muted-foreground font-mono">{c.id}</p>
+                            <div className="lg:col-span-3 space-y-6">
+                                {selectedCustomerForReport ? (
+                                    <>
+                                        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 bg-blue-50 p-4 rounded-xl border border-blue-200">
+                                            <div className="flex items-center gap-4">
+                                                <UserCircle className="h-10 w-10 text-blue-600" />
+                                                <div><p className="text-[10px] font-bold text-blue-700 uppercase">Cliente Seleccionado</p><p className="font-black text-blue-900">{selectedCustomerForReport.name}</p></div>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <Popover>
+                                                    <PopoverTrigger asChild><Button type="button" variant="outline" size="sm" className="h-9 gap-2"><CalendarIcon className="h-4 w-4" /> {reportRange?.from ? (reportRange.to ? <>{format(reportRange.from, "dd/MM/yy")} - {format(reportRange.to, "dd/MM/yy")}</> : format(reportRange.from, "dd/MM/yy")) : "Rango"}</Button></PopoverTrigger>
+                                                    <PopoverContent className="w-auto p-0" align="end"><Calendar mode="range" selected={reportRange} onSelect={setReportRange} numberOfMonths={2} locale={es} /></PopoverContent>
+                                                </Popover>
+                                                <Button type="button" size="sm" variant="outline" onClick={handleGeneratePDF} disabled={isGeneratingPDF}>{isGeneratingPDF ? <Loader2 className="animate-spin h-4 w-4" /> : <Download className="h-4 w-4 mr-2" />} PDF</Button>
+                                                <Button type="button" size="sm" onClick={() => { setSelectedEmailRecipients([]); setEmailDialogOpen(true); }}><Mail className="h-4 w-4 mr-2" /> Email</Button>
+                                            </div>
                                         </div>
-                                    ))}
-                                </ScrollArea>
-                            </CardContent>
-                        </Card>
 
-                        <div className="lg:col-span-3 space-y-6">
-                            {selectedCustomerForReport ? (
-                                <>
-                                    <div className="flex flex-col sm:flex-row justify-between items-center gap-4 bg-blue-50 p-4 rounded-xl border border-blue-200">
-                                        <div className="flex items-center gap-4">
-                                            <UserCircle className="h-10 w-10 text-blue-600" />
-                                            <div><p className="text-[10px] font-bold text-blue-700 uppercase">Cliente Seleccionado</p><p className="font-black text-blue-900">{selectedCustomerForReport.name}</p></div>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <Popover>
-                                                <PopoverTrigger asChild><Button type="button" variant="outline" size="sm" className="h-9 gap-2"><CalendarIcon className="h-4 w-4" /> {reportRange?.from ? (reportRange.to ? <>{format(reportRange.from, "dd/MM/yy")} - {format(reportRange.to, "dd/MM/yy")}</> : format(reportRange.from, "dd/MM/yy")) : "Rango"}</Button></PopoverTrigger>
-                                                <PopoverContent className="w-auto p-0" align="end"><Calendar mode="range" selected={reportRange} onSelect={setReportRange} numberOfMonths={2} locale={es} /></PopoverContent>
-                                            </Popover>
-                                            <Button type="button" size="sm" variant="outline" onClick={handleGeneratePDF} disabled={isGeneratingPDF}>{isGeneratingPDF ? <Loader2 className="animate-spin h-4 w-4" /> : <Download className="h-4 w-4 mr-2" />} PDF</Button>
-                                            <Button type="button" size="sm" onClick={() => { setSelectedEmailRecipients([]); setEmailDialogOpen(true); }}><Mail className="h-4 w-4 mr-2" /> Email</Button>
-                                        </div>
-                                    </div>
-
-                                    <Card>
-                                        <CardContent className="p-0">
-                                            <Table>
-                                                <TableHeader className="bg-muted/50"><TableRow><TableHead className="text-xs">Fecha/Hora</TableHead><TableHead className="text-xs">Ticket</TableHead><TableHead className="text-xs">Actividad</TableHead><TableHead className="text-xs">Técnico</TableHead><TableHead className="text-xs">Cobertura</TableHead><TableHead className="text-right text-xs">Duración</TableHead></TableRow></TableHeader>
-                                                <TableBody>
-                                                    {isLoadingReport ? <TableRow><TableCell colSpan={6} className="h-40 text-center"><Loader2 className="animate-spin inline-block" /></TableCell></TableRow> : (
-                                                        reportEntries.length > 0 ? reportEntries.map(e => (
-                                                            <TableRow key={e.id}><TableCell className="text-[11px]">{format(parseISO(e.startTime), 'dd/MM HH:mm')}</TableCell><TableCell className="font-mono text-[11px] font-bold">{e.ticketConsecutive}</TableCell><TableCell><p className="text-xs font-bold">{e.serviceName}</p><p className="text-[10px] text-muted-foreground italic line-clamp-1">{e.notes}</p></TableCell><TableCell className="text-[11px]">{e.userName}</TableCell><TableCell><Badge variant={e.isBillable ? "destructive" : "secondary"} className="text-[9px] h-4 uppercase">{e.isBillable ? 'Extra' : 'Contrato'}</Badge></TableCell><TableCell className="text-right text-[11px] font-mono">{((e.duration || 0) / 3600000).toFixed(2)}h</TableCell></TableRow>
-                                                        )) : <TableRow><TableCell colSpan={6} className="h-40 text-center text-muted-foreground italic">No hay actividades en este rango.</TableCell></TableRow>
-                                                    )}
-                                                </TableBody>
-                                            </Table>
-                                        </CardContent>
-                                        <CardFooter className="bg-muted/10 p-4 border-t flex justify-between items-center"><span className="text-xs font-bold text-muted-foreground uppercase">Total Invertido en Periodo:</span><span className="text-xl font-black text-primary">{(reportEntries.reduce((acc, e) => acc + (e.duration || 0), 0) / 3600000).toFixed(2)} horas</span></CardFooter>
-                                    </Card>
-                                </>
-                            ) : (
-                                <div className="h-full flex flex-col items-center justify-center text-center p-20 border-2 border-dashed rounded-2xl opacity-40"><FileText className="h-20 w-20 mb-4" /><p className="text-lg font-bold">Generador de Reportes de Servicio</p><p className="text-sm">Seleccione un cliente a la izquierda para ver su historial y generar informes.</p></div>
-                            )}
+                                        <Card>
+                                            <CardContent className="p-0">
+                                                <Table>
+                                                    <TableHeader className="bg-muted/50"><TableRow><TableHead className="text-xs">Fecha/Hora</TableHead><TableHead className="text-xs">Ticket</TableHead><TableHead className="text-xs">Actividad</TableHead><TableHead className="text-xs">Técnico</TableHead><TableHead className="text-xs">Cobertura</TableHead><TableHead className="text-right text-xs">Duración</TableHead></TableRow></TableHeader>
+                                                    <TableBody>
+                                                        {isLoadingReport ? <TableRow><TableCell colSpan={6} className="h-40 text-center"><Loader2 className="animate-spin inline-block" /></TableCell></TableRow> : (
+                                                            reportEntries.length > 0 ? reportEntries.map(e => (
+                                                                <TableRow key={e.id}><TableCell className="text-[11px]">{format(parseISO(e.startTime), 'dd/MM HH:mm')}</TableCell><TableCell className="font-mono text-[11px] font-bold">{e.ticketConsecutive}</TableCell><TableCell><p className="text-xs font-bold">{e.serviceName}</p><p className="text-[10px] text-muted-foreground italic line-clamp-1">{e.notes}</p></TableCell><TableCell className="text-[11px]">{e.userName}</TableCell><TableCell><Badge variant={e.isBillable ? "destructive" : "secondary"} className="text-[9px] h-4 uppercase">{e.isBillable ? 'Extra' : 'Contrato'}</Badge></TableCell><TableCell className="text-right text-[11px] font-mono">{((e.duration || 0) / 3600000).toFixed(2)}h</TableCell></TableRow>
+                                                            )) : <TableRow><TableCell colSpan={6} className="h-40 text-center text-muted-foreground italic">No hay actividades en este rango.</TableCell></TableRow>
+                                                        )}
+                                                    </TableBody>
+                                                </Table>
+                                            </CardContent>
+                                            <CardFooter className="bg-muted/10 p-4 border-t flex justify-between items-center"><span className="text-xs font-bold text-muted-foreground uppercase">Total Invertido en Periodo:</span><span className="text-xl font-black text-primary">{(reportEntries.reduce((acc, e) => acc + (e.duration || 0), 0) / 3600000).toFixed(2)} horas</span></CardFooter>
+                                        </Card>
+                                    </>
+                                ) : (
+                                    <div className="h-full flex flex-col items-center justify-center text-center p-20 border-2 border-dashed rounded-2xl opacity-40"><FileText className="h-20 w-20 mb-4" /><p className="text-lg font-bold">Generador de Reportes de Servicio</p><p className="text-sm">Seleccione un cliente a la izquierda para ver su historial y generar informes.</p></div>
+                                )}
+                            </div>
                         </div>
-                    </div>
-                </TabsContent>
+                    </TabsContent>
 
-                <TabsContent value="consumables" className="space-y-6">
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between">
-                            <div>
-                                <CardTitle className="flex items-center gap-2"><Package className="h-5 w-5 text-orange-600"/> Reporte Maestro de Consumibles</CardTitle>
-                                <CardDescription>Listado de insumos y piezas críticas por cliente y equipo de hardware.</CardDescription>
-                            </div>
-                            <Button type="button" variant="outline" size="sm" onClick={handleGenerateConsumablesPDF} disabled={isGeneratingPDF || filteredConsumables.length === 0}>
-                                {isGeneratingPDF ? <Loader2 className="animate-spin h-4 w-4" /> : <Download className="h-4 w-4 mr-2" />} Exportar PDF
-                            </Button>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="relative max-w-md">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                <Input 
-                                    placeholder="Buscar por cliente, consumible o P/N..." 
-                                    value={consumableSearch} 
-                                    onChange={e => setConsumablesSearch(e.target.value)} 
-                                    className="pl-9"
-                                />
-                            </div>
+                    <TabsContent value="consumables" className="space-y-6">
+                        <Card>
+                            <CardHeader className="flex flex-row items-center justify-between">
+                                <div>
+                                    <CardTitle className="flex items-center gap-2"><Package className="h-5 w-5 text-orange-600"/> Reporte Maestro de Consumibles</CardTitle>
+                                    <CardDescription>Listado de insumos y piezas críticas por cliente y equipo de hardware.</CardDescription>
+                                </div>
+                                <Button type="button" variant="outline" size="sm" onClick={handleGenerateConsumablesPDF} disabled={isGeneratingPDF || filteredConsumables.length === 0}>
+                                    {isGeneratingPDF ? <Loader2 className="animate-spin h-4 w-4" /> : <Download className="h-4 w-4 mr-2" />} Exportar PDF
+                                </Button>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="relative max-w-md">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    <Input 
+                                        placeholder="Buscar por cliente, consumible o P/N..." 
+                                        value={consumableSearch} 
+                                        onChange={e => setConsumablesSearch(e.target.value)} 
+                                        className="pl-9"
+                                    />
+                                </div>
 
-                            <div className="rounded-md border">
-                                <Table>
-                                    <TableHeader className="bg-muted/50">
-                                        <TableRow>
-                                            <TableHead className="text-xs">Cliente</TableHead>
-                                            <TableHead className="text-xs">Equipo</TableHead>
-                                            <TableHead className="text-xs">Tipo Insumo</TableHead>
-                                            <TableHead className="text-xs">Descripción</TableHead>
-                                            <TableHead className="text-xs">Número de Parte (P/N)</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {isLoadingConsumables ? (
-                                            <TableRow><TableCell colSpan={5} className="h-40 text-center"><Loader2 className="animate-spin inline-block" /></TableCell></TableRow>
-                                        ) : filteredConsumables.length > 0 ? (
-                                            filteredConsumables.map((c, idx) => (
-                                                <TableRow key={`${c.id}-${idx}`} className="group hover:bg-muted/30">
-                                                    <TableCell className="text-xs font-bold">{c.customerName}</TableCell>
-                                                    <TableCell className="text-xs text-muted-foreground">{c.equipmentName}</TableCell>
-                                                    <TableCell><Badge variant="secondary" className="text-[10px] uppercase">{c.type}</Badge></TableCell>
-                                                    <TableCell className="text-xs font-medium">{c.description}</TableCell>
-                                                    <TableCell className="font-mono text-xs font-black text-primary">{c.partNumber}</TableCell>
-                                                </TableRow>
-                                            ))
-                                        ) : (
-                                            <TableRow><TableCell colSpan={5} className="h-40 text-center text-muted-foreground italic">No se encontraron consumibles registrados.</TableCell></TableRow>
-                                        )}
-                                    </TableBody>
-                                </Table>
-                            </div>
-                        </CardContent>
-                        <CardFooter className="bg-muted/10 border-t p-4 flex justify-between items-center">
-                            <span className="text-xs font-bold text-muted-foreground uppercase">Total de Insumos Registrados:</span>
-                            <span className="text-xl font-black text-orange-600">{filteredConsumables.length}</span>
-                        </CardFooter>
-                    </Card>
-                </TabsContent>
-            </Tabs>
+                                <div className="rounded-md border">
+                                    <Table>
+                                        <TableHeader className="bg-muted/50">
+                                            <TableRow>
+                                                <TableHead className="text-xs">Cliente</TableHead>
+                                                <TableHead className="text-xs">Equipo</TableHead>
+                                                <TableHead className="text-xs">Tipo Insumo</TableHead>
+                                                <TableHead className="text-xs">Descripción</TableHead>
+                                                <TableHead className="text-xs">Número de Parte (P/N)</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {isLoadingConsumables ? (
+                                                <TableRow><TableCell colSpan={5} className="h-40 text-center"><Loader2 className="animate-spin inline-block" /></TableCell></TableRow>
+                                            ) : filteredConsumables.length > 0 ? (
+                                                filteredConsumables.map((c, idx) => (
+                                                    <TableRow key={`${c.id}-${idx}`} className="group hover:bg-muted/30">
+                                                        <TableCell className="text-xs font-bold">{c.customerName}</TableCell>
+                                                        <TableCell className="text-xs text-muted-foreground">{c.equipmentName}</TableCell>
+                                                        <TableCell><Badge variant="secondary" className="text-[10px] uppercase">{c.type}</Badge></TableCell>
+                                                        <TableCell className="text-xs font-medium">{c.description}</TableCell>
+                                                        <TableCell className="font-mono text-xs font-black text-primary">{c.partNumber}</TableCell>
+                                                    </TableRow>
+                                                ))
+                                            ) : (
+                                                <TableRow><TableCell colSpan={5} className="h-40 text-center text-muted-foreground italic">No se encontraron consumibles registrados.</TableCell></TableRow>
+                                            )}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            </CardContent>
+                            <CardFooter className="bg-muted/10 border-t p-4 flex justify-between items-center">
+                                <span className="text-xs font-bold text-muted-foreground uppercase">Total de Insumos Registrados:</span>
+                                <span className="text-xl font-black text-orange-600">{filteredConsumables.length}</span>
+                            </CardFooter>
+                        </Card>
+                    </TabsContent>
+                </Tabs>
+            </div>
 
             <Dialog open={isEmailDialogOpen} onOpenChange={setEmailDialogOpen}>
                 <DialogContent className="sm:max-w-md">
