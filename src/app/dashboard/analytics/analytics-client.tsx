@@ -5,7 +5,7 @@
 'use client';
 
 import { useAnalytics } from '@/modules/analytics/hooks/useAnalytics';
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AreaChart, Ticket, Coins, Receipt, CheckCircle2, PieChart as PieIcon, BarChart3, Users, Wrench, FileText, Calendar as CalendarIcon, Download, Mail, Loader2, UserCircle, Search, Package } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
@@ -165,6 +165,7 @@ export default function AnalyticsClient() {
         } catch {
             toast({ title: "Error al generar PDF", variant: "destructive" });
         } finally {
+            setIsGeneratingReport(false); // Correct variable name
             setIsGeneratingPDF(false);
         }
     };
@@ -211,6 +212,7 @@ export default function AnalyticsClient() {
     const [selectedEmailRecipients, setSelectedEmailRecipients] = useState<string[]>([]);
     const [isSendingEmail, setIsSendingEmail] = useState(false);
     const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+    const [isGeneratingReport, setIsGeneratingReport] = useState(false);
 
     const handleSendEmail = async () => {
         if (!selectedCustomerForReport || selectedEmailRecipients.length === 0 || !companyData || !currentUser || !reportRange?.from || !reportRange?.to) return;
