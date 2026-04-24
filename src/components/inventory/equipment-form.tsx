@@ -2,7 +2,7 @@
 
 /**
  * @fileoverview Form for creating or editing IT equipment.
- * Enhanced with Consumable management.
+ * Enhanced with functional categories and enriched Consumable management.
  */
 
 import { useState, useEffect } from 'react';
@@ -15,7 +15,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { saveEquipment, getEquipmentDetails } from '@/modules/inventory/lib/actions';
 import { useToast } from '@/modules/core/hooks/use-toast';
-import { Loader2, ShieldCheck, Laptop, Printer, Monitor, Radio, Phone, HardDrive, Cpu, type LucideIcon, Package, PlusCircle, Trash2, Zap } from 'lucide-react';
+import { 
+    Loader2, ShieldCheck, Laptop, Printer, Monitor, Radio, Phone, HardDrive, 
+    Cpu, type LucideIcon, Package, PlusCircle, Trash2, Zap, Server, Tablet, 
+    Scan, Projector, BatteryCharging, Database, ShieldAlert, Network, Router, 
+    Wifi, Calculator, Camera, Box 
+} from 'lucide-react';
 import type { Equipment, EquipmentCategory, Consumable, ConsumableType } from '@/modules/core/types';
 import { Badge } from '@/components/ui/badge';
 
@@ -27,25 +32,45 @@ interface EquipmentFormProps {
 }
 
 const categories: { value: EquipmentCategory; label: string; icon: LucideIcon }[] = [
-    { value: 'laptop', label: 'Laptop', icon: Laptop },
-    { value: 'desktop', label: 'Computadora Mesa', icon: Cpu },
-    { value: 'printer', label: 'Impresora', icon: Printer },
-    { value: 'monitor', label: 'Monitor', icon: Monitor },
-    { value: 'network', label: 'Red (Router/Switch)', icon: Radio },
-    { value: 'phone', label: 'Telefonía IP', icon: Phone },
-    { value: 'other', label: 'Otros Insumos', icon: HardDrive },
+    { value: 'laptop', label: 'Laptop / Portátil', icon: Laptop },
+    { value: 'desktop', label: 'Computadora de Escritorio', icon: Cpu },
+    { value: 'workstation', label: 'Estación de Trabajo', icon: Monitor },
+    { value: 'server', label: 'Servidor Físico', icon: Server },
+    { value: 'tablet', label: 'Tablet / Dispositivo Móvil', icon: Tablet },
+    { value: 'printer', label: 'Impresora / Multifuncional', icon: Printer },
+    { value: 'scanner', label: 'Escáner Dedicado', icon: Scan },
+    { value: 'monitor', label: 'Monitor / Pantalla', icon: Monitor },
+    { value: 'projector', label: 'Proyector / Multimedia', icon: Projector },
+    { value: 'ups', label: 'UPS / Respaldo Energía', icon: BatteryCharging },
+    { value: 'nas', label: 'NAS / Almacenamiento Red', icon: Database },
+    { value: 'firewall', label: 'Firewall / Seguridad', icon: ShieldAlert },
+    { value: 'switch', label: 'Switch de Red', icon: Network },
+    { value: 'router', label: 'Router / Gateway', icon: Router },
+    { value: 'ap', label: 'Access Point (Wi-Fi)', icon: Wifi },
+    { value: 'phone', label: 'Teléfono IP / Central', icon: Phone },
+    { value: 'pos', label: 'Terminal Punto de Venta', icon: Calculator },
+    { value: 'camera', label: 'Cámara CCTV / Seguridad', icon: Camera },
+    { value: 'dvr', label: 'Grabador (DVR/NVR)', icon: HardDrive },
+    { value: 'other', label: 'Otro Dispositivo', icon: Box },
 ];
 
 const consumableTypes: { value: ConsumableType; label: string }[] = [
-    { value: 'ink', label: 'Tinta' },
-    { value: 'toner', label: 'Tóner' },
-    { value: 'drum', label: 'Tambor / Drum' },
-    { value: 'ram', label: 'Memoria RAM' },
-    { value: 'storage', label: 'Disco / Almacenamiento' },
-    { value: 'battery', label: 'Batería' },
-    { value: 'charger', label: 'Cargador' },
-    { value: 'cable', label: 'Cable' },
-    { value: 'other', label: 'Otro' },
+    { value: 'ink', label: 'Tinta (Botella/Cartucho)' },
+    { value: 'toner', label: 'Tóner Láser' },
+    { value: 'ribbon', label: 'Cinta Térmica / Impacto' },
+    { value: 'drum', label: 'Tambor / Fotoconductor' },
+    { value: 'fuser', label: 'Unidad de Fusor' },
+    { value: 'belt', label: 'Banda de Transferencia' },
+    { value: 'maint_kit', label: 'Kit de Mantenimiento' },
+    { value: 'ram', label: 'Módulo de Memoria RAM' },
+    { value: 'storage', label: 'Disco Duro / SSD' },
+    { value: 'battery', label: 'Batería Interna / Celda' },
+    { value: 'charger', label: 'Cargador / Fuente Poder' },
+    { value: 'cable', label: 'Cable de Datos / Poder' },
+    { value: 'sfp', label: 'Módulo de Fibra (SFP)' },
+    { value: 'peripherals', label: 'Teclado / Mouse / Kit' },
+    { value: 'headset', label: 'Diadema / Auricular' },
+    { value: 'other', label: 'Otro Repuesto / Insumo' },
 ];
 
 export function EquipmentForm({ equipment, isOpen, onClose, onSuccess }: EquipmentFormProps) {
@@ -159,7 +184,7 @@ export function EquipmentForm({ equipment, isOpen, onClose, onSuccess }: Equipme
                                         </Select>
                                     </div>
                                     <div className="space-y-2">
-                                        <Label>Categoría</Label>
+                                        <Label>Categoría de Equipo</Label>
                                         <Select value={formData.category} onValueChange={v => setFormData({...formData, category: v as EquipmentCategory})}>
                                             <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                                             <SelectContent>
@@ -216,14 +241,14 @@ export function EquipmentForm({ equipment, isOpen, onClose, onSuccess }: Equipme
                             {/* --- Consumables Section --- */}
                             <div className="space-y-6 lg:border-l lg:pl-8">
                                 <h3 className="text-xs font-black uppercase text-muted-foreground tracking-widest flex items-center gap-2">
-                                    <Zap className="h-4 w-4 text-orange-500" /> Gestión de Consumibles
+                                    <Zap className="h-4 w-4 text-orange-500" /> Gestión de Consumibles e Insumos
                                 </h3>
 
                                 <div className="bg-muted/30 p-4 rounded-xl border border-dashed space-y-4">
-                                    <p className="text-[10px] font-bold text-muted-foreground uppercase">Agregar Consumible (Tinta, Tóner, etc)</p>
+                                    <p className="text-[10px] font-bold text-muted-foreground uppercase">Agregar Pieza o Insumo</p>
                                     <div className="grid grid-cols-2 gap-2">
                                         <div className="space-y-1">
-                                            <Label className="text-[10px]">Tipo</Label>
+                                            <Label className="text-[10px]">Tipo de Insumo</Label>
                                             <Select value={newConsumable.type} onValueChange={v => setNewConsumable({...newConsumable, type: v as ConsumableType})}>
                                                 <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                                                 <SelectContent>

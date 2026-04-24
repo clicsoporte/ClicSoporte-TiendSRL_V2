@@ -399,6 +399,7 @@ export type ITNote = {
     createdBy: string;
     createdAt: string;
     updatedAt: string;
+    FOREIGN KEY (customerId) REFERENCES customers(id) ON DELETE SET NULL
 };
 
 // --- TI Project Management Types ---
@@ -803,9 +804,19 @@ export type Notification = {
 
 // --- Inventory & Warranty Module Types ---
 
-export type EquipmentCategory = 'laptop' | 'desktop' | 'printer' | 'scanner' | 'monitor' | 'network' | 'phone' | 'other';
+export type EquipmentCategory = 
+    | 'laptop' | 'desktop' | 'workstation' | 'server' | 'tablet' 
+    | 'printer' | 'scanner' | 'monitor' | 'projector' | 'ups' 
+    | 'nas' | 'firewall' | 'switch' | 'router' | 'ap' 
+    | 'phone' | 'pos' | 'camera' | 'dvr' | 'other';
+
 export type EquipmentStatus = 'active' | 'inactive' | 'retired';
-export type ConsumableType = 'ink' | 'toner' | 'drum' | 'ram' | 'storage' | 'battery' | 'charger' | 'cable' | 'other';
+
+export type ConsumableType = 
+    | 'ink' | 'toner' | 'ribbon' | 'drum' | 'fuser' | 'belt' 
+    | 'maint_kit' | 'ram' | 'storage' | 'battery' | 'charger' 
+    | 'cable' | 'sfp' | 'peripherals' | 'headset' | 'other';
+
 export type WarrantyStatus = 'active' | 'expiring' | 'expired' | 'claimed' | 'void';
 
 export type Equipment = {
