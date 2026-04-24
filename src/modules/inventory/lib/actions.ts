@@ -134,13 +134,13 @@ export async function saveEquipment(data: Omit<Equipment, 'createdAt' | 'updated
             clientId: data.clientId,
             nickname: data.nickname,
             category: data.category,
-            brand: data.brand,
-            model: data.model,
-            serialNumber: data.serialNumber ?? null,
-            location: data.location ?? null,
-            assignedUser: data.assignedUser ?? null,
-            status: data.status,
-            notes: data.notes ?? null,
+            brand: data.brand || '',
+            model: data.model || '',
+            serialNumber: data.serialNumber || null,
+            location: data.location || null,
+            assignedUser: data.assignedUser || null,
+            status: data.status || 'active',
+            notes: data.notes || null,
             now 
         });
 
@@ -155,10 +155,16 @@ export async function saveEquipment(data: Omit<Equipment, 'createdAt' | 'updated
 
             for (const c of consumables) {
                 insertConsumable.run({ 
-                    ...c, 
                     id: c.id || crypto.randomUUID(),
                     equipmentId: data.id,
-                    isRecurring: c.isRecurring ? 1 : 0, 
+                    type: c.type || 'other',
+                    description: c.description || '',
+                    partNumber: c.partNumber || '',
+                    brand: c.brand || null,
+                    specs: c.specs || null,
+                    isRecurring: c.isRecurring ? 1 : 0,
+                    lastReplaced: c.lastReplaced || null,
+                    notes: c.notes || null,
                     now 
                 });
             }
@@ -228,7 +234,19 @@ export async function saveConsumable(data: Consumable) {
         ON CONFLICT(id) DO UPDATE SET
             type=@type, description=@description, partNumber=@partNumber, brand=@brand, 
             specs=@specs, isRecurring=@isRecurring, lastReplaced=@lastReplaced, notes=@notes
-    `).run({ ...data, isRecurring: data.isRecurring ? 1 : 0, now });
+    `).run({ 
+        id: data.id,
+        equipmentId: data.equipmentId,
+        type: data.type,
+        description: data.description,
+        partNumber: data.partNumber,
+        brand: data.brand || null,
+        specs: data.specs || null,
+        isRecurring: data.isRecurring ? 1 : 0,
+        lastReplaced: data.lastReplaced || null,
+        notes: data.notes || null,
+        now 
+    });
     
     return { success: true };
 }

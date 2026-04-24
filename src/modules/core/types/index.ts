@@ -399,7 +399,6 @@ export type ITNote = {
     createdBy: string;
     createdAt: string;
     updatedAt: string;
-    FOREIGN KEY (customerId) REFERENCES customers(id) ON DELETE SET NULL
 };
 
 // --- TI Project Management Types ---
