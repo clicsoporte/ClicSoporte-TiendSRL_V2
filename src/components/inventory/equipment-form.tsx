@@ -16,7 +16,7 @@ import { useAuth } from '@/modules/core/hooks/useAuth';
 import { saveEquipment, getEquipmentDetails } from '@/modules/inventory/lib/actions';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { 
-    Loader2, ShieldCheck, Laptop, Printer, Monitor, Radio, Phone, HardDrive, 
+    Loader2, ShieldCheck, Laptop, Printer, Monitor, Phone, HardDrive, 
     Cpu, type LucideIcon, Package, PlusCircle, Trash2, Zap, Server, Tablet, 
     Scan, Projector, BatteryCharging, Database, ShieldAlert, Network, Router, 
     Wifi, Calculator, Camera, Box 
