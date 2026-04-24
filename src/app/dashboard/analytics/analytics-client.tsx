@@ -69,12 +69,6 @@ export default function AnalyticsClient() {
     const [isLoadingConsumables, setIsLoadingConsumables] = useState(false);
     const [consumableSearch, setConsumablesSearch] = useState("");
 
-    // Email/PDF Reporting States
-    const [isEmailDialogOpen, setEmailDialogOpen] = useState(false);
-    const [selectedEmailRecipients, setSelectedEmailRecipients] = useState<string[]>([]);
-    const [isSendingEmail, setIsSendingEmail] = useState(false);
-    const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
-
     const filteredCustomers = useMemo(() => {
         if (!customerSearchTerm) return allCustomers;
         const lower = customerSearchTerm.toLowerCase();
@@ -105,7 +99,10 @@ export default function AnalyticsClient() {
         setIsLoadingConsumables(true);
         try {
             const data = await getConsumablesReport();
-            setConsumablesData(data);
+            setConsumablesData(data || []);
+        } catch (e) {
+            console.error(e);
+            setConsumablesData([]);
         } finally {
             setIsLoadingConsumables(false);
         }
@@ -209,6 +206,12 @@ export default function AnalyticsClient() {
         }
     };
 
+    // Email/PDF Reporting States
+    const [isEmailDialogOpen, setEmailDialogOpen] = useState(false);
+    const [selectedEmailRecipients, setSelectedEmailRecipients] = useState<string[]>([]);
+    const [isSendingEmail, setIsSendingEmail] = useState(false);
+    const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+
     const handleSendEmail = async () => {
         if (!selectedCustomerForReport || selectedEmailRecipients.length === 0 || !companyData || !currentUser || !reportRange?.from || !reportRange?.to) return;
         setIsSendingEmail(true);
@@ -259,7 +262,7 @@ export default function AnalyticsClient() {
                  <div className="flex items-center gap-2">
                      <Popover>
                         <PopoverTrigger asChild>
-                            <Button variant={"outline"} size="sm" className={cn("w-[280px] justify-start text-left font-normal", !state.dateRange && "text-muted-foreground")}>
+                            <Button type="button" variant={"outline"} size="sm" className={cn("w-[280px] justify-start text-left font-normal", !state.dateRange && "text-muted-foreground")}>
                                 <CalendarIcon className="mr-2 h-4 w-4" />
                                 {state.dateRange?.from ? (
                                     state.dateRange.to ? (
@@ -272,7 +275,7 @@ export default function AnalyticsClient() {
                             <Calendar initialFocus mode="range" defaultMonth={state.dateRange?.from} selected={state.dateRange} onSelect={actions.setDateRange} numberOfMonths={2} locale={es} />
                         </PopoverContent>
                     </Popover>
-                    <Button size="sm" variant="ghost" onClick={() => actions.setDateRange(undefined)}>Limpiar</Button>
+                    <Button type="button" size="sm" variant="ghost" onClick={() => actions.setDateRange(undefined)}>Limpiar</Button>
                 </div>
             </div>
 
@@ -298,7 +301,7 @@ export default function AnalyticsClient() {
                             <CardHeader><CardTitle className="flex items-center gap-2 text-base"><Users className="h-4 w-4 text-primary"/> Top 10 Clientes por Volumen</CardTitle></CardHeader>
                             <CardContent className="h-[300px]">
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart data={state.kpis?.byCustomer} layout="vertical">
+                                    <BarChart data={state.kpis?.byCustomer || []} layout="vertical">
                                         <CartesianGrid strokeDasharray="3 3" horizontal={false} /><XAxis type="number" hide /><YAxis dataKey="label" type="category" width={120} tick={{ fontSize: 10 }} /><Tooltip /><Bar dataKey="value" fill="#F97316" radius={[0, 4, 4, 0]} name="Tickets" />
                                     </BarChart>
                                 </ResponsiveContainer>
@@ -309,8 +312,8 @@ export default function AnalyticsClient() {
                             <CardContent className="h-[300px]">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <PieChart>
-                                        <Pie data={state.kpis?.byTopic} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value" nameKey="label" label={({ label }) => label}>
-                                            {state.kpis?.byTopic?.map((_entry, index: number) => (<Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />))}
+                                        <Pie data={state.kpis?.byTopic || []} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value" nameKey="label" label={({ label }) => label}>
+                                            {(state.kpis?.byTopic || []).map((_entry, index: number) => (<Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />))}
                                         </Pie>
                                         <Tooltip />
                                     </PieChart>
@@ -332,8 +335,8 @@ export default function AnalyticsClient() {
                                 <CardContent className="h-[250px]">
                                     <ResponsiveContainer width="100%" height="100%">
                                         <PieChart>
-                                            <Pie data={state.kpis?.byBillingType} cx="50%" cy="50%" outerRadius={80} dataKey="value" label>
-                                                {state.kpis?.byBillingType?.map((_entry, index: number) => (<Cell key={`cell-${index}`} fill={index === 0 ? '#3B82F6' : '#10B981'} />))}
+                                            <Pie data={state.kpis?.byBillingType || []} cx="50%" cy="50%" outerRadius={80} dataKey="value" label>
+                                                {(state.kpis?.byBillingType || []).map((_entry, index: number) => (<Cell key={`cell-${index}`} fill={index === 0 ? '#3B82F6' : '#10B981'} />))}
                                             </Pie>
                                             <Tooltip /><Legend verticalAlign="bottom" />
                                         </PieChart>
@@ -345,7 +348,7 @@ export default function AnalyticsClient() {
                                 <CardContent>
                                     <Table>
                                         <TableHeader><TableRow><TableHead>Técnico</TableHead><TableHead className="text-right">Horas Bajo Contrato</TableHead><TableHead className="text-right">Monto Facturable</TableHead></TableRow></TableHeader>
-                                        <TableBody>{state.kpis?.timeTracking.byUser.map((u) => (<TableRow key={u.userId}><TableCell className="font-medium">{u.userName}</TableCell><TableCell className="text-right font-mono">{u.billable.toFixed(2)} h</TableCell><TableCell className="text-right font-bold text-primary">{formatCurrency(u.amount)}</TableCell></TableRow>))}</TableBody>
+                                        <TableBody>{(state.kpis?.timeTracking.byUser || []).map((u) => (<TableRow key={u.userId}><TableCell className="font-medium">{u.userName}</TableCell><TableCell className="text-right font-mono">{u.billable.toFixed(2)} h</TableCell><TableCell className="text-right font-bold text-primary">{formatCurrency(u.amount)}</TableCell></TableRow>))}</TableBody>
                                     </Table>
                                 </CardContent>
                             </Card>
@@ -413,11 +416,11 @@ export default function AnalyticsClient() {
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <Popover>
-                                                <PopoverTrigger asChild><Button variant="outline" size="sm" className="h-9 gap-2"><CalendarIcon className="h-4 w-4" /> {reportRange?.from ? (reportRange.to ? <>{format(reportRange.from, "dd/MM/yy")} - {format(reportRange.to, "dd/MM/yy")}</> : format(reportRange.from, "dd/MM/yy")) : "Rango"}</Button></PopoverTrigger>
+                                                <PopoverTrigger asChild><Button type="button" variant="outline" size="sm" className="h-9 gap-2"><CalendarIcon className="h-4 w-4" /> {reportRange?.from ? (reportRange.to ? <>{format(reportRange.from, "dd/MM/yy")} - {format(reportRange.to, "dd/MM/yy")}</> : format(reportRange.from, "dd/MM/yy")) : "Rango"}</Button></PopoverTrigger>
                                                 <PopoverContent className="w-auto p-0" align="end"><Calendar mode="range" selected={reportRange} onSelect={setReportRange} numberOfMonths={2} locale={es} /></PopoverContent>
                                             </Popover>
-                                            <Button size="sm" variant="outline" onClick={handleGeneratePDF} disabled={isGeneratingPDF}>{isGeneratingPDF ? <Loader2 className="animate-spin h-4 w-4" /> : <Download className="h-4 w-4 mr-2" />} PDF</Button>
-                                            <Button size="sm" onClick={() => { setSelectedEmailRecipients([]); setEmailDialogOpen(true); }}><Mail className="h-4 w-4 mr-2" /> Email</Button>
+                                            <Button type="button" size="sm" variant="outline" onClick={handleGeneratePDF} disabled={isGeneratingPDF}>{isGeneratingPDF ? <Loader2 className="animate-spin h-4 w-4" /> : <Download className="h-4 w-4 mr-2" />} PDF</Button>
+                                            <Button type="button" size="sm" onClick={() => { setSelectedEmailRecipients([]); setEmailDialogOpen(true); }}><Mail className="h-4 w-4 mr-2" /> Email</Button>
                                         </div>
                                     </div>
 
@@ -451,7 +454,7 @@ export default function AnalyticsClient() {
                                 <CardTitle className="flex items-center gap-2"><Package className="h-5 w-5 text-orange-600"/> Reporte Maestro de Consumibles</CardTitle>
                                 <CardDescription>Listado de insumos y piezas críticas por cliente y equipo de hardware.</CardDescription>
                             </div>
-                            <Button variant="outline" size="sm" onClick={handleGenerateConsumablesPDF} disabled={isGeneratingPDF || filteredConsumables.length === 0}>
+                            <Button type="button" variant="outline" size="sm" onClick={handleGenerateConsumablesPDF} disabled={isGeneratingPDF || filteredConsumables.length === 0}>
                                 {isGeneratingPDF ? <Loader2 className="animate-spin h-4 w-4" /> : <Download className="h-4 w-4 mr-2" />} Exportar PDF
                             </Button>
                         </CardHeader>
@@ -509,7 +512,7 @@ export default function AnalyticsClient() {
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader><DialogTitle className="flex items-center gap-2"><Mail className="h-5 w-5 text-primary" /> Enviar Reporte</DialogTitle><DialogDescription>Seleccione los destinatarios de <strong>{selectedCustomerForReport?.name}</strong>.</DialogDescription></DialogHeader>
                     <div className="py-4"><ScrollArea className="max-h-60 pr-2">{selectedCustomerForReport?.contacts && selectedCustomerForReport.contacts.length > 0 ? selectedCustomerForReport.contacts.map(c => (<div key={c.id} className="flex items-center space-x-3 p-3 rounded-md border mb-2 hover:bg-muted/50 cursor-pointer" onClick={() => setSelectedEmailRecipients(prev => prev.includes(c.email) ? prev.filter(e => e !== c.email) : [...prev, c.email])}><Checkbox checked={selectedEmailRecipients.includes(c.email)} /><div className="flex-1 min-w-0"><p className="text-sm font-bold truncate">{c.name}</p><p className="text-xs text-muted-foreground truncate">{c.email}</p></div></div>)) : <div className="text-center py-6 text-xs text-muted-foreground italic border-2 border-dashed rounded-lg">Sin contactos registrados.</div>}</ScrollArea></div>
-                    <DialogFooter><DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose><Button onClick={handleSendEmail} disabled={isSendingEmail || selectedEmailRecipients.length === 0}>{isSendingEmail ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />} Enviar Informe</Button></DialogFooter>
+                    <DialogFooter><DialogClose asChild><Button variant="ghost">Cancelar</Button></DialogClose><Button type="button" onClick={handleSendEmail} disabled={isSendingEmail || selectedEmailRecipients.length === 0}>{isSendingEmail ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />} Enviar Informe</Button></DialogFooter>
                 </DialogContent>
             </Dialog>
         </main>

@@ -22,8 +22,8 @@ export async function getAnalyticsData(range?: DateRange): Promise<AnalyticsData
     const db = await connectDb();
     
     // Config for prices
-    const companyRow = db.prepare('SELECT servicesCatalog FROM company_settings WHERE id = 1').get() as { servicesCatalog: string };
-    const catalog = JSON.parse(companyRow.servicesCatalog || '[]') as Service[];
+    const companyRow = db.prepare('SELECT servicesCatalog FROM company_settings WHERE id = 1').get() as { servicesCatalog: string } | undefined;
+    const catalog = JSON.parse(companyRow?.servicesCatalog || '[]') as Service[];
     const serviceMap = new Map<string, Service>(catalog.map((s) => [s.id, s]));
 
     // Tickets Base
@@ -137,7 +137,7 @@ export async function getAnalyticsData(range?: DateRange): Promise<AnalyticsData
         amount: parseFloat(u.amount.toFixed(2))
     })).sort((a,b) => (b.billable + b.nonBillable) - (a.billable + a.nonBillable));
 
-    return { 
+    return JSON.parse(JSON.stringify({ 
         tickets: { total: ticketKpi.total, ...ticketKpi }, 
         projects: { total: projectKpi.total, ...projectKpi }, 
         timeTracking: timeKpi,
@@ -145,7 +145,7 @@ export async function getAnalyticsData(range?: DateRange): Promise<AnalyticsData
         byTopic: formatVolume(topicMapCount, topicIdToName),
         byService: formatVolume(serviceMapCount),
         byBillingType: formatVolume(billingTypeMapCount)
-    };
+    }));
 }
 
 export async function getDashboardStats(): Promise<DashboardStats> {
