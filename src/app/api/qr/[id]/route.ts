@@ -1,6 +1,7 @@
 /**
  * @fileoverview API Route for autonomous QR Code generation.
- * Generates an SVG/PNG containing a text-based technical sheet.
+ * Generates an SVG string containing a text-based technical sheet.
+ * Marked as force-dynamic and revalidate=0 to ensure it's not statically generated during build.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -8,24 +9,33 @@ import { connectDb } from '@/modules/core/lib/db';
 import QRCode from 'qrcode';
 import type { Equipment } from '@/modules/core/types';
 
+// Ensure the route is never statically generated during build
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export async function GET(
     request: NextRequest,
     { params }: { params: { id: string } }
 ) {
-    const id = params.id;
-    if (!id) return new NextResponse('Missing ID', { status: 400 });
+    // Destructure params for cleaner access during analysis
+    const { id } = params;
+    
+    if (!id) {
+        return new NextResponse('Missing ID', { status: 400 });
+    }
 
     try {
+        // Attempt to connect to DB. During build, this handles its own state.
         const db = await connectDb();
+        
+        // Fetch equipment details safely
         const equipment = db.prepare('SELECT * FROM inventory_equipment WHERE id = ?').get(id) as Equipment | undefined;
 
         if (!equipment) {
             return new NextResponse('Equipment not found', { status: 404 });
         }
 
-        // autonomous Technical Sheet for the QR content (works offline after scanning)
+        // Autonomous Technical Sheet for the QR content (offline-friendly metadata)
         const techSheet = [
             `EQUIPO: ${equipment.nickname}`,
             `MARCA: ${equipment.brand}`,
@@ -37,7 +47,7 @@ export async function GET(
             `GENERADO: ${new Date().toLocaleDateString()}`
         ].join('\n');
 
-        // Generate high-quality SVG string
+        // Generate SVG string using high-quality settings
         const qrSvg = await QRCode.toString(techSheet, {
             type: 'svg',
             margin: 2,
@@ -57,6 +67,7 @@ export async function GET(
 
     } catch (error) {
         console.error('QR Generation Error:', error);
+        // Neutral response if something fails during data collection
         return new NextResponse('Internal Server Error', { status: 500 });
     }
 }
