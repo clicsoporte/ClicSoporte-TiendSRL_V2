@@ -1,6 +1,6 @@
 /**
  * @fileoverview Client Component for the Analytics module.
- * Redesigned to centralize Management reporting and Operational reports for clients.
+ * Saneado para producción: corrección de linting, estados y estabilidad JSX.
  */
 'use client';
 
@@ -54,7 +54,6 @@ export default function AnalyticsClient() {
     const { hasPermission } = useAuthorization();
     const { toast } = useToast();
     
-    // Service Reporting States
     const [selectedCustomerForReport, setSelectedCustomerForReport] = useState<Customer | null>(null);
     const [customerSearchTerm, setCustomerSearchTerm] = useState("");
     const [reportEntries, setReportEntries] = useState<(TimeEntry & { ticketConsecutive: string, serviceName: string, userName: string })[]>([]);
@@ -64,10 +63,14 @@ export default function AnalyticsClient() {
         to: endOfMonth(new Date())
     });
 
-    // Consumables Reporting States
     const [consumablesData, setConsumablesData] = useState<(Consumable & { clientId: string, customerName: string, equipmentName: string })[]>([]);
     const [isLoadingConsumables, setIsLoadingConsumables] = useState(false);
     const [consumableSearch, setConsumablesSearch] = useState("");
+
+    const [isEmailDialogOpen, setEmailDialogOpen] = useState(false);
+    const [selectedEmailRecipients, setSelectedEmailRecipients] = useState<string[]>([]);
+    const [isSendingEmail, setIsSendingEmail] = useState(false);
+    const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
     const filteredCustomers = useMemo(() => {
         if (!customerSearchTerm) return allCustomers;
@@ -206,12 +209,6 @@ export default function AnalyticsClient() {
         }
     };
 
-    // Email/PDF Reporting States
-    const [isEmailDialogOpen, setEmailDialogOpen] = useState(false);
-    const [selectedEmailRecipients, setSelectedEmailRecipients] = useState<string[]>([]);
-    const [isSendingEmail, setIsSendingEmail] = useState(false);
-    const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
-
     const handleSendEmail = async () => {
         if (!selectedCustomerForReport || selectedEmailRecipients.length === 0 || !companyData || !currentUser || !reportRange?.from || !reportRange?.to) return;
         setIsSendingEmail(true);
@@ -236,7 +233,6 @@ export default function AnalyticsClient() {
         }
     };
 
-    // Flickering Prevention Logic: Only show skeleton on first data load
     const isInitialLoading = !isAuthReady || (state.isLoading && !state.kpis);
 
     if (isInitialLoading) {
@@ -254,7 +250,6 @@ export default function AnalyticsClient() {
 
     return (
         <main className="flex-1 p-4 md:p-6 lg:p-8 space-y-6 relative">
-            {/* Subtle Refresh Indicator to prevent skeleton swap */}
             {state.isRefreshing && (
                 <div className="absolute top-2 right-8 z-50 flex items-center gap-2 bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-bold animate-in fade-in slide-in-from-top-1">
                     <Loader2 className="h-3 w-3 animate-spin" />

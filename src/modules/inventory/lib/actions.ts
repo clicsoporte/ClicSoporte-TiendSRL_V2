@@ -1,6 +1,7 @@
 /**
  * @fileoverview Server Actions for the Inventory & Warranty module.
  * Implements high-performance search and CRUD for a 1GB RAM environment.
+ * Robust parameter handling for SQLite.
  */
 'use server';
 
@@ -12,7 +13,6 @@ import { revalidatePath } from "next/cache";
 
 /**
  * Omnibox search with hierarchical priority and pagination.
- * Supports searching by Nickname, Serial, Invoice, Brand, Model, Client Name, and ID.
  */
 export async function omniSearch(query: string, page: number = 1): Promise<{ 
     results: InventorySearchResult[], 
@@ -27,7 +27,6 @@ export async function omniSearch(query: string, page: number = 1): Promise<{
 
     try {
         if (page === 1) {
-            // Priority 1: Exact matches for Serial or ID
             const exactEquipment = db.prepare(`
                 SELECT * FROM inventory_equipment WHERE serialNumber = ? OR id = ? LIMIT 1
             `).get(query.trim(), query.trim()) as Equipment | undefined;
@@ -53,7 +52,6 @@ export async function omniSearch(query: string, page: number = 1): Promise<{
             }
         }
 
-        // Broad Search: Equipment & Warranties joined with Customer data
         const broadResults = db.prepare(`
             SELECT 'equipment' as type, e.id
             FROM inventory_equipment e
@@ -78,9 +76,7 @@ export async function omniSearch(query: string, page: number = 1): Promise<{
                OR c.commercialName LIKE ?
             LIMIT ? OFFSET ?
         `).all(
-            // Equipment params
             cleanQuery, cleanQuery, cleanQuery, cleanQuery, cleanQuery, cleanQuery, cleanQuery, cleanQuery, cleanQuery,
-            // Warranty params
             cleanQuery, cleanQuery, cleanQuery, cleanQuery, cleanQuery,
             limit + 1, offset
         ) as { type: 'equipment' | 'warranty', id: string }[];
@@ -145,9 +141,7 @@ export async function saveEquipment(data: Omit<Equipment, 'createdAt' | 'updated
         });
 
         if (consumables) {
-            // Remove existing consumables to re-sync
             db.prepare('DELETE FROM inventory_consumables WHERE equipmentId = ?').run(data.id);
-            
             const insertConsumable = db.prepare(`
                 INSERT INTO inventory_consumables (id, equipmentId, type, description, partNumber, brand, specs, isRecurring, lastReplaced, notes, createdAt)
                 VALUES (@id, @equipmentId, @type, @description, @partNumber, @brand, @specs, @isRecurring, @lastReplaced, @notes, @now)
@@ -155,7 +149,7 @@ export async function saveEquipment(data: Omit<Equipment, 'createdAt' | 'updated
 
             for (const c of consumables) {
                 insertConsumable.run({ 
-                    id: c.id || crypto.randomUUID(),
+                    id: c.id || Math.random().toString(36).substring(2, 15),
                     equipmentId: data.id,
                     type: c.type || 'other',
                     description: c.description || '',
@@ -258,21 +252,12 @@ export async function deleteEquipment(id: string) {
     revalidatePath('/dashboard/inventory');
 }
 
-export async function deleteConsumable(id: string) {
-    await authorizeAction('inventory:manage');
-    const db = await connectDb();
-    db.prepare('DELETE FROM inventory_consumables WHERE id = ?').run(id);
-}
-
 export async function getEquipmentByClient(clientId: string): Promise<Equipment[]> {
     await authorizeAction('inventory:read');
     const db = await connectDb();
     return db.prepare('SELECT * FROM inventory_equipment WHERE clientId = ? ORDER BY nickname').all(clientId) as Equipment[];
 }
 
-/**
- * Retrieves sale records with pagination and server-side filtering.
- */
 export async function getAllSaleRecords(page: number = 1, limit: number = 20, search: string = ""): Promise<{ data: SaleRecord[], hasMore: boolean }> {
     await authorizeAction('inventory:warranty:hub');
     const db = await connectDb();
@@ -292,7 +277,6 @@ export async function getAllSaleRecords(page: number = 1, limit: number = 20, se
         params.push(limit + 1, offset);
 
         const rows = db.prepare(query).all(...params) as SaleRecord[];
-        
         const hasMore = rows.length > limit;
         const data = hasMore ? rows.slice(0, limit) : rows;
 
