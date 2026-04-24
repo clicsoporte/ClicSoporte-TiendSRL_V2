@@ -7,14 +7,14 @@
 import { useAnalytics } from '@/modules/analytics/hooks/useAnalytics';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AreaChart, Ticket, Coins, Receipt, CheckCircle2, PieChart as PieIcon, BarChart3, Users, Wrench, FileText, Calendar as CalendarIcon, Download, Mail, Loader2, UserCircle, Search, Package } from 'lucide-react';
+import { AreaChart, Ticket, Coins, Receipt, CheckCircle2, PieChart as PieIcon, BarChart3, Users, Wrench, FileText, Calendar as CalendarIcon, Download, Mail, Loader2, Search, Package, UserCircle } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { format, parseISO, startOfMonth, endOfMonth } from 'date-fns';
+import { format, parseISO, startOfMonth, endOfMonth, subDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/modules/core/hooks/useAuth';
@@ -286,7 +286,7 @@ export default function AnalyticsClient() {
                             <Calendar initialFocus mode="range" defaultMonth={state.dateRange?.from} selected={state.dateRange} onSelect={actions.setDateRange} numberOfMonths={2} locale={es} />
                         </PopoverContent>
                     </Popover>
-                    <Button type="button" size="sm" variant="ghost" onClick={() => actions.setDateRange(initialState.dateRange)}>Limpiar</Button>
+                    <Button type="button" size="sm" variant="ghost" onClick={() => actions.setDateRange({ from: subDays(new Date(), 29), to: new Date() })}>Limpiar</Button>
                 </div>
             </div>
 
