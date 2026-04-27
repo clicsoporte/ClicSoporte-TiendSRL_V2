@@ -17,8 +17,8 @@ export async function GET(
     request: NextRequest,
     { params }: { params: { id: string } }
 ) {
-    // Destructure params for cleaner access during analysis
-    const { id } = params;
+    // Safety check for params to avoid build-time errors
+    const id = params?.id;
     
     if (!id) {
         return new NextResponse('Missing ID', { status: 400 });
@@ -67,7 +67,6 @@ export async function GET(
 
     } catch (error) {
         console.error('QR Generation Error:', error);
-        // Neutral response if something fails during data collection
         return new NextResponse('Internal Server Error', { status: 500 });
     }
 }
