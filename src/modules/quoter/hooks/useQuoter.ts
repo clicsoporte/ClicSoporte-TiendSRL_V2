@@ -117,8 +117,8 @@ export const useQuoter = () => {
   const [isProductSearchOpen, setProductSearchOpen] = useState(false);
   const [isCustomerSearchOpen, setCustomerSearchOpen] = useState(false);
 
-  const [debouncedCustomerSearch] = useDebounce(customerSearchTerm, 500);
-  const [debouncedProductSearch] = useDebounce(productSearchTerm, 500);
+  const [debouncedCustomerSearch] = useDebounce(customerSearchTerm, authCompanyData?.searchDebounceTime ?? 500);
+  const [debouncedProductSearch] = useDebounce(productSearchTerm, authCompanyData?.searchDebounceTime ?? 500);
 
   const productInputRef = useRef<HTMLInputElement>(null);
   const customerInputRef = useRef<HTMLInputElement>(null);

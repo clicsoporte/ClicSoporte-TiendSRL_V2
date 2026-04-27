@@ -30,7 +30,7 @@ type LogTypeToDelete = 'operational' | 'system' | 'all';
 
 export default function LogViewerPage() {
   const { isAuthorized, hasPermission } = useAuthorization(['admin:logs:read']);
-  const { user } = useAuth();
+  const { user, companyData } = useAuth();
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const { setTitle } = usePageTitle();
   const [isLoading, setIsLoading] = useState(true);
@@ -43,7 +43,7 @@ export default function LogViewerPage() {
     from: new Date(),
     to: new Date(),
   });
-  const [debouncedSearchTerm] = useDebounce(searchTerm, 500);
+  const [debouncedSearchTerm] = useDebounce(searchTerm, companyData?.searchDebounceTime ?? 500);
 
   // Clear logs dialog state
   const [isClearLogDialogOpen, setClearLogDialogOpen] = useState(false);

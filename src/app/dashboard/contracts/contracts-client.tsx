@@ -57,7 +57,7 @@ export default function ContractsClient() {
     
     const [customerSearchTerm, setCustomerSearchTerm] = useState('');
     const [isCustomerSearchOpen, setIsCustomerSearchOpen] = useState(false);
-    const [debouncedCustomerSearch] = useDebounce(customerSearchTerm, 500);
+    const [debouncedCustomerSearch] = useDebounce(customerSearchTerm, companyData?.searchDebounceTime ?? 500);
 
     const fetchContracts = async () => {
         setIsLoading(true);
@@ -75,7 +75,7 @@ export default function ContractsClient() {
         if (debouncedCustomerSearch.length < 2) return [];
         return (customers || []).filter((c: Customer) => 
             c.name.toLowerCase().includes(debouncedCustomerSearch.toLowerCase()) || 
-            c.id.toLowerCase().includes(debouncedCustomerSearch.toLowerCase())
+            (c.id && c.id.toLowerCase().includes(debouncedCustomerSearch.toLowerCase()))
         ).map((c: Customer) => ({ value: c.id, label: `${c.name} (${c.id})` }));
     }, [customers, debouncedCustomerSearch]);
 

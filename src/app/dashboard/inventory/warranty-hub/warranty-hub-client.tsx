@@ -23,13 +23,13 @@ import { useDebounce } from 'use-debounce';
 
 export default function WarrantyHubClient() {
     const { setTitle } = usePageTitle();
-    const { customers } = useAuth();
+    const { customers, companyData } = useAuth();
     
     const [sales, setSales] = useState<SaleRecord[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
-    const [debouncedSearch] = useDebounce(searchTerm, 500);
+    const [debouncedSearch] = useDebounce(searchTerm, companyData?.searchDebounceTime ?? 500);
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(false);
 

@@ -19,7 +19,7 @@ import { format, parseISO, isValid } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SearchInput } from '@/components/ui/search-input';
 import { cn } from '@/lib/utils';
-import { useDebounce } from 'use-debounce';
+import { useDebounce } from "use-debounce";
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -220,7 +220,7 @@ const HaciendaExemptionCard = ({ data }: { data: EnrichedExemptionInfo | null })
 export default function HaciendaClient() {
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
-    const { customers, isAuthReady } = useAuth();
+    const { customers, companyData, isAuthReady } = useAuth();
     
     const [exemptions, setExemptions] = useState<Exemption[]>([]);
     const [isUnifiedLoading, setIsUnifiedLoading] = useState(false);
@@ -230,7 +230,7 @@ export default function HaciendaClient() {
 
     const [unifiedSearchInput, setUnifiedSearchInput] = useState("");
     const [isUnifiedSearchOpen, setUnifiedSearchOpen] = useState(false);
-    const [debouncedUnifiedSearch] = useDebounce(unifiedSearchInput, 500);
+    const [debouncedUnifiedSearch] = useDebounce(unifiedSearchInput, companyData?.searchDebounceTime ?? 500);
 
     const [taxpayerId, setTaxpayerId] = useState('');
     const [exemptionAuth, setExemptionAuth] = useState('');

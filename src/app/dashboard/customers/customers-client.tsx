@@ -130,10 +130,10 @@ export default function CustomersClient() {
             } finally {
                 setIsHaciendaLoading(false);
             }
-        }, 800);
+        }, companyData?.searchDebounceTime ?? 500);
 
         return () => clearTimeout(timer);
-    }, [currentCustomer.taxId, isEditing, toast]);
+    }, [currentCustomer.taxId, isEditing, toast, companyData?.searchDebounceTime]);
 
     const filteredCustomers = useMemo(() => {
         if (!searchTerm) return customers;
