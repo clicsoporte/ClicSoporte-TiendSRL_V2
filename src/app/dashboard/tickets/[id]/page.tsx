@@ -8,7 +8,7 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useTickets } from '@/modules/tickets/hooks/useTickets';
-import type { Ticket, TicketThread, TicketPriority, ThirdPartyProvider, TimeEntry, License, Equipment, CustomerContact } from '@/modules/core/types';
+import type { Ticket, TicketThread, TicketPriority, ThirdPartyProvider, TimeEntry, License, Equipment, CustomerContact, User } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,7 +16,7 @@ import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Send, Loader2, MoreVertical, CreditCard, ShieldCheck, ShieldAlert, Truck, CheckCircle2, XCircle, PlayCircle, PauseCircle, Info, UserCircle, FileText, Download, Mail, UserCheck, KeyRound, Eye, MessageCircle, Laptop, Users } from 'lucide-react';
+import { Send, Loader2, MoreVertical, CreditCard, ShieldCheck, ShieldAlert, Truck, CheckCircle2, XCircle, PlayCircle, PauseCircle, Info, UserCircle, FileText, Download, Mail, UserCheck, KeyRound, Eye, MessageCircle, Laptop, Users, Calendar, Clock as ClockIcon, Save } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -37,6 +37,7 @@ import { getLicenses } from '@/modules/licenses/lib/actions';
 import { getEquipmentDetails } from '@/modules/inventory/lib/actions';
 import { EquipmentDetail } from '@/components/inventory/equipment-detail';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Input } from '@/components/ui/input';
 
 const getInitials = (name: string) => {
     if (!name) return "??";
@@ -138,7 +139,7 @@ export default function TicketDetailPage() {
         setIsReplying(false);
     };
 
-    const handleDetailUpdate = async (updates: Partial<Pick<Ticket, 'status' | 'priority' | 'assigneeId' | 'isBillable' | 'providerId' | 'licenseId' | 'equipmentId' | 'providerContactId'>>) => {
+    const handleDetailUpdate = async (updates: Partial<Pick<Ticket, 'status' | 'priority' | 'assigneeId' | 'isBillable' | 'providerId' | 'licenseId' | 'equipmentId' | 'providerContactId' | 'scheduledVisit'>>) => {
         if (!currentUser || !hasPermission('tickets:manage')) {
              toast({ title: "Accion no permitida", description: "No tienes permiso para gestionar metadatos de tickets.", variant: "destructive" });
             return;
@@ -164,6 +165,7 @@ export default function TicketDetailPage() {
             
             if (updates.status === 'in_progress') toast({ title: "Cronómetro Iniciado Automáticamente" });
             if (updates.status === 'on_hold') toast({ title: "Tiempo Pausado" });
+            if (updates.scheduledVisit) toast({ title: "Visita Programada", description: "El cliente ha sido notificado." });
         }
     };
 
@@ -196,7 +198,7 @@ export default function TicketDetailPage() {
         setIsDeleting(true);
         try {
             await actions.deleteTicket(ticket.id);
-            toast({ title: "Ticket Eliminado" });
+            toast({ title: "Ticket Eliminar" });
             router.push('/dashboard/tickets');
         } catch {
             toast({ title: "Error", variant: "destructive" });
@@ -220,7 +222,7 @@ export default function TicketDetailPage() {
         };
 
         const tableRows = timeEntries.map(e => [
-            format(parseISO(entry.startTime), 'dd/MM/yy HH:mm'),
+            format(parseISO(e.startTime), 'dd/MM/yy HH:mm'),
             e.notes || 'Soporte Técnico',
             !e.isBillable ? 'Sí' : 'No', 
             { content: formatDurationStr(e.duration), styles: { halign: 'right' as const } }
@@ -447,64 +449,102 @@ export default function TicketDetailPage() {
         </Card>
     );
 
-    const ProviderCard = () => (
-        <Card>
-            <CardHeader className="p-4 pb-2">
-                <CardTitle className="text-sm font-bold flex items-center gap-2">
-                    <Truck className="h-4 w-4" /> PROVEEDOR EXTERNO
-                </CardTitle>
-            </CardHeader>
-            <CardContent className="p-4 pt-0 space-y-3">
-                <div className="space-y-2">
-                    <Select value={String(ticket.providerId || 'null')} onValueChange={(v) => handleDetailUpdate({ providerId: v === 'null' ? null : Number(v), providerContactId: null })} disabled={!hasPermission('tickets:manage') || ticket.status === 'completed' || ticket.status === 'canceled'}>
-                        <SelectTrigger className="h-8"><SelectValue placeholder="Sin proveedor externo"/></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="null">Ninguno (Soporte Interno)</SelectItem>
-                            {selectors.providers.map((p: ThirdPartyProvider) => (<SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>))}
-                        </SelectContent>
-                    </Select>
-                </div>
+    const ProviderCard = () => {
+        const [tempVisitDate, setTempVisitDate] = useState(ticket.scheduledVisit || "");
 
-                {selectedProvider && (
-                    <div className="space-y-2 pt-1 border-t border-dashed">
-                        <Label className="text-[10px] font-black uppercase text-muted-foreground">Encargado Asignado</Label>
-                        <Select value={ticket.providerContactId || 'none'} onValueChange={(v) => handleDetailUpdate({ providerContactId: v === 'none' ? null : v })} disabled={!hasPermission('tickets:manage') || ticket.status === 'completed' || ticket.status === 'canceled'}>
-                            <SelectTrigger className="h-7 text-xs bg-muted/20"><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
+        return (
+            <Card className="overflow-hidden">
+                <CardHeader className="p-4 pb-2">
+                    <CardTitle className="text-sm font-bold flex items-center gap-2">
+                        <Truck className="h-4 w-4" /> PROVEEDOR EXTERNO
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 pt-0 space-y-4">
+                    <div className="space-y-2">
+                        <Select value={String(ticket.providerId || 'null')} onValueChange={(v) => handleDetailUpdate({ providerId: v === 'null' ? null : Number(v), providerContactId: null })} disabled={!hasPermission('tickets:manage') || ticket.status === 'completed' || ticket.status === 'canceled'}>
+                            <SelectTrigger className="h-8"><SelectValue placeholder="Sin proveedor externo"/></SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="none">Sin contacto específico</SelectItem>
-                                {selectedProvider.contacts?.map((c) => (
-                                    <SelectItem key={c.id} value={c.id} className="text-xs">{c.name}</SelectItem>
-                                ))}
+                                <SelectItem value="null">Ninguno (Soporte Interno)</SelectItem>
+                                {selectors.providers.map((p: ThirdPartyProvider) => (<SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>))}
                             </SelectContent>
                         </Select>
+                    </div>
 
-                        {selectedProviderContact && (
-                            <div className="p-3 rounded-lg border border-primary/10 bg-primary/5 space-y-2 mt-2">
-                                <div className="flex justify-between items-start">
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-xs font-bold truncate">{selectedProviderContact.name}</p>
-                                        <p className="text-[9px] text-muted-foreground uppercase">{selectedProviderContact.department || 'Técnico'}</p>
-                                    </div>
-                                    <div className="flex gap-2">
-                                        {selectedProviderContact.email && (
-                                            <a href={`mailto:${selectedProviderContact.email}`} title="Email" className="text-primary hover:scale-110 transition-transform">
-                                                <Mail className="h-3.5 w-3.5" />
-                                            </a>
-                                        )}
-                                        {selectedProviderContact.whatsapp && (
-                                            <a href={`https://wa.me/${selectedProviderContact.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" title="WhatsApp" className="text-green-600 hover:scale-110 transition-transform">
-                                                <MessageCircle className="h-3.5 w-3.5" />
-                                            </a>
-                                        )}
+                    {selectedProvider && (
+                        <div className="space-y-2 pt-1 border-t border-dashed">
+                            <Label className="text-[10px] font-black uppercase text-muted-foreground">Encargado Asignado</Label>
+                            <Select value={ticket.providerContactId || 'none'} onValueChange={(v) => handleDetailUpdate({ providerContactId: v === 'none' ? null : v })} disabled={!hasPermission('tickets:manage') || ticket.status === 'completed' || ticket.status === 'canceled'}>
+                                <SelectTrigger className="h-7 text-xs bg-muted/20"><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="none">Sin contacto específico</SelectItem>
+                                    {selectedProvider.contacts?.map((c) => (
+                                        <SelectItem key={c.id} value={c.id} className="text-xs">{c.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+
+                            {selectedProviderContact && (
+                                <div className="p-3 rounded-lg border border-primary/10 bg-primary/5 space-y-2 mt-2">
+                                    <div className="flex justify-between items-start">
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-xs font-bold truncate">{selectedProviderContact.name}</p>
+                                            <p className="text-[9px] text-muted-foreground uppercase">{selectedProviderContact.department || 'Técnico'}</p>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            {selectedProviderContact.email && (
+                                                <a href={`mailto:${selectedProviderContact.email}`} title="Email" className="text-primary hover:scale-110 transition-transform">
+                                                    <Mail className="h-3.5 w-3.5" />
+                                                </a>
+                                            )}
+                                            {selectedProviderContact.whatsapp && (
+                                                <a href={`https://wa.me/${selectedProviderContact.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" title="WhatsApp" className="text-green-600 hover:scale-110 transition-transform">
+                                                    <MessageCircle className="h-3.5 w-3.5" />
+                                                </a>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
+                            )}
+
+                            {/* --- Programación de Visita --- */}
+                            <div className="pt-4 border-t border-dashed mt-2 space-y-2">
+                                <Label className="text-[10px] font-black uppercase text-blue-700 flex items-center gap-1">
+                                    <CalendarIcon className="h-3 w-3" /> Programar Visita Técnica
+                                </Label>
+                                <div className="flex gap-2">
+                                    <Input 
+                                        type="datetime-local" 
+                                        className="h-8 text-[11px] font-mono"
+                                        value={tempVisitDate}
+                                        onChange={(e) => setTempVisitDate(e.target.value)}
+                                        disabled={!hasPermission('tickets:manage') || ticket.status === 'completed' || ticket.status === 'canceled'}
+                                    />
+                                    <Button 
+                                        size="icon" 
+                                        className="h-8 w-8 shrink-0" 
+                                        variant="secondary"
+                                        onClick={() => handleDetailUpdate({ scheduledVisit: tempVisitDate })}
+                                        disabled={!tempVisitDate || tempVisitDate === ticket.scheduledVisit || !hasPermission('tickets:manage')}
+                                        title="Notificar Visita al Cliente"
+                                    >
+                                        <Save className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                                {ticket.scheduledVisit && (
+                                    <Alert className="py-2 bg-blue-50 border-blue-100">
+                                        <ClockIcon className="h-3 w-3 text-blue-600" />
+                                        <AlertDescription className="text-[10px] font-bold text-blue-800">
+                                            Programada: {format(parseISO(ticket.scheduledVisit), 'dd/MM/yyyy hh:mm a')}
+                                        </AlertDescription>
+                                    </Alert>
+                                )}
                             </div>
-                        )}
-                    </div>
-                )}
-            </CardContent>
-        </Card>
-    );
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+        );
+    };
 
     const CustomerCard = () => {
         const displayEmail = ticket.customerEmail || linkedCustomer?.email;

@@ -169,7 +169,8 @@ function getHrefForEvent(eventId: string, p: Record<string, unknown>): string {
         case 'onTicketCompleted':
         case 'onTicketCanceled':
         case 'onTicketReplyAdded':
-        case 'onTicketPriorityUrgent': return `/dashboard/tickets/${v.id || v.ticketId}`;
+        case 'onTicketPriorityUrgent':
+        case 'onTicketVisitScheduled': return `/dashboard/tickets/${v.id || v.ticketId}`;
         case 'onProjectCompleted': 
         case 'onProjectAdvanceAdded': return `/dashboard/planner/${v.id || v.projectId}`;
         case 'onNewSuggestion': return '/dashboard/admin/suggestions';

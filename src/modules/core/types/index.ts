@@ -686,6 +686,7 @@ export type Ticket = {
     isBillable: boolean;
     providerId?: number | null;
     providerContactId?: string | null;
+    scheduledVisit?: string | null; // ISO Date/Time
     totalDuration?: number;
     hasActiveTimer?: boolean;
 };
@@ -720,6 +721,7 @@ export type NewTicketPayload = {
     isBillable: boolean;
     providerId?: number | null;
     providerContactId?: string | null;
+    scheduledVisit?: string | null;
 };
 
 export type License = {
@@ -779,6 +781,7 @@ export type NotificationEventId =
     | 'onTicketCanceled'
     | 'onTicketReplyAdded'
     | 'onTicketPriorityUrgent' 
+    | 'onTicketVisitScheduled'
     | 'onProjectCompleted' 
     | 'onProjectAdvanceAdded'
     | 'onBackupCompleted'

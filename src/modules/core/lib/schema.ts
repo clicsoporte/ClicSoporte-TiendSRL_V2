@@ -50,7 +50,7 @@ export const MASTER_SCHEMA: ExpectedSchema = {
     tickets: [
         'id', 'consecutive', 'subject', 'status', 'priority', 'createdAt', 'updatedAt', 
         'dueDate', 'companyId', 'customerName', 'customerEmail', 'customerPhone', 'companyName', 
-        'assigneeId', 'helpTopicId', 'serviceId', 'contractId', 'licenseId', 'equipmentId', 'isBillable', 'providerId', 'providerContactId'
+        'assigneeId', 'helpTopicId', 'serviceId', 'contractId', 'licenseId', 'equipmentId', 'isBillable', 'providerId', 'providerContactId', 'scheduledVisit'
     ],
     ticket_threads: ['id', 'ticketId', 'userId', 'userName', 'type', 'content', 'createdAt'],
     ticket_settings: ['key', 'value'],

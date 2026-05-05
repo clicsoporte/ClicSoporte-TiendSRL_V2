@@ -248,7 +248,8 @@ export async function initializeMainDatabase(db: Database) {
             equipmentId TEXT,
             isBillable INTEGER DEFAULT 0,
             providerId INTEGER,
-            providerContactId TEXT
+            providerContactId TEXT,
+            scheduledVisit TEXT
         );
 
         CREATE TABLE IF NOT EXISTS ticket_threads (
@@ -648,6 +649,23 @@ function seedNotificationTemplates(db: Database) {
             internal: '¡Ticket {{consecutive}} marcado como URGENTE!'
         },
         {
+            eventId: 'onTicketVisitScheduled',
+            subject: '[VISITA TÉCNICA] Programada para {{consecutive}}',
+            body: `
+                <div style="font-family: sans-serif; color: #333; max-width: 600px; border: 1px solid #eee; padding: 20px; border-radius: 10px;">
+                    <h2 style="color: #2563eb; margin-top: 0;">Visita Técnica Programada</h2>
+                    <p>Hola <b>{{customerName}}</b>, le informamos que se ha programado una visita técnica para atender su caso.</p>
+                    <div style="background: #f0f7ff; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                        <p style="margin: 5px 0;"><b>Técnico encargado:</b> {{technicianName}}</p>
+                        <p style="margin: 5px 0;"><b>Día de la visita:</b> {{visitDate}}</p>
+                        <p style="margin: 5px 0;"><b>Hora aproximada:</b> {{visitTime}}</p>
+                    </div>
+                    <p style="font-size: 13px; color: #666;">Por favor, asegúrese de que haya alguien disponible para recibir a nuestro personal técnico.</p>
+                </div>`,
+            telegram: '🗓️ <b>VISITA TÉCNICA PROGRAMADA</b>\n\n<b>Ticket:</b> {{consecutive}}\n<b>Cliente:</b> {{companyName}}\n<b>Técnico:</b> {{technicianName}}\n<b>Fecha:</b> {{visitDate}}\n<b>Hora aprox:</b> {{visitTime}}',
+            internal: 'Visita técnica programada para {{consecutive}} ({{technicianName}})'
+        },
+        {
             eventId: 'onContractExpiring',
             subject: '[ALERTA] Contrato por vencer: {{name}}',
             body: '<div style="font-family: sans-serif;"><h2 style="color: #ea580c;">Vencimiento de Contrato Próximo</h2><p>El contrato <b>{{name}}</b> del cliente <b>{{customerName}}</b> vencerá en <b>{{daysLeft}} días</b>.</p><p>Fecha de vencimiento: {{endDate}}</p></div>',
@@ -784,7 +802,7 @@ export async function runMainMigrations(db: Database) {
     const ticketFields = [
         ['companyName', 'TEXT'], ['helpTopicId', 'INTEGER'], ['serviceId', 'TEXT'],
         ['dueDate', 'TEXT'], ['contractId', 'INTEGER'], ['licenseId', 'INTEGER'], ['equipmentId', 'TEXT'], ['isBillable', 'INTEGER DEFAULT 0'],
-        ['providerId', 'INTEGER'], ['providerContactId', 'TEXT'], ['customerPhone', 'TEXT']
+        ['providerId', 'INTEGER'], ['providerContactId', 'TEXT'], ['customerPhone', 'TEXT'], ['scheduledVisit', 'TEXT']
     ];
     ticketFields.forEach(([field, type]) => {
         if (!hasColumn('tickets', field)) db.exec(`ALTER TABLE tickets ADD COLUMN ${field} ${type};`);

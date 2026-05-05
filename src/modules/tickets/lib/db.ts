@@ -270,7 +270,7 @@ export async function addThreadEntry(payload: { ticketId: number; userId: number
     return JSON.parse(JSON.stringify(row));
 }
 
-export async function updateTicketDetails(ticketId: number, updates: Partial<Pick<Ticket, 'status' | 'priority' | 'assigneeId' | 'isBillable' | 'providerId' | 'licenseId' | 'equipmentId' | 'providerContactId'>>, user: User): Promise<Ticket> {
+export async function updateTicketDetails(ticketId: number, updates: Partial<Pick<Ticket, 'status' | 'priority' | 'assigneeId' | 'isBillable' | 'providerId' | 'licenseId' | 'equipmentId' | 'providerContactId' | 'scheduledVisit'>>, user: User): Promise<Ticket> {
     await authorizeAction('tickets:manage');
     const db = await connectTicketsDb();
     const currentTicket = db.prepare('SELECT * FROM tickets WHERE id = ?').get(ticketId) as DbTicketRow;
@@ -350,6 +350,13 @@ export async function updateTicketDetails(ticketId: number, updates: Partial<Pic
             params.push(updates.equipmentId); 
             notes.push(`Equipo de inventario vinculado`); 
         }
+
+        if (updates.scheduledVisit !== undefined && updates.scheduledVisit !== currentTicket.scheduledVisit) {
+            query += ', scheduledVisit = ?';
+            params.push(updates.scheduledVisit);
+            const formatted = updates.scheduledVisit ? format(parseISO(updates.scheduledVisit), 'dd/MM/yyyy HH:mm') : 'Cancelada';
+            notes.push(`Visita técnica programada: ${formatted}`);
+        }
         
         query += ' WHERE id = ?';
         params.push(ticketId);
@@ -383,6 +390,26 @@ export async function updateTicketDetails(ticketId: number, updates: Partial<Pic
             priority: priorityLabels[result.priority] || result.priority,
             isBillable: result.isBillable === 1
         };
+
+        if (updates.scheduledVisit) {
+            const visitDateTime = parseISO(updates.scheduledVisit);
+            
+            // Resolve technician name (Provider contact or Internal assignee)
+            let techName = assigneeName;
+            if (result.providerContactId) {
+                const provider = db.prepare('SELECT contacts FROM third_party_providers WHERE id = ?').get(result.providerId) as { contacts: string } | undefined;
+                const contacts = JSON.parse(provider?.contacts || '[]') as CustomerContact[];
+                const contact = contacts.find(c => c.id === result.providerContactId);
+                if (contact) techName = contact.name;
+            }
+
+            await triggerNotificationEvent('onTicketVisitScheduled', {
+                ...translatedTicket,
+                technicianName: techName,
+                visitDate: format(visitDateTime, 'dd/MM/yyyy'),
+                visitTime: format(visitDateTime, 'hh:mm a')
+            });
+        }
 
         if (updates.status && (updates.status === 'completed' || updates.status === 'canceled')) {
             const event = updates.status === 'completed' ? 'onTicketCompleted' : 'onTicketCanceled';
