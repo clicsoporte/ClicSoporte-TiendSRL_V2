@@ -18,7 +18,10 @@ import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { 
     getThirdPartyProviders, addThirdPartyProvider, updateThirdPartyProvider, deleteThirdPartyProvider,
-    getCRGeoData, saveProviderService, deleteProviderService, saveProviderGeoRate, deleteProviderGeoRate 
+    getCRGeoData, addProvince, updateProvince, deleteProvince,
+    addCanton, updateCanton, deleteCanton,
+    addDistrict, updateDistrict, deleteDistrict,
+    saveProviderService, deleteProviderService, saveProviderGeoRate, deleteProviderGeoRate 
 } from '@/modules/tickets/lib/actions';
 import type { ThirdPartyProvider, Province, Canton, District, ProviderService, ProviderGeoRate, CustomerContact } from '@/modules/core/types';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -97,13 +100,15 @@ export default function ProvidersPage() {
         if(isAuthorized) fetchInitialData();
     }, [setTitle, isAuthorized]);
 
-    // Lógica de cálculo de precios revisada: (Costo * (1+Margen/100)) * (1+IVA/100)
+    // Lógica de cálculo de precios: (Costo * (1+Margen/100)) * (1+IVA/100)
+    // Corregido: Ahora calcula Remote y OnSite de forma independiente usando sus propios márgenes
     useEffect(() => {
-        const factorMargen = 1 + (newServiceRate.marginRemote / 100);
+        const factorMargenRemote = 1 + (newServiceRate.marginRemote / 100);
+        const factorMargenOnSite = 1 + (newServiceRate.marginOnSite / 100);
         const factorIVA = 1 + (newServiceRate.taxRate / 100);
         
-        const remoteVenta = (newServiceRate.buyPriceRemote * factorMargen) * factorIVA;
-        const onsiteVenta = (newServiceRate.buyPriceOnSite * factorMargen) * factorIVA;
+        const remoteVenta = (newServiceRate.buyPriceRemote * factorMargenRemote) * factorIVA;
+        const onsiteVenta = (newServiceRate.buyPriceOnSite * factorMargenOnSite) * factorIVA;
         
         if (Math.abs(remoteVenta - newServiceRate.sellPriceRemote) > 0.01 || Math.abs(onsiteVenta - newServiceRate.sellPriceOnSite) > 0.01) {
             setNewServiceRate(prev => ({ ...prev, sellPriceRemote: remoteVenta, sellPriceOnSite: onsiteVenta }));
@@ -447,7 +452,7 @@ export default function ProvidersPage() {
                                                 <TableHead>Servicio</TableHead>
                                                 <TableHead>IVA</TableHead>
                                                 {canViewCosts && <TableHead className="text-right">Compra (R/S)</TableHead>}
-                                                {canViewCosts && <TableHead className="text-right">Margen</TableHead>}
+                                                {canViewCosts && <TableHead className="text-right">Margen (R/S)</TableHead>}
                                                 <TableHead className="text-right">Venta Remota</TableHead>
                                                 <TableHead className="text-right">Venta Sitio</TableHead>
                                                 <TableHead className="w-10"></TableHead>
