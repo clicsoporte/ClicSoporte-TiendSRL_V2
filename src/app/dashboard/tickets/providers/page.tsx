@@ -101,16 +101,16 @@ export default function ProvidersPage() {
     }, [setTitle, isAuthorized]);
 
     // Lógica de cálculo de precios: (Costo * (1+Margen/100)) * (1+IVA/100)
-    // Corregido: Ahora calcula Remote y OnSite de forma independiente usando sus propios márgenes
+    // Se aplica redondeo a 2 decimales para evitar ruido de punto flotante de JS.
     useEffect(() => {
         const factorMargenRemote = 1 + (newServiceRate.marginRemote / 100);
         const factorMargenOnSite = 1 + (newServiceRate.marginOnSite / 100);
         const factorIVA = 1 + (newServiceRate.taxRate / 100);
         
-        const remoteVenta = (newServiceRate.buyPriceRemote * factorMargenRemote) * factorIVA;
-        const onsiteVenta = (newServiceRate.buyPriceOnSite * factorMargenOnSite) * factorIVA;
+        const remoteVenta = Number(((newServiceRate.buyPriceRemote * factorMargenRemote) * factorIVA).toFixed(2));
+        const onsiteVenta = Number(((newServiceRate.buyPriceOnSite * factorMargenOnSite) * factorIVA).toFixed(2));
         
-        if (Math.abs(remoteVenta - newServiceRate.sellPriceRemote) > 0.01 || Math.abs(onsiteVenta - newServiceRate.sellPriceOnSite) > 0.01) {
+        if (Math.abs(remoteVenta - newServiceRate.sellPriceRemote) > 0.001 || Math.abs(onsiteVenta - newServiceRate.sellPriceOnSite) > 0.001) {
             setNewServiceRate(prev => ({ ...prev, sellPriceRemote: remoteVenta, sellPriceOnSite: onsiteVenta }));
         }
     }, [newServiceRate.buyPriceRemote, newServiceRate.marginRemote, newServiceRate.buyPriceOnSite, newServiceRate.marginOnSite, newServiceRate.taxRate, newServiceRate.sellPriceRemote, newServiceRate.sellPriceOnSite]);
@@ -118,9 +118,9 @@ export default function ProvidersPage() {
     useEffect(() => {
         const factorMargen = 1 + (newGeoRate.marginTravel / 100);
         const factorIVA = 1 + (newGeoRate.taxRate / 100);
-        const travelVenta = (newGeoRate.buyTravelPrice * factorMargen) * factorIVA;
+        const travelVenta = Number(((newGeoRate.buyTravelPrice * factorMargen) * factorIVA).toFixed(2));
         
-        if (Math.abs(travelVenta - newGeoRate.sellTravelPrice) > 0.01) {
+        if (Math.abs(travelVenta - newGeoRate.sellTravelPrice) > 0.001) {
             setNewGeoRate(prev => ({ ...prev, sellTravelPrice: travelVenta }));
         }
     }, [newGeoRate.buyTravelPrice, newGeoRate.marginTravel, newGeoRate.taxRate, newGeoRate.sellTravelPrice]);
