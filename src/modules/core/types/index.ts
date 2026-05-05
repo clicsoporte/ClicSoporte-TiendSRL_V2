@@ -685,6 +685,7 @@ export type Ticket = {
     equipmentId?: string | null;
     isBillable: boolean;
     providerId?: number | null;
+    providerContactId?: string | null;
     totalDuration?: number;
     hasActiveTimer?: boolean;
 };
@@ -718,6 +719,7 @@ export type NewTicketPayload = {
     equipmentId?: string | null;
     isBillable: boolean;
     providerId?: number | null;
+    providerContactId?: string | null;
 };
 
 export type License = {

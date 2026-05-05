@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Server-side functions for the support tickets module.
  * Unified into intratool.db. Tables prefixed with ticket_.
@@ -81,9 +80,9 @@ export async function addTicket(payload: NewTicketPayload, user: User): Promise<
             }
 
             const info = db.prepare(`
-                INSERT INTO tickets (consecutive, subject, status, priority, createdAt, updatedAt, companyId, customerName, customerEmail, customerPhone, companyName, assigneeId, helpTopicId, serviceId, dueDate, contractId, licenseId, equipmentId, isBillable, providerId)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `).run(consecutive, payload.subject, 'open', priority, now, now, payload.companyId, payload.customerName, payload.customerEmail, payload.customerPhone || null, companyName, assigneeId, payload.helpTopicId, payload.serviceId, payload.dueDate || null, payload.contractId, payload.licenseId || null, payload.equipmentId || null, payload.isBillable ? 1 : 0, payload.providerId);
+                INSERT INTO tickets (consecutive, subject, status, priority, createdAt, updatedAt, companyId, customerName, customerEmail, customerPhone, companyName, assigneeId, helpTopicId, serviceId, dueDate, contractId, licenseId, equipmentId, isBillable, providerId, providerContactId)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `).run(consecutive, payload.subject, 'open', priority, now, now, payload.companyId, payload.customerName, payload.customerEmail, payload.customerPhone || null, companyName, assigneeId, payload.helpTopicId, payload.serviceId, payload.dueDate || null, payload.contractId, payload.licenseId || null, payload.equipmentId || null, payload.isBillable ? 1 : 0, payload.providerId, payload.providerContactId || null);
             
             db.prepare('INSERT INTO ticket_threads (ticketId, userId, userName, type, content, createdAt) VALUES (?, ?, ?, ?, ?, ?)')
               .run(info.lastInsertRowid, user.id, user.name, 'message', payload.content, now);
@@ -271,7 +270,7 @@ export async function addThreadEntry(payload: { ticketId: number; userId: number
     return JSON.parse(JSON.stringify(row));
 }
 
-export async function updateTicketDetails(ticketId: number, updates: Partial<Pick<Ticket, 'status' | 'priority' | 'assigneeId' | 'isBillable' | 'providerId' | 'licenseId' | 'equipmentId'>>, user: User): Promise<Ticket> {
+export async function updateTicketDetails(ticketId: number, updates: Partial<Pick<Ticket, 'status' | 'priority' | 'assigneeId' | 'isBillable' | 'providerId' | 'licenseId' | 'equipmentId' | 'providerContactId'>>, user: User): Promise<Ticket> {
     await authorizeAction('tickets:manage');
     const db = await connectTicketsDb();
     const currentTicket = db.prepare('SELECT * FROM tickets WHERE id = ?').get(ticketId) as DbTicketRow;
@@ -332,6 +331,12 @@ export async function updateTicketDetails(ticketId: number, updates: Partial<Pic
             query += ', providerId = ?'; 
             params.push(updates.providerId); 
             notes.push(`Proveedor externo actualizado`); 
+        }
+
+        if (updates.providerContactId !== undefined && updates.providerContactId !== currentTicket.providerContactId) { 
+            query += ', providerContactId = ?'; 
+            params.push(updates.providerContactId); 
+            notes.push(`Contacto de proveedor actualizado`); 
         }
 
         if (updates.licenseId !== undefined && updates.licenseId !== currentTicket.licenseId) { 
@@ -622,4 +627,3 @@ export async function getLicensesByCustomer(customerId: string): Promise<License
     const rows = db.prepare("SELECT * FROM licenses WHERE customerId = ? AND status = 'active'").all(customerId) as License[];
     return JSON.parse(JSON.stringify(rows));
 }
-

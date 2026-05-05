@@ -247,7 +247,8 @@ export async function initializeMainDatabase(db: Database) {
             licenseId INTEGER,
             equipmentId TEXT,
             isBillable INTEGER DEFAULT 0,
-            providerId INTEGER
+            providerId INTEGER,
+            providerContactId TEXT
         );
 
         CREATE TABLE IF NOT EXISTS ticket_threads (
@@ -783,7 +784,7 @@ export async function runMainMigrations(db: Database) {
     const ticketFields = [
         ['companyName', 'TEXT'], ['helpTopicId', 'INTEGER'], ['serviceId', 'TEXT'],
         ['dueDate', 'TEXT'], ['contractId', 'INTEGER'], ['licenseId', 'INTEGER'], ['equipmentId', 'TEXT'], ['isBillable', 'INTEGER DEFAULT 0'],
-        ['providerId', 'INTEGER'], ['customerPhone', 'TEXT']
+        ['providerId', 'INTEGER'], ['providerContactId', 'TEXT'], ['customerPhone', 'TEXT']
     ];
     ticketFields.forEach(([field, type]) => {
         if (!hasColumn('tickets', field)) db.exec(`ALTER TABLE tickets ADD COLUMN ${field} ${type};`);

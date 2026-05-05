@@ -1,8 +1,7 @@
-
 /**
  * @fileoverview Client-side component for Support Tickets.
  * Enhanced with responsive Card view for mobile devices and license/equipment integration.
- * Includes incremental "Load More" pagination.
+ * Includes incremental "Load More" pagination and provider contact management.
  */
 'use client';
 
@@ -10,7 +9,7 @@ import { useTickets } from "@/modules/tickets/hooks/useTickets";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
-import { FilePlus, Loader2, FilterX, ShieldCheck, ShieldAlert, Clock, Info, EyeOff, MapPin, Zap, UserCircle, Mail, MessageCircle, Laptop, ChevronDown } from "lucide-react";
+import { FilePlus, Loader2, FilterX, ShieldCheck, ShieldAlert, Clock, Info, EyeOff, MapPin, Zap, UserCircle, Mail, MessageCircle, Laptop, ChevronDown, Users } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -25,7 +24,7 @@ import { useRouter } from "next/navigation";
 import { useAuthorization } from "@/modules/core/hooks/useAuthorization";
 import Link from "next/link";
 import { useAuth } from "@/modules/core/hooks/useAuth";
-import type { Ticket, CustomerContact, License, Equipment } from '@/modules/core/types';
+import type { Ticket, CustomerContact, License, Equipment, ThirdPartyProvider } from '@/modules/core/types';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
 import { useMemo } from "react";
@@ -61,6 +60,11 @@ export default function TicketsClient() {
     const selectedCustomer = customers.find(c => c.id === selectedCustomerId);
     const customerContacts = selectedCustomer?.contacts || [];
     const isCustomerBlocked = selectedCustomer?.isBlocked || false;
+
+    // Resolve Provider and Contacts
+    const selectedProvider = providers.find(p => p.id === Number(newTicket.providerId));
+    const providerContacts = selectedProvider?.contacts || [];
+    const selectedProviderContact = providerContacts.find(c => c.id === newTicket.providerContactId);
 
     // Intelligence: Provider rate matching
     const providerRateInfo = useMemo(() => {
@@ -371,6 +375,53 @@ export default function TicketsClient() {
                                                         </SelectContent>
                                                     </Select>
                                                 </div>
+
+                                                {newTicket.providerId && !isCustomerBlocked && (
+                                                    <div className="space-y-2 pt-1">
+                                                        <div className="flex items-center justify-between">
+                                                            <Label className="text-[10px] font-black uppercase text-muted-foreground tracking-tighter">Contacto del Proveedor</Label>
+                                                            {providerContacts.length > 0 && <Badge variant="outline" className="text-[8px] h-3.5">{providerContacts.length} reg.</Badge>}
+                                                        </div>
+                                                        <Select 
+                                                            value={newTicket.providerContactId || 'none'} 
+                                                            onValueChange={(val) => actions.handleNewTicketChange('providerContactId', val === 'none' ? null : val)}
+                                                        >
+                                                            <SelectTrigger className="h-7 text-[10px] bg-muted/10">
+                                                                <SelectValue placeholder="Seleccionar encargado..." />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="none">Sin contacto específico</SelectItem>
+                                                                {providerContacts.map((c) => (
+                                                                    <SelectItem key={c.id} value={c.id} className="text-xs">
+                                                                        {c.name} ({c.department || 'Especialista'})
+                                                                    </SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+
+                                                        {selectedProviderContact && (
+                                                            <div className="p-3 rounded-lg border border-primary/10 bg-primary/5 space-y-2 animate-in fade-in slide-in-from-top-1">
+                                                                <div>
+                                                                    <p className="text-[10px] font-black uppercase text-primary tracking-widest">Información del Proveedor</p>
+                                                                    <p className="text-xs font-bold">{selectedProviderContact.name}</p>
+                                                                    <p className="text-[9px] text-muted-foreground font-medium">{selectedProvider?.name}</p>
+                                                                </div>
+                                                                <div className="flex gap-4 pt-1 border-t border-primary/10">
+                                                                    {selectedProviderContact.email && (
+                                                                        <a href={`mailto:${selectedProviderContact.email}`} className="text-[9px] text-blue-600 hover:underline flex items-center gap-1 font-black uppercase">
+                                                                            <Mail className="h-2.5 w-2.5" /> Correo
+                                                                        </a>
+                                                                    )}
+                                                                    {selectedProviderContact.whatsapp && (
+                                                                        <a href={`https://wa.me/${selectedProviderContact.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="text-[9px] text-green-600 hover:underline flex items-center gap-1 font-black uppercase">
+                                                                            <MessageCircle className="h-2.5 w-2.5" /> WhatsApp
+                                                                        </a>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
                                             </div>
 
                                             {providerRateInfo && !isCustomerBlocked && (
