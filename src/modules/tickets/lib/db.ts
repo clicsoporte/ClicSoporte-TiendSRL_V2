@@ -11,7 +11,7 @@ import { getCompanySettings } from '@/modules/core/lib/settings-db';
 import { authorizeAction } from '@/modules/core/lib/auth-guard';
 import { triggerNotificationEvent } from '@/modules/notifications/lib/notifications-engine';
 import { format, parseISO } from 'date-fns';
-import type { Ticket, NewTicketPayload, User, TicketThread, HelpTopic, ClientCompany, SupportPackage, Service, ThirdPartyProvider, ProviderService, ProviderGeoRate, Province, Canton, District, License } from '@/modules/core/types';
+import type { Ticket, NewTicketPayload, User, TicketThread, HelpTopic, ClientCompany, SupportPackage, Service, ThirdPartyProvider, ProviderService, ProviderGeoRate, Province, Canton, District, License, CustomerContact } from '@/modules/core/types';
 
 /**
  * Interface representing a Ticket row as it comes from the database.

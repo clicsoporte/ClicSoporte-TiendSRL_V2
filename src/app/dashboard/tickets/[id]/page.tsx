@@ -16,7 +16,7 @@ import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Send, Loader2, MoreVertical, CreditCard, ShieldCheck, ShieldAlert, Truck, CheckCircle2, XCircle, PlayCircle, PauseCircle, Info, UserCircle, FileText, Download, Mail, UserCheck, KeyRound, Eye, MessageCircle, Laptop, Users, Calendar, Clock as ClockIcon, Save } from 'lucide-react';
+import { Send, Loader2, MoreVertical, CreditCard, ShieldCheck, ShieldAlert, Truck, CheckCircle2, XCircle, PlayCircle, PauseCircle, Info, UserCircle, FileText, Download, Mail, UserCheck, KeyRound, Eye, MessageCircle, Laptop, Users, Calendar as CalendarIcon, Clock as ClockIcon, Save } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -38,6 +38,7 @@ import { getEquipmentDetails } from '@/modules/inventory/lib/actions';
 import { EquipmentDetail } from '@/components/inventory/equipment-detail';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Input } from '@/components/ui/input';
+import { Calendar } from "@/components/ui/calendar";
 
 const getInitials = (name: string) => {
     if (!name) return "??";
