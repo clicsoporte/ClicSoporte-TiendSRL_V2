@@ -21,7 +21,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SearchInput } from '@/components/ui/search-input';
-import { PlusCircle, MoreVertical, CalendarIcon, Loader2, Trash2, Download, Edit, ShieldCheck, KeyRound, Boxes, Settings2, Info, Code2, Copy, Check } from 'lucide-react';
+import { PlusCircle, MoreVertical, CalendarIcon, Loader2, Trash2, Download, Edit, ShieldCheck, Boxes, Settings2, Info, Code2, Copy, Check, KeyRound } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
@@ -248,7 +248,7 @@ export async function activateSoftwareOnline(softwareId: number, token: string) 
                                                                 </h3>
                                                                 <div className="grid grid-cols-1 gap-2 bg-muted/10 p-4 rounded-xl border max-h-[400px] overflow-y-auto">
                                                                     {moduleKeys.map((key) => {
-                                                                        const moduleName = (selectedSoftware as Record<string, any>)[`${key}_name`];
+                                                                        const moduleName = (selectedSoftware as Record<string, unknown>)[`${key}_name`] as string | null;
                                                                         const valKey = `${key}_val` as keyof License;
                                                                         if (!moduleName) return null;
                                                                         
@@ -259,7 +259,7 @@ export async function activateSoftwareOnline(softwareId: number, token: string) 
                                                                                     <span className="text-[9px] font-mono uppercase text-muted-foreground">ID Lógico: {key.toUpperCase()}</span>
                                                                                 </div>
                                                                                 <Switch 
-                                                                                    checked={!!(state.currentLicense as Record<string, any>)[valKey]} 
+                                                                                    checked={!!(state.currentLicense as Record<string, unknown>)[valKey]} 
                                                                                     onCheckedChange={(checked) => actions.handleCurrentLicenseChange(valKey, checked)} 
                                                                                 />
                                                                             </div>
@@ -464,7 +464,7 @@ export async function activateSoftwareOnline(softwareId: number, token: string) 
                                                 <div key={key} className="space-y-1.5 p-3 rounded-lg border bg-background">
                                                     <Label className="text-[10px] font-bold text-primary uppercase">Nombre del Módulo {i+1} (ID: {key.toUpperCase()})</Label>
                                                     <Input 
-                                                        value={(state.newSoftwareProduct as Record<string, any>)[`${key}_name`] || ''} 
+                                                        value={(state.newSoftwareProduct as Record<string, unknown>)[`${key}_name`] as string || ''} 
                                                         onChange={e => actions.handleNewSoftwareChange(`${key}_name` as keyof SoftwareProduct, e.target.value)}
                                                         placeholder="Ej: Facturación, Inventarios..."
                                                         className="h-8 text-xs"

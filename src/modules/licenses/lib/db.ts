@@ -23,7 +23,7 @@ function generateActivationToken(): string {
 
 export async function getLicenses(): Promise<License[]> {
     const db = await connectLicensesDb();
-    const results = db.prepare('SELECT * FROM licenses ORDER BY createdAt DESC').all() as Record<string, any>[];
+    const results = db.prepare('SELECT * FROM licenses ORDER BY createdAt DESC').all() as Record<string, unknown>[];
     return results.map(r => ({
         ...r,
         id: Number(r.id),
@@ -93,7 +93,7 @@ export async function addLicense(licenseData: Omit<License, 'id' | 'createdAt'>)
         m06_val: licenseData.m06_val ? 1 : 0, m07_val: licenseData.m07_val ? 1 : 0, m08_val: licenseData.m08_val ? 1 : 0, m09_val: licenseData.m09_val ? 1 : 0, m10_val: licenseData.m10_val ? 1 : 0
     });
 
-    const result = db.prepare('SELECT * FROM licenses WHERE id = ?').get(info.lastInsertRowid) as Record<string, any>;
+    const result = db.prepare('SELECT * FROM licenses WHERE id = ?').get(info.lastInsertRowid) as Record<string, unknown>;
     return {
         ...result,
         id: Number(result.id),
@@ -154,7 +154,7 @@ export async function updateLicense(license: License): Promise<License> {
         m06_val: license.m06_val ? 1 : 0, m07_val: license.m07_val ? 1 : 0, m08_val: license.m08_val ? 1 : 0, m09_val: license.m09_val ? 1 : 0, m10_val: license.m10_val ? 1 : 0
     });
     
-    const result = db.prepare('SELECT * FROM licenses WHERE id = ?').get(license.id) as Record<string, any>;
+    const result = db.prepare('SELECT * FROM licenses WHERE id = ?').get(license.id) as Record<string, unknown>;
     return {
         ...result,
         id: Number(result.id),
