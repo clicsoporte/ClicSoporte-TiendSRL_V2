@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Client-side functions for the License Management module.
  */
@@ -13,6 +12,7 @@ import {
     deleteLicense as deleteLicenseServer,
     getSoftwareProducts as getSoftwareProductsServer, 
     addSoftwareProduct as addSoftwareProductServer, 
+    updateSoftwareProduct as updateSoftwareProductServer,
     deleteSoftwareProduct as deleteSoftwareProductServer
 } from './db';
 import { generateKeys, getPublicKey } from './crypto';
@@ -73,6 +73,12 @@ export async function addSoftwareProduct(product: Omit<SoftwareProduct, 'id'>): 
     const newProduct = await addSoftwareProductServer(product);
     await logInfo('New software product added', { name: newProduct.name, isInternal: newProduct.isInternal });
     return JSON.parse(JSON.stringify(newProduct));
+}
+
+export async function updateSoftwareProduct(product: SoftwareProduct): Promise<SoftwareProduct> {
+    const updated = await updateSoftwareProductServer(product);
+    await logInfo('Software product updated', { name: updated.name });
+    return JSON.parse(JSON.stringify(updated));
 }
 
 export async function deleteSoftwareProduct(id: number): Promise<void> {
