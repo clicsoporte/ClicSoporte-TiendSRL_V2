@@ -107,7 +107,7 @@ export async function addTicket(payload: NewTicketPayload, user: User): Promise<
 
             await triggerNotificationEvent('onTicketCreated', {
                 ...result,
-                serviceName: service?.name || 'No especificado',
+                serviceName: service?.name || 'Servicio Técnico',
                 assigneeName: assigneeName,
                 formattedDateTime: format(parseISO(result.createdAt), 'dd/MM/yyyy HH:mm'),
                 status: statusLabels[result.status] || result.status,
@@ -384,7 +384,7 @@ export async function updateTicketDetails(ticketId: number, updates: Partial<Pic
 
         const translatedTicket = {
             ...result,
-            serviceName: service?.name || 'No especificado',
+            serviceName: service?.name || 'Servicio Técnico',
             assigneeName: assigneeName,
             status: statusLabels[result.status] || result.status,
             priority: priorityLabels[result.priority] || result.priority,

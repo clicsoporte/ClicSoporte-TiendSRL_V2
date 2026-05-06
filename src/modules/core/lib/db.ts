@@ -650,20 +650,20 @@ function seedNotificationTemplates(db: Database) {
         },
         {
             eventId: 'onTicketVisitScheduled',
-            subject: '[VISITA TÉCNICA] Programada para {{consecutive}}',
+            subject: '[{{serviceName}}] Programada para {{consecutive}}',
             body: `
                 <div style="font-family: sans-serif; color: #333; max-width: 600px; border: 1px solid #eee; padding: 20px; border-radius: 10px;">
-                    <h2 style="color: #2563eb; margin-top: 0;">Visita Técnica Programada</h2>
-                    <p>Hola <b>{{customerName}}</b>, le informamos que se ha programado una visita técnica para atender su caso.</p>
+                    <h2 style="color: #2563eb; margin-top: 0;">{{serviceName}} Programada</h2>
+                    <p>Hola <b>{{customerName}}</b>, le informamos que se ha programado el servicio de <b>{{serviceName}}</b> para atender su caso.</p>
                     <div style="background: #f0f7ff; padding: 15px; border-radius: 8px; margin: 20px 0;">
                         <p style="margin: 5px 0;"><b>Técnico encargado:</b> {{technicianName}}</p>
-                        <p style="margin: 5px 0;"><b>Día de la visita:</b> {{visitDate}}</p>
-                        <p style="margin: 5px 0;"><b>Hora aproximada:</b> {{visitTime}}</p>
+                        <p style="margin: 5px 0;"><b>Día:</b> {{visitDate}}</p>
+                        <p style="margin: 5px 0;"><b>Hora aprox:</b> {{visitTime}}</p>
                     </div>
-                    <p style="font-size: 13px; color: #666;">Por favor, asegúrese de que haya alguien disponible para recibir a nuestro personal técnico.</p>
+                    <p style="font-size: 13px; color: #666;">Por favor, asegúrese de estar disponible para la ejecución del servicio.</p>
                 </div>`,
-            telegram: '🗓️ <b>VISITA TÉCNICA PROGRAMADA</b>\n\n<b>Ticket:</b> {{consecutive}}\n<b>Cliente:</b> {{companyName}}\n<b>Técnico:</b> {{technicianName}}\n<b>Fecha:</b> {{visitDate}}\n<b>Hora aprox:</b> {{visitTime}}',
-            internal: 'Visita técnica programada para {{consecutive}} ({{technicianName}})'
+            telegram: '🗓️ <b>{{serviceName}} PROGRAMADA</b>\n\n<b>Ticket:</b> {{consecutive}}\n<b>Cliente:</b> {{companyName}}\n<b>Técnico:</b> {{technicianName}}\n<b>Fecha:</b> {{visitDate}}\n<b>Hora aprox:</b> {{visitTime}}',
+            internal: '{{serviceName}} programada para {{consecutive}} ({{technicianName}})'
         },
         {
             eventId: 'onContractExpiring',
