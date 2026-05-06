@@ -393,19 +393,24 @@ export async function initializeMainDatabase(db: Database) {
         CREATE TABLE IF NOT EXISTS software_products (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL UNIQUE,
-            isInternal BOOLEAN NOT NULL DEFAULT FALSE
+            isInternal BOOLEAN NOT NULL DEFAULT FALSE,
+            m01_name TEXT, m02_name TEXT, m03_name TEXT, m04_name TEXT, m05_name TEXT,
+            m06_name TEXT, m07_name TEXT, m08_name TEXT, m09_name TEXT, m10_name TEXT
         );
 
         CREATE TABLE IF NOT EXISTS licenses (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             licenseKey TEXT NOT NULL,
+            activationToken TEXT,
             softwareId INTEGER NOT NULL,
             customerId TEXT,
             hardwareId TEXT,
             isPerpetual BOOLEAN NOT NULL DEFAULT FALSE,
             expirationDate TEXT,
             status TEXT NOT NULL DEFAULT 'active',
-            createdAt TEXT NOT NULL
+            createdAt TEXT NOT NULL,
+            m01_val INTEGER DEFAULT 0, m02_val INTEGER DEFAULT 0, m03_val INTEGER DEFAULT 0, m04_val INTEGER DEFAULT 0, m05_val INTEGER DEFAULT 0,
+            m06_val INTEGER DEFAULT 0, m07_val INTEGER DEFAULT 0, m08_val INTEGER DEFAULT 0, m09_val INTEGER DEFAULT 0, m10_val INTEGER DEFAULT 0
         );
 
         -- TIMESHEET MODULE
@@ -814,6 +819,21 @@ export async function runMainMigrations(db: Database) {
     if (!hasColumn('licenses', 'customerId')) db.exec(`ALTER TABLE licenses ADD COLUMN customerId TEXT;`);
 
     if (!hasColumn('third_party_providers', 'contacts')) db.exec(`ALTER TABLE third_party_providers ADD COLUMN contacts TEXT;`);
+
+    // --- HYBRID LICENSING MIGRATIONS (v2.3) ---
+    if (!hasColumn('software_products', 'm01_name')) {
+        for(let i=1; i<=10; i++) {
+            const col = `m${i.toString().padStart(2, '0')}_name`;
+            db.exec(`ALTER TABLE software_products ADD COLUMN ${col} TEXT;`);
+        }
+    }
+    if (!hasColumn('licenses', 'activationToken')) {
+        db.exec(`ALTER TABLE licenses ADD COLUMN activationToken TEXT;`);
+        for(let i=1; i<=10; i++) {
+            const col = `m${i.toString().padStart(2, '0')}_val`;
+            db.exec(`ALTER TABLE licenses ADD COLUMN ${col} INTEGER DEFAULT 0;`);
+        }
+    }
 
     // Ensure templates are always checked
     seedNotificationTemplates(db);

@@ -1,6 +1,6 @@
-
 /**
  * @fileoverview Main page for the License Management module.
+ * Enhanced for Hybrid Licensing v2.3 (Standard Mapping Protocol).
  */
 'use client';
 
@@ -21,10 +21,13 @@ import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SearchInput } from '@/components/ui/search-input';
-import { PlusCircle, MoreVertical, CalendarIcon, Loader2, Trash2, Download, Edit } from 'lucide-react';
+import { PlusCircle, MoreVertical, CalendarIcon, Loader2, Trash2, Download, Edit, ShieldCheck, KeyRound, Boxes, Settings2, Info } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 export default function LicensesPage() {
     const { state, actions, selectors } = useLicenses();
@@ -50,213 +53,326 @@ export default function LicensesPage() {
         )
     }
 
+    const moduleKeys = Array.from({ length: 10 }, (_, i) => `m${(i + 1).toString().padStart(2, '0')}`);
+
     return (
-        <main className="flex-1 p-4 md:p-6 lg:p-8">
-            <Card>
-                <CardHeader>
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <CardTitle>Gestión de Licencias</CardTitle>
-                            <CardDescription>Administra las licencias de software para tus clientes.</CardDescription>
-                        </div>
-                        <div className="flex gap-2">
-                             {hasPermission('licenses:manage') && <Button variant="outline" onClick={() => actions.setIsSoftwareDialogOpen(true)}>Gestionar Software</Button>}
-                            {hasPermission('licenses:manage') && (
-                                <Dialog open={state.isFormOpen} onOpenChange={(open) => { actions.setIsFormOpen(open); if (!open) actions.resetCurrentLicense(); }}>
-                                    <DialogTrigger asChild>
-                                        <Button><PlusCircle className="mr-2 h-4 w-4" /> Nueva Licencia</Button>
-                                    </DialogTrigger>
-                                    <DialogContent className="sm:max-w-2xl">
-                                        <form onSubmit={(e) => { e.preventDefault(); actions.handleSaveLicense(); }}>
-                                            <DialogHeader>
-                                                <DialogTitle>{state.isEditing ? "Editar" : "Crear"} Licencia</DialogTitle>
-                                                <DialogDescription>Completa los detalles de la licencia.</DialogDescription>
-                                            </DialogHeader>
-                                            <div className="grid gap-4 py-4">
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                    <div className="space-y-2">
-                                                        <Label htmlFor="client-search">Cliente</Label>
-                                                        <SearchInput
-                                                            options={selectors.clientCustomerOptions}
-                                                            onSelect={actions.handleSelectCompany}
-                                                            value={state.companySearchTerm}
-                                                            onValueChange={actions.setCompanySearchTerm}
-                                                            placeholder="Buscar por nombre, código o cédula..."
-                                                            open={state.isCompanySearchOpen}
-                                                            onOpenChange={actions.setIsCompanySearchOpen}
-                                                        />
-                                                    </div>
-                                                    <div className="space-y-2">
-                                                        <Label htmlFor="software-product">Producto de Software</Label>
-                                                        <Select value={String(state.currentLicense.softwareId)} onValueChange={(val) => actions.handleCurrentLicenseChange('softwareId', Number(val))} required>
-                                                            <SelectTrigger id="software-product"><SelectValue placeholder="Selecciona un producto..."/></SelectTrigger>
-                                                            <SelectContent>
-                                                                {state.softwareProducts.map(p => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}
-                                                            </SelectContent>
-                                                        </Select>
+        <TooltipProvider>
+            <main className="flex-1 p-4 md:p-6 lg:p-8">
+                <Card>
+                    <CardHeader>
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <CardTitle className="text-2xl font-bold flex items-center gap-2">
+                                    <ShieldCheck className="h-6 w-6 text-primary" /> Gestión de Licenciamiento Híbrido
+                                </CardTitle>
+                                <CardDescription>Administración central de activaciones internas y llaves de terceros.</CardDescription>
+                            </div>
+                            <div className="flex gap-2">
+                                {hasPermission('licenses:manage') && (
+                                    <Button variant="outline" onClick={() => actions.setIsSoftwareDialogOpen(true)}>
+                                        <Boxes className="mr-2 h-4 w-4" /> Catálogo de Software
+                                    </Button>
+                                )}
+                                {hasPermission('licenses:manage') && (
+                                    <Dialog open={state.isFormOpen} onOpenChange={(open) => { actions.setIsFormOpen(open); if (!open) actions.resetCurrentLicense(); }}>
+                                        <DialogTrigger asChild>
+                                            <Button className="shadow-md"><PlusCircle className="mr-2 h-4 w-4" /> Nueva Activación</Button>
+                                        </DialogTrigger>
+                                        <DialogContent className="sm:max-w-4xl h-[90vh] flex flex-col p-0">
+                                            <form onSubmit={(e) => { e.preventDefault(); actions.handleSaveLicense(); }} className="flex flex-col h-full">
+                                                <DialogHeader className="p-6 pb-4 border-b">
+                                                    <DialogTitle>{state.isEditing ? "Editar" : "Emitir Nueva"} Licencia</DialogTitle>
+                                                    <DialogDescription>Define el cliente, producto y los módulos activos para esta licencia.</DialogDescription>
+                                                </DialogHeader>
+                                                
+                                                <div className="flex-1 overflow-y-auto p-6 scrollbar-thin">
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pr-2">
+                                                        {/* --- Basic License Info --- */}
+                                                        <div className="space-y-6">
+                                                            <div className="space-y-4 bg-muted/20 p-4 rounded-lg border">
+                                                                <div className="space-y-2">
+                                                                    <Label>Cliente Propietario</Label>
+                                                                    <SearchInput
+                                                                        options={selectors.clientCustomerOptions}
+                                                                        onSelect={actions.handleSelectCompany}
+                                                                        value={state.companySearchTerm}
+                                                                        onValueChange={actions.setCompanySearchTerm}
+                                                                        placeholder="Buscar cliente..."
+                                                                        open={state.isCompanySearchOpen}
+                                                                        onOpenChange={actions.setIsCompanySearchOpen}
+                                                                    />
+                                                                </div>
+                                                                <div className="space-y-2">
+                                                                    <Label>Producto de Software</Label>
+                                                                    <Select value={String(state.currentLicense.softwareId)} onValueChange={(val) => actions.handleCurrentLicenseChange('softwareId', Number(val))} required>
+                                                                        <SelectTrigger><SelectValue placeholder="Seleccione..."/></SelectTrigger>
+                                                                        <SelectContent>
+                                                                            {state.softwareProducts.map(p => <SelectItem key={p.id} value={String(p.id)}>{p.name} {p.isInternal ? '(Propio)' : '(Terceros)'}</SelectItem>)}
+                                                                        </SelectContent>
+                                                                    </Select>
+                                                                </div>
+                                                            </div>
+
+                                                            {selectedSoftware?.isInternal ? (
+                                                                <div className="space-y-4">
+                                                                    <div className="space-y-2">
+                                                                        <Label className="flex items-center gap-2">
+                                                                            Hardware ID (Fingerprint)
+                                                                            <Tooltip>
+                                                                                <TooltipTrigger><Info className="h-3 w-3 text-muted-foreground"/></TooltipTrigger>
+                                                                                <TooltipContent><p className="max-w-xs">Identificador único generado por el software hijo en la PC del cliente.</p></TooltipContent>
+                                                                            </Tooltip>
+                                                                        </Label>
+                                                                        <Input
+                                                                            value={state.currentLicense.hardwareId || ''}
+                                                                            onChange={(e) => actions.handleCurrentLicenseChange('hardwareId', e.target.value)}
+                                                                            placeholder="Ej: BFEBFBFF000906E3-1234-ABCD"
+                                                                            className="font-mono text-xs"
+                                                                            required
+                                                                        />
+                                                                    </div>
+                                                                    {state.currentLicense.activationToken && (
+                                                                        <div className="bg-primary/5 p-4 rounded-lg border border-primary/20 text-center">
+                                                                            <p className="text-[10px] font-black uppercase text-primary tracking-widest mb-1">Token de Activación</p>
+                                                                            <p className="text-2xl font-black font-mono text-primary">{state.currentLicense.activationToken}</p>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            ) : selectedSoftware && (
+                                                                <div className="space-y-2">
+                                                                    <Label>Llave de Licencia (Terceros)</Label>
+                                                                    <Input
+                                                                        value={state.currentLicense.licenseKey || ''}
+                                                                        onChange={(e) => actions.handleCurrentLicenseChange('licenseKey', e.target.value)}
+                                                                        placeholder="Ingrese serial del fabricante..."
+                                                                        required
+                                                                    />
+                                                                </div>
+                                                            )}
+
+                                                            <div className="grid grid-cols-2 gap-4 pt-2">
+                                                                <div className="space-y-2">
+                                                                    <Label>Vencimiento</Label>
+                                                                    <Popover>
+                                                                        <PopoverTrigger asChild>
+                                                                            <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !state.currentLicense.expirationDate && "text-muted-foreground")} disabled={state.currentLicense.isPerpetual}>
+                                                                                <CalendarIcon className="mr-2 h-4 w-4"/>
+                                                                                {state.currentLicense.expirationDate ? format(parseISO(state.currentLicense.expirationDate), 'dd/MM/yyyy') : <span>Fecha</span>}
+                                                                            </Button>
+                                                                        </PopoverTrigger>
+                                                                        <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={state.currentLicense.expirationDate ? parseISO(state.currentLicense.expirationDate) : undefined} onSelect={(date) => actions.handleCurrentLicenseChange('expirationDate', date?.toISOString().split('T')[0] || '')} initialFocus/></PopoverContent>
+                                                                    </Popover>
+                                                                    <div className="flex gap-1 mt-2">
+                                                                        <Button type="button" size="sm" variant="secondary" className="text-[10px] h-6 flex-1" onClick={() => actions.setExpirationDatePreset(365)}>Anual</Button>
+                                                                        <Button type="button" size="sm" variant="secondary" className="text-[10px] h-6 flex-1" onClick={() => actions.setExpirationDatePreset(30)}>Prueba</Button>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="flex items-center space-x-2 pt-6">
+                                                                    <Checkbox id="is-perpetual" checked={state.currentLicense.isPerpetual} onCheckedChange={(checked) => actions.handleCurrentLicenseChange('isPerpetual', !!checked)} />
+                                                                    <Label htmlFor="is-perpetual" className="text-xs">Uso Perpetuo</Label>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* --- Module Granularity Section --- */}
+                                                        {selectedSoftware?.isInternal ? (
+                                                            <div className="space-y-4">
+                                                                <h3 className="text-xs font-black uppercase text-muted-foreground tracking-widest flex items-center gap-2">
+                                                                    <Settings2 className="h-4 w-4" /> Módulos Disponibles
+                                                                </h3>
+                                                                <div className="grid grid-cols-1 gap-2 bg-muted/10 p-4 rounded-xl border max-h-[400px] overflow-y-auto">
+                                                                    {moduleKeys.map((key, i) => {
+                                                                        const moduleName = selectedSoftware[`${key}_name` as keyof SoftwareProduct];
+                                                                        const valKey = `${key}_val` as keyof License;
+                                                                        if (!moduleName) return null;
+                                                                        
+                                                                        return (
+                                                                            <div key={key} className="flex items-center justify-between p-3 rounded-lg border bg-card shadow-sm hover:border-primary/50 transition-colors">
+                                                                                <div className="flex flex-col">
+                                                                                    <span className="text-sm font-bold">{moduleName}</span>
+                                                                                    <span className="text-[9px] font-mono uppercase text-muted-foreground">ID Lógico: {key.toUpperCase()}</span>
+                                                                                </div>
+                                                                                <Switch 
+                                                                                    checked={!!state.currentLicense[valKey]} 
+                                                                                    onCheckedChange={(checked) => actions.handleCurrentLicenseChange(valKey, checked)} 
+                                                                                />
+                                                                            </div>
+                                                                        );
+                                                                    })}
+                                                                    {moduleKeys.every(k => !selectedSoftware[`${k}_name` as keyof SoftwareProduct]) && (
+                                                                        <p className="text-xs text-muted-foreground italic text-center py-10">No se han definido nombres de módulos para este software en el catálogo.</p>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="flex flex-col items-center justify-center h-full text-center p-10 border-2 border-dashed rounded-2xl opacity-40">
+                                                                <KeyRound className="h-20 w-20 mb-4" />
+                                                                <p className="text-sm font-bold">Licencia de Tercero</p>
+                                                                <p className="text-xs">La gestión modular solo aplica para software propio.</p>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </div>
-                                                
-                                                {selectedSoftware && (
-                                                    selectedSoftware.isInternal ? (
-                                                        <div className="space-y-2">
-                                                            <Label htmlFor="hardware-id">Hardware ID (Software Propio)</Label>
-                                                            <Input
-                                                                id="hardware-id"
-                                                                value={state.currentLicense.hardwareId || ''}
-                                                                onChange={(e) => actions.handleCurrentLicenseChange('hardwareId', e.target.value)}
-                                                                placeholder="ID de hardware del cliente para generar la licencia"
-                                                                required
-                                                            />
+
+                                                <DialogFooter className="p-6 border-t bg-muted/10">
+                                                    <DialogClose asChild><Button type="button" variant="ghost">Cancelar</Button></DialogClose>
+                                                    <Button type="submit" disabled={state.isSubmitting}>
+                                                        {state.isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <ShieldCheck className="mr-2 h-4 w-4" />}
+                                                        {state.isEditing ? "Guardar Cambios" : "Emitir Licencia"}
+                                                    </Button>
+                                                </DialogFooter>
+                                            </form>
+                                        </DialogContent>
+                                    </Dialog>
+                                )}
+                            </div>
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="rounded-lg border">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow className="bg-muted/50">
+                                        <TableHead>Software</TableHead>
+                                        <TableHead>Cliente</TableHead>
+                                        <TableHead>Identificación / Token</TableHead>
+                                        <TableHead>Vencimiento</TableHead>
+                                        <TableHead>Estado</TableHead>
+                                        <TableHead className="text-right">Acciones</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {selectors.filteredLicenses.map(license => {
+                                        const software = selectors.getSoftwareProduct(license.softwareId);
+                                        const client = selectors.getCustomer(license.customerId);
+                                        const { label, variant } = selectors.getLicenseStatus(license);
+                                        return (
+                                            <TableRow key={license.id} className="hover:bg-muted/30 group">
+                                                <TableCell className="font-bold">
+                                                    <div className="flex flex-col">
+                                                        <span>{software?.name || 'Desconocido'}</span>
+                                                        <span className="text-[10px] text-muted-foreground uppercase font-black tracking-tighter">
+                                                            {software?.isInternal ? 'Soporte Híbrido' : 'Licencia Tercero'}
+                                                        </span>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="text-sm font-medium">{client?.name || license.customerId || 'No asignado'}</TableCell>
+                                                <TableCell>
+                                                    {software?.isInternal ? (
+                                                        <div className="flex flex-col">
+                                                            <span className="font-mono text-xs font-black text-primary">{license.activationToken}</span>
+                                                            <span className="text-[9px] text-muted-foreground truncate max-w-[120px]">HWID: {license.hardwareId}</span>
                                                         </div>
                                                     ) : (
-                                                        <div className="space-y-2">
-                                                            <Label htmlFor="third-party-license-key">Número de Licencia (Terceros)</Label>
-                                                            <Input
-                                                                id="third-party-license-key"
-                                                                value={state.currentLicense.licenseKey || ''}
-                                                                onChange={(e) => actions.handleCurrentLicenseChange('licenseKey', e.target.value)}
-                                                                placeholder="Ingrese el número de licencia proporcionado por el fabricante"
-                                                                required
-                                                            />
-                                                        </div>
-                                                    )
-                                                )}
-
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
-                                                     <div className="space-y-2">
-                                                        <Label htmlFor="expiration-date">Fecha de Vencimiento</Label>
-                                                        <Popover>
-                                                            <PopoverTrigger asChild>
-                                                                <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !state.currentLicense.expirationDate && "text-muted-foreground")} disabled={state.currentLicense.isPerpetual}>
-                                                                    <CalendarIcon className="mr-2 h-4 w-4"/>
-                                                                    {state.currentLicense.expirationDate ? format(parseISO(state.currentLicense.expirationDate), 'dd/MM/yyyy') : <span>Selecciona fecha</span>}
-                                                                </Button>
-                                                            </PopoverTrigger>
-                                                            <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={state.currentLicense.expirationDate ? parseISO(state.currentLicense.expirationDate) : undefined} onSelect={(date) => actions.handleCurrentLicenseChange('expirationDate', date?.toISOString().split('T')[0] || '')} initialFocus/></PopoverContent>
-                                                        </Popover>
-                                                        <div className="flex flex-wrap gap-2 mt-2">
-                                                            <Button type="button" size="sm" variant="secondary" onClick={() => actions.setExpirationDatePreset(30)}>Prueba (30 Días)</Button>
-                                                            <Button type="button" size="sm" variant="secondary" onClick={() => actions.setExpirationDatePreset(365)}>Anual (1 Año)</Button>
-                                                        </div>
-                                                    </div>
-                                                     <div className="flex items-center space-x-2 pt-8">
-                                                        <Checkbox id="is-perpetual" checked={state.currentLicense.isPerpetual} onCheckedChange={(checked) => actions.handleCurrentLicenseChange('isPerpetual', !!checked)} />
-                                                        <Label htmlFor="is-perpetual">Licencia Perpetua</Label>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <DialogFooter>
-                                                <DialogClose asChild><Button type="button" variant="ghost">Cancelar</Button></DialogClose>
-                                                <Button type="submit" disabled={state.isSubmitting}>{state.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}{state.isEditing ? "Guardar Cambios" : "Crear Licencia"}</Button>
-                                            </DialogFooter>
-                                        </form>
-                                    </DialogContent>
-                                </Dialog>
-                            )}
-                        </div>
-                    </div>
-                </CardHeader>
-                <CardContent>
-                    <div className="rounded-lg border">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Software</TableHead>
-                                    <TableHead>Cliente</TableHead>
-                                    <TableHead>Detalles de Licencia</TableHead>
-                                    <TableHead>Vencimiento</TableHead>
-                                    <TableHead>Estado</TableHead>
-                                    <TableHead className="text-right">Acciones</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {selectors.filteredLicenses.map(license => {
-                                    const software = selectors.getSoftwareProduct(license.softwareId);
-                                    const client = selectors.getCustomer(license.customerId);
-                                    const { label, variant } = selectors.getLicenseStatus(license);
-                                    return (
-                                        <TableRow key={license.id}>
-                                            <TableCell className="font-medium">{software?.name || 'Desconocido'}</TableCell>
-                                            <TableCell>{client?.name || license.customerId || 'No asignado'}</TableCell>
-                                            <TableCell>
-                                                {software?.isInternal ? (
-                                                    <span className="text-sm text-muted-foreground">HWID: {license.hardwareId}</span>
-                                                ) : (
-                                                    <span className="font-mono text-sm">{license.licenseKey}</span>
-                                                )}
-                                            </TableCell>
-                                            <TableCell>{license.isPerpetual ? 'Perpetua' : license.expirationDate ? format(parseISO(license.expirationDate), 'dd/MM/yyyy') : 'N/A'}</TableCell>
-                                            <TableCell><Badge variant={variant}>{label}</Badge></TableCell>
-                                            <TableCell className="text-right">
-                                                
+                                                        <span className="font-mono text-xs bg-muted px-2 py-1 rounded truncate max-w-[150px] inline-block">{license.licenseKey}</span>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell className="text-xs">{license.isPerpetual ? 'Perpetua' : license.expirationDate ? format(parseISO(license.expirationDate), 'dd/MM/yyyy') : 'N/A'}</TableCell>
+                                                <TableCell><Badge variant={variant} className="text-[10px] h-5 uppercase">{label}</Badge></TableCell>
+                                                <TableCell className="text-right">
                                                     <DropdownMenu>
-                                                        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4"/></Button></DropdownMenuTrigger>
+                                                        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4"/></Button></DropdownMenuTrigger>
                                                         <DropdownMenuContent align="end">
                                                             <DropdownMenuItem onSelect={() => actions.downloadLicenseFile(license)} disabled={!software?.isInternal}>
-                                                                <Download className="mr-2 h-4 w-4" />Descargar Licencia
+                                                                <Download className="mr-2 h-4 w-4" />Bajar JSON (Offline)
                                                             </DropdownMenuItem>
-                                                            {hasPermission('licenses:manage') && <DropdownMenuItem onSelect={() => actions.handleEditLicense(license)}><Edit className="mr-2 h-4 w-4"/>Editar</DropdownMenuItem>}
+                                                            {hasPermission('licenses:manage') && <DropdownMenuItem onSelect={() => actions.handleEditLicense(license)}><Edit className="mr-2 h-4 w-4"/>Editar Cobertura</DropdownMenuItem>}
                                                             {hasPermission('licenses:manage') && <DropdownMenuItem className="text-destructive" onSelect={() => actions.setLicenseToDelete(license)}><Trash2 className="mr-2 h-4 w-4"/>Eliminar</DropdownMenuItem>}
                                                         </DropdownMenuContent>
                                                     </DropdownMenu>
-                                                
-                                            </TableCell>
-                                        </TableRow>
-                                    )
-                                })}
-                                {selectors.filteredLicenses.length === 0 && (
-                                    <TableRow><TableCell colSpan={6} className="h-24 text-center">No hay licencias que coincidan con los filtros.</TableCell></TableRow>
-                                )}</TableBody>
-                        </Table>
-                    </div>
-                </CardContent>
-            </Card>
-
-            <Dialog open={state.isSoftwareDialogOpen} onOpenChange={actions.setIsSoftwareDialogOpen}>
-                <DialogContent>
-                    <DialogHeader><DialogTitle>Gestionar Productos de Software</DialogTitle></DialogHeader>
-                    <div className="space-y-4 py-4">
-                        <div className="rounded-lg border max-h-64 overflow-y-auto">
-                            <Table>
-                                <TableHeader><TableRow><TableHead>Nombre</TableHead><TableHead>Tipo</TableHead><TableHead></TableHead></TableRow></TableHeader>
-                                <TableBody>
-                                    {state.softwareProducts.map(p => (
-                                        <TableRow key={p.id}><TableCell>{p.name}</TableCell><TableCell>{p.isInternal ? 'Propio' : 'De Terceros'}</TableCell>
-                                            <TableCell className="text-right">
-                                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => actions.handleDeleteSoftware(p.id)}>
-                                                    <Trash2 className="h-4 w-4 text-destructive"/>
-                                                </Button>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
+                                                </TableCell>
+                                            </TableRow>
+                                        )
+                                    })}
+                                    {selectors.filteredLicenses.length === 0 && (
+                                        <TableRow><TableCell colSpan={6} className="h-32 text-center text-muted-foreground italic">No se encontraron licencias activas.</TableCell></TableRow>
+                                    )}
                                 </TableBody>
                             </Table>
                         </div>
-                        <div className="flex items-end gap-2 pt-4">
-                            <div className="flex-1 grid gap-2">
-                                <Label htmlFor="new-software-name">Nombre del Nuevo Software</Label>
-                                <Input id="new-software-name" value={state.newSoftwareProduct.name} onChange={e => actions.handleNewSoftwareChange('name', e.target.value)} />
-                            </div>
-                            <div className="flex items-center space-x-2 pb-2">
-                                <Checkbox id="is-internal" checked={state.newSoftwareProduct.isInternal} onCheckedChange={checked => actions.handleNewSoftwareChange('isInternal', !!checked)}/>
-                                <Label htmlFor="is-internal">Es Software Propio</Label>
-                            </div>
-                            <Button size="icon" onClick={actions.handleCreateSoftware}><PlusCircle className="h-4 w-4"/></Button>
-                        </div>
-                    </div>
-                </DialogContent>
-            </Dialog>
+                    </CardContent>
+                </Card>
 
-             <AlertDialog open={!!state.licenseToDelete} onOpenChange={(open) => !open && actions.setLicenseToDelete(null)}>
-                <AlertDialogContent>
-                    <AlertDialogHeader><AlertDialogTitle>¿Eliminar Licencia?</AlertDialogTitle><AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription></AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={actions.handleDeleteLicense}>Sí, eliminar</AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
-        </main>
+                {/* --- SOFTWARE CATALOG DIALOG --- */}
+                <Dialog open={state.isSoftwareDialogOpen} onOpenChange={actions.setIsSoftwareDialogOpen}>
+                    <DialogContent className="sm:max-w-3xl">
+                        <DialogHeader>
+                            <DialogTitle className="flex items-center gap-2"><Boxes className="h-5 w-5 text-primary" /> Catálogo de Productos de Software</DialogTitle>
+                            <DialogDescription>Define los nombres de los módulos para cada programa de tu autoría.</DialogDescription>
+                        </DialogHeader>
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 py-4">
+                            <div className="space-y-4">
+                                <ScrollArea className="h-64 border rounded-md">
+                                    <Table>
+                                        <TableHeader><TableRow><TableHead>Producto</TableHead><TableHead className="text-right"></TableHead></TableRow></TableHeader>
+                                        <TableBody>
+                                            {state.softwareProducts.map(p => (
+                                                <TableRow key={p.id} className={cn("cursor-pointer", state.newSoftwareProduct.id === p.id && "bg-primary/5")}>
+                                                    <TableCell onClick={() => actions.handleOpenSoftwareEdit(p)}>
+                                                        <p className="font-bold text-sm">{p.name}</p>
+                                                        <p className="text-[10px] text-muted-foreground uppercase">{p.isInternal ? 'Propio' : 'Tercero'}</p>
+                                                    </TableCell>
+                                                    <TableCell className="text-right">
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => actions.handleDeleteSoftware(p.id)}><Trash2 className="h-4 w-4"/></Button>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </ScrollArea>
+
+                                <div className="space-y-4 border p-4 rounded-lg bg-muted/10">
+                                    <div className="space-y-2"><Label>Nombre del Software</Label><Input value={state.newSoftwareProduct.name} onChange={e => actions.handleNewSoftwareChange('name', e.target.value)} placeholder="Ej: Clic-POS Pro" /></div>
+                                    <div className="flex items-center space-x-2 pb-2"><Checkbox id="is-internal-soft" checked={state.newSoftwareProduct.isInternal} onCheckedChange={checked => actions.handleNewSoftwareChange('isInternal', !!checked)}/><Label htmlFor="is-internal-soft" className="text-xs">Es Software de Autoría Propia (Permite Módulos)</Label></div>
+                                    <Button className="w-full" onClick={actions.handleSaveSoftware}>
+                                        {state.isSoftwareEditing ? 'Actualizar Producto' : 'Añadir al Catálogo'}
+                                    </Button>
+                                    {state.isSoftwareEditing && <Button variant="ghost" className="w-full text-xs" onClick={() => { actions.setSoftwareEditing(false); actions.handleNewSoftwareChange('name', ''); }}>Cancelar Edición</Button>}
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                <Label className="text-xs font-black uppercase text-muted-foreground flex items-center gap-2">
+                                    <Settings2 className="h-3 w-3" /> Mapeo de Protocolo (m01 - m10)
+                                </Label>
+                                {state.newSoftwareProduct.isInternal ? (
+                                    <ScrollArea className="h-[400px] pr-4">
+                                        <div className="grid gap-4">
+                                            {moduleKeys.map((key, i) => (
+                                                <div key={key} className="space-y-1.5 p-3 rounded-lg border bg-background">
+                                                    <Label className="text-[10px] font-bold text-primary uppercase">Nombre del Módulo {i+1} (ID: {key.toUpperCase()})</Label>
+                                                    <Input 
+                                                        value={state.newSoftwareProduct[`${key}_name` as keyof SoftwareProduct] || ''} 
+                                                        onChange={e => actions.handleNewSoftwareChange(`${key}_name` as keyof SoftwareProduct, e.target.value)}
+                                                        placeholder="Ej: Facturación, Inventarios..."
+                                                        className="h-8 text-xs"
+                                                    />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </ScrollArea>
+                                ) : (
+                                    <div className="flex flex-col items-center justify-center h-[400px] text-center p-10 border-2 border-dashed rounded-xl opacity-20 bg-muted/50">
+                                        <Settings2 className="h-10 w-10 mb-2" />
+                                        <p className="text-[10px] font-bold uppercase">Mapeo Desactivado</p>
+                                        <p className="text-[10px]">No disponible para software de terceros.</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </DialogContent>
+                </Dialog>
+
+                <AlertDialog open={!!state.licenseToDelete} onOpenChange={(open) => !open && actions.setLicenseToDelete(null)}>
+                    <AlertDialogContent>
+                        <AlertDialogHeader><AlertDialogTitle>¿Eliminar Licencia?</AlertDialogTitle><AlertDialogDescription>Esta acción no se puede deshacer y bloqueará el acceso al software hijo.</AlertDialogDescription></AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={actions.handleDeleteLicense}>Sí, eliminar</AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+            </main>
+        </TooltipProvider>
     );
 }

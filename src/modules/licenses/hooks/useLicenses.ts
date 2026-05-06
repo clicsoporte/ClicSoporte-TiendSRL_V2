@@ -17,6 +17,7 @@ import {
     deleteLicense as deleteLicenseServer,
     getSoftwareProducts, 
     addSoftwareProduct, 
+    updateSoftwareProduct,
     deleteSoftwareProduct,
     generateNewKeys
 } from '../lib/actions';
@@ -31,11 +32,15 @@ const emptyLicense: Partial<License> = {
     isPerpetual: false,
     expirationDate: '',
     status: 'active',
+    m01_val: false, m02_val: false, m03_val: false, m04_val: false, m05_val: false,
+    m06_val: false, m07_val: false, m08_val: false, m09_val: false, m10_val: false
 };
 
 const emptySoftwareProduct: Omit<SoftwareProduct, 'id'> = {
     name: '',
     isInternal: false,
+    m01_name: '', m02_name: '', m03_name: '', m04_name: '', m05_name: '',
+    m06_name: '', m07_name: '', m08_name: '', m09_name: '', m10_name: ''
 };
 
 export const useLicenses = () => {
@@ -53,7 +58,8 @@ export const useLicenses = () => {
         isEditing: false,
         currentLicense: emptyLicense,
         isSoftwareDialogOpen: false,
-        newSoftwareProduct: emptySoftwareProduct,
+        isSoftwareEditing: false,
+        newSoftwareProduct: emptySoftwareProduct as any,
         licenseToDelete: null as License | null,
         companySearchTerm: '',
         isCompanySearchOpen: false,
@@ -88,11 +94,11 @@ export const useLicenses = () => {
         }
     }, [isAuthorized, loadInitialData, setTitle]);
 
-    const handleCurrentLicenseChange = (field: keyof License, value: string | number | boolean | null) => {
+    const handleCurrentLicenseChange = (field: keyof License, value: any) => {
         updateState({ currentLicense: { ...state.currentLicense, [field]: value } });
     };
     
-    const handleNewSoftwareChange = (field: keyof typeof emptySoftwareProduct, value: string | boolean) => {
+    const handleNewSoftwareChange = (field: keyof SoftwareProduct, value: any) => {
         updateState({ newSoftwareProduct: { ...state.newSoftwareProduct, [field]: value } });
     };
 
@@ -131,7 +137,6 @@ export const useLicenses = () => {
 
         const licensePayload = { ...currentLicense };
         if(selectedSoftware?.isInternal) {
-            // For internal software, the server will generate the key.
             if (!isEditing) {
                 delete licensePayload.licenseKey;
             }
@@ -185,12 +190,32 @@ export const useLicenses = () => {
         }
     };
 
-    const handleCreateSoftware = async () => {
+    const handleOpenSoftwareEdit = (product: SoftwareProduct) => {
+        updateState({ 
+            newSoftwareProduct: { ...product }, 
+            isSoftwareEditing: true 
+        });
+    };
+
+    const handleSaveSoftware = async () => {
         if (!state.newSoftwareProduct.name) return;
         try {
-            const newProd = await addSoftwareProduct(state.newSoftwareProduct);
-            updateState({ softwareProducts: [...state.softwareProducts, newProd], newSoftwareProduct: emptySoftwareProduct });
-            toast({ title: "Producto de Software Creado" });
+            if (state.isSoftwareEditing) {
+                const updated = await updateSoftwareProduct(state.newSoftwareProduct);
+                updateState({ 
+                    softwareProducts: state.softwareProducts.map(p => p.id === updated.id ? updated : p),
+                    newSoftwareProduct: emptySoftwareProduct,
+                    isSoftwareEditing: false
+                });
+                toast({ title: "Software Actualizado" });
+            } else {
+                const newProd = await addSoftwareProduct(state.newSoftwareProduct);
+                updateState({ 
+                    softwareProducts: [...state.softwareProducts, newProd], 
+                    newSoftwareProduct: emptySoftwareProduct 
+                });
+                toast({ title: "Software Creado" });
+            }
         } catch (error: unknown) {
             const err = error as { message: string };
             toast({ title: "Error", description: err.message, variant: "destructive" });
@@ -201,7 +226,7 @@ export const useLicenses = () => {
         try {
             await deleteSoftwareProduct(id);
             updateState({ softwareProducts: state.softwareProducts.filter(p => p.id !== id) });
-            toast({ title: "Producto de Software Eliminao" });
+            toast({ title: "Producto Eliminado" });
         } catch (error: unknown) {
             const err = error as { message: string };
             toast({ title: "Error", description: err.message, variant: "destructive" });
@@ -242,13 +267,13 @@ export const useLicenses = () => {
             toast({ title: "Operación no permitida", description: "Solo se pueden descargar archivos de licencia para software propio.", variant: "destructive" });
             return;
         }
-        const blob = new Blob([license.licenseKey], { type: 'text/plain' });
+        const blob = new Blob([license.licenseKey], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
         const softwareName = software.name.replace(/\s+/g, '_') || 'software';
         const clientName = customers.find(c => c.id === license.customerId)?.name.replace(/\s+/g, '_') || 'cliente';
-        a.download = `license_${softwareName}_${clientName}.lic`;
+        a.download = `licencia_${softwareName}_${clientName}.json`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -284,8 +309,10 @@ export const useLicenses = () => {
         handleSaveLicense,
         handleEditLicense,
         handleDeleteLicense,
-        handleCreateSoftware,
+        handleSaveSoftware,
         handleDeleteSoftware,
+        handleOpenSoftwareEdit,
+        setSoftwareEditing: (val: boolean) => updateState({ isSoftwareEditing: val }),
         resetCurrentLicense,
         setExpirationDatePreset,
         handleGenerateKeys,

@@ -28,7 +28,7 @@ export const MASTER_SCHEMA: ExpectedSchema = {
         'salesperson', 'active', 'email', 'electronicDocEmail', 'isManual', 'contacts', 
         'supportPackageId', 'taxRegime', 'taxStatus', 'isTaxMoroso', 'isTaxOmiso', 
         'taxAdministration', 'taxActivities', 'provinceId', 'cantonId', 'districtId', 'telegramChatId',
-        'isBlocked', 'blockedReason', 'notifyTickets', 'notifyLicenses'
+        'isBlocked', 'blockedReason', 'notifyTickets', 'notifyLicenses', 'parentCustomerId'
     ],
     products: ['id', 'description', 'classification', 'lastEntry', 'active', 'notes', 'unit', 'isBasicGood', 'cabys'],
     stock: ['itemId', 'stockByWarehouse', 'totalStock'],
@@ -77,8 +77,16 @@ export const MASTER_SCHEMA: ExpectedSchema = {
     project_advances: ['id', 'projectId', 'timestamp', 'content', 'userId', 'userName'],
     project_attachments: ['id', 'projectId', 'name', 'fileName', 'fileType', 'data', 'uploadedBy', 'createdAt'],
     project_items: ['id', 'projectId', 'description', 'quantity', 'unitPrice', 'type'],
-    software_products: ['id', 'name', 'isInternal'],
-    licenses: ['id', 'licenseKey', 'softwareId', 'customerId', 'hardwareId', 'isPerpetual', 'expirationDate', 'status', 'createdAt'],
+    software_products: [
+        'id', 'name', 'isInternal', 
+        'm01_name', 'm02_name', 'm03_name', 'm04_name', 'm05_name', 
+        'm06_name', 'm07_name', 'm08_name', 'm09_name', 'm10_name'
+    ],
+    licenses: [
+        'id', 'licenseKey', 'activationToken', 'softwareId', 'customerId', 'hardwareId', 'isPerpetual', 'expirationDate', 'status', 'createdAt',
+        'm01_val', 'm02_val', 'm03_val', 'm04_val', 'm05_val', 
+        'm06_val', 'm07_val', 'm08_val', 'm09_val', 'm10_val'
+    ],
     time_entries: [
         'id', 'ticketId', 'userId', 'startTime', 'endTime', 'duration', 'billableDuration', 
         'billingStatus', 'externalInvoiceNumber', 'notes', 'isBillable', 'createdAt'
