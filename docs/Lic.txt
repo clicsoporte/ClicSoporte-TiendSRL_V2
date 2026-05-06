@@ -245,23 +245,32 @@ export async function validateLicense(): Promise<ValidationResult> {
 - Si devuelve `isValid: false`, mostrar la pantalla de activación con el mensaje de error y el `hardwareId` actual para que el usuario pueda solicitar una nueva licencia.
 
 -----------------------------
-5. Plan de Acción v2.0: Sistema de Licenciamiento Híbrido (Online/Offline)
+5. Plan de Acción REFINADO v2.1: Sistema Híbrido Profesional
 -----------------------------
 
-Para mejorar el sistema actual y permitir activaciones online con control en tiempo real, se propone el siguiente plan de evolución:
+Tras analizar los puntos débiles, se proponen las siguientes mejoras para la versión 2.1:
 
-### Fase 1: Infraestructura de API en Clic-Tools
-- **Endpoint de Activación (`/api/licenses/activate`)**: El software cliente envía su `hardwareId` y una `activationKey`. El servidor valida, vincula el hardware y devuelve el `license.json` firmado digitalmente.
-- **Endpoint de Verificación (`/api/licenses/check`)**: El cliente envía periódicamente un "Heartbeat". El servidor responde si la licencia sigue activa o si ha sido revocada (Kill-Switch).
-- **Manejo de Estados en DB**: Añadir columnas `activationDate`, `lastCheckIn` y `revocationStatus` a la tabla `licenses`.
+### Fase 1: Infraestructura de Activación Dinámica
+- **Tokens de Activación (Pre-shared Keys):** El administrador genera un token de 12 caracteres (ej: `CLIC-4455-8899`). Este token se le entrega al cliente.
+- **Endpoint de Activación (`/api/licenses/activate`):** El software cliente envía su `hardwareId` + `activationToken`. Clic-Tools valida que el token sea válido y no haya sido usado, lo marca como "Utilizado" y devuelve el `license.json` firmado.
+- **JWT para Sesiones Online:** Una vez activado, el servidor devuelve un JWT que el cliente guarda. Este token permite realizar "Heartbeats" ligeros.
 
-### Fase 2: Robustez del Cliente (Clic-Cola)
-- **Modo Híbrido**: El cliente intenta validar online al iniciar. Si no hay internet, recurre a la validación offline del `license.json` local (almacenado en la activación inicial).
-- **Protección contra Reloj**: Al estar online, el cliente sincroniza su reloj con el del servidor para evitar que el usuario atrase la fecha de la PC para burlar el vencimiento.
-- **Fingerprinting Avanzado**: Mejorar el `hardwareId` incluyendo el serial de la placa base o UUID del sistema de archivos para mayor unicidad.
+### Fase 2: Robustez y Periodos de Gracia
+- **Política de Re-validación:** El cliente debe validar su licencia online al menos una vez cada 7 días.
+- **Cache Local con TTL:** Si no hay internet, el cliente permite el uso basándose en el archivo local, pero muestra un aviso: "Validación pendiente en 3 días".
+- **Sincronización de Tiempo:** Para evitar fraudes con el reloj de Windows, el cliente obtiene la hora desde el servidor (o vía NTP) en cada conexión exitosa y la compara con su reloj interno.
 
-### Fase 3: Gestión Administrativa
-- **Dashboard de Conexiones**: Visualizar qué equipos están usando qué licencias en tiempo real.
-- **Botón de Revocación**: Permitir al administrador invalidar una licencia instantáneamente desde el panel web.
+### Fase 3: Licenciamiento por Funcionalidades
+- **Granularidad en JSON:** El objeto `license_info` ahora incluirá flags:
+  ```json
+  "features": { "module_inventory": true, "max_terminals": 3, "level": "premium" }
+  ```
+- **Control Centralizado:** El administrador puede "upgradear" una licencia desde Clic-Tools y el cliente se actualizará automáticamente en el siguiente Heartbeat.
 
-Este enfoque mantiene la autonomía del cliente (offline friendly) pero otorga control total al proveedor cuando el cliente se conecta.
+### Fase 4: Seguridad Avanzada (Anti-Cracking)
+- **Ofuscación de Clave Pública:** No leer la clave pública desde un archivo `.pem` externo (fácil de swappear). Incrustarla como una variable ofuscada o segmentada dentro del código binario del cliente.
+- **Fingerprinting Mejorado:** Incluir el UUID de la partición del sistema y el serial de la CPU en el cálculo del `hardwareId` para evitar clonación de máquinas virtuales.
+
+### Fase 5: Dashboard de Gestión
+- **Portal de Activaciones:** Vista en Clic-Tools que muestra: Máquina (Nombre), IP de activación, última conexión y versión del software que está ejecutando.
+- **Kill-Switch:** Botón para "Revocar" una licencia. En la siguiente conexión del cliente, este recibirá una orden de auto-destrucción del archivo local y bloqueo de acceso.
