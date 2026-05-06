@@ -298,7 +298,7 @@ export const useLicenses = () => {
     };
 
     const actions = {
-        setIsFormOpen: (isOpen: boolean) => updateState({ isNewTicketDialogOpen: false, isFormOpen: isOpen }), // isNewTicketDialogOpen was likely a copy-paste error
+        setIsFormOpen: (isOpen: boolean) => updateState({ isFormOpen: isOpen }),
         setIsSoftwareDialogOpen: (isOpen: boolean) => updateState({ isSoftwareDialogOpen: isOpen }),
         setLicenseToDelete: (license: License | null) => updateState({ licenseToDelete: license }),
         handleCurrentLicenseChange,
