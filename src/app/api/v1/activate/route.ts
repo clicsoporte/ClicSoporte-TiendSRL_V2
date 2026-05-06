@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview API Endpoint for child software activation.
  * Handles the linking between an activation token and a hardware ID.
@@ -68,7 +67,7 @@ export async function POST(req: NextRequest) {
             license_file: signedData
         });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Activation API Error:', error);
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }

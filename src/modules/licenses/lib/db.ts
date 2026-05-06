@@ -23,13 +23,14 @@ function generateActivationToken(): string {
 
 export async function getLicenses(): Promise<License[]> {
     const db = await connectLicensesDb();
-    const results = db.prepare('SELECT * FROM licenses ORDER BY createdAt DESC').all() as any[];
+    const results = db.prepare('SELECT * FROM licenses ORDER BY createdAt DESC').all() as Record<string, any>[];
     return results.map(r => ({
         ...r,
+        id: Number(r.id),
         m01_val: r.m01_val === 1, m02_val: r.m02_val === 1, m03_val: r.m03_val === 1, m04_val: r.m04_val === 1, m05_val: r.m05_val === 1,
         m06_val: r.m06_val === 1, m07_val: r.m07_val === 1, m08_val: r.m08_val === 1, m09_val: r.m09_val === 1, m10_val: r.m10_val === 1,
         isPerpetual: r.isPerpetual === 1
-    })) as License[];
+    })) as unknown as License[];
 }
 
 /**
@@ -92,13 +93,14 @@ export async function addLicense(licenseData: Omit<License, 'id' | 'createdAt'>)
         m06_val: licenseData.m06_val ? 1 : 0, m07_val: licenseData.m07_val ? 1 : 0, m08_val: licenseData.m08_val ? 1 : 0, m09_val: licenseData.m09_val ? 1 : 0, m10_val: licenseData.m10_val ? 1 : 0
     });
 
-    const result = db.prepare('SELECT * FROM licenses WHERE id = ?').get(info.lastInsertRowid) as any;
+    const result = db.prepare('SELECT * FROM licenses WHERE id = ?').get(info.lastInsertRowid) as Record<string, any>;
     return {
         ...result,
+        id: Number(result.id),
         m01_val: result.m01_val === 1, m02_val: result.m02_val === 1, m03_val: result.m03_val === 1, m04_val: result.m04_val === 1, m05_val: result.m05_val === 1,
         m06_val: result.m06_val === 1, m07_val: result.m07_val === 1, m08_val: result.m08_val === 1, m09_val: result.m09_val === 1, m10_val: result.m10_val === 1,
         isPerpetual: result.isPerpetual === 1
-    } as License;
+    } as unknown as License;
 }
 
 /**
@@ -152,13 +154,14 @@ export async function updateLicense(license: License): Promise<License> {
         m06_val: license.m06_val ? 1 : 0, m07_val: license.m07_val ? 1 : 0, m08_val: license.m08_val ? 1 : 0, m09_val: license.m09_val ? 1 : 0, m10_val: license.m10_val ? 1 : 0
     });
     
-    const result = db.prepare('SELECT * FROM licenses WHERE id = ?').get(license.id) as any;
+    const result = db.prepare('SELECT * FROM licenses WHERE id = ?').get(license.id) as Record<string, any>;
     return {
         ...result,
+        id: Number(result.id),
         m01_val: result.m01_val === 1, m02_val: result.m02_val === 1, m03_val: result.m03_val === 1, m04_val: result.m04_val === 1, m05_val: result.m05_val === 1,
         m06_val: result.m06_val === 1, m07_val: result.m07_val === 1, m08_val: result.m08_val === 1, m09_val: result.m09_val === 1, m10_val: result.m10_val === 1,
         isPerpetual: result.isPerpetual === 1
-    } as License;
+    } as unknown as License;
 }
 
 export async function deleteLicense(id: number): Promise<void> {

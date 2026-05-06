@@ -26,7 +26,6 @@ import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
@@ -249,7 +248,7 @@ export async function activateSoftwareOnline(softwareId: number, token: string) 
                                                                 </h3>
                                                                 <div className="grid grid-cols-1 gap-2 bg-muted/10 p-4 rounded-xl border max-h-[400px] overflow-y-auto">
                                                                     {moduleKeys.map((key) => {
-                                                                        const moduleName = (selectedSoftware as any)[`${key}_name`];
+                                                                        const moduleName = (selectedSoftware as Record<string, any>)[`${key}_name`];
                                                                         const valKey = `${key}_val` as keyof License;
                                                                         if (!moduleName) return null;
                                                                         
@@ -260,7 +259,7 @@ export async function activateSoftwareOnline(softwareId: number, token: string) 
                                                                                     <span className="text-[9px] font-mono uppercase text-muted-foreground">ID Lógico: {key.toUpperCase()}</span>
                                                                                 </div>
                                                                                 <Switch 
-                                                                                    checked={!!(state.currentLicense as any)[valKey]} 
+                                                                                    checked={!!(state.currentLicense as Record<string, any>)[valKey]} 
                                                                                     onCheckedChange={(checked) => actions.handleCurrentLicenseChange(valKey, checked)} 
                                                                                 />
                                                                             </div>
@@ -362,7 +361,7 @@ export async function activateSoftwareOnline(softwareId: number, token: string) 
                                 <DialogTitle>Kit de Integración (SDK Estándar v2.3)</DialogTitle>
                             </div>
                             <DialogDescription>
-                                Copia estos fragmentos de código en tus programas "hijos" para que puedan conectarse a esta autoridad central.
+                                Copia estos fragmentos de código en tus programas &quot;hijos&quot; para que puedan conectarse a esta autoridad central.
                             </DialogDescription>
                         </DialogHeader>
                         
@@ -465,7 +464,7 @@ export async function activateSoftwareOnline(softwareId: number, token: string) 
                                                 <div key={key} className="space-y-1.5 p-3 rounded-lg border bg-background">
                                                     <Label className="text-[10px] font-bold text-primary uppercase">Nombre del Módulo {i+1} (ID: {key.toUpperCase()})</Label>
                                                     <Input 
-                                                        value={(state.newSoftwareProduct as any)[`${key}_name`] || ''} 
+                                                        value={(state.newSoftwareProduct as Record<string, any>)[`${key}_name`] || ''} 
                                                         onChange={e => actions.handleNewSoftwareChange(`${key}_name` as keyof SoftwareProduct, e.target.value)}
                                                         placeholder="Ej: Facturación, Inventarios..."
                                                         className="h-8 text-xs"

@@ -59,7 +59,7 @@ export const useLicenses = () => {
         currentLicense: emptyLicense,
         isSoftwareDialogOpen: false,
         isSoftwareEditing: false,
-        newSoftwareProduct: emptySoftwareProduct as any,
+        newSoftwareProduct: emptySoftwareProduct as Omit<SoftwareProduct, 'id'> & { id?: number },
         licenseToDelete: null as License | null,
         companySearchTerm: '',
         isCompanySearchOpen: false,
@@ -94,11 +94,11 @@ export const useLicenses = () => {
         }
     }, [isAuthorized, loadInitialData, setTitle]);
 
-    const handleCurrentLicenseChange = (field: keyof License, value: any) => {
+    const handleCurrentLicenseChange = (field: keyof License, value: string | number | boolean | null) => {
         updateState({ currentLicense: { ...state.currentLicense, [field]: value } });
     };
     
-    const handleNewSoftwareChange = (field: keyof SoftwareProduct, value: any) => {
+    const handleNewSoftwareChange = (field: keyof SoftwareProduct, value: string | boolean | null) => {
         updateState({ newSoftwareProduct: { ...state.newSoftwareProduct, [field]: value } });
     };
 
@@ -156,7 +156,7 @@ export const useLicenses = () => {
             }
             updateState({ isFormOpen: false, currentLicense: emptyLicense, isEditing: false, companySearchTerm: '' });
         } catch (error: unknown) {
-            const err = error as { message: string };
+            const err = error as Error;
             logError('Failed to save license', { error: err.message, currentLicense: licensePayload });
             toast({ title: "Error al Guardar", description: err.message, variant: "destructive" });
         } finally {
@@ -182,7 +182,7 @@ export const useLicenses = () => {
             updateState({ licenses: state.licenses.filter(l => l.id !== state.licenseToDelete!.id), licenseToDelete: null });
             toast({ title: "Licencia Eliminada" });
         } catch (error: unknown) {
-            const err = error as { message: string };
+            const err = error as Error;
             logError('Failed to delete license', { error: err.message });
             toast({ title: "Error al Eliminar", description: err.message, variant: "destructive" });
         } finally {
@@ -201,7 +201,7 @@ export const useLicenses = () => {
         if (!state.newSoftwareProduct.name) return;
         try {
             if (state.isSoftwareEditing) {
-                const updated = await updateSoftwareProduct(state.newSoftwareProduct);
+                const updated = await updateSoftwareProduct(state.newSoftwareProduct as SoftwareProduct);
                 updateState({ 
                     softwareProducts: state.softwareProducts.map(p => p.id === updated.id ? updated : p),
                     newSoftwareProduct: emptySoftwareProduct,
@@ -217,7 +217,7 @@ export const useLicenses = () => {
                 toast({ title: "Software Creado" });
             }
         } catch (error: unknown) {
-            const err = error as { message: string };
+            const err = error as Error;
             toast({ title: "Error", description: err.message, variant: "destructive" });
         }
     };
@@ -228,7 +228,7 @@ export const useLicenses = () => {
             updateState({ softwareProducts: state.softwareProducts.filter(p => p.id !== id) });
             toast({ title: "Producto Eliminado" });
         } catch (error: unknown) {
-            const err = error as { message: string };
+            const err = error as Error;
             toast({ title: "Error", description: err.message, variant: "destructive" });
         }
     };
@@ -254,7 +254,7 @@ export const useLicenses = () => {
                 toast({ title: "Error", description: result.message, variant: 'destructive' });
             }
         } catch (error: unknown) {
-            const err = error as { message: string };
+            const err = error as Error;
             toast({ title: "Error Crítico", description: err.message, variant: 'destructive' });
         } finally {
             updateState({ isSubmitting: false });
