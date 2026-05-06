@@ -8,7 +8,7 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useTickets } from '@/modules/tickets/hooks/useTickets';
-import type { Ticket, TicketThread, TicketPriority, ThirdPartyProvider, TimeEntry, License, Equipment } from '@/modules/core/types';
+import type { Ticket, TicketThread, TicketPriority, ThirdPartyProvider, TimeEntry, License, Equipment, User } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -67,6 +67,9 @@ export default function TicketDetailPage() {
     const [closureType, setClosureType] = useState<'completed' | 'canceled'>('completed');
     const [closureContent, setClosureContent] = useState("");
 
+    // Agenda State
+    const [tempVisitDate, setTempVisitDate] = useState("");
+
     // Report Dialog State
     const [isReportDialogOpen, setReportDialogOpen] = useState(false);
     const [selectedEmailRecipients, setSelectedEmailRecipients] = useState<string[]>([]);
@@ -108,6 +111,7 @@ export default function TicketDetailPage() {
                 setThread(threadData);
                 setTimeEntries(entriesData);
                 setAllLicenses(licensesData);
+                setTempVisitDate(ticketData.scheduledVisit || "");
 
                 if (ticketData.equipmentId) {
                     const eqData = await getEquipmentDetails(ticketData.equipmentId);
@@ -165,7 +169,7 @@ export default function TicketDetailPage() {
             
             if (updates.status === 'in_progress') toast({ title: "Cronómetro Iniciado Automáticamente" });
             if (updates.status === 'on_hold') toast({ title: "Tiempo Pausado" });
-            if (updates.scheduledVisit) toast({ title: "Visita Programada", description: "El cliente ha sido notificado." });
+            if (updates.scheduledVisit) toast({ title: "Atención Programada", description: "El cliente ha sido notificado de la agenda." });
         }
     };
 
@@ -450,8 +454,6 @@ export default function TicketDetailPage() {
     );
 
     const ProviderCard = () => {
-        const [tempVisitDate, setTempVisitDate] = useState(ticket.scheduledVisit || "");
-
         return (
             <Card className="overflow-hidden">
                 <CardHeader className="p-4 pb-2">
@@ -505,40 +507,6 @@ export default function TicketDetailPage() {
                                     </div>
                                 </div>
                             )}
-
-                            {/* --- Programación de Visita --- */}
-                            <div className="pt-4 border-t border-dashed mt-2 space-y-2">
-                                <Label className="text-[10px] font-black uppercase text-blue-700 flex items-center gap-1">
-                                    <CalendarIcon className="h-3 w-3" /> Programar Visita Técnica
-                                </Label>
-                                <div className="flex gap-2">
-                                    <Input 
-                                        type="datetime-local" 
-                                        className="h-8 text-[11px] font-mono"
-                                        value={tempVisitDate}
-                                        onChange={(e) => setTempVisitDate(e.target.value)}
-                                        disabled={!hasPermission('tickets:manage') || ticket.status === 'completed' || ticket.status === 'canceled'}
-                                    />
-                                    <Button 
-                                        size="icon" 
-                                        className="h-8 w-8 shrink-0" 
-                                        variant="secondary"
-                                        onClick={() => handleDetailUpdate({ scheduledVisit: tempVisitDate })}
-                                        disabled={!tempVisitDate || tempVisitDate === ticket.scheduledVisit || !hasPermission('tickets:manage')}
-                                        title="Notificar Visita al Cliente"
-                                    >
-                                        <Save className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                                {ticket.scheduledVisit && (
-                                    <Alert className="py-2 bg-blue-50 border-blue-100">
-                                        <ClockIcon className="h-3 w-3 text-blue-600" />
-                                        <AlertDescription className="text-[10px] font-bold text-blue-800">
-                                            Programada: {format(parseISO(ticket.scheduledVisit), 'dd/MM/yyyy hh:mm a')}
-                                        </AlertDescription>
-                                    </Alert>
-                                )}
-                            </div>
                         </div>
                     )}
                 </CardContent>
@@ -740,9 +708,6 @@ export default function TicketDetailPage() {
                     />
                 )}
 
-                <LinkedHardwareCard />
-                <LinkedLicenseCard />
-
                 <Card>
                     <CardHeader className="p-4 pb-2"><CardTitle className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Flujo de Trabajo</CardTitle></CardHeader>
                     <CardContent className="p-4 pt-0 space-y-4">
@@ -817,12 +782,48 @@ export default function TicketDetailPage() {
                                 </SelectContent>
                             </Select>
                         </div>
+
+                        {/* --- Programación de Soporte (Agenda) --- */}
+                        <div className="pt-4 border-t border-dashed mt-2 space-y-2">
+                            <Label className="text-[10px] font-black uppercase text-blue-700 flex items-center gap-1">
+                                <CalendarIcon className="h-3 w-3" /> Programar Atención / Soporte
+                            </Label>
+                            <div className="flex gap-2">
+                                <Input 
+                                    type="datetime-local" 
+                                    className="h-8 text-[11px] font-mono"
+                                    value={tempVisitDate}
+                                    onChange={(e) => setTempVisitDate(e.target.value)}
+                                    disabled={!hasPermission('tickets:manage') || ticket.status === 'completed' || ticket.status === 'canceled'}
+                                />
+                                <Button 
+                                    size="icon" 
+                                    className="h-8 w-8 shrink-0" 
+                                    variant="secondary"
+                                    onClick={() => handleDetailUpdate({ scheduledVisit: tempVisitDate })}
+                                    disabled={!tempVisitDate || tempVisitDate === ticket.scheduledVisit || !hasPermission('tickets:manage')}
+                                    title="Notificar Agenda al Cliente"
+                                >
+                                    <Save className="h-4 w-4" />
+                                </Button>
+                            </div>
+                            {ticket.scheduledVisit && (
+                                <Alert className="py-2 bg-blue-50 border-blue-100">
+                                    <ClockIcon className="h-3 w-3 text-blue-600" />
+                                    <AlertDescription className="text-[10px] font-bold text-blue-800">
+                                        Agendado: {format(parseISO(ticket.scheduledVisit), 'dd/MM/yyyy hh:mm a')}
+                                    </AlertDescription>
+                                </Alert>
+                            )}
+                        </div>
                     </CardContent>
                 </Card>
 
                 <div className="xl:hidden space-y-6 pt-4 border-t">
                     <BillingAndCoverageCard />
                     <ProviderCard />
+                    <LinkedHardwareCard />
+                    <LinkedLicenseCard />
                     <CustomerCard />
                 </div>
             </aside>
@@ -831,6 +832,8 @@ export default function TicketDetailPage() {
                 <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest px-1 mb-2">Contexto y Referencia</h3>
                 <BillingAndCoverageCard />
                 <ProviderCard />
+                <LinkedHardwareCard />
+                <LinkedLicenseCard />
                 <CustomerCard />
             </aside>
 

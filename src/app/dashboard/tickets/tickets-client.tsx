@@ -9,7 +9,7 @@ import { useTickets } from "@/modules/tickets/hooks/useTickets";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
-import { FilePlus, Loader2, FilterX, ShieldCheck, ShieldAlert, Clock, Info, EyeOff, MapPin, Zap, UserCircle, Mail, MessageCircle, Laptop, ChevronDown } from "lucide-react";
+import { FilePlus, Loader2, FilterX, ShieldCheck, ShieldAlert, Clock, Info, EyeOff, MapPin, Zap, UserCircle, Mail, MessageCircle, Laptop, ChevronDown, Calendar as CalendarIcon } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -24,7 +24,7 @@ import { useRouter } from "next/navigation";
 import { useAuthorization } from "@/modules/core/hooks/useAuthorization";
 import Link from "next/link";
 import { useAuth } from "@/modules/core/hooks/useAuth";
-import type { Ticket, License, Equipment } from '@/modules/core/types';
+import type { Ticket, License, Equipment, CustomerContact } from '@/modules/core/types';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
 import { useMemo } from "react";
@@ -291,6 +291,23 @@ export default function TicketsClient() {
                                             <div className="space-y-2">
                                                 <Label className="text-xs">Descripción Detallada</Label>
                                                 <Textarea id="new-ticket-content" rows={6} value={newTicket.content} onChange={(e) => actions.handleNewTicketChange('content', e.target.value)} required disabled={isCustomerBlocked} />
+                                            </div>
+
+                                            {/* --- Programación de Soporte (Agenda) --- */}
+                                            <div className="pt-4 border-t border-dashed space-y-2">
+                                                <Label className="text-[10px] font-black uppercase text-blue-700 flex items-center gap-1">
+                                                    <CalendarIcon className="h-3 w-3" /> Programar Inicio de Atención (Opcional)
+                                                </Label>
+                                                <div className="max-w-xs">
+                                                    <Input 
+                                                        type="datetime-local" 
+                                                        className="h-8 text-[11px] font-mono"
+                                                        value={newTicket.scheduledVisit || ''}
+                                                        onChange={(e) => actions.handleNewTicketChange('scheduledVisit', e.target.value)}
+                                                        disabled={isCustomerBlocked}
+                                                    />
+                                                </div>
+                                                <p className="text-[10px] text-muted-foreground italic">Si define una fecha, el cliente recibirá una notificación de agenda al abrirse el ticket.</p>
                                             </div>
                                         </div>
                                         <div className="md:col-span-1 space-y-4 md:border-l md:pl-6">
