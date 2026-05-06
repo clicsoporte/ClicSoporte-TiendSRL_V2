@@ -1,0 +1,94 @@
+
+======================================================================
+     GUÍA TÉCNICA COMPLETA: SISTEMA DE LICENCIAMIENTO Y ARRANQUE V2.5
+======================================================================
+
+Este documento detalla el ESTÁNDAR OBLIGATORIO para todos los desarrollos
+"hijos" que utilicen la Autoridad Central de Clic-Soporte (Vultr VPS).
+
+----------------------------------------------------------------------
+1. ESTRUCTURAS DE DATOS (src/types/license.ts)
+----------------------------------------------------------------------
+export type LicenseStatus = 'VALID' | 'INVALID_KEY' | 'EXPIRED' | 'BLOCKED' | 'UNLICENSED' | 'ERROR' | 'FREE_MODE';
+
+export interface LicenseState {
+    hardwareId: string;
+    isValid: boolean;
+    status: LicenseStatus;
+    expiresAt?: string;
+    modules: Record<string, boolean>; // m01 a m10
+    type?: 'online' | 'offline' | 'free' | 'unlicensed';
+    message?: string;
+}
+
+export interface OfflineLicenseFile {
+    license_info: {
+        softwareId: number;
+        softwareName: string;
+        hardwareId: string;
+        activationToken: string;
+        isPerpetual: boolean;
+        expirationDate: string;
+        status: string; // 'active' o 'FREE_MODE'
+        modules: Record<string, boolean>;
+    };
+    signature: string; // Firma RSA-SHA256 en formato HEX
+}
+
+----------------------------------------------------------------------
+2. PROTOCOLO DE ARRANQUE (Jerarquía de Control)
+----------------------------------------------------------------------
+El archivo `src/app/page.tsx` de CUALQUIER software hijo DEBE orquestar
+el inicio en el siguiente orden estricto:
+
+1. ¿Licencia válida? (getLicenseState())
+   - SI: Continúa al paso 2.
+   - NO: Muestra <ActivationForm /> (Pide Token, Archivo o Registro Gratis).
+2. ¿Existen usuarios en DB local? (getUserCount())
+   - SI: Continúa al paso 3.
+   - NO: Muestra <SetupWizard /> (Obliga a crear el primer Admin y Empresa).
+3. ¿Usuario logueado? (getCurrentUser())
+   - SI: Muestra el Dashboard principal.
+   - NO: Muestra <LoginForm />.
+
+----------------------------------------------------------------------
+3. NÚCLEO DE CONFIGURACIÓN INICIAL (Setup Wizard)
+----------------------------------------------------------------------
+Al detectar que la tabla de usuarios está vacía, el software hijo debe:
+- Pedir: Nombre de la Empresa, Nombre del Admin, Email y Password.
+- Acción: 
+  a) Crear roles por defecto (admin, operador, visor).
+  b) Insertar el primer usuario con rol 'admin'.
+  c) Guardar el nombre de la empresa en la tabla de configuración local.
+
+----------------------------------------------------------------------
+4. ACCIONES DE ACTIVACIÓN (Server Actions)
+----------------------------------------------------------------------
+La URL del servidor está implícita en el código SDK para seguridad.
+
+// A. ACTIVACIÓN ONLINE (Mediante Token de Pago)
+export async function activateLicense(activationToken: string): Promise<LicenseState> {
+    const hardwareId = await generateHardwareId();
+    const response = await fetch('https://soporte.clicsoporte.com/api/v1/activate', {
+        method: 'POST',
+        body: JSON.stringify({ softwareId: X, activationToken, hardwareId })
+    });
+    // Guarda el JSON firmado devuelto en database/license.json
+}
+
+// B. ACTIVACIÓN MODO GRATUITO (Captura de Lead)
+export async function registerFreeVersion(name: string, email: string) {
+    const hardwareId = await generateHardwareId();
+    const response = await fetch('https://soporte.clicsoporte.com/api/v1/register-free', {
+        method: 'POST',
+        body: JSON.stringify({ softwareId: X, hardwareId, customerName: name, customerEmail: email })
+    });
+    // El servidor devuelve una licencia firmada tipo FREE_MODE.
+    // Guardar en database/license.json.
+}
+
+----------------------------------------------------------------------
+5. NOTA SOBRE MÓDULOS
+----------------------------------------------------------------------
+- El hijo solo debe preguntar por `license.modules.mXX` para activar UI.
+- Si la licencia es gratuita, el hijo DEBE mostrar banners publicitarios.

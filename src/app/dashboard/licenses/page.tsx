@@ -21,7 +21,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SearchInput } from '@/components/ui/search-input';
-import { PlusCircle, MoreVertical, CalendarIcon, Loader2, Trash2, Download, Edit, ShieldCheck, Boxes, Settings2, Info, Code2, Copy, Check, KeyRound, Eye } from 'lucide-react';
+import { PlusCircle, MoreVertical, CalendarIcon, Loader2, Trash2, Download, Edit, ShieldCheck, Boxes, Settings2, Info, Code2, Copy, Check, KeyRound, Eye, ShieldAlert } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
@@ -104,11 +104,37 @@ export async function validateLicense(licenseFile: any, publicKeyPem: string): P
     verifier.update(message);
     return verifier.verify(publicKeyPem, licenseFile.signature, 'hex');
 }`,
+        boot: `/**
+ * PROTOCOLO DE ARRANQUE ESTÁNDAR (page.tsx de la App Hija)
+ */
+export default async function RootPage() {
+    // 1. ¿Licencia válida?
+    const license = await getLicenseState();
+    if (!license.isValid) {
+        return <ActivationForm hardwareId={license.hardwareId} />;
+    }
+
+    // 2. ¿Existe Administrador? (Setup Wizard)
+    const userCount = await getUserCount();
+    if (userCount === 0) {
+        return <SetupWizard />;
+    }
+
+    // 3. ¿Usuario autenticado?
+    const user = await getCurrentUser();
+    if (!user) {
+        return <LoginForm />;
+    }
+
+    // 4. Todo OK -> Dashboard
+    return <DashboardLayout user={user} license={license} />;
+}`,
         actions: `'use server';
 import { generateHardwareId } from '@/lib/license-validator';
 
 const SERVER_URL = '${state.companyData?.publicUrl || 'https://soporte.clicsoporte.com'}';
 
+// ACTIVACIÓN PREMIUM (TOKEN)
 export async function activateSoftwareOnline(softwareId: number, token: string) {
     const hardwareId = await generateHardwareId();
     const res = await fetch(\`\${SERVER_URL}/api/v1/activate\`, {
@@ -116,9 +142,10 @@ export async function activateSoftwareOnline(softwareId: number, token: string) 
     });
     const result = await res.json();
     if (!res.ok) throw new Error(result.error);
-    return result.license_file;
+    return result.license_file; // Guardar en database/license.json
 }
 
+// ACTIVACIÓN GRATUITA (LEAD)
 export async function registerFreeLicense(softwareId: number, name: string, email: string) {
     const hardwareId = await generateHardwareId();
     const res = await fetch(\`\${SERVER_URL}/api/v1/register-free\`, {
@@ -126,7 +153,7 @@ export async function registerFreeLicense(softwareId: number, name: string, emai
     });
     const result = await res.json();
     if (!res.ok) throw new Error(result.error);
-    return result.license_file;
+    return result.license_file; // Guardar en database/license.json
 }`
     };
 
@@ -358,22 +385,23 @@ export async function registerFreeLicense(softwareId: number, name: string, emai
                 </Card>
 
                 <Dialog open={isSdkDialogOpen} onOpenChange={setSdkDialogOpen}>
-                    <DialogContent className="sm:max-w-4xl h-[85vh] flex flex-col p-0 overflow-hidden">
+                    <DialogContent className="sm:max-w-4xl h-[90vh] flex flex-col p-0 overflow-hidden">
                         <DialogHeader className="p-6 pb-2 border-b">
                             <div className="flex items-center gap-2">
                                 <Code2 className="h-5 w-5 text-primary" />
                                 <DialogTitle>Kit de Integración (SDK Estándar v2.3)</DialogTitle>
                             </div>
                             <DialogDescription>
-                                Copia estos fragmentos de código en tus programas &quot;hijos&quot; para habilitar la activación online/offline y el modo gratuito.
+                                Copia estos fragmentos de código en tus programas &quot;hijos&quot; para habilitar el flujo de arranque, activación y configuración inicial.
                             </DialogDescription>
                         </DialogHeader>
                         
                         <Tabs defaultValue="types" className="flex-1 overflow-hidden flex flex-col">
-                            <TabsList className="px-6 border-b rounded-none bg-muted/20 h-10">
+                            <TabsList className="px-6 border-b rounded-none bg-muted/20 h-10 overflow-x-auto justify-start">
                                 <TabsTrigger value="types" className="text-xs">1. Estructuras</TabsTrigger>
                                 <TabsTrigger value="validator" className="text-xs">2. Validador Core</TabsTrigger>
                                 <TabsTrigger value="actions" className="text-xs">3. Servidor (Actions)</TabsTrigger>
+                                <TabsTrigger value="boot" className="text-xs font-bold text-primary">4. Flujo de Arranque</TabsTrigger>
                             </TabsList>
                             
                             <div className="flex-1 overflow-y-auto p-0">
@@ -383,7 +411,7 @@ export async function registerFreeLicense(softwareId: number, name: string, emai
                                             {copiedSection === 'types' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
                                             {copiedSection === 'types' ? 'Copiado' : 'Copiar'}
                                         </Button>
-                                        <pre className="bg-slate-950 text-slate-100 p-6 rounded-lg text-[11px] font-mono overflow-auto max-h-[500px]">
+                                        <pre className="bg-slate-950 text-slate-100 p-6 rounded-lg text-[11px] font-mono overflow-auto max-h-[600px]">
                                             {sdkCode.types}
                                         </pre>
                                     </div>
@@ -394,7 +422,7 @@ export async function registerFreeLicense(softwareId: number, name: string, emai
                                             {copiedSection === 'validator' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
                                             {copiedSection === 'validator' ? 'Copiado' : 'Copiar'}
                                         </Button>
-                                        <pre className="bg-slate-950 text-slate-100 p-6 rounded-lg text-[11px] font-mono overflow-auto max-h-[500px]">
+                                        <pre className="bg-slate-950 text-slate-100 p-6 rounded-lg text-[11px] font-mono overflow-auto max-h-[600px]">
                                             {sdkCode.validator}
                                         </pre>
                                     </div>
@@ -405,9 +433,29 @@ export async function registerFreeLicense(softwareId: number, name: string, emai
                                             {copiedSection === 'actions' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
                                             {copiedSection === 'actions' ? 'Copiado' : 'Copiar'}
                                         </Button>
-                                        <pre className="bg-slate-950 text-slate-100 p-6 rounded-lg text-[11px] font-mono overflow-auto max-h-[500px]">
+                                        <pre className="bg-slate-950 text-slate-100 p-6 rounded-lg text-[11px] font-mono overflow-auto max-h-[600px]">
                                             {sdkCode.actions}
                                         </pre>
+                                    </div>
+                                </TabsContent>
+                                <TabsContent value="boot" className="m-0 h-full">
+                                    <div className="p-4 space-y-4">
+                                        <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
+                                            <p className="text-xs text-blue-800 font-bold mb-2 uppercase">Protocolo de Control de Acceso:</p>
+                                            <p className="text-xs text-blue-700 leading-relaxed">
+                                                Este código debe ir en el archivo <code className="bg-blue-100 px-1 rounded">src/app/page.tsx</code> del software hijo. 
+                                                Asegura que el sistema no permita el ingreso sin licencia ni sin configurar el primer usuario administrador.
+                                            </p>
+                                        </div>
+                                        <div className="relative">
+                                            <Button variant="secondary" size="sm" className="absolute top-6 right-6 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.boot, 'boot')}>
+                                                {copiedSection === 'boot' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
+                                                {copiedSection === 'boot' ? 'Copiado' : 'Copiar'}
+                                            </Button>
+                                            <pre className="bg-slate-950 text-slate-100 p-6 rounded-lg text-[11px] font-mono overflow-auto max-h-[400px]">
+                                                {sdkCode.boot}
+                                            </pre>
+                                        </div>
                                     </div>
                                 </TabsContent>
                             </div>
