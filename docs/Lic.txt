@@ -243,3 +243,25 @@ export async function validateLicense(): Promise<ValidationResult> {
 - En el componente principal de Clic-Cola, llamar a `validateLicense()` al iniciar.
 - Si devuelve `isValid: true`, mostrar la aplicación.
 - Si devuelve `isValid: false`, mostrar la pantalla de activación con el mensaje de error y el `hardwareId` actual para que el usuario pueda solicitar una nueva licencia.
+
+-----------------------------
+5. Plan de Acción v2.0: Sistema de Licenciamiento Híbrido (Online/Offline)
+-----------------------------
+
+Para mejorar el sistema actual y permitir activaciones online con control en tiempo real, se propone el siguiente plan de evolución:
+
+### Fase 1: Infraestructura de API en Clic-Tools
+- **Endpoint de Activación (`/api/licenses/activate`)**: El software cliente envía su `hardwareId` y una `activationKey`. El servidor valida, vincula el hardware y devuelve el `license.json` firmado digitalmente.
+- **Endpoint de Verificación (`/api/licenses/check`)**: El cliente envía periódicamente un "Heartbeat". El servidor responde si la licencia sigue activa o si ha sido revocada (Kill-Switch).
+- **Manejo de Estados en DB**: Añadir columnas `activationDate`, `lastCheckIn` y `revocationStatus` a la tabla `licenses`.
+
+### Fase 2: Robustez del Cliente (Clic-Cola)
+- **Modo Híbrido**: El cliente intenta validar online al iniciar. Si no hay internet, recurre a la validación offline del `license.json` local (almacenado en la activación inicial).
+- **Protección contra Reloj**: Al estar online, el cliente sincroniza su reloj con el del servidor para evitar que el usuario atrase la fecha de la PC para burlar el vencimiento.
+- **Fingerprinting Avanzado**: Mejorar el `hardwareId` incluyendo el serial de la placa base o UUID del sistema de archivos para mayor unicidad.
+
+### Fase 3: Gestión Administrativa
+- **Dashboard de Conexiones**: Visualizar qué equipos están usando qué licencias en tiempo real.
+- **Botón de Revocación**: Permitir al administrador invalidar una licencia instantáneamente desde el panel web.
+
+Este enfoque mantiene la autonomía del cliente (offline friendly) pero otorga control total al proveedor cuando el cliente se conecta.
