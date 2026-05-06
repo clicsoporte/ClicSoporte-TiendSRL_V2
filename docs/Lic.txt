@@ -1,276 +1,97 @@
 ======================================================================
-     Guía Técnica: Sistema de Activación de Licencias Offline
+     Guía Técnica: Sistema de Activación de Licencias Híbrido v2.2
 ======================================================================
 
-Este documento describe el flujo de trabajo y la implementación técnica para activar software cliente (como Clic-Cola) de forma offline, utilizando Clic-Tools como la autoridad de licenciamiento.
+Este documento describe el flujo de trabajo y la implementación técnica para activar software cliente (hijos) utilizando Clic-Tools (VPS Vultr) como la Autoridad Central de Licenciamiento.
 
 -----------------------------
-1. Resumen del Concepto
+1. Resumen del Concepto Híbrido
 -----------------------------
 
-El sistema se basa en criptografía asimétrica (un par de claves pública/privada) para garantizar que las licencias sean auténticas y no puedan ser alteradas por el usuario final.
+El sistema se basa en criptografía asimétrica (RSA) y una arquitectura Cliente-Servidor (API REST) para garantizar que las licencias sean auténticas, revocables y adaptables a diferentes modelos de negocio (por módulos o licencia única).
 
-- **Clic-Tools (El Servidor):**
-  1. Posee una **Clave Privada** secreta y única.
-  2. Al generar una licencia para un cliente, Clic-Tools empaqueta la información de la licencia (ID de hardware del cliente, fecha de vencimiento, etc.) en un objeto JSON.
-  3. Utiliza su Clave Privada para "firmar" digitalmente esta información.
-  4. Genera un archivo `license.json` que contiene tanto la información original como la firma digital.
-  5. El administrador descarga este archivo y se lo entrega al cliente para que lo coloque en la carpeta del software cliente.
+- **Clic-Tools (El Servidor en Vultr):**
+  1. Actúa como la única fuente de verdad (Single Source of Truth).
+  2. Gestiona un catálogo de diferentes programas hijos (ID_Software).
+  3. Emite "Tokens de Activación" temporales que vinculan una compra con un hardware específico.
+  4. Provee un Endpoint seguro para "Heartbeats" (latidos) que validan la vigencia en tiempo real.
 
-- **Clic-Cola (El Software Cliente):**
-  1. Posee una **Clave Pública** que corresponde a la clave privada del servidor. Esta clave no es secreta y se distribuye con el software.
-  2. Al arrancar, busca y lee el archivo `license.json`.
-  3. Usa la Clave Pública para verificar la firma del archivo. Si la firma es válida, significa que el contenido es auténtico y no ha sido modificado.
-  4. Si la firma es válida, procede a verificar que el `hardwareId` del archivo coincida con el de la máquina actual y que la licencia no haya expirado.
-  5. Si todas las comprobaciones son exitosas, el software se activa.
-
-Este método es seguro porque cualquier modificación al archivo `license.json` por parte del usuario invalidará la firma digital, y el software cliente lo detectará.
+- **Software Hijos (Los Clientes):**
+  1. Poseen la Clave Pública del servidor (incrustada u ofuscada).
+  2. Modo Online: Se activan vía API y reciben un JSON firmado y un JWT de sesión.
+  3. Modo Offline: Si falla la red, validan la última firma guardada localmente durante un periodo de gracia.
 
 -----------------------------
-2. Implementación en Clic-Tools (El Servidor)
+2. Implementación en Clic-Tools (Servidor)
 -----------------------------
 
-La lógica principal reside en los archivos `crypto.ts` y `db.ts` del módulo de licencias.
+La lógica principal reside en el módulo de licencias, ahora extendido para soporte API.
 
 -- Archivo: `src/modules/licenses/lib/crypto.ts` --
-
-```typescript
-// Este archivo maneja la generación y uso de las claves criptográficas.
-"use server";
-
-import crypto from 'crypto';
-import fs from 'fs/promises';
-import path from 'path';
-
-const KEYS_DIR = path.join(process.cwd(), 'dbs', 'keys');
-const PRIVATE_KEY_PATH = path.join(KEYS_DIR, 'private_key.pem');
-const PUBLIC_KEY_PATH = path.join(KEYS_DIR, 'public_key.pem');
-
-/**
- * Genera un nuevo par de claves RSA (privada y pública).
- * Esta función es llamada desde la UI de administración de Clic-Tools.
- */
-export async function generateKeys(): Promise<{ success: boolean; message: string }> {
-    // ... lógica para generar y guardar las claves en los archivos .pem ...
-}
-
-/**
- * Lee la clave privada del disco. Falla si no existe.
- */
-async function getPrivateKey(): Promise<string> {
-    try {
-        return await fs.readFile(PRIVATE_KEY_PATH, 'utf-8');
-    } catch (error) {
-        throw new Error("La clave privada no se encuentra. Genere un nuevo par de claves.");
-    }
-}
-
-/**
- * Lee la clave pública del disco para que pueda ser descargada por el admin.
- */
-export async function getPublicKey(): Promise<string | null> {
-    // ... lógica para leer el archivo public_key.pem ...
-}
-
-/**
- * Firma un objeto de licencia y devuelve el contenido del archivo .json final.
- * @param {object} licenseInfo - La información a firmar (hardwareId, fechas, etc.).
- * @returns {Promise<string>} Un string JSON que contiene la licencia y su firma.
- */
-export async function signLicenseData(licenseInfo: object): Promise<string> {
-    const privateKey = await getPrivateKey();
-    
-    // El mensaje debe ser un string consistente. Ordenar las claves del objeto JSON
-    // asegura que el string resultante sea siempre el mismo para los mismos datos.
-    const message = JSON.stringify(licenseInfo, Object.keys(licenseInfo).sort());
-    
-    const signer = crypto.createSign('RSA-SHA256');
-    signer.update(message);
-    const signature = signer.sign(privateKey, 'hex');
-
-    const licenseFileContent = {
-        license_info: licenseInfo,
-        signature: signature
-    };
-
-    return JSON.stringify(licenseFileContent, null, 2);
-}
-```
+(Maneja RSA-SHA256 para firmar los payloads que se envían a los hijos)
 
 -- Archivo: `src/modules/licenses/lib/db.ts` --
-```typescript
-// Fragmento de la función que crea una licencia
-export async function addLicense(licenseData: Omit<License, 'id' | 'createdAt' | 'licenseKey'>): Promise<License> {
-    const db = await connectDb(LICENSES_DB_FILE);
-    
-    // 1. Recopilar la información que irá dentro de la licencia.
-    const licenseInfo = {
-        softwareId: licenseData.softwareId,
-        clientCompanyId: licenseData.clientCompanyId,
-        hardwareId: licenseData.hardwareId,
-        isPerpetual: licenseData.isPerpetual,
-        expirationDate: licenseData.expirationDate,
-        createdAt: new Date().toISOString(),
-    };
-
-    // 2. Llamar a la función crypto para firmar estos datos.
-    const signedLicenseJson = await signLicenseData(licenseInfo);
-
-    // 3. Guardar el JSON firmado completo en la base de datos.
-    const info = db.prepare(`
-        INSERT INTO licenses (licenseKey, /*... otros campos ...*/)
-        VALUES (@licenseKey, /*... otros valores ...*/)
-    `).run({
-        licenseKey: signedLicenseJson,
-        // ... resto de los datos ...
-    });
-
-    const result = db.prepare('SELECT * FROM licenses WHERE id = ?').get(info.lastInsertRowid) as License;
-    return result;
-}
-```
+(Maneja el catálogo de software y las activaciones por HWID)
 
 -----------------------------
-3. Ejemplo de Archivo `license.json` Generado
+3. Ejemplo de Payload de Licencia Modular (JSON)
 -----------------------------
 
-Cuando el administrador descarga la licencia desde Clic-Tools, obtiene un archivo como este:
+Cuando un software hijo se activa, recibe este objeto firmado por el servidor:
 
 ```json
 {
   "license_info": {
-    "softwareId": 1,
-    "clientCompanyId": 123,
-    "hardwareId": "DESKTOP-ABC123-win32-x64",
-    "isPerpetual": false,
+    "softwareId": "CLIC-POS-2024",
+    "activationToken": "CLIC-XXXX-YYYY",
+    "hardwareId": "SERIAL-CPU-UUID-PARTITION",
+    "clientName": "Tienda Ejemplo S.A.",
     "expirationDate": "2025-12-31",
-    "createdAt": "2024-11-20T10:00:00.000Z"
+    "isPerpetual": false,
+    "features": {
+      "module_inventory": true,
+      "module_reports_pro": true,
+      "module_multi_user": false,
+      "max_terminals": 3
+    },
+    "issuedAt": "2024-11-20T10:00:00Z"
   },
   "signature": "a1b2c3d4e5f6..."
 }
 ```
 
 -----------------------------
-4. Implementación en Clic-Cola (El Cliente) - GUÍA PARA EL OTRO GEMINI
+4. Plan de Acción REFINADO v2.2: Autoridad Central y Modularidad
 -----------------------------
 
-El software cliente debe ser capaz de verificar la autenticidad del archivo `license.json`.
+### Fase 1: Catálogo de Software y API en Vultr
+- **Registro de Programas:** Interfaz en Clic-Tools para dar de alta cada software hijo (ej: Clic-Cola, Clic-POS, Clic-Cloud).
+- **Endpoint de Activación (`/api/v1/activate`):**
+  - Entrada: `softwareId` + `activationToken` + `hardwareFingerprint`.
+  - Salida: JSON de licencia firmado + JWT de sesión de 24h.
 
-**Paso 1: Incluir la Clave Pública**
-- Coloca el archivo `public_key.pem` (descargado desde Clic-Tools) en una carpeta como `src/lib/keys/` dentro del proyecto Clic-Cola.
+### Fase 2: Granularidad por Módulos (Flags)
+- **Feature Flags:** En el servidor, el administrador marca qué módulos están activos para esa licencia específica.
+- **Validación en el Hijo:** El software hijo lee el campo `"features"` del JSON firmado para habilitar o bloquear menús y funciones internamente sin necesidad de versiones de código distintas.
 
-**Paso 2: Crear el Validador de Licencia**
-- El siguiente es un ejemplo de cómo se podría implementar el validador en TypeScript/Node.js.
+### Fase 3: JWT y Heartbeats (Control Online)
+- **Token de Sesión:** Tras la activación, el servidor entrega un JWT.
+- **Heartbeat (Latido):** El hijo envía este JWT cada 4-12 horas.
+- **Kill-Switch:** Si el administrador revoca la licencia en el VPS, el siguiente Heartbeat devolverá un estado de "Revocado", borrando la licencia local y bloqueando el programa.
 
--- Archivo: `src/lib/license-validator.ts` --
-```typescript
-import crypto from 'crypto';
-import fs from 'fs/promises';
-import path from 'path';
-import os from 'os';
+### Fase 4: Resiliencia Offline (Periodos de Gracia)
+- **Cache Local:** El JSON firmado se guarda en el disco del cliente.
+- **Contador de Desconexión:** Si el hijo no puede alcanzar el VPS de Vultr (sin internet), permite el uso basado en la cache local por un máximo de 7 días. Al 8vo día, exige conexión para continuar.
 
-// Genera un ID de hardware único para la máquina actual.
-const generateHardwareId = async (): Promise<string> => {
-    const hostname = os.hostname();
-    const platform = os.platform();
-    const arch = os.arch();
-    // Podrían añadirse más factores como el número de serie de la placa base (si es accesible).
-    return `${hostname}-${platform}-${arch}`;
-};
-
-interface ValidationResult {
-    isValid: boolean;
-    message?: string;
-}
-
-export async function validateLicense(): Promise<ValidationResult> {
-    try {
-        const licensePath = path.join(process.cwd(), 'database', 'license.json');
-        const publicKeyPath = path.join(process.cwd(), 'src', 'lib', 'keys', 'public_key.pem');
-
-        // Leer la clave pública y el archivo de licencia
-        const publicKey = await fs.readFile(publicKeyPath, 'utf-8');
-        const licenseFileContent = await fs.readFile(licensePath, 'utf-8');
-        const licenseData = JSON.parse(licenseFileContent);
-
-        const { license_info, signature } = licenseData;
-
-        if (!license_info || !signature) {
-            return { isValid: false, message: 'Archivo de licencia malformado.' };
-        }
-        
-        // 1. VERIFICAR LA FIRMA DIGITAL
-        // El mensaje debe recrearse exactamente como se firmó, con las claves ordenadas.
-        const messageToVerify = JSON.stringify(license_info, Object.keys(license_info).sort());
-
-        const verifier = crypto.createVerify('RSA-SHA256');
-        verifier.update(messageToVerify);
-
-        const isSignatureValid = verifier.verify(publicKey, signature, 'hex');
-
-        if (!isSignatureValid) {
-            return { isValid: false, message: 'Firma de licencia inválida. El archivo puede estar corrupto o alterado.' };
-        }
-
-        // 2. VERIFICAR EL HARDWARE ID
-        const currentHardwareId = await generateHardwareId();
-        if (license_info.hardwareId !== currentHardwareId) {
-            return { isValid: false, message: `La licencia no es válida para esta máquina. ID de máquina: ${currentHardwareId}` };
-        }
-
-        // 3. VERIFICAR LA FECHA DE VENCIMIENTO
-        if (!license_info.isPerpetual) {
-            const expirationDate = new Date(license_info.expirationDate);
-            if (expirationDate < new Date()) {
-                return { isValid: false, message: 'La licencia ha expirado.' };
-            }
-        }
-
-        // Si todas las validaciones pasan, la licencia es válida.
-        return { isValid: true };
-
-    } catch (error) {
-        if (error.code === 'ENOENT') {
-            return { isValid: false, message: 'No se encontró el archivo de licencia.' };
-        }
-        console.error("Error validando la licencia:", error);
-        return { isValid: false, message: 'Error inesperado al validar la licencia.' };
-    }
-}
-```
-
-**Paso 3: Integrar en el Arranque de la App**
-- En el componente principal de Clic-Cola, llamar a `validateLicense()` al iniciar.
-- Si devuelve `isValid: true`, mostrar la aplicación.
-- Si devuelve `isValid: false`, mostrar la pantalla de activación con el mensaje de error y el `hardwareId` actual para que el usuario pueda solicitar una nueva licencia.
+### Fase 5: Protección Avanzada (Anti-Tampering)
+- **Fingerprinting Profundo:** El `hardwareId` se genera combinando: Serial de Placa Base + UUID de Partición de Sistema + Nombre de PC.
+- **Time-Drift Protection:** El servidor envía su hora actual en cada Heartbeat. Si la diferencia con el reloj local es > 1 hora, el hijo sospecha de fraude de tiempo y pide sincronización.
 
 -----------------------------
-5. Plan de Acción REFINADO v2.1: Sistema Híbrido Profesional
+5. Flujo de Venta para el Usuario Final
 -----------------------------
-
-Tras analizar los puntos débiles, se proponen las siguientes mejoras para la versión 2.1:
-
-### Fase 1: Infraestructura de Activación Dinámica
-- **Tokens de Activación (Pre-shared Keys):** El administrador genera un token de 12 caracteres (ej: `CLIC-4455-8899`). Este token se le entrega al cliente.
-- **Endpoint de Activación (`/api/licenses/activate`):** El software cliente envía su `hardwareId` + `activationToken`. Clic-Tools valida que el token sea válido y no haya sido usado, lo marca como "Utilizado" y devuelve el `license.json` firmado.
-- **JWT para Sesiones Online:** Una vez activado, el servidor devuelve un JWT que el cliente guarda. Este token permite realizar "Heartbeats" ligeros.
-
-### Fase 2: Robustez y Periodos de Gracia
-- **Política de Re-validación:** El cliente debe validar su licencia online al menos una vez cada 7 días.
-- **Cache Local con TTL:** Si no hay internet, el cliente permite el uso basándose en el archivo local, pero muestra un aviso: "Validación pendiente en 3 días".
-- **Sincronización de Tiempo:** Para evitar fraudes con el reloj de Windows, el cliente obtiene la hora desde el servidor (o vía NTP) en cada conexión exitosa y la compara con su reloj interno.
-
-### Fase 3: Licenciamiento por Funcionalidades
-- **Granularidad en JSON:** El objeto `license_info` ahora incluirá flags:
-  ```json
-  "features": { "module_inventory": true, "max_terminals": 3, "level": "premium" }
-  ```
-- **Control Centralizado:** El administrador puede "upgradear" una licencia desde Clic-Tools y el cliente se actualizará automáticamente en el siguiente Heartbeat.
-
-### Fase 4: Seguridad Avanzada (Anti-Cracking)
-- **Ofuscación de Clave Pública:** No leer la clave pública desde un archivo `.pem` externo (fácil de swappear). Incrustarla como una variable ofuscada o segmentada dentro del código binario del cliente.
-- **Fingerprinting Mejorado:** Incluir el UUID de la partición del sistema y el serial de la CPU en el cálculo del `hardwareId` para evitar clonación de máquinas virtuales.
-
-### Fase 5: Dashboard de Gestión
-- **Portal de Activaciones:** Vista en Clic-Tools que muestra: Máquina (Nombre), IP de activación, última conexión y versión del software que está ejecutando.
-- **Kill-Switch:** Botón para "Revocar" una licencia. En la siguiente conexión del cliente, este recibirá una orden de auto-destrucción del archivo local y bloqueo de acceso.
+1. El cliente compra el software.
+2. El administrador genera un **Token de Activación** en Clic-Tools (VPS).
+3. El cliente instala el software, digita el token.
+4. El software se conecta al VPS, registra su hardware y queda activado.
+5. Si el cliente no tiene internet, el administrador le envía el archivo `license.json` generado manualmente desde el portal de Clic-Tools.
