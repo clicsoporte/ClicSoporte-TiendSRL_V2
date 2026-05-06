@@ -1,10 +1,11 @@
+
 /**
  * @fileoverview Main page for the License Management module.
  * Enhanced for Hybrid Licensing v2.3 (Standard Mapping Protocol).
  */
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useLicenses } from '@/modules/licenses/hooks/useLicenses';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,22 +22,31 @@ import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SearchInput } from '@/components/ui/search-input';
-import { PlusCircle, MoreVertical, CalendarIcon, Loader2, Trash2, Download, Edit, ShieldCheck, KeyRound, Boxes, Settings2, Info } from 'lucide-react';
+import { PlusCircle, MoreVertical, CalendarIcon, Loader2, Trash2, Download, Edit, ShieldCheck, KeyRound, Boxes, Settings2, Info, Code2, Copy, Check } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default function LicensesPage() {
     const { state, actions, selectors } = useLicenses();
     const { hasPermission } = useAuthorization(['licenses:manage']);
+    const [isSdkDialogOpen, setSdkDialogOpen] = useState(false);
+    const [copiedSection, setCopiedSection] = useState<string | null>(null);
 
     const selectedSoftware = state.currentLicense.softwareId
         ? state.softwareProducts.find(p => p.id === state.currentLicense.softwareId)
         : null;
     
+    const handleCopy = (text: string, section: string) => {
+        navigator.clipboard.writeText(text);
+        setCopiedSection(section);
+        setTimeout(() => setCopiedSection(null), 2000);
+    };
+
     if (state.isLoading) {
         return (
              <main className="flex-1 p-4 md:p-6 lg:p-8">
@@ -55,19 +65,82 @@ export default function LicensesPage() {
 
     const moduleKeys = Array.from({ length: 10 }, (_, i) => `m${(i + 1).toString().padStart(2, '0')}`);
 
+    const sdkCode = {
+        types: `export type LicenseStatus = 'VALID' | 'INVALID_KEY' | 'EXPIRED' | 'BLOCKED' | 'UNLICENSED' | 'ERROR';
+
+export interface LicenseState {
+    hardwareId: string;
+    isValid: boolean;
+    status: LicenseStatus;
+    expiresAt?: string;
+    modules: Record<string, boolean>; // m01 to m10
+}
+
+export interface LicenseFile {
+    license_info: {
+        softwareId: number;
+        softwareName: string;
+        hardwareId: string;
+        activationToken: string;
+        isPerpetual: boolean;
+        expirationDate: string;
+        modules: Record<string, boolean>;
+    };
+    signature: string;
+}`,
+        validator: `import crypto from 'crypto';
+import os from 'os';
+
+export async function generateHardwareId(): Promise<string> {
+    const machineInfo = [os.hostname(), os.platform(), os.arch(), os.userInfo().username].join('-');
+    return crypto.createHash('sha256').update(machineInfo).digest('hex');
+}
+
+// Integrar con tu lógica de arranque para validar el archivo local
+export async function validateLicense(licenseFile: any, publicKeyPem: string): Promise<boolean> {
+    const verifier = crypto.createVerify('RSA-SHA256');
+    const message = JSON.stringify(licenseFile.license_info, Object.keys(licenseFile.license_info).sort());
+    verifier.update(message);
+    return verifier.verify(publicKeyPem, licenseFile.signature, 'hex');
+}`,
+        actions: `'use server';
+import { generateHardwareId } from '@/lib/license-validator';
+
+const SERVER_URL = '${state.companyData?.publicUrl || 'https://tu-vps-vultr.com'}';
+
+export async function activateSoftwareOnline(softwareId: number, token: string) {
+    const hardwareId = await generateHardwareId();
+    
+    const response = await fetch(\`\${SERVER_URL}/api/v1/activate\`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ softwareId, activationToken: token, hardwareId })
+    });
+
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Falla en activación');
+
+    // El resultado contiene el license_file firmado que debes guardar localmente
+    return result.license_file;
+}`
+    };
+
     return (
         <TooltipProvider>
             <main className="flex-1 p-4 md:p-6 lg:p-8">
                 <Card>
                     <CardHeader>
-                        <div className="flex items-center justify-between">
+                        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                             <div>
                                 <CardTitle className="text-2xl font-bold flex items-center gap-2">
                                     <ShieldCheck className="h-6 w-6 text-primary" /> Gestión de Licenciamiento Híbrido
                                 </CardTitle>
                                 <CardDescription>Administración central de activaciones internas y llaves de terceros.</CardDescription>
                             </div>
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 flex-wrap">
+                                <Button variant="outline" onClick={() => setSdkDialogOpen(true)}>
+                                    <Code2 className="mr-2 h-4 w-4" /> Kit de Integración (SDK)
+                                </Button>
                                 {hasPermission('licenses:manage') && (
                                     <Button variant="outline" onClick={() => actions.setIsSoftwareDialogOpen(true)}>
                                         <Boxes className="mr-2 h-4 w-4" /> Catálogo de Software
@@ -87,7 +160,6 @@ export default function LicensesPage() {
                                                 
                                                 <div className="flex-1 overflow-y-auto p-6 scrollbar-thin">
                                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pr-2">
-                                                        {/* --- Basic License Info --- */}
                                                         <div className="space-y-6">
                                                             <div className="space-y-4 bg-muted/20 p-4 rounded-lg border">
                                                                 <div className="space-y-2">
@@ -126,9 +198,8 @@ export default function LicensesPage() {
                                                                         <Input
                                                                             value={state.currentLicense.hardwareId || ''}
                                                                             onChange={(e) => actions.handleCurrentLicenseChange('hardwareId', e.target.value)}
-                                                                            placeholder="Ej: BFEBFBFF000906E3-1234-ABCD"
+                                                                            placeholder="Vinculará el hardware tras la primera activación API"
                                                                             className="font-mono text-xs"
-                                                                            required
                                                                         />
                                                                     </div>
                                                                     {state.currentLicense.activationToken && (
@@ -162,10 +233,6 @@ export default function LicensesPage() {
                                                                         </PopoverTrigger>
                                                                         <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={state.currentLicense.expirationDate ? parseISO(state.currentLicense.expirationDate) : undefined} onSelect={(date) => actions.handleCurrentLicenseChange('expirationDate', date?.toISOString().split('T')[0] || '')} initialFocus/></PopoverContent>
                                                                     </Popover>
-                                                                    <div className="flex gap-1 mt-2">
-                                                                        <Button type="button" size="sm" variant="secondary" className="text-[10px] h-6 flex-1" onClick={() => actions.setExpirationDatePreset(365)}>Anual</Button>
-                                                                        <Button type="button" size="sm" variant="secondary" className="text-[10px] h-6 flex-1" onClick={() => actions.setExpirationDatePreset(30)}>Prueba</Button>
-                                                                    </div>
                                                                 </div>
                                                                 <div className="flex items-center space-x-2 pt-6">
                                                                     <Checkbox id="is-perpetual" checked={state.currentLicense.isPerpetual} onCheckedChange={(checked) => actions.handleCurrentLicenseChange('isPerpetual', !!checked)} />
@@ -174,7 +241,6 @@ export default function LicensesPage() {
                                                             </div>
                                                         </div>
 
-                                                        {/* --- Module Granularity Section --- */}
                                                         {selectedSoftware?.isInternal ? (
                                                             <div className="space-y-4">
                                                                 <h3 className="text-xs font-black uppercase text-muted-foreground tracking-widest flex items-center gap-2">
@@ -182,8 +248,8 @@ export default function LicensesPage() {
                                                                 </h3>
                                                                 <div className="grid grid-cols-1 gap-2 bg-muted/10 p-4 rounded-xl border max-h-[400px] overflow-y-auto">
                                                                     {moduleKeys.map((key, i) => {
-                                                                        const moduleName = selectedSoftware[`${key}_name` as keyof SoftwareProduct];
-                                                                        const valKey = `${key}_val` as keyof License;
+                                                                        const moduleName = selectedSoftware[`\${key}_name` as keyof SoftwareProduct];
+                                                                        const valKey = `\${key}_val` as keyof License;
                                                                         if (!moduleName) return null;
                                                                         
                                                                         return (
@@ -199,16 +265,12 @@ export default function LicensesPage() {
                                                                             </div>
                                                                         );
                                                                     })}
-                                                                    {moduleKeys.every(k => !selectedSoftware[`${k}_name` as keyof SoftwareProduct]) && (
-                                                                        <p className="text-xs text-muted-foreground italic text-center py-10">No se han definido nombres de módulos para este software en el catálogo.</p>
-                                                                    )}
                                                                 </div>
                                                             </div>
                                                         ) : (
                                                             <div className="flex flex-col items-center justify-center h-full text-center p-10 border-2 border-dashed rounded-2xl opacity-40">
                                                                 <KeyRound className="h-20 w-20 mb-4" />
                                                                 <p className="text-sm font-bold">Licencia de Tercero</p>
-                                                                <p className="text-xs">La gestión modular solo aplica para software propio.</p>
                                                             </div>
                                                         )}
                                                     </div>
@@ -261,7 +323,7 @@ export default function LicensesPage() {
                                                     {software?.isInternal ? (
                                                         <div className="flex flex-col">
                                                             <span className="font-mono text-xs font-black text-primary">{license.activationToken}</span>
-                                                            <span className="text-[9px] text-muted-foreground truncate max-w-[120px]">HWID: {license.hardwareId}</span>
+                                                            <span className="text-[9px] text-muted-foreground truncate max-w-[120px]">HWID: {license.hardwareId || '(Pendiente)'}</span>
                                                         </div>
                                                     ) : (
                                                         <span className="font-mono text-xs bg-muted px-2 py-1 rounded truncate max-w-[150px] inline-block">{license.licenseKey}</span>
@@ -284,16 +346,76 @@ export default function LicensesPage() {
                                             </TableRow>
                                         )
                                     })}
-                                    {selectors.filteredLicenses.length === 0 && (
-                                        <TableRow><TableCell colSpan={6} className="h-32 text-center text-muted-foreground italic">No se encontraron licencias activas.</TableCell></TableRow>
-                                    )}
                                 </TableBody>
                             </Table>
                         </div>
                     </CardContent>
                 </Card>
 
-                {/* --- SOFTWARE CATALOG DIALOG --- */}
+                {/* --- SDK INTEGRATION DIALOG --- */}
+                <Dialog open={isSdkDialogOpen} onOpenChange={setSdkDialogOpen}>
+                    <DialogContent className="sm:max-w-4xl h-[85vh] flex flex-col p-0 overflow-hidden">
+                        <DialogHeader className="p-6 pb-2 border-b">
+                            <div className="flex items-center gap-2">
+                                <Code2 className="h-5 w-5 text-primary" />
+                                <DialogTitle>Kit de Integración (SDK Estándar v2.3)</DialogTitle>
+                            </div>
+                            <DialogDescription>
+                                Copia estos fragmentos de código en tus programas "hijos" para que puedan conectarse a esta autoridad central.
+                            </DialogDescription>
+                        </DialogHeader>
+                        
+                        <Tabs defaultValue="types" className="flex-1 overflow-hidden flex flex-col">
+                            <TabsList className="px-6 border-b rounded-none bg-muted/20 h-10">
+                                <TabsTrigger value="types" className="text-xs">1. Estructuras</TabsTrigger>
+                                <TabsTrigger value="validator" className="text-xs">2. Validador Core</TabsTrigger>
+                                <TabsTrigger value="actions" className="text-xs">3. Activación Online</TabsTrigger>
+                            </TabsList>
+                            
+                            <div className="flex-1 overflow-y-auto p-0">
+                                <TabsContent value="types" className="m-0 h-full">
+                                    <div className="p-4 relative">
+                                        <Button variant="secondary" size="sm" className="absolute top-6 right-6 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.types, 'types')}>
+                                            {copiedSection === 'types' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
+                                            {copiedSection === 'types' ? 'Copiado' : 'Copiar'}
+                                        </Button>
+                                        <pre className="bg-slate-950 text-slate-100 p-6 rounded-lg text-[11px] font-mono overflow-auto max-h-[500px]">
+                                            {sdkCode.types}
+                                        </pre>
+                                    </div>
+                                </TabsContent>
+                                <TabsContent value="validator" className="m-0 h-full">
+                                    <div className="p-4 relative">
+                                        <Button variant="secondary" size="sm" className="absolute top-6 right-6 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.validator, 'validator')}>
+                                            {copiedSection === 'validator' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
+                                            {copiedSection === 'validator' ? 'Copiado' : 'Copiar'}
+                                        </Button>
+                                        <pre className="bg-slate-950 text-slate-100 p-6 rounded-lg text-[11px] font-mono overflow-auto max-h-[500px]">
+                                            {sdkCode.validator}
+                                        </pre>
+                                    </div>
+                                </TabsContent>
+                                <TabsContent value="actions" className="m-0 h-full">
+                                    <div className="p-4 relative">
+                                        <Button variant="secondary" size="sm" className="absolute top-6 right-6 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.actions, 'actions')}>
+                                            {copiedSection === 'actions' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
+                                            {copiedSection === 'actions' ? 'Copiado' : 'Copiar'}
+                                        </Button>
+                                        <pre className="bg-slate-950 text-slate-100 p-6 rounded-lg text-[11px] font-mono overflow-auto max-h-[500px]">
+                                            {sdkCode.actions}
+                                        </pre>
+                                    </div>
+                                </TabsContent>
+                            </div>
+                        </Tabs>
+                        
+                        <DialogFooter className="p-6 border-t bg-muted/10">
+                            <DialogClose asChild><Button variant="outline">Cerrar SDK</Button></DialogClose>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
+                {/* --- REST OF DIALOGS (SOFTWARE, ALERT) --- */}
                 <Dialog open={state.isSoftwareDialogOpen} onOpenChange={actions.setIsSoftwareDialogOpen}>
                     <DialogContent className="sm:max-w-3xl">
                         <DialogHeader>
@@ -323,7 +445,7 @@ export default function LicensesPage() {
 
                                 <div className="space-y-4 border p-4 rounded-lg bg-muted/10">
                                     <div className="space-y-2"><Label>Nombre del Software</Label><Input value={state.newSoftwareProduct.name} onChange={e => actions.handleNewSoftwareChange('name', e.target.value)} placeholder="Ej: Clic-POS Pro" /></div>
-                                    <div className="flex items-center space-x-2 pb-2"><Checkbox id="is-internal-soft" checked={state.newSoftwareProduct.isInternal} onCheckedChange={checked => actions.handleNewSoftwareChange('isInternal', !!checked)}/><Label htmlFor="is-internal-soft" className="text-xs">Es Software de Autoría Propia (Permite Módulos)</Label></div>
+                                    <div className="flex items-center space-x-2 pb-2"><Checkbox id="is-internal-soft" checked={state.newSoftwareProduct.isInternal} onCheckedChange={checked => actions.handleNewSoftwareChange('isInternal', !!checked)}/><Label htmlFor="is-internal-soft" className="text-xs">Es Software Propio (Permite Módulos)</Label></div>
                                     <Button className="w-full" onClick={actions.handleSaveSoftware}>
                                         {state.isSoftwareEditing ? 'Actualizar Producto' : 'Añadir al Catálogo'}
                                     </Button>
@@ -342,8 +464,8 @@ export default function LicensesPage() {
                                                 <div key={key} className="space-y-1.5 p-3 rounded-lg border bg-background">
                                                     <Label className="text-[10px] font-bold text-primary uppercase">Nombre del Módulo {i+1} (ID: {key.toUpperCase()})</Label>
                                                     <Input 
-                                                        value={state.newSoftwareProduct[`${key}_name` as keyof SoftwareProduct] || ''} 
-                                                        onChange={e => actions.handleNewSoftwareChange(`${key}_name` as keyof SoftwareProduct, e.target.value)}
+                                                        value={state.newSoftwareProduct[`\${key}_name` as keyof SoftwareProduct] || ''} 
+                                                        onChange={e => actions.handleNewSoftwareChange(`\${key}_name` as keyof SoftwareProduct, e.target.value)}
                                                         placeholder="Ej: Facturación, Inventarios..."
                                                         className="h-8 text-xs"
                                                     />
@@ -355,7 +477,6 @@ export default function LicensesPage() {
                                     <div className="flex flex-col items-center justify-center h-[400px] text-center p-10 border-2 border-dashed rounded-xl opacity-20 bg-muted/50">
                                         <Settings2 className="h-10 w-10 mb-2" />
                                         <p className="text-[10px] font-bold uppercase">Mapeo Desactivado</p>
-                                        <p className="text-[10px]">No disponible para software de terceros.</p>
                                     </div>
                                 )}
                             </div>
@@ -365,7 +486,7 @@ export default function LicensesPage() {
 
                 <AlertDialog open={!!state.licenseToDelete} onOpenChange={(open) => !open && actions.setLicenseToDelete(null)}>
                     <AlertDialogContent>
-                        <AlertDialogHeader><AlertDialogTitle>¿Eliminar Licencia?</AlertDialogTitle><AlertDialogDescription>Esta acción no se puede deshacer y bloqueará el acceso al software hijo.</AlertDialogDescription></AlertDialogHeader>
+                        <AlertDialogHeader><AlertDialogTitle>¿Eliminar Licencia?</AlertDialogTitle><AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription></AlertDialogHeader>
                         <AlertDialogFooter>
                             <AlertDialogCancel>Cancelar</AlertDialogCancel>
                             <AlertDialogAction onClick={actions.handleDeleteLicense}>Sí, eliminar</AlertDialogAction>
