@@ -1,0 +1,104 @@
+======================================================================
+     REFERENCIA TÉCNICA: SEGURIDAD, ROLES Y AUTENTICACIÓN v2.0
+======================================================================
+
+Este documento contiene la implementación core del sistema de seguridad de 
+Clic-Tools, incluyendo la jerarquía de permisos y el flujo de recuperación.
+
+----------------------------------------------------------------------
+1. ÁRBOL DE PERMISOS Y GRUPOS (src/modules/core/lib/permissions.ts)
+----------------------------------------------------------------------
+Define la lógica jerárquica: si un usuario tiene un permiso "Padre",
+automáticamente hereda los permisos "Hijos".
+
+export const permissionGroups = {
+    "Acceso General": ["dashboard:access", "dashboard:stats:view"],
+    "Soporte Técnico": [
+        "tickets:read:all", "tickets:create", "tickets:reply", "tickets:manage", 
+        "tickets:time-tracking", "tickets:delete"
+    ],
+    "Administración": ["admin:access", "admin:settings:general", "users:read", "roles:read"]
+    // ... otros grupos
+};
+
+export const permissionTree = {
+    "admin:access": ["dashboard:access"],
+    "tickets:manage": ["tickets:read:all"],
+    "tickets:read:all": ["dashboard:access"],
+    // ... lógica recursiva
+};
+
+----------------------------------------------------------------------
+2. GUARDIAS DE SEGURIDAD (src/modules/core/lib/auth-guard.ts)
+----------------------------------------------------------------------
+Funciones para proteger Server Actions y Server Components.
+
+export async function authorizeAction(requiredPermission: string): Promise<User> {
+    const user = await getCachedUser();
+    if (!user) throw new Error("No autenticado.");
+    
+    const isAuthorized = await checkPermission(requiredPermission);
+    if (!isAuthorized) {
+        throw new Error(`Acceso Denegado: Requiere ${requiredPermission}`);
+    }
+    return user;
+}
+
+----------------------------------------------------------------------
+3. LÓGICA DE NEGOCIO AUTH (src/modules/core/lib/auth.ts)
+----------------------------------------------------------------------
+Maneja el Login (bcrypt), Sesiones (Cookies) y Recuperación.
+
+export async function login(email, passwordProvided) {
+    const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+    if (user && await bcrypt.compare(passwordProvided, user.password)) {
+        cookies().set(SESSION_COOKIE, user.id, { maxAge: 60 * 60 * 8 });
+        return { user, forcePasswordChange: !!user.forcePasswordChange };
+    }
+    return { user: null };
+}
+
+// RECUPERACIÓN DE CONTRASEÑA
+export async function sendPasswordRecoveryEmail(email: string) {
+    const tempPassword = Math.random().toString(36).slice(-8);
+    await sendEmail({
+        to: email,
+        subject: 'Recuperación de Contraseña',
+        html: `Tu clave temporal es: ${tempPassword}`
+    });
+    const hashed = await bcrypt.hash(tempPassword, 10);
+    db.prepare('UPDATE users SET password = ?, forcePasswordChange = 1 WHERE email = ?').run(hashed, email);
+}
+
+----------------------------------------------------------------------
+4. CONFIGURACIÓN SMTP (src/modules/core/lib/email-service.ts)
+----------------------------------------------------------------------
+Servicio para envío de notificaciones y claves temporales.
+
+export async function sendEmail({ to, subject, html }) {
+    const settings = await getEmailSettings();
+    const transporter = nodemailer.createTransport({
+        host: settings.smtpHost,
+        port: settings.smtpPort,
+        auth: { user: settings.smtpUser, pass: settings.smtpPass }
+    });
+    await transporter.sendMail({ from: settings.smtpUser, to, subject, html });
+}
+
+----------------------------------------------------------------------
+5. INTERFAZ DE LOGIN (src/components/auth/auth-form.tsx)
+----------------------------------------------------------------------
+Maneja los estados de la UI, Login, Cambio Obligatorio y Diálogo de Recuperación.
+
+export function AuthForm() {
+    const handleLogin = async (e) => {
+        const { user, forcePasswordChange } = await login(email, password);
+        if (forcePasswordChange) setMustChangePassword(true);
+        else window.location.href = '/dashboard';
+    };
+
+    const handleRecovery = async (e) => {
+        await sendRecoveryEmail(recoveryEmail);
+        toast({ title: "Correo Enviado" });
+    };
+}
