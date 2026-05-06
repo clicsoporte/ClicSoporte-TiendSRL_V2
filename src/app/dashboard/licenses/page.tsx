@@ -21,7 +21,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SearchInput } from '@/components/ui/search-input';
-import { PlusCircle, MoreVertical, CalendarIcon, Loader2, Trash2, Download, Edit, ShieldCheck, Boxes, Settings2, Info, Code2, Copy, Check, KeyRound } from 'lucide-react';
+import { PlusCircle, MoreVertical, CalendarIcon, Loader2, Trash2, Download, Edit, ShieldCheck, Boxes, Settings2, Info, Code2, Copy, Check, KeyRound, Eye } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
@@ -66,14 +66,15 @@ export default function LicensesPage() {
     const moduleKeys = Array.from({ length: 10 }, (_, i) => `m${(i + 1).toString().padStart(2, '0')}`);
 
     const sdkCode = {
-        types: `export type LicenseStatus = 'VALID' | 'INVALID_KEY' | 'EXPIRED' | 'BLOCKED' | 'UNLICENSED' | 'ERROR';
+        types: `export type LicenseStatus = 'VALID' | 'INVALID_KEY' | 'EXPIRED' | 'BLOCKED' | 'UNLICENSED' | 'ERROR' | 'FREE_MODE';
 
 export interface LicenseState {
     hardwareId: string;
     isValid: boolean;
     status: LicenseStatus;
     expiresAt?: string;
-    modules: Record<string, boolean>; // m01 to m10
+    modules: Record<string, boolean>; // m01 a m10
+    type?: 'online' | 'offline' | 'free';
 }
 
 export interface LicenseFile {
@@ -84,6 +85,7 @@ export interface LicenseFile {
         activationToken: string;
         isPerpetual: boolean;
         expirationDate: string;
+        status: string; // 'active' o 'FREE_MODE'
         modules: Record<string, boolean>;
     };
     signature: string;
@@ -96,7 +98,6 @@ export async function generateHardwareId(): Promise<string> {
     return crypto.createHash('sha256').update(machineInfo).digest('hex');
 }
 
-// Integrar con tu lógica de arranque para validar el archivo local
 export async function validateLicense(licenseFile: any, publicKeyPem: string): Promise<boolean> {
     const verifier = crypto.createVerify('RSA-SHA256');
     const message = JSON.stringify(licenseFile.license_info, Object.keys(licenseFile.license_info).sort());
@@ -106,21 +107,25 @@ export async function validateLicense(licenseFile: any, publicKeyPem: string): P
         actions: `'use server';
 import { generateHardwareId } from '@/lib/license-validator';
 
-const SERVER_URL = '${state.companyData?.publicUrl || 'https://tu-vps-vultr.com'}';
+const SERVER_URL = '${state.companyData?.publicUrl || 'https://soporte.clicsoporte.com'}';
 
 export async function activateSoftwareOnline(softwareId: number, token: string) {
     const hardwareId = await generateHardwareId();
-    
-    const response = await fetch(\`\${SERVER_URL}/api/v1/activate\`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ softwareId, activationToken: token, hardwareId })
+    const res = await fetch(\`\${SERVER_URL}/api/v1/activate\`, {
+        method: 'POST', body: JSON.stringify({ softwareId, activationToken: token, hardwareId })
     });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.error);
+    return result.license_file;
+}
 
-    const result = await response.json();
-    if (!response.ok) throw new Error(result.error || 'Falla en activación');
-
-    // El resultado contiene el license_file firmado que debes guardar localmente
+export async function registerFreeLicense(softwareId: number, name: string, email: string) {
+    const hardwareId = await generateHardwareId();
+    const res = await fetch(\`\${SERVER_URL}/api/v1/register-free\`, {
+        method: 'POST', body: JSON.stringify({ softwareId, hardwareId, customerName: name, customerEmail: email })
+    });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.error);
     return result.license_file;
 }`
     };
@@ -352,7 +357,6 @@ export async function activateSoftwareOnline(softwareId: number, token: string) 
                     </CardContent>
                 </Card>
 
-                {/* --- SDK INTEGRATION DIALOG --- */}
                 <Dialog open={isSdkDialogOpen} onOpenChange={setSdkDialogOpen}>
                     <DialogContent className="sm:max-w-4xl h-[85vh] flex flex-col p-0 overflow-hidden">
                         <DialogHeader className="p-6 pb-2 border-b">
@@ -361,7 +365,7 @@ export async function activateSoftwareOnline(softwareId: number, token: string) 
                                 <DialogTitle>Kit de Integración (SDK Estándar v2.3)</DialogTitle>
                             </div>
                             <DialogDescription>
-                                Copia estos fragmentos de código en tus programas &quot;hijos&quot; para que puedan conectarse a esta autoridad central.
+                                Copia estos fragmentos de código en tus programas &quot;hijos&quot; para habilitar la activación online/offline y el modo gratuito.
                             </DialogDescription>
                         </DialogHeader>
                         
@@ -369,7 +373,7 @@ export async function activateSoftwareOnline(softwareId: number, token: string) 
                             <TabsList className="px-6 border-b rounded-none bg-muted/20 h-10">
                                 <TabsTrigger value="types" className="text-xs">1. Estructuras</TabsTrigger>
                                 <TabsTrigger value="validator" className="text-xs">2. Validador Core</TabsTrigger>
-                                <TabsTrigger value="actions" className="text-xs">3. Activación Online</TabsTrigger>
+                                <TabsTrigger value="actions" className="text-xs">3. Servidor (Actions)</TabsTrigger>
                             </TabsList>
                             
                             <div className="flex-1 overflow-y-auto p-0">
@@ -415,7 +419,6 @@ export async function activateSoftwareOnline(softwareId: number, token: string) 
                     </DialogContent>
                 </Dialog>
 
-                {/* --- REST OF DIALOGS (SOFTWARE, ALERT) --- */}
                 <Dialog open={state.isSoftwareDialogOpen} onOpenChange={actions.setIsSoftwareDialogOpen}>
                     <DialogContent className="sm:max-w-3xl">
                         <DialogHeader>
