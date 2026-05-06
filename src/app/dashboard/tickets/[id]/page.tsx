@@ -36,7 +36,7 @@ import { sendTicketReportByEmail } from '@/modules/tickets/lib/report-email-acti
 import { getLicenses } from '@/modules/licenses/lib/actions';
 import { getEquipmentDetails } from '@/modules/inventory/lib/actions';
 import { EquipmentDetail } from '@/components/inventory/equipment-detail';
-import { Alert, AlertDescription, AlertTitle } from "@/components/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Input } from '@/components/ui/input';
 
 const getInitials = (name: string) => {
