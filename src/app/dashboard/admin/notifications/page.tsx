@@ -496,11 +496,14 @@ export default function AutomationManagerPage() {
                                         <SelectItem value="onTicketCreated">Nuevo Ticket (Apertura)</SelectItem>
                                         <SelectItem value="onTicketStatusChanged">Cambio de Estado Ticket</SelectItem>
                                         <SelectItem value="onTicketCompleted">Ticket Resuelto (Completado)</SelectItem>
+                                        <SelectItem value="onTicketCanceled">Ticket Anulado / Cancelado</SelectItem>
                                         <SelectItem value="onTicketReplyAdded">Nueva Respuesta en Ticket</SelectItem>
                                         <SelectItem value="onTicketPriorityUrgent">Prioridad Urgente</SelectItem>
+                                        <SelectItem value="onTicketVisitScheduled">Visita Técnica Programada</SelectItem>
                                         <SelectItem value="onContractExpiring">Contrato por Vencer</SelectItem>
                                         <SelectItem value="onContractAutoRenewed">Contrato Auto-Renovado</SelectItem>
                                         <SelectItem value="onLicenseExpiring">Licencia por Vencer</SelectItem>
+                                        <SelectItem value="onLicenseAssigned">Nueva Licencia Asignada</SelectItem>
                                         <SelectItem value="onProjectCompleted">Proyecto TI Terminado</SelectItem>
                                         <SelectItem value="onNewSuggestion">Nueva Sugerencia</SelectItem>
                                     </SelectContent>
