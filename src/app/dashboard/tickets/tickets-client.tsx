@@ -9,7 +9,7 @@ import { useTickets } from "@/modules/tickets/hooks/useTickets";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
-import { FilePlus, Loader2, FilterX, ShieldCheck, ShieldAlert, Clock, Info, EyeOff, MapPin, Zap, UserCircle, Mail, MessageCircle, Laptop, ChevronDown, Users } from "lucide-react";
+import { FilePlus, Loader2, FilterX, ShieldCheck, ShieldAlert, Clock, Info, EyeOff, MapPin, Zap, UserCircle, Mail, MessageCircle, Laptop, ChevronDown } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -24,8 +24,8 @@ import { useRouter } from "next/navigation";
 import { useAuthorization } from "@/modules/core/hooks/useAuthorization";
 import Link from "next/link";
 import { useAuth } from "@/modules/core/hooks/useAuth";
-import type { Ticket, CustomerContact, License, Equipment, ThirdPartyProvider } from '@/modules/core/types';
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import type { Ticket, License, Equipment } from '@/modules/core/types';
+import { Alert, AlertDescription, AlertTitle } from "@/components/alert";
 import { Switch } from "@/components/ui/switch";
 import { useMemo } from "react";
 
@@ -506,7 +506,7 @@ export default function TicketsClient() {
                                                             <SelectValue placeholder="Seleccionar contacto..." />
                                                         </SelectTrigger>
                                                         <SelectContent>
-                                                            {customerContacts.map((contact: CustomerContact) => (
+                                                            {customerContacts.map((contact) => (
                                                                 <SelectItem key={contact.id} value={contact.id} className="text-xs">
                                                                     {contact.name} ({contact.department || 'Gral'})
                                                                 </SelectItem>

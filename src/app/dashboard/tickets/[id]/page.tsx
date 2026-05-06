@@ -8,7 +8,7 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useTickets } from '@/modules/tickets/hooks/useTickets';
-import type { Ticket, TicketThread, TicketPriority, ThirdPartyProvider, TimeEntry, License, Equipment, CustomerContact, User } from '@/modules/core/types';
+import type { Ticket, TicketThread, TicketPriority, ThirdPartyProvider, TimeEntry, License, Equipment } from '@/modules/core/types';
 import { useAuth } from '@/modules/core/hooks/useAuth';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,7 +16,7 @@ import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Send, Loader2, MoreVertical, CreditCard, ShieldCheck, ShieldAlert, Truck, CheckCircle2, XCircle, PlayCircle, PauseCircle, Info, UserCircle, FileText, Download, Mail, UserCheck, KeyRound, Eye, MessageCircle, Laptop, Users, Calendar as CalendarIcon, Clock as ClockIcon, Save } from 'lucide-react';
+import { Send, Loader2, MoreVertical, CreditCard, ShieldCheck, ShieldAlert, Truck, CheckCircle2, XCircle, PlayCircle, PauseCircle, Info, UserCircle, FileText, Download, Mail, UserCheck, KeyRound, Eye, MessageCircle, Laptop, Calendar as CalendarIcon, Clock as ClockIcon, Save } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -36,9 +36,8 @@ import { sendTicketReportByEmail } from '@/modules/tickets/lib/report-email-acti
 import { getLicenses } from '@/modules/licenses/lib/actions';
 import { getEquipmentDetails } from '@/modules/inventory/lib/actions';
 import { EquipmentDetail } from '@/components/inventory/equipment-detail';
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/alert";
 import { Input } from '@/components/ui/input';
-import { Calendar } from "@/components/ui/calendar";
 
 const getInitials = (name: string) => {
     if (!name) return "??";

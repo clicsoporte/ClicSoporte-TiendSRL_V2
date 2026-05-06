@@ -18,10 +18,7 @@ import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { 
     getThirdPartyProviders, addThirdPartyProvider, updateThirdPartyProvider, deleteThirdPartyProvider,
-    getCRGeoData, addProvince, updateProvince, deleteProvince,
-    addCanton, updateCanton, deleteCanton,
-    addDistrict, updateDistrict, deleteDistrict,
-    saveProviderService, deleteProviderService, saveProviderGeoRate, deleteProviderGeoRate 
+    getCRGeoData, saveProviderService, deleteProviderService, saveProviderGeoRate, deleteProviderGeoRate 
 } from '@/modules/tickets/lib/actions';
 import type { ThirdPartyProvider, Province, Canton, District, ProviderService, ProviderGeoRate, CustomerContact } from '@/modules/core/types';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
