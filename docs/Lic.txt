@@ -1,5 +1,5 @@
 ======================================================================
-     Guía Técnica: Sistema de Activación de Licencias Híbrido v2.2
+     Guía Técnica: Sistema de Activación de Licencias Híbrido v2.3
 ======================================================================
 
 Este documento describe el flujo de trabajo y la implementación técnica para activar software cliente (hijos) utilizando Clic-Tools (VPS Vultr) como la Autoridad Central de Licenciamiento.
@@ -8,7 +8,7 @@ Este documento describe el flujo de trabajo y la implementación técnica para a
 1. Resumen del Concepto Híbrido
 -----------------------------
 
-El sistema se basa en criptografía asimétrica (RSA) y una arquitectura Cliente-Servidor (API REST) para garantizar que las licencias sean auténticas, revocables y adaptables a diferentes modelos de negocio (por módulos o licencia única).
+El sistema se basa en criptografía asimétrica (RSA) y una arquitectura Cliente-Servidor (API REST) para garantizar que las licencias sean auténticas, revocables y adaptables a diferentes modelos de negocio.
 
 - **Clic-Tools (El Servidor en Vultr):**
   1. Actúa como la única fuente de verdad (Single Source of Truth).
@@ -34,45 +34,30 @@ La lógica principal reside en el módulo de licencias, ahora extendido para sop
 (Maneja el catálogo de software y las activaciones por HWID)
 
 -----------------------------
-3. Ejemplo de Payload de Licencia Modular (JSON)
+3. Protocolo de Mapeo Estándar (Interoperabilidad Universal)
 -----------------------------
 
-Cuando un software hijo se activa, recibe este objeto firmado por el servidor:
+Para asegurar que cualquier software hijo sea compatible con el servidor sin cambiar código en la Autoridad Central, se establece un esquema de "Llaves de Módulo" fijas:
 
-```json
-{
-  "license_info": {
-    "softwareId": "CLIC-POS-2024",
-    "activationToken": "CLIC-XXXX-YYYY",
-    "hardwareId": "SERIAL-CPU-UUID-PARTITION",
-    "clientName": "Tienda Ejemplo S.A.",
-    "expirationDate": "2025-12-31",
-    "isPerpetual": false,
-    "features": {
-      "module_inventory": true,
-      "module_reports_pro": true,
-      "module_multi_user": false,
-      "max_terminals": 3
-    },
-    "issuedAt": "2024-11-20T10:00:00Z"
-  },
-  "signature": "a1b2c3d4e5f6..."
-}
-```
+- **Estructura Técnica:** El servidor maneja un array de booleanos/valores bajo llaves estándar: `m_01`, `m_02`, `m_03`, etc.
+- **Capa de Abstracción (Servidor):** En la consola de Clic-Tools, el administrador asigna "Nombres de Pantalla" a estas llaves por cada software.
+  - Ejemplo Software "Clic-POS": `m_01` = "Facturación", `m_02` = "Inventarios".
+  - Ejemplo Software "Clic-Cloud": `m_01` = "Backup SQL", `m_02` = "Sincronía S3".
+- **Validación (Hijo):** El software hijo está programado para preguntar: "¿Está activa la llave `m_01`?". No le importa el nombre comercial, solo la llave lógica.
 
 -----------------------------
-4. Plan de Acción REFINADO v2.2: Autoridad Central y Modularidad
+4. Plan de Acción REFINADO v2.3: Autoridad Central y Protocolo de Módulos
 -----------------------------
 
 ### Fase 1: Catálogo de Software y API en Vultr
-- **Registro de Programas:** Interfaz en Clic-Tools para dar de alta cada software hijo (ej: Clic-Cola, Clic-POS, Clic-Cloud).
+- **Registro de Programas:** Interfaz en Clic-Tools para dar de alta cada software hijo (ej: Clic-POS, Clic-POS-Pro).
 - **Endpoint de Activación (`/api/v1/activate`):**
   - Entrada: `softwareId` + `activationToken` + `hardwareFingerprint`.
   - Salida: JSON de licencia firmado + JWT de sesión de 24h.
 
-### Fase 2: Granularidad por Módulos (Flags)
-- **Feature Flags:** En el servidor, el administrador marca qué módulos están activos para esa licencia específica.
-- **Validación en el Hijo:** El software hijo lee el campo `"features"` del JSON firmado para habilitar o bloquear menús y funciones internamente sin necesidad de versiones de código distintas.
+### Fase 2: Granularidad por Protocolo Estándar
+- **Feature Flags Estándar:** En el servidor, el administrador define qué índices de la matriz `m_xx` están activos.
+- **Compatibilidad Garantizada:** Los software hijos se programan siguiendo la tabla de índices maestra del servidor, permitiendo habilitar funciones remotamente sin actualizar el ejecutable del cliente.
 
 ### Fase 3: JWT y Heartbeats (Control Online)
 - **Token de Sesión:** Tras la activación, el servidor entrega un JWT.
