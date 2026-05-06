@@ -1,0 +1,245 @@
+======================================================================
+     Guía Técnica: Sistema de Activación de Licencias Offline
+======================================================================
+
+Este documento describe el flujo de trabajo y la implementación técnica para activar software cliente (como Clic-Cola) de forma offline, utilizando Clic-Tools como la autoridad de licenciamiento.
+
+-----------------------------
+1. Resumen del Concepto
+-----------------------------
+
+El sistema se basa en criptografía asimétrica (un par de claves pública/privada) para garantizar que las licencias sean auténticas y no puedan ser alteradas por el usuario final.
+
+- **Clic-Tools (El Servidor):**
+  1. Posee una **Clave Privada** secreta y única.
+  2. Al generar una licencia para un cliente, Clic-Tools empaqueta la información de la licencia (ID de hardware del cliente, fecha de vencimiento, etc.) en un objeto JSON.
+  3. Utiliza su Clave Privada para "firmar" digitalmente esta información.
+  4. Genera un archivo `license.json` que contiene tanto la información original como la firma digital.
+  5. El administrador descarga este archivo y se lo entrega al cliente para que lo coloque en la carpeta del software cliente.
+
+- **Clic-Cola (El Software Cliente):**
+  1. Posee una **Clave Pública** que corresponde a la clave privada del servidor. Esta clave no es secreta y se distribuye con el software.
+  2. Al arrancar, busca y lee el archivo `license.json`.
+  3. Usa la Clave Pública para verificar la firma del archivo. Si la firma es válida, significa que el contenido es auténtico y no ha sido modificado.
+  4. Si la firma es válida, procede a verificar que el `hardwareId` del archivo coincida con el de la máquina actual y que la licencia no haya expirado.
+  5. Si todas las comprobaciones son exitosas, el software se activa.
+
+Este método es seguro porque cualquier modificación al archivo `license.json` por parte del usuario invalidará la firma digital, y el software cliente lo detectará.
+
+-----------------------------
+2. Implementación en Clic-Tools (El Servidor)
+-----------------------------
+
+La lógica principal reside en los archivos `crypto.ts` y `db.ts` del módulo de licencias.
+
+-- Archivo: `src/modules/licenses/lib/crypto.ts` --
+
+```typescript
+// Este archivo maneja la generación y uso de las claves criptográficas.
+"use server";
+
+import crypto from 'crypto';
+import fs from 'fs/promises';
+import path from 'path';
+
+const KEYS_DIR = path.join(process.cwd(), 'dbs', 'keys');
+const PRIVATE_KEY_PATH = path.join(KEYS_DIR, 'private_key.pem');
+const PUBLIC_KEY_PATH = path.join(KEYS_DIR, 'public_key.pem');
+
+/**
+ * Genera un nuevo par de claves RSA (privada y pública).
+ * Esta función es llamada desde la UI de administración de Clic-Tools.
+ */
+export async function generateKeys(): Promise<{ success: boolean; message: string }> {
+    // ... lógica para generar y guardar las claves en los archivos .pem ...
+}
+
+/**
+ * Lee la clave privada del disco. Falla si no existe.
+ */
+async function getPrivateKey(): Promise<string> {
+    try {
+        return await fs.readFile(PRIVATE_KEY_PATH, 'utf-8');
+    } catch (error) {
+        throw new Error("La clave privada no se encuentra. Genere un nuevo par de claves.");
+    }
+}
+
+/**
+ * Lee la clave pública del disco para que pueda ser descargada por el admin.
+ */
+export async function getPublicKey(): Promise<string | null> {
+    // ... lógica para leer el archivo public_key.pem ...
+}
+
+/**
+ * Firma un objeto de licencia y devuelve el contenido del archivo .json final.
+ * @param {object} licenseInfo - La información a firmar (hardwareId, fechas, etc.).
+ * @returns {Promise<string>} Un string JSON que contiene la licencia y su firma.
+ */
+export async function signLicenseData(licenseInfo: object): Promise<string> {
+    const privateKey = await getPrivateKey();
+    
+    // El mensaje debe ser un string consistente. Ordenar las claves del objeto JSON
+    // asegura que el string resultante sea siempre el mismo para los mismos datos.
+    const message = JSON.stringify(licenseInfo, Object.keys(licenseInfo).sort());
+    
+    const signer = crypto.createSign('RSA-SHA256');
+    signer.update(message);
+    const signature = signer.sign(privateKey, 'hex');
+
+    const licenseFileContent = {
+        license_info: licenseInfo,
+        signature: signature
+    };
+
+    return JSON.stringify(licenseFileContent, null, 2);
+}
+```
+
+-- Archivo: `src/modules/licenses/lib/db.ts` --
+```typescript
+// Fragmento de la función que crea una licencia
+export async function addLicense(licenseData: Omit<License, 'id' | 'createdAt' | 'licenseKey'>): Promise<License> {
+    const db = await connectDb(LICENSES_DB_FILE);
+    
+    // 1. Recopilar la información que irá dentro de la licencia.
+    const licenseInfo = {
+        softwareId: licenseData.softwareId,
+        clientCompanyId: licenseData.clientCompanyId,
+        hardwareId: licenseData.hardwareId,
+        isPerpetual: licenseData.isPerpetual,
+        expirationDate: licenseData.expirationDate,
+        createdAt: new Date().toISOString(),
+    };
+
+    // 2. Llamar a la función crypto para firmar estos datos.
+    const signedLicenseJson = await signLicenseData(licenseInfo);
+
+    // 3. Guardar el JSON firmado completo en la base de datos.
+    const info = db.prepare(`
+        INSERT INTO licenses (licenseKey, /*... otros campos ...*/)
+        VALUES (@licenseKey, /*... otros valores ...*/)
+    `).run({
+        licenseKey: signedLicenseJson,
+        // ... resto de los datos ...
+    });
+
+    const result = db.prepare('SELECT * FROM licenses WHERE id = ?').get(info.lastInsertRowid) as License;
+    return result;
+}
+```
+
+-----------------------------
+3. Ejemplo de Archivo `license.json` Generado
+-----------------------------
+
+Cuando el administrador descarga la licencia desde Clic-Tools, obtiene un archivo como este:
+
+```json
+{
+  "license_info": {
+    "softwareId": 1,
+    "clientCompanyId": 123,
+    "hardwareId": "DESKTOP-ABC123-win32-x64",
+    "isPerpetual": false,
+    "expirationDate": "2025-12-31",
+    "createdAt": "2024-11-20T10:00:00.000Z"
+  },
+  "signature": "a1b2c3d4e5f6..."
+}
+```
+
+-----------------------------
+4. Implementación en Clic-Cola (El Cliente) - GUÍA PARA EL OTRO GEMINI
+-----------------------------
+
+El software cliente debe ser capaz de verificar la autenticidad del archivo `license.json`.
+
+**Paso 1: Incluir la Clave Pública**
+- Coloca el archivo `public_key.pem` (descargado desde Clic-Tools) en una carpeta como `src/lib/keys/` dentro del proyecto Clic-Cola.
+
+**Paso 2: Crear el Validador de Licencia**
+- El siguiente es un ejemplo de cómo se podría implementar el validador en TypeScript/Node.js.
+
+-- Archivo: `src/lib/license-validator.ts` --
+```typescript
+import crypto from 'crypto';
+import fs from 'fs/promises';
+import path from 'path';
+import os from 'os';
+
+// Genera un ID de hardware único para la máquina actual.
+const generateHardwareId = async (): Promise<string> => {
+    const hostname = os.hostname();
+    const platform = os.platform();
+    const arch = os.arch();
+    // Podrían añadirse más factores como el número de serie de la placa base (si es accesible).
+    return `${hostname}-${platform}-${arch}`;
+};
+
+interface ValidationResult {
+    isValid: boolean;
+    message?: string;
+}
+
+export async function validateLicense(): Promise<ValidationResult> {
+    try {
+        const licensePath = path.join(process.cwd(), 'database', 'license.json');
+        const publicKeyPath = path.join(process.cwd(), 'src', 'lib', 'keys', 'public_key.pem');
+
+        // Leer la clave pública y el archivo de licencia
+        const publicKey = await fs.readFile(publicKeyPath, 'utf-8');
+        const licenseFileContent = await fs.readFile(licensePath, 'utf-8');
+        const licenseData = JSON.parse(licenseFileContent);
+
+        const { license_info, signature } = licenseData;
+
+        if (!license_info || !signature) {
+            return { isValid: false, message: 'Archivo de licencia malformado.' };
+        }
+        
+        // 1. VERIFICAR LA FIRMA DIGITAL
+        // El mensaje debe recrearse exactamente como se firmó, con las claves ordenadas.
+        const messageToVerify = JSON.stringify(license_info, Object.keys(license_info).sort());
+
+        const verifier = crypto.createVerify('RSA-SHA256');
+        verifier.update(messageToVerify);
+
+        const isSignatureValid = verifier.verify(publicKey, signature, 'hex');
+
+        if (!isSignatureValid) {
+            return { isValid: false, message: 'Firma de licencia inválida. El archivo puede estar corrupto o alterado.' };
+        }
+
+        // 2. VERIFICAR EL HARDWARE ID
+        const currentHardwareId = await generateHardwareId();
+        if (license_info.hardwareId !== currentHardwareId) {
+            return { isValid: false, message: `La licencia no es válida para esta máquina. ID de máquina: ${currentHardwareId}` };
+        }
+
+        // 3. VERIFICAR LA FECHA DE VENCIMIENTO
+        if (!license_info.isPerpetual) {
+            const expirationDate = new Date(license_info.expirationDate);
+            if (expirationDate < new Date()) {
+                return { isValid: false, message: 'La licencia ha expirado.' };
+            }
+        }
+
+        // Si todas las validaciones pasan, la licencia es válida.
+        return { isValid: true };
+
+    } catch (error) {
+        if (error.code === 'ENOENT') {
+            return { isValid: false, message: 'No se encontró el archivo de licencia.' };
+        }
+        console.error("Error validando la licencia:", error);
+        return { isValid: false, message: 'Error inesperado al validar la licencia.' };
+    }
+}
+```
+
+**Paso 3: Integrar en el Arranque de la App**
+- En el componente principal de Clic-Cola, llamar a `validateLicense()` al iniciar.
+- Si devuelve `isValid: true`, mostrar la aplicación.
+- Si devuelve `isValid: false`, mostrar la pantalla de activación con el mensaje de error y el `hardwareId` actual para que el usuario pueda solicitar una nueva licencia.
