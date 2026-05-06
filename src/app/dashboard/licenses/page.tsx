@@ -21,7 +21,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SearchInput } from '@/components/ui/search-input';
-import { PlusCircle, MoreVertical, CalendarIcon, Loader2, Trash2, Download, Edit, ShieldCheck, Boxes, Settings2, Info, Code2, Copy, Check, KeyRound, Eye, ShieldAlert } from 'lucide-react';
+import { PlusCircle, MoreVertical, CalendarIcon, Loader2, Trash2, Download, Edit, ShieldCheck, Boxes, Settings2, Info, Code2, Copy, Check, KeyRound, Eye, ShieldAlert, MessageCircle, Database } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
@@ -92,7 +92,10 @@ export interface LicenseFile {
 }`,
         validator: `import crypto from 'crypto';
 import os from 'os';
+import fs from 'fs/promises';
+import path from 'path';
 
+// RUTA ESTÁNDAR: database/license.json
 export async function generateHardwareId(): Promise<string> {
     const machineInfo = [os.hostname(), os.platform(), os.arch(), os.userInfo().username].join('-');
     return crypto.createHash('sha256').update(machineInfo).digest('hex');
@@ -113,6 +116,10 @@ export default async function RootPage() {
     if (!license.isValid) {
         return <ActivationForm hardwareId={license.hardwareId} />;
     }
+
+    // EJEMPLO DE USO DE MÓDULOS:
+    // const hasPOS = license.modules.m01;
+    // const hasInventory = license.modules.m02;
 
     // 2. ¿Existe Administrador? (Setup Wizard)
     const userCount = await getUserCount();
@@ -154,7 +161,25 @@ export async function registerFreeLicense(softwareId: number, name: string, emai
     const result = await res.json();
     if (!res.ok) throw new Error(result.error);
     return result.license_file; // Guardar en database/license.json
-}`
+}`,
+        database: `-- ESQUEMA MÍNIMO OBLIGATORIO (SQLite: dbs/local.db)
+
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    email TEXT UNIQUE NOT NULL,
+    password TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'admin',
+    createdAt TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS config (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
+
+-- Inserción inicial tras SetupWizard:
+-- INSERT INTO config (key, value) VALUES ('companyName', 'Nombre de la Empresa');`
     };
 
     return (
@@ -402,6 +427,7 @@ export async function registerFreeLicense(softwareId: number, name: string, emai
                                 <TabsTrigger value="validator" className="text-xs">2. Validador Core</TabsTrigger>
                                 <TabsTrigger value="actions" className="text-xs">3. Servidor (Actions)</TabsTrigger>
                                 <TabsTrigger value="boot" className="text-xs font-bold text-primary">4. Flujo de Arranque</TabsTrigger>
+                                <TabsTrigger value="database" className="text-xs flex gap-1"><Database className="h-3 w-3"/> 5. Base de Datos</TabsTrigger>
                             </TabsList>
                             
                             <div className="flex-1 overflow-y-auto p-0">
@@ -456,6 +482,17 @@ export async function registerFreeLicense(softwareId: number, name: string, emai
                                                 {sdkCode.boot}
                                             </pre>
                                         </div>
+                                    </div>
+                                </TabsContent>
+                                <TabsContent value="database" className="m-0 h-full">
+                                    <div className="p-4 relative">
+                                        <Button variant="secondary" size="sm" className="absolute top-6 right-6 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.database, 'database')}>
+                                            {copiedSection === 'database' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
+                                            {copiedSection === 'database' ? 'Copiado' : 'Copiar'}
+                                        </Button>
+                                        <pre className="bg-slate-950 text-slate-100 p-6 rounded-lg text-[11px] font-mono overflow-auto max-h-[600px]">
+                                            {sdkCode.database}
+                                        </pre>
                                     </div>
                                 </TabsContent>
                             </div>
