@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDb } from '@/modules/core/lib/db';
 import { signLicenseData } from '@/modules/licenses/lib/crypto';
 import { upsertCustomer } from '@/modules/core/lib/data-access-db';
-import type { Customer } from '@/modules/core/types';
+import type { Customer, License } from '@/modules/core/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
         const existing = db.prepare(`
             SELECT * FROM licenses 
             WHERE softwareId = ? AND hardwareId = ? AND status = 'active'
-        `).get(softwareId, hardwareId);
+        `).get(softwareId, hardwareId) as License | undefined;
 
         if (existing) {
             return NextResponse.json({ 
