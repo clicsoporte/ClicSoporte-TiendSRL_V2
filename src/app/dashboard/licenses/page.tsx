@@ -1,7 +1,7 @@
 
 /**
  * @fileoverview Main page for the License Management module.
- * Enhanced for Hybrid Licensing v2.7 (Intelligent 2-Step Protocol).
+ * Enhanced for Hybrid Licensing v2.8 (Intelligent 2-Step Protocol & Sync).
  */
 'use client';
 
@@ -22,7 +22,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SearchInput } from '@/components/ui/search-input';
-import { PlusCircle, MoreVertical, CalendarIcon, Loader2, Trash2, Download, Edit, ShieldCheck, Boxes, Settings2, Info, Code2, Copy, Check, KeyRound } from 'lucide-react';
+import { PlusCircle, MoreVertical, CalendarIcon, Loader2, Trash2, Download, Edit, ShieldCheck, Boxes, Settings2, Info, Code2, Copy, Check, KeyRound, Eye } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
@@ -84,8 +84,6 @@ export async function verifyClientInfo(taxId: string) {
     if (result.exists) {
         // Autocompletar formulario:
         // result.data.name (Viene de local o Hacienda)
-        // result.data.email (Solo si es cliente existente)
-        // result.data.phone (Solo si es cliente existente)
         return { 
             found: true, 
             data: result.data, 
@@ -128,48 +126,66 @@ export async function activateSoftware(payload: {
     return result.license_file; // Guardar el JSON devuelto en un archivo local
 }`,
         logic: `/**
- * PASO 3: LÓGICA DE UI (BLOQUEO DE CAMPOS)
+ * PASO 3: LÓGICA DE UI (PROTECCIÓN DE DATOS)
  */
 async function onTaxIdBlur(id) {
     const info = await verifyClientInfo(id);
     if (info.found) {
         setFormName(info.data.name);
-        setFieldNameDisabled(true); // El nombre oficial no debe editarse
+        setFieldNameDisabled(true); // Bloquear nombre oficial
         
         if (info.isLocal) {
-            // Si ya es cliente real, bloqueamos sus datos de contacto maestros
-            setFormEmail(info.data.email);
-            setFormPhone(info.data.phone);
-            setFieldContactDisabled(true); 
+            // SI YA EXISTE: NO PEDIR NI PERMITIR ENVIAR CORREO/TELÉFONO
+            // Se asume que el servidor usará sus datos maestros.
+            setShowContactFields(false); 
+        } else {
+            // SI ES NUEVO (HACIENDA): PEDIR CONTACTO MANUAL
+            setShowContactFields(true);
         }
-    } else {
-        setFieldNameDisabled(false); // Cliente nuevo, debe escribir todo
     }
 }`,
         validation: `/**
  * PASO 4: VALIDACIÓN CRIPTOGRÁFICA (OFFLINE)
- * El software hijo usa la CLAVE PÚBLICA para verificar que el archivo
- * no ha sido alterado y que el Hardware ID coincide.
  */
 import crypto from 'crypto';
 
 export function validateLicense(licenseFileJson, publicKeyPem, currentHardwareId) {
     const { license_info, signature } = JSON.parse(licenseFileJson);
     
-    // 1. Verificar firma RSA
     const verifier = crypto.createVerify('RSA-SHA256');
     const message = JSON.stringify(license_info, Object.keys(license_info).sort());
     verifier.update(message);
     
     const isValid = verifier.verify(publicKeyPem, signature, 'hex');
-    if (!isValid) throw new Error("Firma digital inválida o archivo alterado.");
+    if (!isValid) throw new Error("Firma digital inválida.");
 
-    // 2. Verificar vinculación de hardware
     if (license_info.hardwareId !== currentHardwareId) {
-        throw new Error("Esta licencia pertenece a otro equipo de cómputo.");
+        throw new Error("Hardware ID no coincide.");
     }
 
-    return license_info; // Licencia válida
+    return license_info;
+}`,
+        sync: `/**
+ * PASO 5: SINCRONIZACIÓN (FORZAR VALIDACIÓN)
+ * Útil para reactivar software después de renovar en el servidor.
+ * Se llama a la misma función del Paso 2.
+ */
+async function onSyncButtonClick() {
+    try {
+        const updatedFile = await activateSoftware({
+            softwareId: currentSoftwareId,
+            taxId: currentTaxId,
+            token: currentToken, // Omitir si es versión gratis
+            customerName: currentName,
+            customerEmail: '', // No necesario si ya existe
+            customerPhone: ''
+        });
+        
+        saveLocalLicense(updatedFile);
+        alert("Sincronización exitosa. Licencia actualizada.");
+    } catch (e) {
+        alert("Error al sincronizar: " + e.message);
+    }
 }`
     };
 
@@ -408,10 +424,10 @@ export function validateLicense(licenseFileJson, publicKeyPem, currentHardwareId
                         <DialogHeader className="p-6 pb-2 border-b">
                             <div className="flex items-center gap-2">
                                 <Code2 className="h-5 w-5 text-primary" />
-                                <DialogTitle>Kit de Integración (SDK Estándar v2.7)</DialogTitle>
+                                <DialogTitle>Kit de Integración (SDK Estándar v2.8)</DialogTitle>
                             </div>
                             <DialogDescription>
-                                Implementa la verificación inteligente para autocompletar datos y proteger la integridad de la base de datos.
+                                Implementa el refresco automático para reactivar software renovado en el servidor sin soporte manual.
                             </DialogDescription>
                         </DialogHeader>
                         
@@ -421,6 +437,7 @@ export function validateLicense(licenseFileJson, publicKeyPem, currentHardwareId
                                 <TabsTrigger value="actions" className="text-xs">2. Activación</TabsTrigger>
                                 <TabsTrigger value="logic" className="text-xs">3. Lógica UI</TabsTrigger>
                                 <TabsTrigger value="validation" className="text-xs">4. Validación RSA</TabsTrigger>
+                                <TabsTrigger value="sync" className="text-xs font-bold text-green-600">5. Sincronización</TabsTrigger>
                             </TabsList>
                             
                             <div className="flex-1 overflow-y-auto p-0">
@@ -465,6 +482,17 @@ export function validateLicense(licenseFileJson, publicKeyPem, currentHardwareId
                                         </Button>
                                         <pre className="bg-slate-950 text-slate-100 p-6 rounded-lg text-[11px] font-mono overflow-auto max-h-[600px]">
                                             {sdkCode.validation}
+                                        </pre>
+                                    </div>
+                                </TabsContent>
+                                <TabsContent value="sync" className="m-0 h-full">
+                                    <div className="p-4 relative">
+                                        <Button variant="secondary" size="sm" className="absolute top-6 right-6 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.sync, 'sync')}>
+                                            {copiedSection === 'sync' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
+                                            {copiedSection === 'sync' ? 'Copiado' : 'Copiar'}
+                                        </Button>
+                                        <pre className="bg-slate-950 text-slate-100 p-6 rounded-lg text-[11px] font-mono overflow-auto max-h-[600px]">
+                                            {sdkCode.sync}
                                         </pre>
                                     </div>
                                 </TabsContent>
