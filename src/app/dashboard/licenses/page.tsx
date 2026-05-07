@@ -101,8 +101,6 @@ const SERVER_URL = '${SERVER_URL}';
 
 /**
  * PASO 2: ACTIVACIÓN (PREMIUM O GRATIS)
- * Si el cliente ya existe localmente, el servidor IGNORA los datos de contacto 
- * enviados y usa los oficiales para proteger la integridad.
  */
 export async function activateSoftware(payload: {
     softwareId: number,
@@ -110,7 +108,7 @@ export async function activateSoftware(payload: {
     customerName: string,
     customerEmail: string,
     customerPhone: string,
-    token?: string // Solo para Premium
+    token?: string // Si viene token, es Premium. Si no, es Gratis.
 }) {
     const hardwareId = await generateHardwareId();
     const endpoint = payload.token ? 'activate' : 'register-free';
@@ -127,25 +125,51 @@ export async function activateSoftware(payload: {
 
     const result = await res.json();
     if (!res.ok) throw new Error(result.error);
-    return result.license_file; // Guardar en archivo local
+    return result.license_file; // Guardar el JSON devuelto en un archivo local
 }`,
         logic: `/**
- * LÓGICA DE NEGOCIO (UI DEL HIJO)
+ * PASO 3: LÓGICA DE UI (BLOQUEO DE CAMPOS)
  */
 async function onTaxIdBlur(id) {
     const info = await verifyClientInfo(id);
     if (info.found) {
         setFormName(info.data.name);
-        setFieldNameDisabled(true); // Bloquear nombre oficial
+        setFieldNameDisabled(true); // El nombre oficial no debe editarse
         
         if (info.isLocal) {
+            // Si ya es cliente real, bloqueamos sus datos de contacto maestros
             setFormEmail(info.data.email);
             setFormPhone(info.data.phone);
-            setFieldContactDisabled(true); // Bloquear si ya es cliente real
+            setFieldContactDisabled(true); 
         }
     } else {
-        setFieldNameDisabled(false); // Cliente nuevo desconocido
+        setFieldNameDisabled(false); // Cliente nuevo, debe escribir todo
     }
+}`,
+        validation: `/**
+ * PASO 4: VALIDACIÓN CRIPTOGRÁFICA (OFFLINE)
+ * El software hijo usa la CLAVE PÚBLICA para verificar que el archivo
+ * no ha sido alterado y que el Hardware ID coincide.
+ */
+import crypto from 'crypto';
+
+export function validateLicense(licenseFileJson, publicKeyPem, currentHardwareId) {
+    const { license_info, signature } = JSON.parse(licenseFileJson);
+    
+    // 1. Verificar firma RSA
+    const verifier = crypto.createVerify('RSA-SHA256');
+    const message = JSON.stringify(license_info, Object.keys(license_info).sort());
+    verifier.update(message);
+    
+    const isValid = verifier.verify(publicKeyPem, signature, 'hex');
+    if (!isValid) throw new Error("Firma digital inválida o archivo alterado.");
+
+    // 2. Verificar vinculación de hardware
+    if (license_info.hardwareId !== currentHardwareId) {
+        throw new Error("Esta licencia pertenece a otro equipo de cómputo.");
+    }
+
+    return license_info; // Licencia válida
 }`
     };
 
@@ -272,12 +296,12 @@ async function onTaxIdBlur(id) {
                                                                 </h3>
                                                                 <div className="grid grid-cols-1 gap-2 bg-muted/10 p-4 rounded-xl border max-h-[400px] overflow-y-auto">
                                                                     {moduleKeys.map((key) => {
-                                                                        const softwareRec = selectedSoftware as unknown as Record<string, string | null>;
+                                                                        const softwareRec = selectedSoftware as any;
                                                                         const moduleName = softwareRec[`${key}_name`];
                                                                         const valKey = `${key}_val` as keyof License;
                                                                         if (!moduleName) return null;
                                                                         
-                                                                        const currentLicenseRec = state.currentLicense as unknown as Record<string, boolean>;
+                                                                        const currentLicenseRec = state.currentLicense as any;
                                                                         
                                                                         return (
                                                                             <div key={key} className="flex items-center justify-between p-3 rounded-lg border bg-card shadow-sm hover:border-primary/50 transition-colors">
@@ -387,15 +411,16 @@ async function onTaxIdBlur(id) {
                                 <DialogTitle>Kit de Integración (SDK Estándar v2.7)</DialogTitle>
                             </div>
                             <DialogDescription>
-                                Implementa la verificación inteligente en 2 pasos para autocompletar datos y proteger la integridad de la base de datos.
+                                Implementa la verificación inteligente para autocompletar datos y proteger la integridad de la base de datos.
                             </DialogDescription>
                         </DialogHeader>
                         
                         <Tabs defaultValue="verify" className="flex-1 overflow-hidden flex flex-col">
                             <TabsList className="px-6 border-b rounded-none bg-muted/20 h-10 overflow-x-auto justify-start">
-                                <TabsTrigger value="verify" className="text-xs font-bold text-primary">1. Verificación (Autocomplete)</TabsTrigger>
-                                <TabsTrigger value="actions" className="text-xs">2. Activación (Premium/Gratis)</TabsTrigger>
-                                <TabsTrigger value="logic" className="text-xs">3. Lógica de UI</TabsTrigger>
+                                <TabsTrigger value="verify" className="text-xs font-bold text-primary">1. Verificación</TabsTrigger>
+                                <TabsTrigger value="actions" className="text-xs">2. Activación</TabsTrigger>
+                                <TabsTrigger value="logic" className="text-xs">3. Lógica UI</TabsTrigger>
+                                <TabsTrigger value="validation" className="text-xs">4. Validación RSA</TabsTrigger>
                             </TabsList>
                             
                             <div className="flex-1 overflow-y-auto p-0">
@@ -429,6 +454,17 @@ async function onTaxIdBlur(id) {
                                         </Button>
                                         <pre className="bg-slate-950 text-slate-100 p-6 rounded-lg text-[11px] font-mono overflow-auto max-h-[600px]">
                                             {sdkCode.logic}
+                                        </pre>
+                                    </div>
+                                </TabsContent>
+                                <TabsContent value="validation" className="m-0 h-full">
+                                    <div className="p-4 relative">
+                                        <Button variant="secondary" size="sm" className="absolute top-6 right-6 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.validation, 'validation')}>
+                                            {copiedSection === 'validation' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
+                                            {copiedSection === 'validation' ? 'Copiado' : 'Copiar'}
+                                        </Button>
+                                        <pre className="bg-slate-950 text-slate-100 p-6 rounded-lg text-[11px] font-mono overflow-auto max-h-[600px]">
+                                            {sdkCode.validation}
                                         </pre>
                                     </div>
                                 </TabsContent>
@@ -496,7 +532,7 @@ async function onTaxIdBlur(id) {
                                     <ScrollArea className="h-[400px] pr-4">
                                         <div className="grid gap-4">
                                             {moduleKeys.map((key, i) => {
-                                                const productRec = state.newSoftwareProduct as unknown as Record<string, string | null>;
+                                                const productRec = state.newSoftwareProduct as any;
                                                 return (
                                                     <div key={key} className="space-y-1.5 p-3 rounded-lg border bg-background">
                                                         <Label className="text-[10px] font-bold text-primary uppercase">Nombre del Módulo {i+1} (ID: {key.toUpperCase()})</Label>
