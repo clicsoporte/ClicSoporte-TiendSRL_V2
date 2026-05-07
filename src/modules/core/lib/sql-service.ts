@@ -6,7 +6,7 @@
  */
 'use server';
 
-import sql from 'mssql';
+import * as sql from 'mssql';
 import { logError } from './logger';
 import { getSqlConfig } from './config-db';
 

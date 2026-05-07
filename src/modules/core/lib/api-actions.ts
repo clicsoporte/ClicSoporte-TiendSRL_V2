@@ -5,9 +5,23 @@
  */
 "use server";
 
-import { getApiSettings } from './settings-db';
+import { connectDb } from './db';
 import { logError, logWarn } from './logger';
-import type { HaciendaExemptionApiResponse, ExchangeRateApiResponse } from '../types';
+import type { HaciendaExemptionApiResponse, ExchangeRateApiResponse, ApiSettings } from '../types';
+
+/**
+ * Internal helper to retrieve API settings directly from the DB to avoid circular dependencies with settings-db.ts.
+ */
+async function getApiSettingsInternal(): Promise<ApiSettings | null> {
+    const db = await connectDb();
+    try {
+        const row = db.prepare('SELECT * FROM api_settings WHERE id = 1').get();
+        return row ? JSON.parse(JSON.stringify(row)) : null;
+    } catch (error) {
+        console.error("Failed to get API settings internally:", error);
+        return null;
+    }
+}
 
 /**
  * Fetches the current USD to CRC exchange rate from the configured API endpoint.
@@ -15,7 +29,7 @@ import type { HaciendaExemptionApiResponse, ExchangeRateApiResponse } from '../t
  */
 export async function getExchangeRate(): Promise<ExchangeRateApiResponse | { error: boolean; message: string; status?: number }> {
     try {
-        const apiSettings = await getApiSettings();
+        const apiSettings = await getApiSettingsInternal();
         if (!apiSettings?.exchangeRateApi) {
             throw new Error("Exchange rate API URL not configured in settings.");
         }
@@ -51,7 +65,7 @@ export async function getExemptionStatus(authNumber: string): Promise<HaciendaEx
     }
 
     try {
-        const apiSettings = await getApiSettings();
+        const apiSettings = await getApiSettingsInternal();
         if (!apiSettings?.haciendaExemptionApi) {
             throw new Error("Exemption API URL not configured in settings.");
         }

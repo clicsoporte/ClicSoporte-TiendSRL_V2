@@ -1,3 +1,4 @@
+
 'use client';
 
 /**
@@ -24,7 +25,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose, DialogTrigger } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
@@ -50,7 +51,7 @@ export default function TicketDetailPage() {
     const ticketId = Number(params.id);
     const { isAuthorized, hasPermission } = useAuthorization(['tickets:read:all']);
     const { actions, selectors } = useTickets();
-    const { user: currentUser, companyData, customers } = useAuth();
+    const { user: currentUser, companyData, customers, users } = useAuth();
     const { toast } = useToast();
     
     const [ticket, setTicket] = useState<Ticket | null>(null);
@@ -225,6 +226,15 @@ export default function TicketDetailPage() {
             return `${hours}:${minutes}:${seconds}`;
         };
 
+        const involvedTechs = Array.from(new Set(timeEntries.map(e => {
+            const u = users.find(usr => usr.id === e.userId);
+            return u ? u.name : 'Técnico';
+        }))).join(', ');
+
+        const resolution = ticket.status === 'completed' 
+            ? thread.filter(t => t.type === 'message').reverse()[0]?.content 
+            : 'Pendiente de resolución';
+
         const tableRows = timeEntries.map(e => [
             format(parseISO(e.startTime), 'dd/MM/yy HH:mm'),
             e.notes || 'Soporte Técnico',
@@ -243,12 +253,14 @@ export default function TicketDetailPage() {
             ],
             blocks: [
                 { title: 'Información del Caso', content: `Asunto: ${ticket.subject}\nCliente: ${ticket.customerName}\nAbierto el: ${format(parseISO(ticket.createdAt), 'dd/MM/yyyy HH:mm')}` },
+                { title: 'Técnicos Responsables', content: involvedTechs || 'Sin asignar' },
+                { title: 'Resolución del Caso', content: resolution },
                 { title: 'Resumen de Tiempos', content: `Tiempo Real: ${formatDurationStr(totalMs)}\nTiempo Facturable: ${formatDurationStr(billableMs)}` }
             ],
             table: {
                 columns: ["Fecha", "Actividad / Notas", "Bajo Contrato", "Duración"],
                 rows: tableRows,
-                columnStyles: { 3: { halign: 'right' } }
+                columnStyles: { 1: { cellWidth: 'auto' }, 3: { halign: 'right' } }
             },
             notes: "Este reporte detalla las actividades realizadas y el tiempo consumido. Si tiene dudas sobre este reporte, favor contactar a soporte técnico.",
             totals: [

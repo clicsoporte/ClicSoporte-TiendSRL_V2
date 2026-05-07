@@ -4,7 +4,6 @@
 
 import type { LucideIcon } from "lucide-react";
 import type { DateRange } from "react-day-picker";
-import type { Database } from "better-sqlite3";
 
 /**
  * Represents a user account in the system.
@@ -243,13 +242,13 @@ export type Product = {
  * Represents a single line item within a quote.
  */
 export type QuoteLine = {
-    id: string;
-    product: Product;
-    quantity: number;
-    price: number;
-    tax: number;
-    displayQuantity: string;
-    displayPrice: string;
+  id: string;
+  product: Product;
+  quantity: number;
+  price: number;
+  tax: number;
+  displayQuantity: string;
+  displayPrice: string;
 };
 
 export type ExchangeRateApiResponse = {
@@ -318,8 +317,6 @@ export type DatabaseModule = {
     id: string;
     name: string;
     dbFile: string;
-    initFn?: (db: Database) => Promise<void> | void;
-    migrationFn?: (db: Database) => Promise<void> | void;
 };
 
 export type Exemption = {

@@ -148,13 +148,15 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         autoTable(doc, {
             startY: finalY,
             body: data.blocks.map(b => ([
-                { content: b.title, styles: { fontStyle: 'bold', cellPadding: { top: 0, right: 5, bottom: 2, left: 0 } } },
-                { content: b.content, styles: { fontStyle: 'normal', cellPadding: { top: 0, right: 0, bottom: 2, left: 0 } } }
+                { content: b.title, styles: { fontStyle: 'bold', cellPadding: { top: 0, right: 5, bottom: 5, left: 0 } } },
+                { content: b.content, styles: { fontStyle: 'normal', cellPadding: { top: 0, right: 0, bottom: 5, left: 0 } } }
             ] as RowInput)),
             theme: 'plain',
-            tableWidth: 'wrap',
-            styles: { fontSize: 9, cellPadding: 0 },
-            columnStyles: { 0: { cellWidth: 'wrap' } },
+            styles: { fontSize: 9, cellPadding: 0, overflow: 'linebreak' },
+            columnStyles: { 
+                0: { cellWidth: 120 }, 
+                1: { cellWidth: 'auto' } 
+            },
             margin: { left: margin, right: margin }
         });
         finalY = doc.lastAutoTable.finalY + 15;
@@ -167,7 +169,7 @@ export const generateDocument = (data: DocumentData): jsPDF => {
         margin: { right: margin, left: margin, bottom: 80 },
         theme: 'striped',
         headStyles: { fillColor: [41, 128, 185], textColor: 255, font: 'Helvetica', fontStyle: 'bold' },
-        styles: { font: 'Helvetica', fontSize: 9, cellPadding: 4 },
+        styles: { font: 'Helvetica', fontSize: 9, cellPadding: 4, overflow: 'linebreak' },
         columnStyles: data.table.columnStyles as { [key: string]: Partial<Styles> },
         didDrawPage: didDrawPage,
     });
