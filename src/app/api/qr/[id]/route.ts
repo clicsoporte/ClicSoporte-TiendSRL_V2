@@ -1,7 +1,6 @@
 /**
  * @fileoverview API Route for autonomous QR Code generation.
- * Generates an SVG string containing a text-based technical sheet.
- * Marked as force-dynamic and revalidate=0 to ensure it's not statically generated during build.
+ * Marked as strictly dynamic to avoid build-time static generation errors.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -12,30 +11,27 @@ import type { Equipment } from '@/modules/core/types';
 // Ensure the route is never statically generated during build
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
+export const fetchCache = 'force-no-store';
 
 export async function GET(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    context: { params: { id: string } }
 ) {
-    // Safety check for params to avoid build-time errors
-    const id = params?.id;
+    // Build-time safety: contest.params might be empty or missing during some build phases
+    const id = context?.params?.id;
     
-    if (!id) {
-        return new NextResponse('Missing ID', { status: 400 });
+    if (!id || id === '[id]') {
+        return new NextResponse('Missing or invalid ID', { status: 400 });
     }
 
     try {
-        // Attempt to connect to DB. During build, this handles its own state.
         const db = await connectDb();
-        
-        // Fetch equipment details safely
         const equipment = db.prepare('SELECT * FROM inventory_equipment WHERE id = ?').get(id) as Equipment | undefined;
 
         if (!equipment) {
             return new NextResponse('Equipment not found', { status: 404 });
         }
 
-        // Autonomous Technical Sheet for the QR content (offline-friendly metadata)
         const techSheet = [
             `EQUIPO: ${equipment.nickname}`,
             `MARCA: ${equipment.brand}`,
@@ -47,7 +43,6 @@ export async function GET(
             `GENERADO: ${new Date().toLocaleDateString()}`
         ].join('\n');
 
-        // Generate SVG string using high-quality settings
         const qrSvg = await QRCode.toString(techSheet, {
             type: 'svg',
             margin: 2,
@@ -65,7 +60,7 @@ export async function GET(
             }
         });
 
-    } catch (error) {
+    } catch (error: unknown) {
         console.error('QR Generation Error:', error);
         return new NextResponse('Internal Server Error', { status: 500 });
     }

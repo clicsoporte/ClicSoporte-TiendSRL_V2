@@ -609,3 +609,4 @@ CREATE TABLE IF NOT EXISTS config (
         </TooltipProvider>
     );
 }
+

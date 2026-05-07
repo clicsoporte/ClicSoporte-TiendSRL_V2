@@ -1,10 +1,10 @@
 /**
- * @fileoverview Redundant route handler placeholder.
+ * @fileoverview Redundant route placeholder.
  */
 import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-    return new NextResponse('Removed', { status: 404 });
+    return new NextResponse(null, { status: 404 });
 }
