@@ -2,13 +2,14 @@
 /**
  * @fileoverview API Endpoint for registering free licenses.
  * Acts as a lead generator by creating a manual customer and a free license.
+ * Optimized for SDK v2.6 (includes version tracking).
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDb } from '@/modules/core/lib/db';
 import { signLicenseData } from '@/modules/licenses/lib/crypto';
 import { upsertLeadCustomer } from '@/modules/core/lib/data-access-db';
-import type { Customer, License } from '@/modules/core/types';
+import type { Customer, License, SoftwareProduct } from '@/modules/core/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,7 +24,14 @@ export async function POST(req: NextRequest) {
 
         const db = await connectDb();
 
-        // 1. Create/Update a Manual Customer (Lead)
+        // 1. Get Software Details for rich signing
+        const software = db.prepare('SELECT * FROM software_products WHERE id = ?').get(softwareId) as SoftwareProduct | undefined;
+        
+        if (!software) {
+            return NextResponse.json({ error: 'El software especificado no existe en el catálogo central.' }, { status: 404 });
+        }
+
+        // 2. Create/Update a Manual Customer (Lead)
         // We use the email as a temporary ID prefix if no ID is provided
         const tempId = `LEAD-${customerEmail.split('@')[0].toUpperCase()}`;
         
@@ -47,7 +55,7 @@ export async function POST(req: NextRequest) {
         // Use the specialized function that doesn't require session auth
         await upsertLeadCustomer(customerData);
 
-        // 2. Check if a free license already exists for this hardware/software
+        // 3. Check if a free license already exists for this hardware/software
         const existing = db.prepare(`
             SELECT * FROM licenses 
             WHERE softwareId = ? AND hardwareId = ? AND status = 'active'
@@ -61,16 +69,17 @@ export async function POST(req: NextRequest) {
             });
         }
 
-        // 3. Create Free License Record
+        // 4. Create Free License Record with exact structure for SDK v2.6
         const now = new Date().toISOString();
         const licenseInfo = {
             softwareId: Number(softwareId),
-            softwareName: 'Software Registrado', // Will be enriched by child
+            softwareName: software.name,
+            softwareVersion: software.currentVersion || '1.0.0',
             customerId: tempId,
             hardwareId: hardwareId,
             activationToken: 'FREE-LICENSE',
             isPerpetual: true,
-            expirationDate: null,
+            expirationDate: '', // Important: empty string instead of null for RSA typing
             status: 'FREE_MODE',
             createdAt: now,
             modules: {
@@ -83,8 +92,8 @@ export async function POST(req: NextRequest) {
 
         db.prepare(`
             INSERT INTO licenses (
-                licenseKey, activationToken, softwareId, customerId, hardwareId, isPerpetual, status, createdAt, m01_val
-            ) VALUES (?, 'FREE-LICENSE', ?, ?, ?, 1, 'active', ?, 1)
+                licenseKey, activationToken, softwareId, customerId, hardwareId, isPerpetual, expirationDate, status, createdAt, m01_val
+            ) VALUES (?, 'FREE-LICENSE', ?, ?, ?, 1, '', 'active', ?, 1)
         `).run(signedData, softwareId, tempId, hardwareId, now);
 
         return NextResponse.json({

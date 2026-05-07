@@ -1,6 +1,8 @@
+
 /**
  * @fileoverview API Endpoint for child software activation.
  * Handles the linking between an activation token and a hardware ID.
+ * Synchronized with SDK v2.6.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -44,7 +46,7 @@ export async function POST(req: NextRequest) {
         // 4. Get software details for the payload (including centralized version)
         const software = db.prepare('SELECT * FROM software_products WHERE id = ?').get(softwareId) as SoftwareProduct;
 
-        // 5. Generate signed payload
+        // 5. Generate signed payload with standard structure v2.6
         const licenseInfo = {
             softwareId: software.id,
             softwareName: software.name,
@@ -53,7 +55,8 @@ export async function POST(req: NextRequest) {
             hardwareId: hardwareId,
             activationToken: activationToken,
             isPerpetual: !!license.isPerpetual,
-            expirationDate: license.expirationDate,
+            expirationDate: license.expirationDate || '',
+            status: 'active',
             createdAt: license.createdAt,
             modules: {
                 m01: !!license.m01_val, m02: !!license.m02_val, m03: !!license.m03_val, m04: !!license.m04_val, m05: !!license.m05_val,
@@ -62,6 +65,9 @@ export async function POST(req: NextRequest) {
         };
 
         const signedData = await signLicenseData(licenseInfo);
+
+        // Update stored licenseKey to cache the signed result
+        db.prepare('UPDATE licenses SET licenseKey = ? WHERE id = ?').run(signedData, license.id);
 
         return NextResponse.json({
             success: true,
