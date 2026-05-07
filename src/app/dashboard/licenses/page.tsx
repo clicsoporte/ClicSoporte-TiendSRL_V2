@@ -30,7 +30,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
-import type { License } from '@/modules/core/types';
+import type { License, SoftwareProduct } from '@/modules/core/types';
 
 export default function LicensesPage() {
     const { state, actions, selectors } = useLicenses();
@@ -269,6 +269,11 @@ CREATE TABLE IF NOT EXISTS config (
                                                                                 <TooltipContent><p className="max-w-xs">Identificador único generado por el software hijo en la PC del cliente.</p></TooltipContent>
                                                                             </Tooltip>
                                                                         </Label>
+                                                                        <input
+                                                                            type="hidden"
+                                                                            name="hardwareId"
+                                                                            value={state.currentLicense.hardwareId || ''}
+                                                                        />
                                                                         <Input
                                                                             value={state.currentLicense.hardwareId || ''}
                                                                             onChange={(e) => actions.handleCurrentLicenseChange('hardwareId', e.target.value)}
@@ -607,7 +612,7 @@ CREATE TABLE IF NOT EXISTS config (
 
                 <AlertDialog open={!!state.licenseToDelete} onOpenChange={(open) => !open && actions.setLicenseToDelete(null)}>
                     <AlertDialogContent>
-                        <AlertDialogHeader><AlertDialogTitle>¿Eliminar Licencia?</AlertDialogTitle><AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription></AlertDialogHeader>
+                        <AlertDialogHeader><AlertDialogTitle>¿Eliminar Licencia?</AlertDialogTitle><AlertDialogDescription>Esta acción borrará permanentemente la licencia y todos sus datos asociados.</AlertDialogDescription></AlertDialogHeader>
                         <AlertDialogFooter>
                             <AlertDialogCancel>Cancelar</AlertDialogCancel>
                             <AlertDialogAction onClick={actions.handleDeleteLicense}>Sí, eliminar</AlertDialogAction>
