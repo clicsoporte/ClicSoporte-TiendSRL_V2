@@ -157,12 +157,21 @@ export async function upsertCustomer(customer: Customer): Promise<Customer> {
 }
 
 /**
- * upsertLeadCustomer: Versión especializada para la API de Registro Gratuito.
- * NO REQUIERE SESIÓN pero solo permite inserciones de tipo Lead/Manual.
+ * upsertLeadCustomer: Versión mejorada que NO sobrescribe datos de clientes existentes.
+ * Protege la integridad de la base de datos local frente a entradas de la API.
  */
 export async function upsertLeadCustomer(customer: Customer): Promise<Customer> {
     const db = await connectDb();
     try {
+        // Primero verificamos si el cliente ya existe
+        const existing = db.prepare('SELECT id FROM customers WHERE id = ? OR taxId = ?').get(customer.id, customer.taxId);
+        
+        if (existing) {
+            // Si existe, no hacemos nada para proteger los datos maestros
+            return customer;
+        }
+
+        // Si no existe, lo creamos como un nuevo Lead
         const stmt = db.prepare(`
             INSERT INTO customers (
                 id, name, commercialName, address, phone, taxId, currency, salesperson, active, email, electronicDocEmail, isManual, contacts,
@@ -172,11 +181,6 @@ export async function upsertLeadCustomer(customer: Customer): Promise<Customer> 
                 @id, @name, @commercialName, @address, @phone, @taxId, @currency, 'SISTEMA ONLINE', 'S', @email, @electronicDocEmail, 1, @contacts,
                 @taxActivities, 0, 1, 1
             )
-            ON CONFLICT(id) DO UPDATE SET
-                name = excluded.name, 
-                email = excluded.email, 
-                phone = excluded.phone,
-                contacts = excluded.contacts
         `);
         
         const params = {

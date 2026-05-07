@@ -1,8 +1,7 @@
 
 /**
  * @fileoverview API Endpoint for registering free licenses.
- * Acts as a lead generator by creating a manual customer and a free license.
- * Optimized for SDK v2.6+ (uses Tax ID as primary identifier).
+ * Optimized for re-installations and duplicate detection.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -18,22 +17,32 @@ export async function POST(req: NextRequest) {
         const body = await req.json();
         const { softwareId, hardwareId, customerName, customerEmail, customerPhone, taxId } = body;
 
-        // Validation: taxId is now required to prevent duplicates and maintain hierarchy
         if (!softwareId || !hardwareId || !customerName || !customerEmail || !taxId) {
-            return NextResponse.json({ error: 'Faltan datos obligatorios para el registro (ID Fiscal/Cédula es requerido).' }, { status: 400 });
+            return NextResponse.json({ error: 'Faltan datos obligatorios para el registro.' }, { status: 400 });
         }
 
         const db = await connectDb();
 
-        // 1. Get Software Details for rich signing
+        // 1. Get Software Details
         const software = db.prepare('SELECT * FROM software_products WHERE id = ?').get(softwareId) as SoftwareProduct | undefined;
-        
-        if (!software) {
-            return NextResponse.json({ error: 'El software especificado no existe en el catálogo central.' }, { status: 404 });
+        if (!software) return NextResponse.json({ error: 'El software especificado no existe.' }, { status: 404 });
+
+        // 2. CHECK FOR RE-INSTALLATION
+        // If this specific PC already has a license for this software, return it immediately
+        const existingLicense = db.prepare(`
+            SELECT * FROM licenses 
+            WHERE softwareId = ? AND hardwareId = ? AND status = 'active'
+        `).get(softwareId, hardwareId) as License | undefined;
+
+        if (existingLicense && existingLicense.licenseKey) {
+            return NextResponse.json({ 
+                success: true, 
+                message: 'Bienvenido de nuevo. Restaurando licencia existente.',
+                license_file: existingLicense.licenseKey 
+            });
         }
 
-        // 2. Create/Update a Manual Customer (Lead)
-        // We use the taxId provided by the user as the primary 'id'
+        // 3. Ensure/Create the Customer (Protects existing data)
         const customerData: Customer = {
             id: taxId.trim().toUpperCase(),
             name: customerName,
@@ -51,24 +60,9 @@ export async function POST(req: NextRequest) {
             isManual: true
         };
 
-        // This function uses ON CONFLICT(id) DO UPDATE, so it handles duplicates automatically
         await upsertLeadCustomer(customerData);
 
-        // 3. Check if a free license already exists for this hardware/software
-        const existing = db.prepare(`
-            SELECT * FROM licenses 
-            WHERE softwareId = ? AND hardwareId = ? AND status = 'active'
-        `).get(softwareId, hardwareId) as License | undefined;
-
-        if (existing) {
-            return NextResponse.json({ 
-                success: true, 
-                message: 'Ya existe una licencia registrada para este equipo.',
-                license_file: existing.licenseKey 
-            });
-        }
-
-        // 4. Create Free License Record with exact structure for SDK v2.6
+        // 4. Create Free License Record
         const now = new Date().toISOString();
         const licenseInfo = {
             softwareId: Number(softwareId),
@@ -78,7 +72,7 @@ export async function POST(req: NextRequest) {
             hardwareId: hardwareId,
             activationToken: 'FREE-LICENSE',
             isPerpetual: true,
-            expirationDate: '', // Important: empty string instead of null for RSA typing
+            expirationDate: '',
             status: 'FREE_MODE',
             createdAt: now,
             modules: {
@@ -102,6 +96,6 @@ export async function POST(req: NextRequest) {
 
     } catch (error: unknown) {
         console.error('Free Registration API Error:', error);
-        return NextResponse.json({ error: (error as Error).message || 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }
 }

@@ -1,7 +1,7 @@
 
 /**
  * @fileoverview Main page for the License Management module.
- * Enhanced for Hybrid Licensing v2.3 (Standard Mapping Protocol).
+ * Enhanced for Hybrid Licensing v2.7 (Intelligent 2-Step Protocol).
  */
 'use client';
 
@@ -22,7 +22,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SearchInput } from '@/components/ui/search-input';
-import { PlusCircle, MoreVertical, CalendarIcon, Loader2, Trash2, Download, Edit, ShieldCheck, Boxes, Settings2, Info, Code2, Copy, Check, KeyRound, Database } from 'lucide-react';
+import { PlusCircle, MoreVertical, CalendarIcon, Loader2, Trash2, Download, Edit, ShieldCheck, Boxes, Settings2, Info, Code2, Copy, Check, KeyRound, Database, Eye } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
@@ -70,133 +70,83 @@ export default function LicensesPage() {
 
     const moduleKeys = Array.from({ length: 10 }, (_, i) => `m${(i + 1).toString().padStart(2, '0')}`);
 
+    const SERVER_URL = state.companyData?.publicUrl || 'https://soporte.clicsoporte.com';
+
     const sdkCode = {
-        types: `export type LicenseStatus = 'VALID' | 'INVALID_KEY' | 'EXPIRED' | 'BLOCKED' | 'UNLICENSED' | 'ERROR' | 'FREE_MODE';
-
-export interface LicenseState {
-    hardwareId: string;
-    isValid: boolean;
-    status: LicenseStatus;
-    expiresAt?: string;
-    softwareVersion?: string; // Versión registrada en el servidor
-    modules: Record<string, boolean>; // m01 a m10
-    type?: 'online' | 'offline' | 'free';
-}
-
-export interface LicenseFile {
-    license_info: {
-        softwareId: number;
-        softwareName: string;
-        softwareVersion: string;
-        hardwareId: string;
-        activationToken: string;
-        isPerpetual: boolean;
-        expirationDate: string;
-        status: string; // 'active' o 'FREE_MODE'
-        modules: Record<string, boolean>;
-    };
-    signature: string;
-}`,
-        validator: `import crypto from 'crypto';
-import os from 'os';
-import fs from 'fs/promises';
-import path from 'path';
-
-// RUTA ESTÁNDAR: database/license.json
-export async function generateHardwareId(): Promise<string> {
-    const machineInfo = [os.hostname(), os.platform(), os.arch(), os.userInfo().username].join('-');
-    return crypto.createHash('sha256').update(machineInfo).digest('hex');
-}
-
-export async function validateLicense(licenseFile: any, publicKeyPem: string): Promise<boolean> {
-    const verifier = crypto.createVerify('RSA-SHA256');
-    const message = JSON.stringify(licenseFile.license_info, Object.keys(licenseFile.license_info).sort());
-    verifier.update(message);
-    return verifier.verify(publicKeyPem, licenseFile.signature, 'hex');
-}`,
-        boot: `/**
- * PROTOCOLO DE ARRANQUE ESTÁNDAR (page.tsx de la App Hija)
+        verify: `/**
+ * PASO 1: VERIFICACIÓN INTELIGENTE
+ * El cliente ingresa su Cédula/RUC y obtenemos sus datos oficiales.
  */
-export default async function RootPage() {
-    // 1. ¿Licencia válida?
-    const license = await getLicenseState();
-    if (!license.isValid) {
-        // Enviar hardwareId e identificación (Tax ID / RUC) al formulario de activación
-        return <ActivationForm hardwareId={license.hardwareId} />;
+export async function verifyClientInfo(taxId: string) {
+    const res = await fetch(\`\${SERVER_URL}/api/v1/verify-client?taxId=\${taxId}\`);
+    const result = await res.json();
+    
+    if (result.exists) {
+        // Autocompletar formulario:
+        // result.data.name (Viene de local o Hacienda)
+        // result.data.email (Solo si es cliente existente)
+        // result.data.phone (Solo si es cliente existente)
+        return { 
+            found: true, 
+            data: result.data, 
+            isLocal: result.source === 'local' 
+        };
     }
-
-    // MONITOREO DE VERSIÓN (OPCIONAL)
-    const APP_VERSION = '1.0.0'; 
-    if (license.softwareVersion && license.softwareVersion !== APP_VERSION) {
-        // console.warn("¡Nueva versión disponible: " + license.softwareVersion + "!");
-    }
-
-    // 2. ¿Existe Administrador? (Setup Wizard)
-    const userCount = await getUserCount();
-    if (userCount === 0) {
-        return <SetupWizard />;
-    }
-
-    // 3. ¿Usuario autenticado?
-    const user = await getCurrentUser();
-    if (!user) {
-        return <LoginForm />;
-    }
-
-    // 4. Todo OK -> Dashboard
-    return <DashboardLayout user={user} license={license} />;
+    return { found: false };
 }`,
         actions: `'use server';
 import { generateHardwareId } from '@/lib/license-validator';
 
-const SERVER_URL = '${state.companyData?.publicUrl || 'https://soporte.clicsoporte.com'}';
+const SERVER_URL = '${SERVER_URL}';
 
-// ACTIVACIÓN PREMIUM (TOKEN)
-export async function activateSoftwareOnline(softwareId: number, token: string) {
+/**
+ * PASO 2: ACTIVACIÓN (PREMIUM O GRATIS)
+ * Si el cliente ya existe localmente, el servidor IGNORA los datos de contacto 
+ * enviados y usa los oficiales para proteger la integridad.
+ */
+export async function activateSoftware(payload: {
+    softwareId: number,
+    taxId: string,
+    customerName: string,
+    customerEmail: string,
+    customerPhone: string,
+    token?: string // Solo para Premium
+}) {
     const hardwareId = await generateHardwareId();
-    const res = await fetch(\`\${SERVER_URL}/api/v1/activate\`, {
-        method: 'POST', body: JSON.stringify({ softwareId, activationToken: token, hardwareId })
-    });
-    const result = await res.json();
-    if (!res.ok) throw new Error(result.error);
-    return result.license_file; // Guardar en database/license.json
-}
-
-// ACTIVACIÓN GRATUITA (LEAD)
-// Incluir 'taxId' (Identificación/RUC) para ligar a cliente único
-export async function registerFreeLicense(softwareId: number, name: string, email: string, taxId: string) {
-    const hardwareId = await generateHardwareId();
-    const res = await fetch(\`\${SERVER_URL}/api/v1/register-free\`, {
-        method: 'POST', body: JSON.stringify({ 
-            softwareId, 
-            hardwareId, 
-            customerName: name, 
-            customerEmail: email,
-            taxId: taxId // Identificación Fiscal (Llave Única)
+    const endpoint = payload.token ? 'activate' : 'register-free';
+    
+    const res = await fetch(\`\${SERVER_URL}/api/v1/\${endpoint}\`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+            ...payload, 
+            hardwareId,
+            activationToken: payload.token 
         })
     });
+
     const result = await res.json();
     if (!res.ok) throw new Error(result.error);
-    return result.license_file; // Guardar en database/license.json
+    return result.license_file; // Guardar en archivo local
 }`,
-        database: `-- ESQUEMA MÍNIMO OBLIGATORIO (SQLite: dbs/local.db)
-
-CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    email TEXT UNIQUE NOT NULL,
-    password TEXT NOT NULL,
-    role TEXT NOT NULL DEFAULT 'admin',
-    createdAt TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS config (
-    key TEXT PRIMARY KEY,
-    value TEXT NOT NULL
-);
-
--- Inserción inicial tras SetupWizard:
--- INSERT INTO config (key, value) VALUES ('companyName', 'Nombre de la Empresa');`
+        logic: `/**
+ * LÓGICA DE NEGOCIO (UI DEL HIJO)
+ */
+async function onTaxIdBlur(id) {
+    const info = await verifyClientInfo(id);
+    if (info.found) {
+        setFormName(info.data.name);
+        setFieldNameDisabled(true); // Bloquear nombre oficial
+        
+        if (info.isLocal) {
+            setFormEmail(info.data.email);
+            setFormPhone(info.data.phone);
+            setFieldContactDisabled(true); // Bloquear si ya es cliente real
+        }
+    } else {
+        setFieldNameDisabled(false); // Cliente nuevo desconocido
+    }
+}`
     };
 
     return (
@@ -269,11 +219,6 @@ CREATE TABLE IF NOT EXISTS config (
                                                                                 <TooltipContent><p className="max-w-xs">Identificador único generado por el software hijo en la PC del cliente.</p></TooltipContent>
                                                                             </Tooltip>
                                                                         </Label>
-                                                                        <input
-                                                                            type="hidden"
-                                                                            name="hardwareId"
-                                                                            value={state.currentLicense.hardwareId || ''}
-                                                                        />
                                                                         <Input
                                                                             value={state.currentLicense.hardwareId || ''}
                                                                             onChange={(e) => actions.handleCurrentLicenseChange('hardwareId', e.target.value)}
@@ -439,42 +384,29 @@ CREATE TABLE IF NOT EXISTS config (
                         <DialogHeader className="p-6 pb-2 border-b">
                             <div className="flex items-center gap-2">
                                 <Code2 className="h-5 w-5 text-primary" />
-                                <DialogTitle>Kit de Integración (SDK Estándar v2.6)</DialogTitle>
+                                <DialogTitle>Kit de Integración (SDK Estándar v2.7)</DialogTitle>
                             </div>
                             <DialogDescription>
-                                Copia estos fragmentos de código en tus programas &quot;hijos&quot; para habilitar el flujo de arranque, activación y configuración inicial.
+                                Implementa la verificación inteligente en 2 pasos para autocompletar datos y proteger la integridad de la base de datos.
                             </DialogDescription>
                         </DialogHeader>
                         
-                        <Tabs defaultValue="types" className="flex-1 overflow-hidden flex flex-col">
+                        <Tabs defaultValue="verify" className="flex-1 overflow-hidden flex flex-col">
                             <TabsList className="px-6 border-b rounded-none bg-muted/20 h-10 overflow-x-auto justify-start">
-                                <TabsTrigger value="types" className="text-xs">1. Estructuras</TabsTrigger>
-                                <TabsTrigger value="validator" className="text-xs">2. Validador Core</TabsTrigger>
-                                <TabsTrigger value="actions" className="text-xs">3. Servidor (Actions)</TabsTrigger>
-                                <TabsTrigger value="boot" className="text-xs font-bold text-primary">4. Flujo de Arranque</TabsTrigger>
-                                <TabsTrigger value="database" className="text-xs flex gap-1"><Database className="h-3 w-3"/> 5. Base de Datos</TabsTrigger>
+                                <TabsTrigger value="verify" className="text-xs font-bold text-primary">1. Verificación (Autocomplete)</TabsTrigger>
+                                <TabsTrigger value="actions" className="text-xs">2. Activación (Premium/Gratis)</TabsTrigger>
+                                <TabsTrigger value="logic" className="text-xs">3. Lógica de UI</TabsTrigger>
                             </TabsList>
                             
                             <div className="flex-1 overflow-y-auto p-0">
-                                <TabsContent value="types" className="m-0 h-full">
+                                <TabsContent value="verify" className="m-0 h-full">
                                     <div className="p-4 relative">
-                                        <Button variant="secondary" size="sm" className="absolute top-6 right-6 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.types, 'types')}>
-                                            {copiedSection === 'types' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
-                                            {copiedSection === 'types' ? 'Copiado' : 'Copiar'}
+                                        <Button variant="secondary" size="sm" className="absolute top-6 right-6 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.verify, 'verify')}>
+                                            {copiedSection === 'verify' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
+                                            {copiedSection === 'verify' ? 'Copiado' : 'Copiar'}
                                         </Button>
                                         <pre className="bg-slate-950 text-slate-100 p-6 rounded-lg text-[11px] font-mono overflow-auto max-h-[600px]">
-                                            {sdkCode.types}
-                                        </pre>
-                                    </div>
-                                </TabsContent>
-                                <TabsContent value="validator" className="m-0 h-full">
-                                    <div className="p-4 relative">
-                                        <Button variant="secondary" size="sm" className="absolute top-6 right-6 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.validator, 'validator')}>
-                                            {copiedSection === 'validator' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
-                                            {copiedSection === 'validator' ? 'Copiado' : 'Copiar'}
-                                        </Button>
-                                        <pre className="bg-slate-950 text-slate-100 p-6 rounded-lg text-[11px] font-mono overflow-auto max-h-[600px]">
-                                            {sdkCode.validator}
+                                            {sdkCode.verify}
                                         </pre>
                                     </div>
                                 </TabsContent>
@@ -489,34 +421,14 @@ CREATE TABLE IF NOT EXISTS config (
                                         </pre>
                                     </div>
                                 </TabsContent>
-                                <TabsContent value="boot" className="m-0 h-full">
-                                    <div className="p-4 space-y-4">
-                                        <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
-                                            <p className="text-xs text-blue-800 font-bold mb-2 uppercase">Protocolo de Control de Acceso:</p>
-                                            <p className="text-xs text-blue-700 leading-relaxed">
-                                                Este código debe ir en el archivo <code className="bg-blue-100 px-1 rounded">src/app/page.tsx</code> del software hijo. 
-                                                Asegura que el sistema no permita el ingreso sin licencia ni sin configurar el primer usuario administrador.
-                                            </p>
-                                        </div>
-                                        <div className="relative">
-                                            <Button variant="secondary" size="sm" className="absolute top-6 right-6 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.boot, 'boot')}>
-                                                {copiedSection === 'boot' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
-                                                {copiedSection === 'boot' ? 'Copiado' : 'Copiar'}
-                                            </Button>
-                                            <pre className="bg-slate-950 text-slate-100 p-6 rounded-lg text-[11px] font-mono overflow-auto max-h-[400px]">
-                                                {sdkCode.boot}
-                                            </pre>
-                                        </div>
-                                    </div>
-                                </TabsContent>
-                                <TabsContent value="database" className="m-0 h-full">
+                                <TabsContent value="logic" className="m-0 h-full">
                                     <div className="p-4 relative">
-                                        <Button variant="secondary" size="sm" className="absolute top-6 right-6 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.database, 'database')}>
-                                            {copiedSection === 'database' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
-                                            {copiedSection === 'database' ? 'Copiado' : 'Copiar'}
+                                        <Button variant="secondary" size="sm" className="absolute top-6 right-6 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.logic, 'logic')}>
+                                            {copiedSection === 'logic' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
+                                            {copiedSection === 'logic' ? 'Copiado' : 'Copiar'}
                                         </Button>
                                         <pre className="bg-slate-950 text-slate-100 p-6 rounded-lg text-[11px] font-mono overflow-auto max-h-[600px]">
-                                            {sdkCode.database}
+                                            {sdkCode.logic}
                                         </pre>
                                     </div>
                                 </TabsContent>

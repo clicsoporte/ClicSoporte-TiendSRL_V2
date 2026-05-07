@@ -2,7 +2,7 @@
 /**
  * @fileoverview API Endpoint for child software activation.
  * Handles the linking between an activation token and a hardware ID.
- * Synchronized with SDK v2.6.
+ * Enhanced with same-hardware re-activation support.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -33,20 +33,30 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Licencia no válida o token inexistente.' }, { status: 404 });
         }
 
-        // 2. Check if hardwareId matches or needs to be bound
-        if (license.hardwareId && license.hardwareId !== hardwareId) {
-            return NextResponse.json({ error: 'Esta licencia ya está vinculada a otro equipo.' }, { status: 403 });
+        // 2. CHECK FOR RE-INSTALLATION ON SAME HARDWARE
+        // If the license is already bound to this hardwareId, just return the signed file
+        if (license.hardwareId === hardwareId && license.licenseKey) {
+            return NextResponse.json({
+                success: true,
+                license_file: license.licenseKey
+            });
         }
 
-        // 3. Bind hardwareId if not already set
+        // 3. CHECK FOR MULTI-PC ATTEMPT
+        // If already bound to DIFFERENT hardware, reject
+        if (license.hardwareId && license.hardwareId !== hardwareId) {
+            return NextResponse.json({ error: 'Esta licencia ya está vinculada a otro equipo. Contacte a soporte técnico para transferirla.' }, { status: 403 });
+        }
+
+        // 4. Bind hardwareId if not already set (First time activation)
         if (!license.hardwareId) {
             db.prepare('UPDATE licenses SET hardwareId = ? WHERE id = ?').run(hardwareId, license.id);
         }
 
-        // 4. Get software details for the payload (including centralized version)
+        // 5. Get software details for the payload
         const software = db.prepare('SELECT * FROM software_products WHERE id = ?').get(softwareId) as SoftwareProduct;
 
-        // 5. Generate signed payload with standard structure v2.6
+        // 6. Generate signed payload with standard structure v2.6
         const licenseInfo = {
             softwareId: software.id,
             softwareName: software.name,
