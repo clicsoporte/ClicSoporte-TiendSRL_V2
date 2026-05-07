@@ -2,7 +2,7 @@
 /**
  * @fileoverview API Endpoint for registering free licenses.
  * Acts as a lead generator by creating a manual customer and a free license.
- * Optimized for SDK v2.6 (includes version tracking).
+ * Optimized for SDK v2.6+ (uses Tax ID as primary identifier).
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -16,10 +16,11 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
-        const { softwareId, hardwareId, customerName, customerEmail, customerPhone } = body;
+        const { softwareId, hardwareId, customerName, customerEmail, customerPhone, taxId } = body;
 
-        if (!softwareId || !hardwareId || !customerName || !customerEmail) {
-            return NextResponse.json({ error: 'Faltan datos obligatorios para el registro.' }, { status: 400 });
+        // Validation: taxId is now required to prevent duplicates and maintain hierarchy
+        if (!softwareId || !hardwareId || !customerName || !customerEmail || !taxId) {
+            return NextResponse.json({ error: 'Faltan datos obligatorios para el registro (ID Fiscal/Cédula es requerido).' }, { status: 400 });
         }
 
         const db = await connectDb();
@@ -32,13 +33,11 @@ export async function POST(req: NextRequest) {
         }
 
         // 2. Create/Update a Manual Customer (Lead)
-        // We use the email as a temporary ID prefix if no ID is provided
-        const tempId = `LEAD-${customerEmail.split('@')[0].toUpperCase()}`;
-        
+        // We use the taxId provided by the user as the primary 'id'
         const customerData: Customer = {
-            id: tempId,
+            id: taxId.trim().toUpperCase(),
             name: customerName,
-            taxId: 'GENERICO',
+            taxId: taxId.trim().toUpperCase(),
             email: customerEmail,
             phone: customerPhone || '',
             active: 'S',
@@ -52,7 +51,7 @@ export async function POST(req: NextRequest) {
             isManual: true
         };
 
-        // Use the specialized function that doesn't require session auth
+        // This function uses ON CONFLICT(id) DO UPDATE, so it handles duplicates automatically
         await upsertLeadCustomer(customerData);
 
         // 3. Check if a free license already exists for this hardware/software
@@ -75,7 +74,7 @@ export async function POST(req: NextRequest) {
             softwareId: Number(softwareId),
             softwareName: software.name,
             softwareVersion: software.currentVersion || '1.0.0',
-            customerId: tempId,
+            customerId: customerData.id,
             hardwareId: hardwareId,
             activationToken: 'FREE-LICENSE',
             isPerpetual: true,
@@ -94,7 +93,7 @@ export async function POST(req: NextRequest) {
             INSERT INTO licenses (
                 licenseKey, activationToken, softwareId, customerId, hardwareId, isPerpetual, expirationDate, status, createdAt, m01_val
             ) VALUES (?, 'FREE-LICENSE', ?, ?, ?, 1, '', 'active', ?, 1)
-        `).run(signedData, softwareId, tempId, hardwareId, now);
+        `).run(signedData, softwareId, customerData.id, hardwareId, now);
 
         return NextResponse.json({
             success: true,

@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Main page for the License Management module.
  * Enhanced for Hybrid Licensing v2.3 (Standard Mapping Protocol).
@@ -29,7 +30,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
-import type { License, SoftwareProduct } from '@/modules/core/types';
+import type { License } from '@/modules/core/types';
 
 export default function LicensesPage() {
     const { state, actions, selectors } = useLicenses();
@@ -120,6 +121,7 @@ export default async function RootPage() {
     // 1. ¿Licencia válida?
     const license = await getLicenseState();
     if (!license.isValid) {
+        // Enviar hardwareId e identificación (Tax ID / RUC) al formulario de activación
         return <ActivationForm hardwareId={license.hardwareId} />;
     }
 
@@ -161,10 +163,17 @@ export async function activateSoftwareOnline(softwareId: number, token: string) 
 }
 
 // ACTIVACIÓN GRATUITA (LEAD)
-export async function registerFreeLicense(softwareId: number, name: string, email: string) {
+// Incluir 'taxId' (Identificación/RUC) para ligar a cliente único
+export async function registerFreeLicense(softwareId: number, name: string, email: string, taxId: string) {
     const hardwareId = await generateHardwareId();
     const res = await fetch(\`\${SERVER_URL}/api/v1/register-free\`, {
-        method: 'POST', body: JSON.stringify({ softwareId, hardwareId, customerName: name, customerEmail: email })
+        method: 'POST', body: JSON.stringify({ 
+            softwareId, 
+            hardwareId, 
+            customerName: name, 
+            customerEmail: email,
+            taxId: taxId // Identificación Fiscal (Llave Única)
+        })
     });
     const result = await res.json();
     if (!res.ok) throw new Error(result.error);
@@ -609,4 +618,3 @@ CREATE TABLE IF NOT EXISTS config (
         </TooltipProvider>
     );
 }
-
