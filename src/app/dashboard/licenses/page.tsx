@@ -33,7 +33,7 @@ import type { License, SoftwareProduct } from '@/modules/core/types';
 
 export default function LicensesPage() {
     const { state, actions, selectors } = useLicenses();
-    const { hasPermission } = useAuthorization(['licenses:manage']);
+    const { isAuthorized, hasPermission } = useAuthorization(['licenses:read']);
     const [isSdkDialogOpen, setSdkDialogOpen] = useState(false);
     const [copiedSection, setCopiedSection] = useState<string | null>(null);
 
@@ -46,6 +46,10 @@ export default function LicensesPage() {
         setCopiedSection(section);
         setTimeout(() => setCopiedSection(null), 2000);
     };
+
+    if (!isAuthorized) {
+        return null;
+    }
 
     if (state.isLoading) {
         return (
@@ -305,9 +309,12 @@ CREATE TABLE IF NOT EXISTS config (
                                                                 </h3>
                                                                 <div className="grid grid-cols-1 gap-2 bg-muted/10 p-4 rounded-xl border max-h-[400px] overflow-y-auto">
                                                                     {moduleKeys.map((key) => {
-                                                                        const moduleName = (selectedSoftware as Record<string, unknown>)[`${key}_name`] as string | null;
+                                                                        const softwareRec = selectedSoftware as unknown as Record<string, string | null>;
+                                                                        const moduleName = softwareRec[`${key}_name`];
                                                                         const valKey = `${key}_val` as keyof License;
                                                                         if (!moduleName) return null;
+                                                                        
+                                                                        const currentLicenseRec = state.currentLicense as unknown as Record<string, boolean>;
                                                                         
                                                                         return (
                                                                             <div key={key} className="flex items-center justify-between p-3 rounded-lg border bg-card shadow-sm hover:border-primary/50 transition-colors">
@@ -316,7 +323,7 @@ CREATE TABLE IF NOT EXISTS config (
                                                                                     <span className="text-[9px] font-mono uppercase text-muted-foreground">ID Lógico: {key.toUpperCase()}</span>
                                                                                 </div>
                                                                                 <Switch 
-                                                                                    checked={!!(state.currentLicense as Record<string, unknown>)[valKey]} 
+                                                                                    checked={!!currentLicenseRec[valKey]} 
                                                                                     onCheckedChange={(checked) => actions.handleCurrentLicenseChange(valKey, checked)} 
                                                                                 />
                                                                             </div>
@@ -548,17 +555,20 @@ CREATE TABLE IF NOT EXISTS config (
                                 {state.newSoftwareProduct.isInternal ? (
                                     <ScrollArea className="h-[400px] pr-4">
                                         <div className="grid gap-4">
-                                            {moduleKeys.map((key, i) => (
-                                                <div key={key} className="space-y-1.5 p-3 rounded-lg border bg-background">
-                                                    <Label className="text-[10px] font-bold text-primary uppercase">Nombre del Módulo {i+1} (ID: {key.toUpperCase()})</Label>
-                                                    <Input 
-                                                        value={(state.newSoftwareProduct as Record<string, unknown>)[`${key}_name`] as string || ''} 
-                                                        onChange={e => actions.handleNewSoftwareChange(`${key}_name` as keyof SoftwareProduct, e.target.value)}
-                                                        placeholder="Ej: Facturación, Inventarios..."
-                                                        className="h-8 text-xs"
-                                                    />
-                                                </div>
-                                            ))}
+                                            {moduleKeys.map((key, i) => {
+                                                const productRec = state.newSoftwareProduct as unknown as Record<string, string | null>;
+                                                return (
+                                                    <div key={key} className="space-y-1.5 p-3 rounded-lg border bg-background">
+                                                        <Label className="text-[10px] font-bold text-primary uppercase">Nombre del Módulo {i+1} (ID: {key.toUpperCase()})</Label>
+                                                        <Input 
+                                                            value={productRec[`${key}_name`] || ''} 
+                                                            onChange={e => actions.handleNewSoftwareChange(`${key}_name` as keyof SoftwareProduct, e.target.value)}
+                                                            placeholder="Ej: Facturación, Inventarios..."
+                                                            className="h-8 text-xs"
+                                                        />
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
                                     </ScrollArea>
                                 ) : (

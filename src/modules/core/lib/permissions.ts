@@ -150,6 +150,9 @@ export const permissionTree: Record<string, string[]> = {
     "cost-assistant:access": ["dashboard:access"],
     "hacienda:query": ["dashboard:access"],
 
+    "licenses:manage": ["licenses:read"],
+    "licenses:admin:keys": ["admin:access"],
+
     "inventory:manage": ["inventory:read"],
     "inventory:warranty:hub": ["inventory:read"],
     "inventory:consumables:update": ["inventory:manage"],
