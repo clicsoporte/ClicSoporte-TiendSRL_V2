@@ -22,7 +22,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SearchInput } from '@/components/ui/search-input';
-import { PlusCircle, MoreVertical, CalendarIcon, Loader2, Trash2, Download, Edit, ShieldCheck, Boxes, Settings2, Info, Code2, Copy, Check, KeyRound, Eye } from 'lucide-react';
+import { PlusCircle, MoreVertical, CalendarIcon, Loader2, Trash2, Download, Edit, ShieldCheck, Boxes, Settings2, Info, Code2, Copy, Check, KeyRound } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
@@ -312,12 +312,12 @@ async function onSyncButtonClick() {
                                                                 </h3>
                                                                 <div className="grid grid-cols-1 gap-2 bg-muted/10 p-4 rounded-xl border max-h-[400px] overflow-y-auto">
                                                                     {moduleKeys.map((key) => {
-                                                                        const softwareRec = selectedSoftware as any;
+                                                                        const softwareRec = selectedSoftware as unknown as Record<string, string>;
                                                                         const moduleName = softwareRec[`${key}_name`];
                                                                         const valKey = `${key}_val` as keyof License;
                                                                         if (!moduleName) return null;
                                                                         
-                                                                        const currentLicenseRec = state.currentLicense as any;
+                                                                        const currentLicenseRec = state.currentLicense as unknown as Record<string, boolean>;
                                                                         
                                                                         return (
                                                                             <div key={key} className="flex items-center justify-between p-3 rounded-lg border bg-card shadow-sm hover:border-primary/50 transition-colors">
@@ -560,7 +560,7 @@ async function onSyncButtonClick() {
                                     <ScrollArea className="h-[400px] pr-4">
                                         <div className="grid gap-4">
                                             {moduleKeys.map((key, i) => {
-                                                const productRec = state.newSoftwareProduct as any;
+                                                const productRec = state.newSoftwareProduct as unknown as Record<string, string>;
                                                 return (
                                                     <div key={key} className="space-y-1.5 p-3 rounded-lg border bg-background">
                                                         <Label className="text-[10px] font-bold text-primary uppercase">Nombre del Módulo {i+1} (ID: {key.toUpperCase()})</Label>
