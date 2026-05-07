@@ -744,6 +744,7 @@ export type SoftwareProduct = {
     id: number;
     name: string;
     isInternal: boolean;
+    currentVersion?: string | null; // Centralized version monitoring
     // Module Names Mapping
     m01_name?: string; m02_name?: string; m03_name?: string; m04_name?: string; m05_name?: string;
     m06_name?: string; m07_name?: string; m08_name?: string; m09_name?: string; m10_name?: string;

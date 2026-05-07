@@ -394,6 +394,7 @@ export async function initializeMainDatabase(db: Database) {
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL UNIQUE,
             isInternal BOOLEAN NOT NULL DEFAULT FALSE,
+            currentVersion TEXT,
             m01_name TEXT, m02_name TEXT, m03_name TEXT, m04_name TEXT, m05_name TEXT,
             m06_name TEXT, m07_name TEXT, m08_name TEXT, m09_name TEXT, m10_name TEXT
         );
@@ -833,6 +834,11 @@ export async function runMainMigrations(db: Database) {
             const col = `m${i.toString().padStart(2, '0')}_val`;
             db.exec(`ALTER TABLE licenses ADD COLUMN ${col} INTEGER DEFAULT 0;`);
         }
+    }
+    
+    // Monitoring Version (v2.6)
+    if (!hasColumn('software_products', 'currentVersion')) {
+        db.exec(`ALTER TABLE software_products ADD COLUMN currentVersion TEXT;`);
     }
 
     // Ensure templates are always checked

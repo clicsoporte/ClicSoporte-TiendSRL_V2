@@ -41,13 +41,14 @@ export async function POST(req: NextRequest) {
             db.prepare('UPDATE licenses SET hardwareId = ? WHERE id = ?').run(hardwareId, license.id);
         }
 
-        // 4. Get software details for the payload
+        // 4. Get software details for the payload (including centralized version)
         const software = db.prepare('SELECT * FROM software_products WHERE id = ?').get(softwareId) as SoftwareProduct;
 
         // 5. Generate signed payload
         const licenseInfo = {
             softwareId: software.id,
             softwareName: software.name,
+            softwareVersion: software.currentVersion || '1.0.0',
             customerId: license.customerId,
             hardwareId: hardwareId,
             activationToken: activationToken,

@@ -39,6 +39,7 @@ const emptyLicense: Partial<License> = {
 const emptySoftwareProduct: Omit<SoftwareProduct, 'id'> = {
     name: '',
     isInternal: false,
+    currentVersion: '1.0.0',
     m01_name: '', m02_name: '', m03_name: '', m04_name: '', m05_name: '',
     m06_name: '', m07_name: '', m08_name: '', m09_name: '', m10_name: ''
 };
@@ -200,8 +201,13 @@ export const useLicenses = () => {
     const handleSaveSoftware = async () => {
         if (!state.newSoftwareProduct.name) return;
         try {
+            const productData = {
+                ...state.newSoftwareProduct,
+                currentVersion: state.newSoftwareProduct.currentVersion || '1.0.0'
+            };
+            
             if (state.isSoftwareEditing) {
-                const updated = await updateSoftwareProduct(state.newSoftwareProduct as SoftwareProduct);
+                const updated = await updateSoftwareProduct(productData as SoftwareProduct);
                 updateState({ 
                     softwareProducts: state.softwareProducts.map(p => p.id === updated.id ? updated : p),
                     newSoftwareProduct: emptySoftwareProduct,
@@ -209,7 +215,7 @@ export const useLicenses = () => {
                 });
                 toast({ title: "Software Actualizado" });
             } else {
-                const newProd = await addSoftwareProduct(state.newSoftwareProduct);
+                const newProd = await addSoftwareProduct(productData);
                 updateState({ 
                     softwareProducts: [...state.softwareProducts, newProd], 
                     newSoftwareProduct: emptySoftwareProduct 

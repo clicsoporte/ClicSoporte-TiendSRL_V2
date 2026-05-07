@@ -53,6 +53,7 @@ export async function addLicense(licenseData: Omit<License, 'id' | 'createdAt'>)
         const licenseInfo = {
             softwareId: licenseData.softwareId,
             softwareName: software.name,
+            softwareVersion: software.currentVersion || '1.0.0',
             customerId: licenseData.customerId,
             hardwareId: hardwareId,
             activationToken: activationToken,
@@ -120,6 +121,7 @@ export async function updateLicense(license: License): Promise<License> {
         const licenseInfo = {
             softwareId: license.softwareId,
             softwareName: software.name,
+            softwareVersion: software.currentVersion || '1.0.0',
             customerId: license.customerId,
             hardwareId: hardwareId,
             activationToken: license.activationToken,
@@ -180,11 +182,11 @@ export async function addSoftwareProduct(product: Omit<SoftwareProduct, 'id'>): 
     const db = await connectLicensesDb();
     const info = db.prepare(`
         INSERT INTO software_products (
-            name, isInternal, 
+            name, isInternal, currentVersion,
             m01_name, m02_name, m03_name, m04_name, m05_name,
             m06_name, m07_name, m08_name, m09_name, m10_name
         ) VALUES (
-            @name, @isInternal,
+            @name, @isInternal, @currentVersion,
             @m01_name, @m02_name, @m03_name, @m04_name, @m05_name,
             @m06_name, @m07_name, @m08_name, @m09_name, @m10_name
         )
@@ -197,7 +199,7 @@ export async function updateSoftwareProduct(product: SoftwareProduct): Promise<S
     const db = await connectLicensesDb();
     db.prepare(`
         UPDATE software_products SET 
-            name = @name, isInternal = @isInternal,
+            name = @name, isInternal = @isInternal, currentVersion = @currentVersion,
             m01_name = @m01_name, m02_name = @m02_name, m03_name = @m03_name, m04_name = @m04_name, m05_name = @m05_name,
             m06_name = @m06_name, m07_name = @m07_name, m08_name = @m08_name, m09_name = @m09_name, m10_name = @m10_name
         WHERE id = @id

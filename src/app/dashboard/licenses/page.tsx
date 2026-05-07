@@ -77,6 +77,7 @@ export interface LicenseState {
     isValid: boolean;
     status: LicenseStatus;
     expiresAt?: string;
+    softwareVersion?: string; // Versión registrada en el servidor
     modules: Record<string, boolean>; // m01 a m10
     type?: 'online' | 'offline' | 'free';
 }
@@ -85,6 +86,7 @@ export interface LicenseFile {
     license_info: {
         softwareId: number;
         softwareName: string;
+        softwareVersion: string;
         hardwareId: string;
         activationToken: string;
         isPerpetual: boolean;
@@ -121,9 +123,11 @@ export default async function RootPage() {
         return <ActivationForm hardwareId={license.hardwareId} />;
     }
 
-    // EJEMPLO DE USO DE MÓDULOS:
-    // const hasPOS = license.modules.m01;
-    // const hasInventory = license.modules.m02;
+    // MONITOREO DE VERSIÓN (OPCIONAL)
+    const APP_VERSION = '1.0.0'; 
+    if (license.softwareVersion && license.softwareVersion !== APP_VERSION) {
+        // console.warn("¡Nueva versión disponible: " + license.softwareVersion + "!");
+    }
 
     // 2. ¿Existe Administrador? (Setup Wizard)
     const userCount = await getUserCount();
@@ -421,7 +425,7 @@ CREATE TABLE IF NOT EXISTS config (
                         <DialogHeader className="p-6 pb-2 border-b">
                             <div className="flex items-center gap-2">
                                 <Code2 className="h-5 w-5 text-primary" />
-                                <DialogTitle>Kit de Integración (SDK Estándar v2.3)</DialogTitle>
+                                <DialogTitle>Kit de Integración (SDK Estándar v2.6)</DialogTitle>
                             </div>
                             <DialogDescription>
                                 Copia estos fragmentos de código en tus programas &quot;hijos&quot; para habilitar el flujo de arranque, activación y configuración inicial.
@@ -526,8 +530,10 @@ CREATE TABLE IF NOT EXISTS config (
                                             {state.softwareProducts.map(p => (
                                                 <TableRow key={p.id} className={cn("cursor-pointer", state.newSoftwareProduct.id === p.id && "bg-primary/5")}>
                                                     <TableCell onClick={() => actions.handleOpenSoftwareEdit(p)}>
-                                                        <p className="font-bold text-sm">{p.name}</p>
-                                                        <p className="text-[10px] text-muted-foreground uppercase">{p.isInternal ? 'Propio' : 'Tercero'}</p>
+                                                        <div className="flex flex-col">
+                                                            <p className="font-bold text-sm">{p.name}</p>
+                                                            <p className="text-[10px] text-muted-foreground uppercase">{p.isInternal ? `Propio - ${p.currentVersion || 'v1.0'}` : 'Tercero'}</p>
+                                                        </div>
                                                     </TableCell>
                                                     <TableCell className="text-right">
                                                         <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => actions.handleDeleteSoftware(p.id)}><Trash2 className="h-4 w-4"/></Button>
@@ -539,7 +545,15 @@ CREATE TABLE IF NOT EXISTS config (
                                 </ScrollArea>
 
                                 <div className="space-y-4 border p-4 rounded-lg bg-muted/10">
-                                    <div className="space-y-2"><Label>Nombre del Software</Label><Input value={state.newSoftwareProduct.name} onChange={e => actions.handleNewSoftwareChange('name', e.target.value)} placeholder="Ej: Clic-POS Pro" /></div>
+                                    <div className="space-y-2">
+                                        <Label>Nombre del Software</Label>
+                                        <Input value={state.newSoftwareProduct.name} onChange={e => actions.handleNewSoftwareChange('name', e.target.value)} placeholder="Ej: Clic-POS Pro" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Versión Actual (Centralizada)</Label>
+                                        <Input value={state.newSoftwareProduct.currentVersion || ''} onChange={e => actions.handleNewSoftwareChange('currentVersion', e.target.value)} placeholder="Ej: 2.5.0" />
+                                        <p className="text-[10px] text-muted-foreground italic">Al cambiar la versión aquí, todos los clientes recibirán el aviso de actualización.</p>
+                                    </div>
                                     <div className="flex items-center space-x-2 pb-2"><Checkbox id="is-internal-soft" checked={state.newSoftwareProduct.isInternal} onCheckedChange={checked => actions.handleNewSoftwareChange('isInternal', !!checked)}/><Label htmlFor="is-internal-soft" className="text-xs">Es Software Propio (Permite Módulos)</Label></div>
                                     <Button className="w-full" onClick={actions.handleSaveSoftware}>
                                         {state.isSoftwareEditing ? 'Actualizar Producto' : 'Añadir al Catálogo'}
