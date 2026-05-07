@@ -68,6 +68,7 @@ export async function getAllCustomers(): Promise<Customer[]> {
 
 /**
  * Crea o actualiza un cliente manualmente.
+ * REQUIERE SESIÓN ACTIVA.
  */
 export async function upsertCustomer(customer: Customer): Promise<Customer> {
     const db = await connectDb();
@@ -152,6 +153,52 @@ export async function upsertCustomer(customer: Customer): Promise<Customer> {
             taxId: customer.taxId 
         });
         throw new Error(`Error en el servidor al procesar el cliente: ${err.message}`);
+    }
+}
+
+/**
+ * upsertLeadCustomer: Versión especializada para la API de Registro Gratuito.
+ * NO REQUIERE SESIÓN pero solo permite inserciones de tipo Lead/Manual.
+ */
+export async function upsertLeadCustomer(customer: Customer): Promise<Customer> {
+    const db = await connectDb();
+    try {
+        const stmt = db.prepare(`
+            INSERT INTO customers (
+                id, name, commercialName, address, phone, taxId, currency, salesperson, active, email, electronicDocEmail, isManual, contacts,
+                taxActivities, isBlocked, notifyTickets, notifyLicenses
+            )
+            VALUES (
+                @id, @name, @commercialName, @address, @phone, @taxId, @currency, 'SISTEMA ONLINE', 'S', @email, @electronicDocEmail, 1, @contacts,
+                @taxActivities, 0, 1, 1
+            )
+            ON CONFLICT(id) DO UPDATE SET
+                name = excluded.name, 
+                email = excluded.email, 
+                phone = excluded.phone,
+                contacts = excluded.contacts
+        `);
+        
+        const params = {
+            id: customer.id,
+            name: customer.name,
+            commercialName: customer.commercialName || null,
+            address: customer.address || 'Registro Online (Free)',
+            phone: customer.phone || null,
+            taxId: customer.taxId,
+            currency: customer.currency || 'CRC',
+            email: customer.email || null,
+            electronicDocEmail: customer.electronicDocEmail || null,
+            contacts: JSON.stringify(customer.contacts || []),
+            taxActivities: customer.taxActivities || '[]'
+        };
+
+        stmt.run(params);
+        return customer;
+    } catch (error: unknown) {
+        const err = error as Error;
+        await logError("Falla en registro de Lead vía API", { error: err.message, customerId: customer.id });
+        throw err;
     }
 }
 

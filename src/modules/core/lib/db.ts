@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Main database initialization and shared utility functions.
  * Unified into a single source of truth: intratool.db
@@ -646,6 +647,13 @@ function seedNotificationTemplates(db: Database) {
             body: '<div style="font-family: sans-serif;"><h2>Ticket Anulado</h2><p>El caso <b>{{consecutive}}</b> ha sido cancelado.</p><p><b>Motivo:</b> {{content}}</p></div>',
             telegram: '❌ <b>TICKET ANULADO</b>\n\n<b>ID:</b> {{consecutive}}\n<b>Cliente:</b> {{companyName}}\n<b>Contacto:</b> {{customerName}}\n\n<b>Motivo:</b>\n<i>{{content}}</i>',
             internal: 'Ticket {{consecutive}} fue cancelado.'
+        },
+        {
+            eventId: 'onTicketReplyAdded',
+            subject: '[NUEVA RESPUESTA] Ticket {{consecutive}}',
+            body: '<div style="font-family: sans-serif; color: #333;"><h2>Nueva Respuesta en su Ticket</h2><p>El técnico <b>{{userName}}</b> ha respondido a su solicitud <b>{{consecutive}}</b>:</p><div style="background: #f9fafb; padding: 15px; border-left: 4px solid #2563eb; margin: 20px 0;">{{content}}</div><p style="font-size: 12px; color: #666;">Ingrese al portal para más detalles.</p></div>',
+            telegram: '💬 <b>NUEVA RESPUESTA</b>\n\n<b>Ticket:</b> {{consecutive}}\n<b>De:</b> {{userName}}\n\n<b>Mensaje:</b>\n<i>{{content}}</i>',
+            internal: 'Nueva respuesta en ticket {{consecutive}} de {{userName}}'
         },
         {
             eventId: 'onTicketPriorityUrgent',

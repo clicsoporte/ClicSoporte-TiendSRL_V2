@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview API Endpoint for registering free licenses.
  * Acts as a lead generator by creating a manual customer and a free license.
@@ -6,7 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDb } from '@/modules/core/lib/db';
 import { signLicenseData } from '@/modules/licenses/lib/crypto';
-import { upsertCustomer } from '@/modules/core/lib/data-access-db';
+import { upsertLeadCustomer } from '@/modules/core/lib/data-access-db';
 import type { Customer, License } from '@/modules/core/types';
 
 export const dynamic = 'force-dynamic';
@@ -43,7 +44,8 @@ export async function POST(req: NextRequest) {
             isManual: true
         };
 
-        await upsertCustomer(customerData);
+        // Use the specialized function that doesn't require session auth
+        await upsertLeadCustomer(customerData);
 
         // 2. Check if a free license already exists for this hardware/software
         const existing = db.prepare(`
@@ -92,6 +94,6 @@ export async function POST(req: NextRequest) {
 
     } catch (error: unknown) {
         console.error('Free Registration API Error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: (error as Error).message || 'Internal Server Error' }, { status: 500 });
     }
 }
