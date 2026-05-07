@@ -2,6 +2,7 @@
 /**
  * @fileoverview API Endpoint for client verification and autocomplete.
  * Checks local database first, then falls back to Hacienda API.
+ * Privacy-focused: Does not leak sensitive contact info to public requests.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -31,9 +32,8 @@ export async function GET(req: NextRequest) {
                 source: 'local',
                 data: {
                     name: localCustomer.name,
-                    email: localCustomer.email || localCustomer.electronicDocEmail || '',
-                    phone: localCustomer.phone || '',
                     isBlocked: !!localCustomer.isBlocked
+                    // Note: Email and Phone removed for privacy in public API
                 }
             });
         }
@@ -47,8 +47,6 @@ export async function GET(req: NextRequest) {
                 source: 'hacienda',
                 data: {
                     name: haciendaInfo.nombre,
-                    email: '', // Hacienda doesn't provide this
-                    phone: '', // Hacienda doesn't provide this
                     isBlocked: false
                 }
             });

@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Server-side functions for the licenses module.
  * Unified into intratool.db.
@@ -59,6 +60,7 @@ export async function addLicense(licenseData: Omit<License, 'id' | 'createdAt'>)
             activationToken: activationToken,
             isPerpetual: licenseData.isPerpetual,
             expirationDate: licenseData.expirationDate,
+            status: 'active', // Important for consistency with API
             createdAt: now,
             modules: {
                 m01: licenseData.m01_val, m02: licenseData.m02_val, m03: licenseData.m03_val, m04: licenseData.m04_val, m05: licenseData.m05_val,
@@ -77,7 +79,7 @@ export async function addLicense(licenseData: Omit<License, 'id' | 'createdAt'>)
             licenseKey, activationToken, softwareId, customerId, hardwareId, isPerpetual, expirationDate, status, createdAt,
             m01_val, m02_val, m03_val, m04_val, m05_val, m06_val, m07_val, m08_val, m09_val, m10_val
         ) VALUES (
-            @licenseKey, @activationToken, @softwareId, @customerId, @hardwareId, @isPerpetual, @expirationDate, @status, @createdAt,
+            @licenseKey, @activationToken, @softwareId, @customerId, @hardwareId, @isPerpetual, @expirationDate, 'active', @createdAt,
             @m01_val, @m02_val, @m03_val, @m04_val, @m05_val, @m06_val, @m07_val, @m08_val, @m09_val, @m10_val
         )
     `).run({
@@ -88,7 +90,6 @@ export async function addLicense(licenseData: Omit<License, 'id' | 'createdAt'>)
         hardwareId,
         isPerpetual: licenseData.isPerpetual ? 1 : 0,
         expirationDate: licenseData.expirationDate || null,
-        status: 'active',
         createdAt: now,
         m01_val: licenseData.m01_val ? 1 : 0, m02_val: licenseData.m02_val ? 1 : 0, m03_val: licenseData.m03_val ? 1 : 0, m04_val: licenseData.m04_val ? 1 : 0, m05_val: licenseData.m05_val ? 1 : 0,
         m06_val: licenseData.m06_val ? 1 : 0, m07_val: licenseData.m07_val ? 1 : 0, m08_val: licenseData.m08_val ? 1 : 0, m09_val: licenseData.m09_val ? 1 : 0, m10_val: licenseData.m10_val ? 1 : 0
@@ -127,6 +128,7 @@ export async function updateLicense(license: License): Promise<License> {
             activationToken: license.activationToken,
             isPerpetual: license.isPerpetual,
             expirationDate: license.expirationDate,
+            status: license.status,
             createdAt: license.createdAt,
             modules: {
                 m01: license.m01_val, m02: license.m02_val, m03: license.m03_val, m04: license.m04_val, m05: license.m05_val,
