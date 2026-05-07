@@ -1,4 +1,3 @@
-
 'use client';
 
 /**
@@ -25,7 +24,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose, DialogTrigger } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
@@ -456,7 +455,7 @@ export default function TicketDetailPage() {
                     <p className="text-muted-foreground">Servicio: <strong>{selectedService?.name || 'General'}</strong></p>
                     {ticket.isBillable && selectedService?.price && (
                         <p className="text-primary font-black mt-1">
-                            Precio Sugerido: ¢{selectedService.price.toLocaleString()} {selectedService.billingType === 'task' ? '(Fijo)' : '/ h'}
+                            Precio Sugerido: ¢{selectedService.price.toLocaleString()} {selectedService.billingType === 'task' ? '(Monto Fijo)' : '/ h'}
                         </p>
                     )}
                     {ticket.contractId && <p className="text-muted-foreground">Línea de Contrato: <strong>#{ticket.contractId}</strong></p>}
