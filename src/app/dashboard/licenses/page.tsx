@@ -101,7 +101,7 @@ export default function LicensesPage() {
  * El cliente ingresa su Cédula y obtenemos sus datos oficiales para evitar doble registro.
  */
 export async function verifyClientInfo(taxId: string) {
-    const res = await fetch(\`\${SERVER_URL}/api/v1/verify-client?taxId=\${taxId}\`);
+    const res = await fetch(\`${SERVER_URL}/api/v1/verify-client?taxId=\${taxId}\`);
     const result = await res.json();
     
     if (result.exists) {
@@ -128,7 +128,7 @@ export async function activateSoftware(payload: {
     const hardwareId = await generateHardwareId(); // Fingerprint local
     const endpoint = payload.token ? 'activate' : 'register-free';
     
-    const res = await fetch(\`\${SERVER_URL}/api/v1/\${endpoint}\`, {
+    const res = await fetch(\`${SERVER_URL}/api/v1/\${endpoint}\`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -167,7 +167,7 @@ export function verifyServerSignature(licenseFile, publicKeyPem) {
  * Descarga anuncios globales firmados segmentados por tipo de licencia.
  */
 export async function syncGlobalAds(licenseType: 'free' | 'premium') {
-    const res = await fetch(\`\${SERVER_URL}/api/v1/marketing?software=Clic-Turnos&status=\${licenseType}\`);
+    const res = await fetch(\`${SERVER_URL}/api/v1/marketing?software=Clic-Turnos&status=\${licenseType}\`);
     const { payload } = await res.json();
     
     // Validar firma del anuncio antes de mostrarlo
@@ -440,7 +440,7 @@ export async function syncGlobalAds(licenseType: 'free' | 'premium') {
                             <div className="flex-1 overflow-y-auto p-0">
                                 <TabsContent value="schema" className="m-0 h-full">
                                     <div className="p-4 relative">
-                                        <p className="text-[11px] text-muted-foreground mb-3 italic">Estructura del objeto "license_file" que recibe el cliente tras una activación exitosa.</p>
+                                        <p className="text-[11px] text-muted-foreground mb-3 italic">Estructura del objeto &quot;license_file&quot; que recibe el cliente tras una activación exitosa.</p>
                                         <Button variant="secondary" size="sm" className="absolute top-12 right-6 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.schema, 'schema')}>
                                             {copiedSection === 'schema' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
                                             {copiedSection === 'schema' ? 'Copiado' : 'Copiar'}
