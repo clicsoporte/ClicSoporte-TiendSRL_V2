@@ -1,0 +1,65 @@
+================================================================
+CLIC COLA - SISTEMA DE PUBLICIDAD Y ANUNCIOS DINÁMICOS
+================================================================
+
+Este documento describe la implementación del carrusel de publicidad 
+utilizado en la Pantalla de Turnos (Display).
+
+1. ESTRUCTURA DE DATOS (Types)
+------------------------------
+Ubicación: src/types/settings.ts
+
+interface AdCarouselItem {
+    id?: string;        // UUID único para gestión de listas
+    imageUrl: string;  // URL de la imagen (Soporta remotePatterns en next.config)
+    description: string; // Máximo 20-30 palabras recomendadas
+    price: string;      // Texto libre (ej: "₡10,000", "¡Oferta!", "¡Consúltenos!")
+}
+
+2. COMPONENTE DE VISUALIZACIÓN (UI)
+-----------------------------------
+Ubicación: src/components/display/ProductAd.tsx
+
+- Tecnología: Framer Motion para transiciones suaves (fade & slide).
+- Intervalo de rotación: 10,000ms (10 segundos).
+- Comportamiento: 
+  - Solo se renderiza si 'isAdFeatureEnabled' es true.
+  - Muestra un placeholder de "Publicidad desactivada" si no hay ítems.
+  - Adaptable a móviles y pantallas grandes (responsive).
+
+3. LÓGICA DE NEGOCIO Y RESTRICCIONES
+------------------------------------
+Ubicación: src/components/tools/ToolsQueueConfig.tsx
+
+A) VALIDACIÓN ZOD:
+   - Se asegura que las URLs de imagen sean válidas.
+   - Las descripciones son obligatorias.
+
+B) CONTROL DE LICENCIA:
+   - Versión GRATIS: 
+     - La variable 'isAdFeatureEnabled' se fuerza a false.
+     - La UI del carrusel en la configuración aparece con opacidad reducida.
+     - El botón "Agregar Anuncio" está bloqueado.
+   - Versión PREMIUM:
+     - Acceso total a la gestión de anuncios.
+     - Sincronización en tiempo real con la Pantalla de Turnos.
+
+4. PERSISTENCIA (Database)
+--------------------------
+Ubicación: src/lib/settings-store.ts
+
+- Almacenamiento: Tabla 'settings' en SQLite.
+- Formato: Los anuncios se guardan como un array JSON serializado bajo la llave 'adCarouselItems'.
+- Caché: Next.js revalida la ruta del display mediante 'revalidatePath' cada vez que se guarda un cambio.
+
+5. FLUJO DE ACTUALIZACIÓN
+-------------------------
+1. El Administrador añade/edita un anuncio en Herramientas -> Configuración de Cola.
+2. 'updateSettings' (Server Action) guarda los cambios en SQLite.
+3. Se invoca 'revalidatePath("/display")'.
+4. La Pantalla de Turnos, que realiza polling cada 5 segundos, detecta el cambio de versión de la cola.
+5. Los nuevos anuncios se cargan dinámicamente sin recargar la página.
+
+================================================================
+ESTADO: FUNCIONAL / LISTO PARA PRODUCCIÓN
+========

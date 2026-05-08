@@ -842,6 +842,7 @@ export type Equipment = {
     notes?: string | null;
     createdAt: string;
     updatedAt: string;
+    FOREIGN KEY (clientId) REFERENCES customers(id) ON DELETE CASCADE
 };
 
 export type Consumable = {
@@ -880,4 +881,19 @@ export type SaleRecord = {
 export type InventorySearchResult = {
     type: 'equipment' | 'warranty' | 'customer';
     data: Equipment | SaleRecord | Customer;
+};
+
+/**
+ * Marketing & Ads Module Types
+ */
+export type MarketingAd = {
+    id: number;
+    softwareId: number;
+    imageUrl: string;
+    description: string;
+    price: string;
+    targetUrl: string;
+    isEnabled: boolean;
+    targetType: 'all' | 'free' | 'premium';
+    createdAt: string;
 };

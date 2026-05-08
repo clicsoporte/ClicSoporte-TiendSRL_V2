@@ -1,7 +1,7 @@
 
 /**
  * @fileoverview Main page for the License Management module.
- * Enhanced for Hybrid Licensing v2.10 (Identity Injection).
+ * Enhanced for Hybrid Licensing v3.0 (Marketing Injection).
  */
 'use client';
 
@@ -22,7 +22,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SearchInput } from '@/components/ui/search-input';
-import { PlusCircle, MoreVertical, CalendarIcon, Loader2, Trash2, Download, Edit, ShieldCheck, Boxes, Settings2, Info, Code2, Copy, Check, KeyRound } from 'lucide-react';
+import { PlusCircle, MoreVertical, CalendarIcon, Loader2, Trash2, Download, Edit, ShieldCheck, Boxes, Settings2, Info, Code2, Copy, Check, KeyRound, Megaphone } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
@@ -162,26 +162,20 @@ export function validateAndSetup(licenseFileJson, publicKeyPem, currentHardwareI
 
     return license_info;
 }`,
-        sync: `/**
- * PASO 5: SINCRONIZACIÓN (BOTÓN FORZAR)
- * Si editas el nombre del cliente en el Servidor, este botón
- * descarga la nueva identidad firmada.
+        marketing: `/**
+ * PASO 6: PUBLICIDAD DINÁMICA (SDK v3.0)
+ * El software descarga publicidad global firmada desde el servidor central.
  */
-async function onSyncButtonClick() {
-    try {
-        const updatedFile = await activateSoftware({
-            taxId: currentTaxId,
-            token: currentToken, 
-            customerName: '', // El servidor usará el nombre real guardado
-            customerEmail: '',
-            customerPhone: ''
-        });
-        
-        const info = validateAndSetup(updatedFile, key, hwid);
-        alert("Identidad de Licencia Actualizada: " + info.customerName);
-    } catch (e) {
-        alert("Error: " + e.message);
-    }
+export async function syncGlobalAds(licenseType: 'free' | 'premium') {
+    const res = await fetch(\`\${SERVER_URL}/api/v1/marketing?software=Clic-Turnos&status=\${licenseType}\`);
+    const { payload } = await res.json();
+    
+    // El payload viene firmado con RSA para evitar suplantación de publicidad
+    const { ads_info, signature } = JSON.parse(payload);
+    
+    // Validar firma usando la clave pública...
+    
+    return ads_info.ads; // Retorna array de { imageUrl, description, price, targetUrl }
 }`
     };
 
@@ -423,10 +417,10 @@ async function onSyncButtonClick() {
                         <DialogHeader className="p-6 pb-2 border-b">
                             <div className="flex items-center gap-2">
                                 <Code2 className="h-5 w-5 text-primary" />
-                                <DialogTitle>Kit de Integración (SDK Estándar v2.10)</DialogTitle>
+                                <DialogTitle>Kit de Integración (SDK Estándar v3.0)</DialogTitle>
                             </div>
                             <DialogDescription>
-                                Implementa la inyección de identidad oficial para autoconfigurar la ficha del cliente en el software hijo.
+                                Implementa la inyección de identidad y publicidad dinámica firmada para tus software hijos.
                             </DialogDescription>
                         </DialogHeader>
                         
@@ -436,7 +430,7 @@ async function onSyncButtonClick() {
                                 <TabsTrigger value="actions" className="text-xs">2. Activación</TabsTrigger>
                                 <TabsTrigger value="logic" className="text-xs">3. Lógica UI</TabsTrigger>
                                 <TabsTrigger value="validation" className="text-xs">4. Identidad Inyectada</TabsTrigger>
-                                <TabsTrigger value="sync" className="text-xs font-bold text-green-600">5. Sincronización</TabsTrigger>
+                                <TabsTrigger value="marketing" className="text-xs font-bold text-purple-600">6. Publicidad Dinámica</TabsTrigger>
                             </TabsList>
                             
                             <div className="flex-1 overflow-y-auto p-0">
@@ -484,14 +478,14 @@ async function onSyncButtonClick() {
                                         </pre>
                                     </div>
                                 </TabsContent>
-                                <TabsContent value="sync" className="m-0 h-full">
+                                <TabsContent value="marketing" className="m-0 h-full">
                                     <div className="p-4 relative">
-                                        <Button variant="secondary" size="sm" className="absolute top-6 right-6 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.sync, 'sync')}>
-                                            {copiedSection === 'sync' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
-                                            {copiedSection === 'sync' ? 'Copiado' : 'Copiar'}
+                                        <Button variant="secondary" size="sm" className="absolute top-6 right-6 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.marketing, 'marketing')}>
+                                            {copiedSection === 'marketing' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
+                                            {copiedSection === 'marketing' ? 'Copiado' : 'Copiar'}
                                         </Button>
                                         <pre className="bg-slate-950 text-slate-100 p-6 rounded-lg text-[11px] font-mono overflow-auto max-h-[600px]">
-                                            {sdkCode.sync}
+                                            {sdkCode.marketing}
                                         </pre>
                                     </div>
                                 </TabsContent>

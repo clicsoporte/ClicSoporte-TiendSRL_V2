@@ -35,6 +35,7 @@ export const permissionGroups = {
         "cost-assistant:access", "cost-assistant:view", "cost-assistant:process", 
         "cost-assistant:margins", "cost-assistant:export"
     ],
+    "Marketing Dinámico": ["admin:marketing:manage"],
     "Facturación y Finanzas": ["billing:manage", "view:provider:costs", "providers:manage", "providers:read"],
     "Gestión de Usuarios": ["users:create", "users:read", "users:update", "users:delete"],
     "Gestión de Roles": ["roles:create", "roles:read", "roles:update", "roles:delete"],
@@ -100,6 +101,7 @@ export const permissionTranslations: Record<string, string> = {
     "cost-assistant:process": "Asist. Costos: Procesar XML",
     "cost-assistant:margins": "Asist. Costos: Editar Márgenes",
     "cost-assistant:export": "Asist. Costos: Exportar Excel",
+    "admin:marketing:manage": "Marketing: Gestionar Publicidad Global",
     "billing:manage": "Facturación: Auditar y Conciliar",
     "providers:read": "Proveedores: Ver Catálogo",
     "providers:manage": "Proveedores: Gestionar Tarifas",
@@ -152,6 +154,7 @@ export const permissionTree: Record<string, string[]> = {
 
     "licenses:manage": ["licenses:read"],
     "licenses:admin:keys": ["admin:access"],
+    "admin:marketing:manage": ["admin:access"],
 
     "inventory:manage": ["inventory:read"],
     "inventory:warranty:hub": ["inventory:read"],
@@ -160,7 +163,7 @@ export const permissionTree: Record<string, string[]> = {
     "it-tools:notes:read": ["it-tools:access"],
     "it-tools:notes:create": ["it-tools:notes:read"],
     "it-tools:notes:update": ["it-tools:notes:read"],
-    "it-tools:notes:delete": ["it-tools:notes:update"],
+    "it-tools:notes:delete": ["it-tools:notes:read"],
 
     "tickets:admin:settings": ["tickets:manage"],
     "tickets:manage": ["tickets:read:all"],

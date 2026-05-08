@@ -555,13 +555,28 @@ export async function initializeMainDatabase(db: Database) {
             FOREIGN KEY (equipmentId) REFERENCES inventory_equipment(id) ON DELETE SET NULL
         );
 
-        -- INDICES FOR INVENTORY
+        -- MARKETING MODULE (v3.0)
+        CREATE TABLE IF NOT EXISTS marketing_ads (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            softwareId INTEGER NOT NULL,
+            imageUrl TEXT NOT NULL,
+            description TEXT NOT NULL,
+            price TEXT,
+            targetUrl TEXT,
+            isEnabled INTEGER DEFAULT 1,
+            targetType TEXT DEFAULT 'all', -- 'all', 'free', 'premium'
+            createdAt TEXT NOT NULL,
+            FOREIGN KEY (softwareId) REFERENCES software_products(id) ON DELETE CASCADE
+        );
+
+        -- INDICES FOR INVENTORY & MARKETING
         CREATE INDEX IF NOT EXISTS idx_inv_equip_client ON inventory_equipment(clientId);
         CREATE INDEX IF NOT EXISTS idx_inv_equip_serial ON inventory_equipment(serialNumber);
         CREATE INDEX IF NOT EXISTS idx_inv_cons_equip ON inventory_consumables(equipmentId);
         CREATE INDEX IF NOT EXISTS idx_inv_sales_client ON inventory_sale_records(clientId);
         CREATE INDEX IF NOT EXISTS idx_inv_sales_serial ON inventory_sale_records(serialNumber);
         CREATE INDEX IF NOT EXISTS idx_inv_sales_invoice ON inventory_sale_records(invoiceNumber);
+        CREATE INDEX IF NOT EXISTS idx_marketing_soft ON marketing_ads(softwareId);
     `;
 
     db.exec(mainSchema);
@@ -793,6 +808,20 @@ export async function runMainMigrations(db: Database) {
             updatedAt TEXT NOT NULL,
             FOREIGN KEY (clientId) REFERENCES customers(id) ON DELETE CASCADE,
             FOREIGN KEY (equipmentId) REFERENCES inventory_equipment(id) ON DELETE SET NULL
+        );
+        
+        -- Marketing Module (v3.0)
+        CREATE TABLE IF NOT EXISTS marketing_ads (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            softwareId INTEGER NOT NULL,
+            imageUrl TEXT NOT NULL,
+            description TEXT NOT NULL,
+            price TEXT,
+            targetUrl TEXT,
+            isEnabled INTEGER DEFAULT 1,
+            targetType TEXT DEFAULT 'all',
+            createdAt TEXT NOT NULL,
+            FOREIGN KEY (softwareId) REFERENCES software_products(id) ON DELETE CASCADE
         );
     `);
 
