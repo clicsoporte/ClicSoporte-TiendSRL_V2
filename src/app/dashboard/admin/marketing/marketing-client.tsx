@@ -208,7 +208,10 @@ export default function MarketingClient() {
                                 <Select value={String(currentAd.softwareId)} onValueChange={v => setCurrentAd({...currentAd, softwareId: Number(v)})}>
                                     <SelectTrigger><SelectValue placeholder="Seleccione..."/></SelectTrigger>
                                     <SelectContent>
-                                        {softwareProducts.map((p: SoftwareProduct) => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}
+                                        {softwareProducts
+                                            .filter((p: SoftwareProduct) => p.isInternal)
+                                            .map((p: SoftwareProduct) => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)
+                                        }
                                     </SelectContent>
                                 </Select>
                             </div>
