@@ -9,7 +9,7 @@ import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { useAuth } from '@/modules/core/hooks/useAuth';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -43,7 +43,7 @@ export default function MarketingClient() {
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
     const { softwareProducts, isAuthReady } = useAuth();
-    const { hasPermission } = useAuthorization();
+    useAuthorization();
 
     const [ads, setAds] = useState<MarketingAd[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -188,7 +188,7 @@ export default function MarketingClient() {
                                     </TableRow>
                                 )
                             })}
-                            {ads.length === 0 && <TableRow><TableCell colSpan={6} className="text-center py-20 text-muted-foreground italic border-2 border-dashed rounded-lg">No hay campañas configuradas. Presiona "Nueva Campaña" para empezar.</TableCell></TableRow>}
+                            {ads.length === 0 && <TableRow><TableCell colSpan={6} className="text-center py-20 text-muted-foreground italic border-2 border-dashed rounded-lg">No hay campañas configuradas. Presiona &quot;Nueva Campaña&quot; para empezar.</TableCell></TableRow>}
                         </TableBody>
                     </Table>
                 </CardContent>
@@ -214,7 +214,7 @@ export default function MarketingClient() {
                             </div>
                             <div className="space-y-2">
                                 <Label>Segmento de Usuarios</Label>
-                                <Select value={currentAd.targetType} onValueChange={v => setCurrentAd({...currentAd, targetType: v as any})}>
+                                <Select value={currentAd.targetType} onValueChange={v => setCurrentAd({...currentAd, targetType: v as 'all' | 'free' | 'premium'})}>
                                     <SelectTrigger><SelectValue /></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="all">Todos los Usuarios</SelectItem>

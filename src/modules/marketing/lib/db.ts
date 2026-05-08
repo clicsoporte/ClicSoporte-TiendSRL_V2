@@ -10,7 +10,7 @@ import { authorizeAction } from '@/modules/core/lib/auth-guard';
 export async function getMarketingAds(softwareId?: number): Promise<MarketingAd[]> {
     const db = await connectDb();
     let query = 'SELECT * FROM marketing_ads';
-    const params: any[] = [];
+    const params: (string | number)[] = [];
 
     if (softwareId) {
         query += ' WHERE softwareId = ?';
@@ -18,7 +18,7 @@ export async function getMarketingAds(softwareId?: number): Promise<MarketingAd[
     }
 
     query += ' ORDER BY createdAt DESC';
-    const rows = db.prepare(query).all(...params) as any[];
+    const rows = db.prepare(query).all(...params) as (Omit<MarketingAd, 'isEnabled'> & { isEnabled: number })[];
     return rows.map(r => ({ ...r, isEnabled: r.isEnabled === 1 }));
 }
 
@@ -68,7 +68,7 @@ export async function getActiveAdsForSoftware(softwareName: string, status?: str
         AND isEnabled = 1 
         AND (expiresAt IS NULL OR expiresAt > datetime('now'))
     `;
-    const params: any[] = [product.id];
+    const params: (string | number)[] = [product.id];
 
     if (status) {
         query += " AND (targetType = 'all' OR targetType = ?)";
@@ -77,7 +77,7 @@ export async function getActiveAdsForSoftware(softwareName: string, status?: str
         query += " AND targetType = 'all'";
     }
 
-    const rows = db.prepare(query).all(...params) as any[];
+    const rows = db.prepare(query).all(...params) as MarketingAd[];
     return rows.map(r => ({ 
         imageUrl: r.imageUrl, 
         description: r.description, 
