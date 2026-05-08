@@ -1,6 +1,6 @@
 /**
  * @fileoverview Main page for the License Management module.
- * Enhanced for Hybrid Licensing v3.5 (Telemetry & UI Presets).
+ * Enhanced for Hybrid Licensing v3.6 (Standardized UI & Forced Sync).
  */
 'use client';
 
@@ -21,7 +21,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SearchInput } from '@/components/ui/search-input';
-import { PlusCircle, MoreVertical, CalendarIcon, Loader2, Trash2, Download, Edit, ShieldCheck, Boxes, Settings2, Info, Code2, Copy, Check, KeyRound } from 'lucide-react';
+import { PlusCircle, MoreVertical, CalendarIcon, Loader2, Trash2, Download, Edit, ShieldCheck, Boxes, Settings2, Info, Code2, Copy, Check, KeyRound, Eye, RefreshCw } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
@@ -29,6 +29,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
+import { Separator } from '@/components/ui/separator';
 import type { License, SoftwareProduct } from '@/modules/core/types';
 
 export default function LicensesPage() {
@@ -72,7 +73,7 @@ export default function LicensesPage() {
     const SERVER_URL = state.companyData?.publicUrl || 'https://soporte.clicsoporte.com';
 
     const sdkCode = {
-        meta: `version: v3.5 fecha: 25/05/2024`,
+        meta: `version: v3.6 fecha: 25/05/2024`,
         schema: `{
   "success": true,
   "license_file": {
@@ -96,7 +97,7 @@ export default function LicensesPage() {
   }
 }`,
         verify: `/**
- * PASO 1: VERIFICACIÓN INTELIGENTE (SDK v3.5)
+ * PASO 1: VERIFICACIÓN INTELIGENTE (SDK v3.6)
  * El cliente ingresa su Cédula y obtenemos sus datos oficiales para evitar doble registro.
  */
 export async function verifyClientInfo(taxId: string) {
@@ -114,7 +115,7 @@ export async function verifyClientInfo(taxId: string) {
 }`,
         actions: `'use server';
 /**
- * PASO 2: ACTIVACIÓN (SDK v3.5)
+ * PASO 2: ACTIVACIÓN (SDK v3.6)
  * El servidor devuelve un objeto estructurado. Ya NO es necesario JSON.parse(result.license_file).
  */
 export async function activateSoftware(payload: {
@@ -145,7 +146,7 @@ export async function activateSoftware(payload: {
     return result.license_file; 
 }`,
         rsa: `/**
- * PASO 4: VERIFICACIÓN CRIPTOGRÁFICA
+ * PASO 4: VERIFICACIÓN CRIPTOGRÁFICA (SDK v3.6)
  * Validamos que el servidor sea quien dice ser usando la clave pública PEM.
  */
 import crypto from 'crypto';
@@ -162,7 +163,7 @@ export function verifyServerSignature(licenseFile, publicKeyPem) {
     return verifier.verify(publicKeyPem, signature, 'hex');
 }`,
         marketing: `/**
- * PASO 6: PUBLICIDAD DINÁMICA (SDK v3.5)
+ * PASO 6: PUBLICIDAD DINÁMICA (SDK v3.6)
  * Descarga anuncios globales firmados segmentados por tipo de licencia.
  */
 export async function syncGlobalAds(licenseType: 'free' | 'premium') {
@@ -174,7 +175,74 @@ export async function syncGlobalAds(licenseType: 'free' | 'premium') {
         return payload.ads_info.ads; 
     }
     return [];
-}`
+}`,
+        frontend: `/**
+ * PASO 5: INTERFAZ Y BOTÓN DE ACCIÓN (SDK v3.6 ESTÁNDAR)
+ * Implementación recomendada para el bloque de gestión de licencia en el cliente.
+ */
+
+// A) Lógica del Handler
+const handleSyncLicense = async () => {
+    const taxId = form.getValues('taxId');
+    const token = form.getValues('licenseKey');
+
+    if (!taxId) {
+        toast({ title: "Falta Identificación", description: "Ingrese su Cédula/RUC para sincronizar.", variant: "destructive" });
+        return;
+    }
+
+    setIsSyncing(true);
+    try {
+        const result = await activateSoftware({
+            taxId,
+            token,
+            customerName: form.getValues('companyName'),
+            customerEmail: form.getValues('email'),
+            customerPhone: form.getValues('phone')
+        });
+
+        if (result.license_info) {
+            toast({ title: "Sincronización Exitosa", description: "Licencia actualizada desde el servidor." });
+            await fetchLicenseInfo(); // Función que refresca el estado visual local
+        }
+    } catch (error) {
+        toast({ title: "Fallo de Conexión", description: error.message, variant: "destructive" });
+    } finally {
+        setIsSyncing(false);
+    }
+};
+
+// B) Componente UI (JSX)
+<div className='p-4 bg-muted/30 rounded-lg space-y-3 border'>
+    <div className='flex justify-between items-center'>
+        <span className='font-bold text-xs uppercase text-muted-foreground'>Estado de Licencia:</span>
+        <Badge variant={license?.isValid ? "default" : "destructive"}>
+            {license?.status || 'SIN ACTIVAR'}
+        </Badge>
+    </div>
+    
+    <div className='text-[10px] space-y-1 font-mono text-muted-foreground'>
+        <p>TIPO: {license?.type?.toUpperCase() || 'N/A'}</p>
+        <p className='break-all'>HARDWARE ID: {license?.hardwareId || 'PENDIENTE'}</p>
+        {license?.expiresAt && <p>EXPIRA: {new Date(license.expiresAt).toLocaleDateString()}</p>}
+    </div>
+    
+    <Separator />
+    
+    <div className='space-y-2'>
+        <p className='text-[9px] text-muted-foreground italic'>Forzar sincronización con el servidor de licencias central.</p>
+        <Button 
+            type="button" 
+            onClick={handleSyncLicense} 
+            disabled={isSyncing} 
+            variant="secondary" 
+            className='w-full h-9 text-xs'
+        >
+            {isSyncing ? <Loader2 className='mr-2 h-4 w-4 animate-spin' /> : <RefreshCw className='mr-2 h-4 w-4' />}
+            Sincronizar y Forzar Activación
+        </Button>
+    </div>
+</div>`
     };
 
     return (
@@ -437,30 +505,28 @@ export async function syncGlobalAds(licenseType: 'free' | 'premium') {
                             <div className="flex items-center justify-between w-full pr-8">
                                 <div className="flex items-center gap-2">
                                     <Code2 className="h-5 w-5 text-primary" />
-                                    <DialogTitle>Kit de Integración (SDK Estándar v3.5)</DialogTitle>
+                                    <DialogTitle>Kit de Integración (SDK Estándar {sdkCode.meta})</DialogTitle>
                                 </div>
-                                <Badge variant="outline" className="font-mono text-[10px] uppercase text-primary border-primary/30">
-                                    {sdkCode.meta}
-                                </Badge>
                             </div>
                             <DialogDescription>
-                                Implementa la inyección de identidad y publicidad dinámica firmada para tus software hijos.
+                                Implementa la inyección de identidad, validación de firma y sincronización forzada en tus software hijos.
                             </DialogDescription>
                         </DialogHeader>
                         
                         <Tabs defaultValue="schema" className="flex-1 overflow-hidden flex flex-col">
                             <TabsList className="px-6 border-b rounded-none bg-muted/20 h-10 overflow-x-auto justify-start">
-                                <TabsTrigger value="schema" className="text-xs font-bold text-orange-600">Esquema de Respuesta</TabsTrigger>
+                                <TabsTrigger value="schema" className="text-xs font-bold text-orange-600">Esquema</TabsTrigger>
                                 <TabsTrigger value="verify" className="text-xs font-bold text-primary">1. Verificación</TabsTrigger>
                                 <TabsTrigger value="actions" className="text-xs">2. Activación</TabsTrigger>
-                                <TabsTrigger value="rsa" className="text-xs font-bold text-red-600">3. Validación RSA</TabsTrigger>
-                                <TabsTrigger value="marketing" className="text-xs font-bold text-purple-600">4. Publicidad Dinámica</TabsTrigger>
+                                <TabsTrigger value="rsa" className="text-xs font-bold text-red-600">3. RSA</TabsTrigger>
+                                <TabsTrigger value="marketing" className="text-xs font-bold text-purple-600">4. Publicidad</TabsTrigger>
+                                <TabsTrigger value="frontend" className="text-xs font-bold text-green-600">5. Botón & UI</TabsTrigger>
                             </TabsList>
                             
                             <div className="flex-1 overflow-y-auto p-0">
                                 <TabsContent value="schema" className="m-0 h-full">
                                     <div className="p-4 relative">
-                                        <p className="text-[11px] text-muted-foreground mb-3 italic">Estructura del objeto &quot;license_file&quot; que recibe el cliente tras una activación exitosa.</p>
+                                        <p className="text-[11px] text-muted-foreground mb-3 italic">Contrato de datos que recibe el cliente tras una activación exitosa.</p>
                                         <Button variant="secondary" size="sm" className="absolute top-12 right-6 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.schema, 'schema')}>
                                             {copiedSection === 'schema' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
                                             {copiedSection === 'schema' ? 'Copiado' : 'Copiar'}
@@ -511,6 +577,18 @@ export async function syncGlobalAds(licenseType: 'free' | 'premium') {
                                         </Button>
                                         <pre className="bg-slate-950 text-slate-100 p-6 rounded-lg text-[11px] font-mono overflow-auto max-h-[600px]">
                                             {sdkCode.marketing}
+                                        </pre>
+                                    </div>
+                                </TabsContent>
+                                <TabsContent value="frontend" className="m-0 h-full">
+                                    <div className="p-4 relative">
+                                        <p className="text-[11px] text-muted-foreground mb-3 italic">Implementación estándar del bloque de sincronización forzada en el cliente.</p>
+                                        <Button variant="secondary" size="sm" className="absolute top-12 right-6 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.frontend, 'frontend')}>
+                                            {copiedSection === 'frontend' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
+                                            {copiedSection === 'frontend' ? 'Copiado' : 'Copiar'}
+                                        </Button>
+                                        <pre className="bg-slate-950 text-green-200 p-6 rounded-lg text-[11px] font-mono overflow-auto max-h-[600px]">
+                                            {sdkCode.frontend}
                                         </pre>
                                     </div>
                                 </TabsContent>
