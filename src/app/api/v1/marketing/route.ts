@@ -1,6 +1,7 @@
 /**
  * @fileoverview API Endpoint for delivering signed marketing ads.
  * Implements segmentation by Software Name and License Type.
+ * Refactored for SDK v3.6: Returns structured JSON object to match activation endpoints.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -22,18 +23,22 @@ export async function GET(req: NextRequest) {
         const ads = await getActiveAdsForSoftware(softwareName, status);
 
         // Sign the payload to ensure integrity
-        const payload = {
+        const dataToSign = {
             softwareName,
             status,
             ads,
             serverTimestamp: new Date().toISOString()
         };
 
-        const signedData = await signLicenseData(payload);
+        // signLicenseData returns a stringified JSON with { license_info, signature }
+        const signedDataString = await signLicenseData(dataToSign);
+        
+        // Parse back to object so NextResponse sends it as pure JSON (not a double-quoted string)
+        const structuredSignedData = JSON.parse(signedDataString);
 
         return NextResponse.json({
             success: true,
-            payload: signedData
+            payload: structuredSignedData
         });
 
     } catch (error: unknown) {

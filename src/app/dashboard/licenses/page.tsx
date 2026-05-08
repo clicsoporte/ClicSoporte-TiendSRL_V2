@@ -172,7 +172,7 @@ export async function syncGlobalAds(licenseType: 'free' | 'premium') {
     
     // Validar firma del anuncio antes de mostrarlo
     if (verifyServerSignature(payload, publicKeyPem)) {
-        return payload.ads_info.ads; 
+        return payload.license_info.ads; 
     }
     return [];
 }`,
