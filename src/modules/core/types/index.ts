@@ -455,17 +455,6 @@ export type ProjectItem = {
     type: 'material' | 'service';
 };
 
-export type PlannerSettings = {
-    projectPrefix?: string;
-    nextProjectNumber?: number;
-    pdfTopLegend?: string;
-    assignmentLabel: string;
-    pdfPaperSize: 'letter' | 'legal';
-    showCustomerTaxId: boolean;
-    assignments: { id: string; name: string }[];
-    requireAssignmentForStart: boolean;
-};
-
 export type { DateRange };
 
 // --- Stock Management Types ---
@@ -842,7 +831,6 @@ export type Equipment = {
     notes?: string | null;
     createdAt: string;
     updatedAt: string;
-    FOREIGN KEY (clientId) REFERENCES customers(id) ON DELETE CASCADE
 };
 
 export type Consumable = {
