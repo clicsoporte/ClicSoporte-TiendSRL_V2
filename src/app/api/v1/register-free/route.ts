@@ -1,7 +1,7 @@
 
 /**
  * @fileoverview API Endpoint for registering free licenses.
- * Optimized for Hybrid Licensing v2.10: Includes Identity Injection.
+ * Refactored for SDK v3.3: Returns structured JSON object and ensures master identity injection.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -53,11 +53,20 @@ export async function POST(req: NextRequest) {
         `).get(software.id, hardwareId) as License | undefined;
 
         if (existingLicense && existingLicense.licenseKey) {
-            return NextResponse.json({ 
-                success: true, 
-                message: 'Restaurando licencia existente para este hardware.',
-                license_file: existingLicense.licenseKey 
-            });
+            try {
+                const existingFile = JSON.parse(existingLicense.licenseKey);
+                return NextResponse.json({ 
+                    success: true, 
+                    message: 'Restaurando licencia existente para este hardware.',
+                    license_file: existingFile 
+                });
+            } catch {
+                return NextResponse.json({ 
+                    success: true, 
+                    message: 'Restaurando licencia existente para este hardware.',
+                    license_file: existingLicense.licenseKey 
+                });
+            }
         }
 
         // 6. Ensure/Create the Customer (Protects existing data internally)
@@ -102,17 +111,18 @@ export async function POST(req: NextRequest) {
             }
         };
 
-        const signedData = await signLicenseData(licenseInfo);
+        const signedDataString = await signLicenseData(licenseInfo);
+        const structuredLicenseFile = JSON.parse(signedDataString);
 
         db.prepare(`
             INSERT INTO licenses (
                 licenseKey, activationToken, softwareId, customerId, hardwareId, isPerpetual, expirationDate, status, createdAt, m01_val
             ) VALUES (?, 'FREE-LICENSE', ?, ?, ?, 1, '', 'active', ?, 1)
-        `).run(signedData, software.id, customerData.id, hardwareId, now);
+        `).run(signedDataString, software.id, customerData.id, hardwareId, now);
 
         return NextResponse.json({
             success: true,
-            license_file: signedData
+            license_file: structuredLicenseFile
         });
 
     } catch (error: unknown) {

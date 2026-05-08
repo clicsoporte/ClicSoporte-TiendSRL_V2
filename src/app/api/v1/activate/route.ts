@@ -2,7 +2,7 @@
 /**
  * @fileoverview API Endpoint for child software activation.
  * Handles the linking between an activation token and a hardware ID.
- * Enhanced with software identification by Name and Identity injection.
+ * Refactored for SDK v3.3: Returns structured JSON object instead of string.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -50,10 +50,13 @@ export async function POST(req: NextRequest) {
 
         // 4. CHECK FOR RE-INSTALLATION ON SAME HARDWARE
         if (license.hardwareId === hardwareId && license.licenseKey) {
-            return NextResponse.json({
-                success: true,
-                license_file: license.licenseKey
-            });
+            // Already structured in DB? If so parse, if not return as is
+            try {
+                const existingFile = JSON.parse(license.licenseKey);
+                return NextResponse.json({ success: true, license_file: existingFile });
+            } catch {
+                return NextResponse.json({ success: true, license_file: license.licenseKey });
+            }
         }
 
         // 5. CHECK FOR MULTI-PC ATTEMPT
@@ -87,14 +90,15 @@ export async function POST(req: NextRequest) {
             }
         };
 
-        const signedData = await signLicenseData(licenseInfo);
+        const signedDataString = await signLicenseData(licenseInfo);
+        const structuredLicenseFile = JSON.parse(signedDataString);
 
         // Cache signed result
-        db.prepare('UPDATE licenses SET licenseKey = ? WHERE id = ?').run(signedData, license.id);
+        db.prepare('UPDATE licenses SET licenseKey = ? WHERE id = ?').run(signedDataString, license.id);
 
         return NextResponse.json({
             success: true,
-            license_file: signedData
+            license_file: structuredLicenseFile
         });
 
     } catch (error: unknown) {

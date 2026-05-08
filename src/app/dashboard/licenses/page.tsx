@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Main page for the License Management module.
  * Enhanced for Hybrid Licensing v3.0 (Marketing Injection).
@@ -72,9 +73,32 @@ export default function LicensesPage() {
     const SERVER_URL = state.companyData?.publicUrl || 'https://soporte.clicsoporte.com';
 
     const sdkCode = {
+        meta: `version: v3.3 fecha: 25/05/2024`,
+        schema: `{
+  "success": true,
+  "license_file": {
+    "license_info": {
+      "softwareId": 12,
+      "softwareName": "Clic-Turnos",
+      "customerName": "Nombre Oficial del Cliente", // Inyectado por Servidor
+      "customerEmail": "cliente@oficial.com",        // Inyectado por Servidor
+      "customerPhone": "8888-8888",
+      "hardwareId": "ABC-123-XYZ",
+      "status": "active",
+      "isPerpetual": false,
+      "expirationDate": "2025-12-31",
+      "modules": {
+        "m01": true,
+        "m02": false,
+        ...
+      }
+    },
+    "signature": "hash_hex_firmado_rsa"
+  }
+}`,
         verify: `/**
- * PASO 1: VERIFICACIÓN INTELIGENTE
- * El cliente ingresa su Cédula/RUC y obtenemos sus datos oficiales.
+ * PASO 1: VERIFICACIÓN INTELIGENTE (SDK v3.3)
+ * El cliente ingresa su Cédula y obtenemos sus datos oficiales para evitar doble registro.
  */
 export async function verifyClientInfo(taxId: string) {
     const res = await fetch(\`\${SERVER_URL}/api/v1/verify-client?taxId=\${taxId}\`);
@@ -90,15 +114,9 @@ export async function verifyClientInfo(taxId: string) {
     return { found: false };
 }`,
         actions: `'use server';
-import { generateHardwareId } from '@/lib/license-validator';
-
-const SERVER_URL = '${SERVER_URL}';
-const APP_IDENTITY = 'Clic-Turnos'; // DEBE COINCIDIR CON EL NOMBRE EN EL SERVIDOR
-
 /**
- * PASO 2: ACTIVACIÓN (SDK v2.10)
- * Nota: Los campos de contacto son obligatorios solo si el cliente es NUEVO.
- * El servidor inyectará la Identidad Maestra (Nombre/Email) en el archivo firmado.
+ * PASO 2: ACTIVACIÓN (SDK v3.3)
+ * El servidor devuelve un objeto estructurado. Ya NO es necesario JSON.parse(result.license_file).
  */
 export async function activateSoftware(payload: {
     taxId: string,
@@ -107,14 +125,14 @@ export async function activateSoftware(payload: {
     customerPhone: string,
     token?: string
 }) {
-    const hardwareId = await generateHardwareId();
+    const hardwareId = await generateHardwareId(); // Fingerprint local
     const endpoint = payload.token ? 'activate' : 'register-free';
     
     const res = await fetch(\`\${SERVER_URL}/api/v1/\${endpoint}\`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-            softwareName: APP_IDENTITY,
+            softwareName: 'Clic-Turnos',
             hardwareId,
             activationToken: payload.token,
             ...payload 
@@ -123,77 +141,38 @@ export async function activateSoftware(payload: {
 
     const result = await res.json();
     if (!res.ok) throw new Error(result.error);
-    return result.license_file; // Retorna el JSON firmado
-}`,
-        logic: `/**
- * PASO 3: LÓGICA DE UI
- */
-async function onTaxIdBlur(id) {
-    const info = await verifyClientInfo(id);
-    if (info.found) {
-        setFormValue('customerName', info.data.name);
-        setFieldDisabled('customerName', true); 
-        
-        if (info.isLocal) {
-            // Cliente existente: No pedimos nada más.
-            setFieldDisabled('customerEmail', true);
-            setFieldDisabled('customerPhone', true);
-        }
-    }
+    
+    // result.license_file ya es un OBJETO con license_info y signature
+    return result.license_file; 
 }`,
         rsa: `/**
- * PASO 4: VERIFICACIÓN CRIPTOGRÁFICA (Node.js/Electron)
- * Importante: La clave pública debe estar embebida en el software cliente.
+ * PASO 4: VERIFICACIÓN CRIPTOGRÁFICA
+ * Validamos que el servidor sea quien dice ser usando la clave pública PEM.
  */
 import crypto from 'crypto';
 
-export function verifyServerSignature(signedJson, publicKeyPem) {
-    const { license_info, ads_info, signature } = JSON.parse(signedJson);
-    const dataToVerify = license_info || ads_info;
+export function verifyServerSignature(licenseFile, publicKeyPem) {
+    const { license_info, signature } = licenseFile;
     
-    // El servidor ordena las llaves alfabéticamente antes de firmar
-    const message = JSON.stringify(dataToVerify, Object.keys(dataToVerify).sort());
+    // IMPORTANTE: Ordenar llaves alfabéticamente para coincidir con la firma del servidor
+    const message = JSON.stringify(license_info, Object.keys(license_info).sort());
     
     const verifier = crypto.createVerify('RSA-SHA256');
     verifier.update(message);
     
     return verifier.verify(publicKeyPem, signature, 'hex');
 }`,
-        validation: `/**
- * PASO 5: VALIDACIÓN Y AUTO-CONFIGURACIÓN
- */
-export function validateAndSetup(licenseFileJson, publicKeyPem) {
-    if (!verifyServerSignature(licenseFileJson, publicKeyPem)) {
-        throw new Error("Firma inválida: El archivo de licencia ha sido alterado.");
-    }
-
-    const { license_info } = JSON.parse(licenseFileJson);
-    
-    // 1. Extraer Identidad Inyectada por el Servidor
-    const { customerName, customerEmail, customerPhone } = license_info;
-    
-    // 2. Guardar en la configuración local del Software Hijo
-    // Esto asegura que el "About" del programa muestre datos oficiales.
-    saveAppOwnerData({ 
-        companyName: customerName, 
-        email: customerEmail,
-        phone: customerPhone 
-    });
-
-    return license_info;
-}`,
         marketing: `/**
- * PASO 6: PUBLICIDAD DINÁMICA (SDK v3.0)
- * El software descarga publicidad global firmada desde el servidor central.
+ * PASO 6: PUBLICIDAD DINÁMICA (SDK v3.3)
+ * Descarga anuncios globales firmados segmentados por tipo de licencia.
  */
 export async function syncGlobalAds(licenseType: 'free' | 'premium') {
     const res = await fetch(\`\${SERVER_URL}/api/v1/marketing?software=Clic-Turnos&status=\${licenseType}\`);
     const { payload } = await res.json();
     
-    // Validar firma del anuncio para evitar "ad-jacking"
+    // Validar firma del anuncio antes de mostrarlo
     if (verifyServerSignature(payload, publicKeyPem)) {
-        const { ads_info } = JSON.parse(payload);
-        return ads_info.ads; // Array de { imageUrl, description, price, targetUrl }
+        return payload.ads_info.ads; 
     }
     return [];
 }`
@@ -435,26 +414,42 @@ export async function syncGlobalAds(licenseType: 'free' | 'premium') {
                 <Dialog open={isSdkDialogOpen} onOpenChange={setSdkDialogOpen}>
                     <DialogContent className="sm:max-w-4xl h-[90vh] flex flex-col p-0 overflow-hidden">
                         <DialogHeader className="p-6 pb-2 border-b">
-                            <div className="flex items-center gap-2">
-                                <Code2 className="h-5 w-5 text-primary" />
-                                <DialogTitle>Kit de Integración (SDK Estándar v3.0)</DialogTitle>
+                            <div className="flex items-center justify-between w-full pr-8">
+                                <div className="flex items-center gap-2">
+                                    <Code2 className="h-5 w-5 text-primary" />
+                                    <DialogTitle>Kit de Integración (SDK Estándar v3.3)</DialogTitle>
+                                </div>
+                                <Badge variant="outline" className="font-mono text-[10px] uppercase text-primary border-primary/30">
+                                    {sdkCode.meta}
+                                </Badge>
                             </div>
                             <DialogDescription>
                                 Implementa la inyección de identidad y publicidad dinámica firmada para tus software hijos.
                             </DialogDescription>
                         </DialogHeader>
                         
-                        <Tabs defaultValue="verify" className="flex-1 overflow-hidden flex flex-col">
+                        <Tabs defaultValue="schema" className="flex-1 overflow-hidden flex flex-col">
                             <TabsList className="px-6 border-b rounded-none bg-muted/20 h-10 overflow-x-auto justify-start">
+                                <TabsTrigger value="schema" className="text-xs font-bold text-orange-600">Esquema de Respuesta</TabsTrigger>
                                 <TabsTrigger value="verify" className="text-xs font-bold text-primary">1. Verificación</TabsTrigger>
                                 <TabsTrigger value="actions" className="text-xs">2. Activación</TabsTrigger>
-                                <TabsTrigger value="logic" className="text-xs">3. Lógica UI</TabsTrigger>
-                                <TabsTrigger value="rsa" className="text-xs font-bold text-red-600">4. Validación RSA</TabsTrigger>
-                                <TabsTrigger value="validation" className="text-xs">5. Identidad Inyectada</TabsTrigger>
-                                <TabsTrigger value="marketing" className="text-xs font-bold text-purple-600">6. Publicidad Dinámica</TabsTrigger>
+                                <TabsTrigger value="rsa" className="text-xs font-bold text-red-600">3. Validación RSA</TabsTrigger>
+                                <TabsTrigger value="marketing" className="text-xs font-bold text-purple-600">4. Publicidad Dinámica</TabsTrigger>
                             </TabsList>
                             
                             <div className="flex-1 overflow-y-auto p-0">
+                                <TabsContent value="schema" className="m-0 h-full">
+                                    <div className="p-4 relative">
+                                        <p className="text-[11px] text-muted-foreground mb-3 italic">Estructura del objeto "license_file" que recibe el cliente tras una activación exitosa.</p>
+                                        <Button variant="secondary" size="sm" className="absolute top-12 right-6 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.schema, 'schema')}>
+                                            {copiedSection === 'schema' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
+                                            {copiedSection === 'schema' ? 'Copiado' : 'Copiar'}
+                                        </Button>
+                                        <pre className="bg-slate-950 text-orange-200 p-6 rounded-lg text-[11px] font-mono overflow-auto max-h-[600px]">
+                                            {sdkCode.schema}
+                                        </pre>
+                                    </div>
+                                </TabsContent>
                                 <TabsContent value="verify" className="m-0 h-full">
                                     <div className="p-4 relative">
                                         <Button variant="secondary" size="sm" className="absolute top-6 right-6 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.verify, 'verify')}>
@@ -477,17 +472,6 @@ export async function syncGlobalAds(licenseType: 'free' | 'premium') {
                                         </pre>
                                     </div>
                                 </TabsContent>
-                                <TabsContent value="logic" className="m-0 h-full">
-                                    <div className="p-4 relative">
-                                        <Button variant="secondary" size="sm" className="absolute top-6 right-6 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.logic, 'logic')}>
-                                            {copiedSection === 'logic' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
-                                            {copiedSection === 'logic' ? 'Copiado' : 'Copiar'}
-                                        </Button>
-                                        <pre className="bg-slate-950 text-slate-100 p-6 rounded-lg text-[11px] font-mono overflow-auto max-h-[600px]">
-                                            {sdkCode.logic}
-                                        </pre>
-                                    </div>
-                                </TabsContent>
                                 <TabsContent value="rsa" className="m-0 h-full">
                                     <div className="p-4 relative">
                                         <Button variant="secondary" size="sm" className="absolute top-6 right-6 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.rsa, 'rsa')}>
@@ -496,17 +480,6 @@ export async function syncGlobalAds(licenseType: 'free' | 'premium') {
                                         </Button>
                                         <pre className="bg-slate-950 text-slate-100 p-6 rounded-lg text-[11px] font-mono overflow-auto max-h-[600px]">
                                             {sdkCode.rsa}
-                                        </pre>
-                                    </div>
-                                </TabsContent>
-                                <TabsContent value="validation" className="m-0 h-full">
-                                    <div className="p-4 relative">
-                                        <Button variant="secondary" size="sm" className="absolute top-6 right-6 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.validation, 'validation')}>
-                                            {copiedSection === 'validation' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
-                                            {copiedSection === 'validation' ? 'Copiado' : 'Copiar'}
-                                        </Button>
-                                        <pre className="bg-slate-950 text-slate-100 p-6 rounded-lg text-[11px] font-mono overflow-auto max-h-[600px]">
-                                            {sdkCode.validation}
                                         </pre>
                                     </div>
                                 </TabsContent>
