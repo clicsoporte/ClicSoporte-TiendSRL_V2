@@ -9,7 +9,7 @@ import { useEffect, useState, useMemo } from "react";
 import { usePageTitle } from "@/modules/core/hooks/usePageTitle";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Search, LifeBuoy, Rocket, Wrench, AlertTriangle, ShieldCheck, MapPin, Zap, Wallet, BellRing, GitFork, KeyRound, Server, Activity, Database, HardDrive, Clock } from "lucide-react";
+import { Search, LifeBuoy, Rocket, Wrench, AlertTriangle, ShieldCheck, MapPin, Zap, Wallet, BellRing, GitFork, KeyRound, Server, Activity, HardDrive, Clock } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/modules/core/hooks/useAuth";
 import { Input } from "@/components/ui/input";
