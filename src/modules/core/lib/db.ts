@@ -2,6 +2,7 @@
 /**
  * @fileoverview Main database initialization and shared utility functions.
  * Unified into a single source of truth: intratool.db
+ * Refactored for idempotent migrations (Safe for existing production DBs).
  */
 "use server";
 
@@ -23,590 +24,39 @@ export async function connectDb(): Promise<Database> {
     return baseConnectDb(DB_FILE, initializeMainDatabase, runMainMigrations);
 }
 
+/**
+ * Runs ONLY if the database file is newly created.
+ */
 export async function initializeMainDatabase(db: Database) {
-    const mainSchema = `
-        -- CORE SYSTEM TABLES
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            email TEXT UNIQUE NOT NULL,
-            password TEXT NOT NULL,
-            phone TEXT,
-            whatsapp TEXT,
-            avatar TEXT,
-            role TEXT NOT NULL,
-            recentActivity TEXT,
-            securityQuestion TEXT,
-            securityAnswer TEXT,
-            forcePasswordChange INTEGER DEFAULT 0
-        );
-
-        CREATE TABLE IF NOT EXISTS roles (
-            id TEXT PRIMARY KEY, 
-            name TEXT NOT NULL, 
-            permissions TEXT NOT NULL
-        );
-
-        CREATE TABLE IF NOT EXISTS company_settings (
-            id INTEGER PRIMARY KEY DEFAULT 1,
-            name TEXT, taxId TEXT, address TEXT, phone TEXT, email TEXT,
-            logoUrl TEXT, systemName TEXT, systemVersion TEXT, publicUrl TEXT,
-            quotePrefix TEXT, nextQuoteNumber INTEGER, decimalPlaces INTEGER, quoterShowTaxId BOOLEAN,
-            searchDebounceTime INTEGER, syncWarningHours INTEGER, importMode TEXT, lastSyncTimestamp TEXT,
-            customerFilePath TEXT, productFilePath TEXT, exemptionFilePath TEXT,
-            stockFilePath TEXT, cabysFilePath TEXT,
-            supportPackages TEXT, servicesCatalog TEXT,
-            internalHourCost REAL DEFAULT 0
-        );
-        
-        CREATE TABLE IF NOT EXISTS api_settings (
-            id INTEGER PRIMARY KEY DEFAULT 1,
-            exchangeRateApi TEXT,
-            haciendaExemptionApi TEXT,
-            haciendaTributariaApi TEXT
-        );
-
-        CREATE TABLE IF NOT EXISTS email_settings (
-            key TEXT PRIMARY KEY,
-            value TEXT NOT NULL
-        );
-
-        CREATE TABLE IF NOT EXISTS logs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            timestamp TEXT NOT NULL,
-            type TEXT NOT NULL,
-            message TEXT NOT NULL,
-            details TEXT
-        );
-
-        CREATE TABLE IF NOT EXISTS suggestions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            content TEXT NOT NULL,
-            userId INTEGER,
-            userName TEXT,
-            isRead INTEGER DEFAULT 0,
-            timestamp TEXT NOT NULL
-        );
-
-        CREATE TABLE IF NOT EXISTS user_preferences (
-            userId INTEGER NOT NULL,
-            key TEXT NOT NULL,
-            value TEXT NOT NULL,
-            PRIMARY KEY (userId, key)
-        );
-
-        CREATE TABLE IF NOT EXISTS customers (
-            id TEXT PRIMARY KEY,
-            name TEXT NOT NULL,
-            commercialName TEXT,
-            address TEXT,
-            phone TEXT,
-            taxId TEXT NOT NULL,
-            currency TEXT DEFAULT 'CRC',
-            creditLimit REAL DEFAULT 0,
-            paymentCondition TEXT DEFAULT '0',
-            salesperson TEXT,
-            active TEXT DEFAULT 'S',
-            email TEXT,
-            electronicDocEmail TEXT,
-            isManual INTEGER DEFAULT 0,
-            contacts TEXT,
-            supportPackageId TEXT,
-            parentCustomerId TEXT,
-            taxRegime TEXT,
-            taxStatus TEXT,
-            isTaxMoroso INTEGER DEFAULT 0,
-            isTaxOmiso INTEGER DEFAULT 0,
-            taxAdministration TEXT,
-            taxActivities TEXT,
-            provinceId INTEGER,
-            cantonId INTEGER,
-            districtId INTEGER,
-            telegramChatId TEXT,
-            isBlocked INTEGER DEFAULT 0,
-            blockedReason TEXT,
-            notifyTickets INTEGER DEFAULT 1,
-            notifyLicenses INTEGER DEFAULT 1
-        );
-
-        CREATE TABLE IF NOT EXISTS products (
-            id TEXT PRIMARY KEY,
-            description TEXT NOT NULL,
-            classification TEXT,
-            lastEntry TEXT,
-            active TEXT DEFAULT 'S',
-            notes TEXT,
-            unit TEXT,
-            isBasicGood TEXT DEFAULT 'N',
-            cabys TEXT
-        );
-
-        CREATE TABLE IF NOT EXISTS stock (
-            itemId TEXT PRIMARY KEY,
-            stockByWarehouse TEXT,
-            totalStock REAL,
-            FOREIGN KEY (itemId) REFERENCES products(id) ON DELETE CASCADE
-        );
-
-        CREATE TABLE IF NOT EXISTS exemptions (
-            code TEXT PRIMARY KEY,
-            description TEXT,
-            customer TEXT,
-            authNumber TEXT,
-            startDate TEXT,
-            endDate TEXT,
-            percentage REAL,
-            docType TEXT,
-            institutionName TEXT,
-            institutionCode TEXT
-        );
-
-        CREATE TABLE IF NOT EXISTS cabys_catalog (
-            code TEXT PRIMARY KEY,
-            description TEXT NOT NULL,
-            taxRate REAL
-        );
-
-        CREATE TABLE IF NOT EXISTS exchange_rates (
-            date TEXT PRIMARY KEY,
-            rate REAL NOT NULL
-        );
-
-        CREATE TABLE IF NOT EXISTS quote_drafts (
-            id TEXT PRIMARY KEY,
-            createdAt TEXT NOT NULL,
-            userId INTEGER NOT NULL,
-            customerId TEXT,
-            customerDetails TEXT,
-            lines TEXT,
-            totals TEXT,
-            notes TEXT,
-            currency TEXT,
-            exchangeRate REAL,
-            purchaseOrderNumber TEXT,
-            deliveryAddress TEXT,
-            deliveryDate TEXT,
-            sellerName TEXT,
-            sellerType TEXT,
-            quoteDate TEXT,
-            validUntilDate TEXT,
-            paymentTerms TEXT,
-            creditDays INTEGER
-        );
-
-        -- CONTRACTS MODULE
-        CREATE TABLE IF NOT EXISTS contracts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            consecutive TEXT UNIQUE NOT NULL,
-            name TEXT NOT NULL,
-            customerId TEXT NOT NULL,
-            startDate TEXT NOT NULL,
-            endDate TEXT NOT NULL,
-            status TEXT NOT NULL DEFAULT 'active',
-            includedServices TEXT NOT NULL,
-            excludedServices TEXT NOT NULL,
-            monthlyHours REAL DEFAULT 0,
-            price REAL DEFAULT 0,
-            currency TEXT DEFAULT 'CRC',
-            notes TEXT,
-            autoRenew INTEGER DEFAULT 0,
-            createdAt TEXT NOT NULL
-        );
-
-        CREATE TABLE IF NOT EXISTS contract_settings (
-            key TEXT PRIMARY KEY,
-            value TEXT NOT NULL
-        );
-
-        -- TICKETS MODULE
-        CREATE TABLE IF NOT EXISTS help_topics (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT UNIQUE NOT NULL,
-            defaultPriority TEXT,
-            defaultAssigneeId INTEGER,
-            defaultServiceId TEXT
-        );
-
-        CREATE TABLE IF NOT EXISTS tickets (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            consecutive TEXT UNIQUE NOT NULL,
-            subject TEXT NOT NULL,
-            status TEXT NOT NULL,
-            priority TEXT NOT NULL,
-            createdAt TEXT NOT NULL,
-            updatedAt TEXT NOT NULL,
-            dueDate TEXT,
-            companyId INTEGER,
-            customerName TEXT, 
-            customerEmail TEXT,
-            customerPhone TEXT,
-            companyName TEXT,
-            assigneeId INTEGER,
-            helpTopicId INTEGER,
-            serviceId TEXT,
-            contractId INTEGER,
-            licenseId INTEGER,
-            equipmentId TEXT,
-            isBillable INTEGER DEFAULT 0,
-            providerId INTEGER,
-            providerContactId TEXT,
-            scheduledVisit TEXT
-        );
-
-        CREATE TABLE IF NOT EXISTS ticket_threads (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            ticketId INTEGER NOT NULL,
-            userId INTEGER,
-            userName TEXT,
-            type TEXT NOT NULL,
-            content TEXT,
-            createdAt TEXT NOT NULL
-        );
-
-        CREATE TABLE IF NOT EXISTS ticket_settings (
-            key TEXT PRIMARY KEY,
-            value TEXT NOT NULL
-        );
-
-        CREATE TABLE IF NOT EXISTS third_party_providers (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            email TEXT,
-            phone TEXT,
-            specialty TEXT,
-            notes TEXT,
-            contacts TEXT,
-            createdAt TEXT NOT NULL
-        );
-
-        CREATE TABLE IF NOT EXISTS provinces (
-            id INTEGER PRIMARY KEY,
-            name TEXT NOT NULL
-        );
-
-        CREATE TABLE IF NOT EXISTS cantons (
-            id INTEGER PRIMARY KEY,
-            provinceId INTEGER NOT NULL,
-            name TEXT NOT NULL,
-            FOREIGN KEY (provinceId) REFERENCES provinces(id) ON DELETE CASCADE
-        );
-
-        CREATE TABLE IF NOT EXISTS districts (
-            id INTEGER PRIMARY KEY,
-            cantonId INTEGER NOT NULL,
-            name TEXT NOT NULL,
-            FOREIGN KEY (cantonId) REFERENCES cantons(id) ON DELETE CASCADE
-        );
-
-        CREATE TABLE IF NOT EXISTS provider_services (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            providerId INTEGER NOT NULL,
-            serviceId TEXT NOT NULL,
-            buyPriceRemote REAL DEFAULT 0,
-            marginRemote REAL DEFAULT 0,
-            taxRate REAL DEFAULT 13,
-            sellPriceRemote REAL DEFAULT 0,
-            buyPriceOnSite REAL DEFAULT 0,
-            marginOnSite REAL DEFAULT 0,
-            sellPriceOnSite REAL DEFAULT 0,
-            FOREIGN KEY (providerId) REFERENCES third_party_providers(id) ON DELETE CASCADE
-        );
-
-        CREATE TABLE IF NOT EXISTS provider_geo_rates (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            providerId INTEGER NOT NULL,
-            provinceId INTEGER NOT NULL,
-            cantonId INTEGER,
-            districtId INTEGER,
-            buyTravelPrice REAL DEFAULT 0,
-            marginTravel REAL DEFAULT 0,
-            taxRate REAL DEFAULT 13,
-            sellTravelPrice REAL DEFAULT 0,
-            locationName TEXT NOT NULL,
-            FOREIGN KEY (providerId) REFERENCES third_party_providers(id) ON DELETE CASCADE
-        );
-
-        -- PLANNER MODULE
-        CREATE TABLE IF NOT EXISTS planner_settings (
-            key TEXT PRIMARY KEY,
-            value TEXT NOT NULL
-        );
-
-        CREATE TABLE IF NOT EXISTS projects (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            consecutive TEXT UNIQUE NOT NULL,
-            name TEXT NOT NULL,
-            customerId TEXT NOT NULL,
-            customerName TEXT NOT NULL,
-            category TEXT NOT NULL DEFAULT 'other',
-            status TEXT NOT NULL,
-            priority TEXT NOT NULL,
-            startDate TEXT NOT NULL,
-            endDate TEXT NOT NULL,
-            coordinatorId INTEGER NOT NULL,
-            subcontractorId INTEGER,
-            description TEXT NOT NULL,
-            notes TEXT,
-            estimatedBudget REAL DEFAULT 0,
-            billingStatus TEXT DEFAULT 'pending',
-            createdAt TEXT NOT NULL,
-            updatedAt TEXT NOT NULL
-        );
-
-        CREATE TABLE IF NOT EXISTS project_subcontractors (
-            projectId INTEGER NOT NULL,
-            providerId INTEGER NOT NULL,
-            PRIMARY KEY (projectId, providerId),
-            FOREIGN KEY (projectId) REFERENCES projects(id) ON DELETE CASCADE,
-            FOREIGN KEY (providerId) REFERENCES third_party_providers(id) ON DELETE CASCADE
-        );
-
-        CREATE TABLE IF NOT EXISTS project_advances (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            projectId INTEGER NOT NULL,
-            timestamp TEXT NOT NULL,
-            content TEXT NOT NULL,
-            userId INTEGER NOT NULL,
-            userName TEXT NOT NULL
-        );
-
-        CREATE TABLE IF NOT EXISTS project_attachments (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            projectId INTEGER NOT NULL,
-            name TEXT NOT NULL,
-            fileName TEXT NOT NULL,
-            fileType TEXT NOT NULL,
-            data TEXT NOT NULL,
-            uploadedBy TEXT NOT NULL,
-            createdAt TEXT NOT NULL
-        );
-
-        CREATE TABLE IF NOT EXISTS project_items (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            projectId INTEGER NOT NULL,
-            description TEXT NOT NULL,
-            quantity REAL NOT NULL,
-            unitPrice REAL NOT NULL,
-            type TEXT NOT NULL
-        );
-
-        -- LICENSES MODULE
-        CREATE TABLE IF NOT EXISTS software_products (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL UNIQUE,
-            isInternal BOOLEAN NOT NULL DEFAULT FALSE,
-            currentVersion TEXT,
-            m01_name TEXT, m02_name TEXT, m03_name TEXT, m04_name TEXT, m05_name TEXT,
-            m06_name TEXT, m07_name TEXT, m08_name TEXT, m09_name TEXT, m10_name TEXT
-        );
-
-        CREATE TABLE IF NOT EXISTS licenses (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            licenseKey TEXT NOT NULL,
-            activationToken TEXT,
-            softwareId INTEGER NOT NULL,
-            customerId TEXT,
-            hardwareId TEXT,
-            isPerpetual BOOLEAN NOT NULL DEFAULT FALSE,
-            expirationDate TEXT,
-            status TEXT NOT NULL DEFAULT 'active',
-            createdAt TEXT NOT NULL,
-            m01_val INTEGER DEFAULT 0, m02_val INTEGER DEFAULT 0, m03_val INTEGER DEFAULT 0, m04_val INTEGER DEFAULT 0, m05_val INTEGER DEFAULT 0,
-            m06_val INTEGER DEFAULT 0, m07_val INTEGER DEFAULT 0, m08_val INTEGER DEFAULT 0, m09_val INTEGER DEFAULT 0, m10_val INTEGER DEFAULT 0
-        );
-
-        -- TIMESHEET MODULE
-        CREATE TABLE IF NOT EXISTS time_entries (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            ticketId INTEGER NOT NULL,
-            userId INTEGER NOT NULL,
-            startTime TEXT NOT NULL,
-            endTime TEXT,
-            duration INTEGER,
-            billableDuration INTEGER,
-            billingStatus TEXT DEFAULT 'pending',
-            externalInvoiceNumber TEXT,
-            notes TEXT,
-            isBillable BOOLEAN NOT NULL DEFAULT TRUE,
-            createdAt TEXT NOT NULL
-        );
-
-        -- IT TOOLS MODULE
-        CREATE TABLE IF NOT EXISTS it_notes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT NOT NULL,
-            content TEXT,
-            customerId TEXT,
-            tags TEXT,
-            createdBy TEXT,
-            createdAt TEXT NOT NULL,
-            updatedAt TEXT NOT NULL,
-            FOREIGN KEY (customerId) REFERENCES customers(id) ON DELETE SET NULL
-        );
-
-        -- COST ASSISTANT MODULE
-        CREATE TABLE IF NOT EXISTS cost_drafts (
-            id TEXT PRIMARY KEY,
-            userId INTEGER NOT NULL,
-            name TEXT NOT NULL,
-            createdAt TEXT NOT NULL,
-            data TEXT NOT NULL
-        );
-
-        CREATE TABLE IF NOT EXISTS cost_assistant_settings (
-            key TEXT PRIMARY KEY,
-            value TEXT NOT NULL
-        );
-
-        -- NOTIFICATIONS MODULE
-        CREATE TABLE IF NOT EXISTS notification_rules (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            event TEXT NOT NULL,
-            action TEXT NOT NULL,
-            recipients TEXT NOT NULL,
-            subject TEXT,
-            enabled INTEGER DEFAULT 1
-        );
-
-        CREATE TABLE IF NOT EXISTS notification_settings (
-            service TEXT PRIMARY KEY,
-            config TEXT NOT NULL
-        );
-        
-        CREATE TABLE IF NOT EXISTS scheduled_tasks (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            schedule TEXT NOT NULL,
-            taskId TEXT NOT NULL,
-            enabled INTEGER DEFAULT 1
-        );
-
-        CREATE TABLE IF NOT EXISTS notifications (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            userId INTEGER NOT NULL,
-            message TEXT NOT NULL,
-            href TEXT,
-            isRead INTEGER DEFAULT 0,
-            timestamp TEXT NOT NULL,
-            entityId INTEGER,
-            entityType TEXT
-        );
-
-        CREATE TABLE IF NOT EXISTS notification_templates (
-            eventId TEXT PRIMARY KEY,
-            subject TEXT NOT NULL,
-            body TEXT NOT NULL,
-            telegram TEXT NOT NULL,
-            internal TEXT NOT NULL
-        );
-
-        -- INVENTORY & WARRANTY MODULE
-        CREATE TABLE IF NOT EXISTS inventory_equipment (
-            id TEXT PRIMARY KEY,
-            clientId TEXT NOT NULL,
-            nickname TEXT NOT NULL,
-            category TEXT NOT NULL,
-            brand TEXT NOT NULL,
-            model TEXT NOT NULL,
-            serialNumber TEXT,
-            location TEXT,
-            assignedUser TEXT,
-            status TEXT NOT NULL DEFAULT 'active',
-            notes TEXT,
-            createdAt TEXT NOT NULL,
-            updatedAt TEXT NOT NULL,
-            FOREIGN KEY (clientId) REFERENCES customers(id) ON DELETE CASCADE
-        );
-
-        CREATE TABLE IF NOT EXISTS inventory_consumables (
-            id TEXT PRIMARY KEY,
-            equipmentId TEXT NOT NULL,
-            type TEXT NOT NULL,
-            description TEXT NOT NULL,
-            partNumber TEXT NOT NULL,
-            brand TEXT,
-            specs TEXT,
-            isRecurring INTEGER DEFAULT 0,
-            lastReplaced TEXT,
-            notes TEXT,
-            createdAt TEXT NOT NULL,
-            FOREIGN KEY (equipmentId) REFERENCES inventory_equipment(id) ON DELETE CASCADE
-        );
-
-        CREATE TABLE IF NOT EXISTS inventory_sale_records (
-            id TEXT PRIMARY KEY,
-            clientId TEXT NOT NULL,
-            equipmentId TEXT,
-            invoiceNumber TEXT NOT NULL,
-            invoiceDate TEXT NOT NULL,
-            productName TEXT,
-            serialNumber TEXT NOT NULL,
-            partNumber TEXT,
-            warrantyMonths INTEGER NOT NULL,
-            warrantyExpiry TEXT NOT NULL,
-            warrantyNotes TEXT,
-            warrantyStatus TEXT NOT NULL DEFAULT 'active',
-            claimDate TEXT,
-            claimNotes TEXT,
-            createdAt TEXT NOT NULL,
-            updatedAt TEXT NOT NULL,
-            FOREIGN KEY (clientId) REFERENCES customers(id) ON DELETE CASCADE,
-            FOREIGN KEY (equipmentId) REFERENCES inventory_equipment(id) ON DELETE SET NULL
-        );
-
-        -- MARKETING MODULE (v3.1)
-        CREATE TABLE IF NOT EXISTS marketing_ads (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            softwareId INTEGER NOT NULL,
-            imageUrl TEXT NOT NULL,
-            description TEXT NOT NULL,
-            price TEXT,
-            targetUrl TEXT,
-            isEnabled INTEGER DEFAULT 1,
-            targetType TEXT DEFAULT 'all', -- 'all', 'free', 'premium'
-            expiresAt TEXT, -- ISO Date for self-termination
-            createdAt TEXT NOT NULL,
-            FOREIGN KEY (softwareId) REFERENCES software_products(id) ON DELETE CASCADE
-        );
-
-        -- INDICES FOR INVENTORY & MARKETING
-        CREATE INDEX IF NOT EXISTS idx_inv_equip_client ON inventory_equipment(clientId);
-        CREATE INDEX IF NOT EXISTS idx_inv_equip_serial ON inventory_equipment(serialNumber);
-        CREATE INDEX IF NOT EXISTS idx_inv_cons_equip ON inventory_consumables(equipmentId);
-        CREATE INDEX IF NOT EXISTS idx_inv_sales_client ON inventory_sale_records(clientId);
-        CREATE INDEX IF NOT EXISTS idx_inv_sales_serial ON inventory_sale_records(serialNumber);
-        CREATE INDEX IF NOT EXISTS idx_inv_sales_invoice ON inventory_sale_records(invoiceNumber);
-        CREATE INDEX IF NOT EXISTS idx_marketing_soft ON marketing_ads(softwareId);
-    `;
-
-    db.exec(mainSchema);
-
     // Initial data seeding - only if users table is empty
-    const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number };
-    if (userCount.count === 0) {
-        const userInsert = db.prepare('INSERT OR IGNORE INTO users (id, name, email, password, phone, whatsapp, role, forcePasswordChange) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
-        initialUsers.forEach(user => {
-            const hashedPassword = bcrypt.hashSync(user.password!, SALT_ROUNDS);
-            userInsert.run(user.id, user.name, user.email, hashedPassword, user.phone, user.whatsapp, user.role, 0);
-        });
+    const userCount = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='users'").get();
+    if (!userCount) {
+        // Table doesn't even exist yet, we'll let migrations create it and then seed
+        return;
     }
+}
 
-    const roleInsert = db.prepare('INSERT OR IGNORE INTO roles (id, name, permissions) VALUES (?, ?, ?)');
-    initialRoles.forEach(role => roleInsert.run(role.id, role.name, JSON.stringify(role.permissions)));
+function seedGeographicData(db: Database) {
+    const insertProv = db.prepare('INSERT OR REPLACE INTO provinces (id, name) VALUES (?, ?)');
+    const insertCant = db.prepare('INSERT OR REPLACE INTO cantons (id, provinceId, name) VALUES (?, ?, ?)');
+    const insertDist = db.prepare('INSERT OR REPLACE INTO districts (id, cantonId, name) VALUES (?, ?, ?)');
 
-    // Seed default settings for all modules
-    db.prepare(`INSERT OR IGNORE INTO contract_settings (key, value) VALUES ('contractPrefix', 'CON-'), ('nextContractNumber', '1')`).run();
-    db.prepare(`INSERT OR IGNORE INTO ticket_settings (key, value) VALUES ('ticketPrefix', 'CAS-'), ('nextTicketNumber', '1')`).run();
-    db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('projectPrefix', 'PROJ-'), ('nextProjectNumber', '1'), ('pdfTopLegend', 'ACTA DE ENTREGA DE PROYECTO TI')`).run();
-    db.prepare(`INSERT OR IGNORE INTO cost_assistant_settings (key, value) VALUES ('nextDraftNumber', '1'), ('draftPrefix', 'AC-')`).run();
-    db.prepare(`INSERT OR IGNORE INTO notification_settings (service, config) VALUES ('telegram', ?)`).run(JSON.stringify({ botToken: '', chatId: '' }));
+    db.transaction(() => {
+        for (const [pId, pData] of Object.entries(COSTA_RICA_GEO_DATA.provincias)) {
+            const provinceId = parseInt(pId, 10);
+            insertProv.run(provinceId, pData.nombre);
 
-    // Seeding geographic data
-    seedGeographicData(db);
+            for (const [cId, cData] of Object.entries(pData.cantones)) {
+                const cantonId = provinceId * 100 + parseInt(cId, 10);
+                insertCant.run(cantonId, provinceId, cData.nombre);
 
-    // Seed Notification Templates (Force update to ensure all events exist)
-    seedNotificationTemplates(db);
+                for (const [dId, dName] of Object.entries(cData.distritos)) {
+                    const districtId = cantonId * 100 + parseInt(dId, 10);
+                    insertDist.run(districtId, cantonId, dName);
+                }
+            }
+        }
+    })();
 }
 
 function seedNotificationTemplates(db: Database) {
@@ -729,163 +179,213 @@ function seedNotificationTemplates(db: Database) {
     templates.forEach(t => insert.run(t));
 }
 
-function seedGeographicData(db: Database) {
-    const insertProv = db.prepare('INSERT OR REPLACE INTO provinces (id, name) VALUES (?, ?)');
-    const insertCant = db.prepare('INSERT OR REPLACE INTO cantons (id, provinceId, name) VALUES (?, ?, ?)');
-    const insertDist = db.prepare('INSERT OR REPLACE INTO districts (id, cantonId, name) VALUES (?, ?, ?)');
-
-    db.transaction(() => {
-        for (const [pId, pData] of Object.entries(COSTA_RICA_GEO_DATA.provincias)) {
-            const provinceId = parseInt(pId, 10);
-            insertProv.run(provinceId, pData.nombre);
-
-            for (const [cId, cData] of Object.entries(pData.cantones)) {
-                const cantonId = provinceId * 100 + parseInt(cId, 10);
-                insertCant.run(cantonId, provinceId, cData.nombre);
-
-                for (const [dId, dName] of Object.entries(cData.distritos)) {
-                    const districtId = cantonId * 100 + parseInt(dId, 10);
-                    insertDist.run(districtId, cantonId, dName);
-                }
-            }
-        }
-    })();
-}
-
+/**
+ * Primary place for structural health.
+ * Runs in EVERY start to ensure all tables exist.
+ */
 export async function runMainMigrations(db: Database) {
-    const tableInfo = (table: string) => db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
-    const hasColumn = (table: string, col: string) => new Set(tableInfo(table).map(c => c.name)).has(col);
-
-    // Ensure marketing table has expiresAt (v3.1)
-    if (!hasColumn('marketing_ads', 'expiresAt')) {
-        db.exec(`ALTER TABLE marketing_ads ADD COLUMN expiresAt TEXT;`);
-    }
-
-    // Ensure inventory tables are created if base existed
-    db.exec(`
-        CREATE TABLE IF NOT EXISTS inventory_equipment (
-            id TEXT PRIMARY KEY,
-            clientId TEXT NOT NULL,
-            nickname TEXT NOT NULL,
-            category TEXT NOT NULL,
-            brand TEXT NOT NULL,
-            model TEXT NOT NULL,
-            serialNumber TEXT,
-            location TEXT,
-            assignedUser TEXT,
-            status TEXT NOT NULL DEFAULT 'active',
-            notes TEXT,
-            createdAt TEXT NOT NULL,
-            updatedAt TEXT NOT NULL,
-            FOREIGN KEY (clientId) REFERENCES customers(id) ON DELETE CASCADE
+    // 1. ENSURE ALL TABLES EXIST (Idempotent Creation)
+    const schema = `
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL, email TEXT UNIQUE NOT NULL, password TEXT NOT NULL,
+            phone TEXT, whatsapp TEXT, avatar TEXT, role TEXT NOT NULL,
+            recentActivity TEXT, securityQuestion TEXT, securityAnswer TEXT,
+            forcePasswordChange INTEGER DEFAULT 0
         );
 
-        CREATE TABLE IF NOT EXISTS inventory_consumables (
-            id TEXT PRIMARY KEY,
-            equipmentId TEXT NOT NULL,
-            type TEXT NOT NULL,
-            description TEXT NOT NULL,
-            partNumber TEXT NOT NULL,
-            brand TEXT,
-            specs TEXT,
-            isRecurring INTEGER DEFAULT 0,
-            lastReplaced TEXT,
-            notes TEXT,
-            createdAt TEXT NOT NULL,
-            FOREIGN KEY (equipmentId) REFERENCES inventory_equipment(id) ON DELETE CASCADE
+        CREATE TABLE IF NOT EXISTS roles (
+            id TEXT PRIMARY KEY, name TEXT NOT NULL, permissions TEXT NOT NULL
         );
 
-        CREATE TABLE IF NOT EXISTS inventory_sale_records (
-            id TEXT PRIMARY KEY,
-            clientId TEXT NOT NULL,
-            equipmentId TEXT,
-            invoiceNumber TEXT NOT NULL,
-            invoiceDate TEXT NOT NULL,
-            productName TEXT,
-            serialNumber TEXT NOT NULL,
-            partNumber TEXT,
-            warrantyMonths INTEGER NOT NULL,
-            warrantyExpiry TEXT NOT NULL,
-            warrantyNotes TEXT,
-            warrantyStatus TEXT NOT NULL DEFAULT 'active',
-            claimDate TEXT,
-            claimNotes TEXT,
-            createdAt TEXT NOT NULL,
-            updatedAt TEXT NOT NULL,
-            FOREIGN KEY (clientId) REFERENCES customers(id) ON DELETE CASCADE,
-            FOREIGN KEY (equipmentId) REFERENCES inventory_equipment(id) ON DELETE SET NULL
+        CREATE TABLE IF NOT EXISTS company_settings (
+            id INTEGER PRIMARY KEY DEFAULT 1,
+            name TEXT, taxId TEXT, address TEXT, phone TEXT, email TEXT,
+            logoUrl TEXT, systemName TEXT, systemVersion TEXT, publicUrl TEXT,
+            quotePrefix TEXT, nextQuoteNumber INTEGER, decimalPlaces INTEGER, quoterShowTaxId BOOLEAN,
+            searchDebounceTime INTEGER, syncWarningHours INTEGER, importMode TEXT, lastSyncTimestamp TEXT,
+            customerFilePath TEXT, productFilePath TEXT, exemptionFilePath TEXT,
+            stockFilePath TEXT, cabysFilePath TEXT,
+            supportPackages TEXT, servicesCatalog TEXT, internalHourCost REAL DEFAULT 0
         );
         
-        -- Marketing Module (v3.1)
+        CREATE TABLE IF NOT EXISTS api_settings (
+            id INTEGER PRIMARY KEY DEFAULT 1,
+            exchangeRateApi TEXT, haciendaExemptionApi TEXT, haciendaTributariaApi TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS email_settings (
+            key TEXT PRIMARY KEY, value TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, timestamp TEXT NOT NULL,
+            type TEXT NOT NULL, message TEXT NOT NULL, details TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS suggestions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, content TEXT NOT NULL,
+            userId INTEGER, userName TEXT, isRead INTEGER DEFAULT 0, timestamp TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS customers (
+            id TEXT PRIMARY KEY, name TEXT NOT NULL, commercialName TEXT,
+            address TEXT, phone TEXT, taxId TEXT NOT NULL, currency TEXT DEFAULT 'CRC',
+            creditLimit REAL DEFAULT 0, paymentCondition TEXT DEFAULT '0',
+            salesperson TEXT, active TEXT DEFAULT 'S', email TEXT,
+            electronicDocEmail TEXT, isManual INTEGER DEFAULT 0, contacts TEXT,
+            supportPackageId TEXT, parentCustomerId TEXT, taxRegime TEXT,
+            taxStatus TEXT, isTaxMoroso INTEGER DEFAULT 0, isTaxOmiso INTEGER DEFAULT 0,
+            taxAdministration TEXT, taxActivities TEXT, provinceId INTEGER,
+            cantonId INTEGER, districtId INTEGER, telegramChatId TEXT,
+            isBlocked INTEGER DEFAULT 0, blockedReason TEXT,
+            notifyTickets INTEGER DEFAULT 1, notifyLicenses INTEGER DEFAULT 1
+        );
+
+        CREATE TABLE IF NOT EXISTS products (
+            id TEXT PRIMARY KEY, description TEXT NOT NULL, classification TEXT,
+            lastEntry TEXT, active TEXT DEFAULT 'S', notes TEXT, unit TEXT,
+            isBasicGood TEXT DEFAULT 'N', cabys TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS contracts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, consecutive TEXT UNIQUE NOT NULL,
+            name TEXT NOT NULL, customerId TEXT NOT NULL, startDate TEXT NOT NULL,
+            endDate TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'active',
+            includedServices TEXT NOT NULL, excludedServices TEXT NOT NULL,
+            monthlyHours REAL DEFAULT 0, price REAL DEFAULT 0,
+            currency TEXT DEFAULT 'CRC', notes TEXT, autoRenew INTEGER DEFAULT 0, createdAt TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS help_topics (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE NOT NULL,
+            defaultPriority TEXT, defaultAssigneeId INTEGER, defaultServiceId TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS tickets (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, consecutive TEXT UNIQUE NOT NULL,
+            subject TEXT NOT NULL, status TEXT NOT NULL, priority TEXT NOT NULL,
+            createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL, dueDate TEXT,
+            companyId INTEGER, customerName TEXT, customerEmail TEXT,
+            customerPhone TEXT, companyName TEXT, assigneeId INTEGER,
+            helpTopicId INTEGER, serviceId TEXT, contractId INTEGER,
+            licenseId INTEGER, equipmentId TEXT, isBillable INTEGER DEFAULT 0,
+            providerId INTEGER, providerContactId TEXT, scheduledVisit TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS ticket_threads (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, ticketId INTEGER NOT NULL,
+            userId INTEGER, userName TEXT, type TEXT NOT NULL,
+            content TEXT, createdAt TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS third_party_providers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL,
+            email TEXT, phone TEXT, specialty TEXT, notes TEXT,
+            contacts TEXT, createdAt TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS software_products (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE,
+            isInternal BOOLEAN NOT NULL DEFAULT FALSE, currentVersion TEXT,
+            m01_name TEXT, m02_name TEXT, m03_name TEXT, m04_name TEXT, m05_name TEXT,
+            m06_name TEXT, m07_name TEXT, m08_name TEXT, m09_name TEXT, m10_name TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS licenses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, licenseKey TEXT NOT NULL,
+            activationToken TEXT, softwareId INTEGER NOT NULL, customerId TEXT,
+            hardwareId TEXT, isPerpetual BOOLEAN NOT NULL DEFAULT FALSE,
+            expirationDate TEXT, status TEXT NOT NULL DEFAULT 'active', createdAt TEXT NOT NULL,
+            m01_val INTEGER DEFAULT 0, m02_val INTEGER DEFAULT 0, m03_val INTEGER DEFAULT 0,
+            m04_val INTEGER DEFAULT 0, m05_val INTEGER DEFAULT 0, m06_val INTEGER DEFAULT 0,
+            m07_val INTEGER DEFAULT 0, m08_val INTEGER DEFAULT 0, m09_val INTEGER DEFAULT 0,
+            m10_val INTEGER DEFAULT 0
+        );
+
+        CREATE TABLE IF NOT EXISTS time_entries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, ticketId INTEGER NOT NULL,
+            userId INTEGER NOT NULL, startTime TEXT NOT NULL, endTime TEXT,
+            duration INTEGER, billableDuration INTEGER, billingStatus TEXT DEFAULT 'pending',
+            externalInvoiceNumber TEXT, notes TEXT, isBillable BOOLEAN NOT NULL DEFAULT TRUE,
+            createdAt TEXT NOT NULL
+        );
+
         CREATE TABLE IF NOT EXISTS marketing_ads (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            softwareId INTEGER NOT NULL,
-            imageUrl TEXT NOT NULL,
-            description TEXT NOT NULL,
-            price TEXT,
-            targetUrl TEXT,
-            isEnabled INTEGER DEFAULT 1,
-            targetType TEXT DEFAULT 'all',
-            expiresAt TEXT,
-            createdAt TEXT NOT NULL,
+            id INTEGER PRIMARY KEY AUTOINCREMENT, softwareId INTEGER NOT NULL,
+            imageUrl TEXT NOT NULL, description TEXT NOT NULL, price TEXT,
+            targetUrl TEXT, isEnabled INTEGER DEFAULT 1, targetType TEXT DEFAULT 'all',
+            expiresAt TEXT, createdAt TEXT NOT NULL,
             FOREIGN KEY (softwareId) REFERENCES software_products(id) ON DELETE CASCADE
         );
-    `);
 
-    seedGeographicData(db);
+        CREATE TABLE IF NOT EXISTS notification_templates (
+            eventId TEXT PRIMARY KEY, subject TEXT NOT NULL,
+            body TEXT NOT NULL, telegram TEXT NOT NULL, internal TEXT NOT NULL
+        );
 
+        CREATE TABLE IF NOT EXISTS notification_rules (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL,
+            event TEXT NOT NULL, action TEXT NOT NULL, recipients TEXT NOT NULL,
+            subject TEXT, enabled INTEGER DEFAULT 1
+        );
+
+        CREATE TABLE IF NOT EXISTS scheduled_tasks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL,
+            schedule TEXT NOT NULL, taskId TEXT NOT NULL, enabled INTEGER DEFAULT 1
+        );
+
+        CREATE TABLE IF NOT EXISTS notifications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, userId INTEGER NOT NULL,
+            message TEXT NOT NULL, href TEXT, isRead INTEGER DEFAULT 0,
+            timestamp TEXT NOT NULL, entityId INTEGER, entityType TEXT
+        );
+
+        -- SHARED TABLES
+        CREATE TABLE IF NOT EXISTS exchange_rates (date TEXT PRIMARY KEY, rate REAL NOT NULL);
+        CREATE TABLE IF NOT EXISTS provinces (id INTEGER PRIMARY KEY, name TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS cantons (id INTEGER PRIMARY KEY, provinceId INTEGER NOT NULL, name TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS districts (id INTEGER PRIMARY KEY, cantonId INTEGER NOT NULL, name TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS contract_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS ticket_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS planner_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS notification_settings (service TEXT PRIMARY KEY, config TEXT NOT NULL);
+    `;
+
+    db.exec(schema);
+
+    // 2. COLUMN MIGRATIONS (Safe Checks)
+    const tableInfo = (table: string) => {
+        try { return db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]; } 
+        catch { return []; }
+    };
+    const hasColumn = (table: string, col: string) => new Set(tableInfo(table).map(c => c.name)).has(col);
+
+    // Incremental Schema Updates
     if (!hasColumn('users', 'forcePasswordChange')) db.exec(`ALTER TABLE users ADD COLUMN forcePasswordChange INTEGER DEFAULT 0;`);
     if (!hasColumn('company_settings', 'systemVersion')) db.exec(`ALTER TABLE company_settings ADD COLUMN systemVersion TEXT;`);
     if (!hasColumn('company_settings', 'publicUrl')) db.exec(`ALTER TABLE company_settings ADD COLUMN publicUrl TEXT;`);
     if (!hasColumn('company_settings', 'internalHourCost')) db.exec(`ALTER TABLE company_settings ADD COLUMN internalHourCost REAL DEFAULT 0;`);
 
-    const geoFields = [
-        ['provinceId', 'INTEGER'], ['cantonId', 'INTEGER'], ['districtId', 'INTEGER'], ['telegramChatId', 'TEXT'], ['commercialName', 'TEXT'],
-        ['isBlocked', 'INTEGER DEFAULT 0'], ['blockedReason', 'TEXT'],
-        ['notifyTickets', 'INTEGER DEFAULT 1'], ['notifyLicenses', 'INTEGER DEFAULT 1'],
-        ['parentCustomerId', 'TEXT']
-    ];
-    geoFields.forEach(([field, type]) => {
-        if (!hasColumn('customers', field)) db.exec(`ALTER TABLE customers ADD COLUMN ${field} ${type};`);
-    });
-
-    const ticketFields = [
-        ['companyName', 'TEXT'], ['helpTopicId', 'INTEGER'], ['serviceId', 'TEXT'],
-        ['dueDate', 'TEXT'], ['contractId', 'INTEGER'], ['licenseId', 'INTEGER'], ['equipmentId', 'TEXT'], ['isBillable', 'INTEGER DEFAULT 0'],
-        ['providerId', 'INTEGER'], ['providerContactId', 'TEXT'], ['customerPhone', 'TEXT'], ['scheduledVisit', 'TEXT']
-    ];
-    ticketFields.forEach(([field, type]) => {
-        if (!hasColumn('tickets', field)) db.exec(`ALTER TABLE tickets ADD COLUMN ${field} ${type};`);
-    });
-
-    if (!hasColumn('customers', 'supportPackageId')) db.exec(`ALTER TABLE customers ADD COLUMN supportPackageId TEXT;`);
-    if (!hasColumn('projects', 'category')) db.exec(`ALTER TABLE projects ADD COLUMN category TEXT NOT NULL DEFAULT 'other';`);
-    if (!hasColumn('projects', 'estimatedBudget')) db.exec(`ALTER TABLE projects ADD COLUMN estimatedBudget REAL DEFAULT 0;`);
-    if (!hasColumn('licenses', 'customerId')) db.exec(`ALTER TABLE licenses ADD COLUMN customerId TEXT;`);
-
-    if (!hasColumn('third_party_providers', 'contacts')) db.exec(`ALTER TABLE third_party_providers ADD COLUMN contacts TEXT;`);
-
-    // --- HYBRID LICENSING MIGRATIONS (v2.3) ---
-    if (!hasColumn('software_products', 'm01_name')) {
-        for(let i=1; i<=10; i++) {
-            const col = `m${i.toString().padStart(2, '0')}_name`;
-            db.exec(`ALTER TABLE software_products ADD COLUMN ${col} TEXT;`);
-        }
-    }
-    if (!hasColumn('licenses', 'activationToken')) {
-        db.exec(`ALTER TABLE licenses ADD COLUMN activationToken TEXT;`);
-        for(let i=1; i<=10; i++) {
-            const col = `m${i.toString().padStart(2, '0')}_val`;
-            db.exec(`ALTER TABLE licenses ADD COLUMN ${col} INTEGER DEFAULT 0;`);
-        }
-    }
-    
-    // Monitoring Version (v2.6)
-    if (!hasColumn('software_products', 'currentVersion')) {
-        db.exec(`ALTER TABLE software_products ADD COLUMN currentVersion TEXT;`);
+    // 3. SEEDING & DATA UPDATES
+    const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number };
+    if (userCount.count === 0) {
+        const userInsert = db.prepare('INSERT OR IGNORE INTO users (id, name, email, password, phone, whatsapp, role, forcePasswordChange) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+        initialUsers.forEach(user => {
+            const hashedPassword = bcrypt.hashSync(user.password!, SALT_ROUNDS);
+            userInsert.run(user.id, user.name, user.email, hashedPassword, user.phone, user.whatsapp, user.role, 0);
+        });
     }
 
-    // Ensure templates are always checked
+    const roleInsert = db.prepare('INSERT OR IGNORE INTO roles (id, name, permissions) VALUES (?, ?, ?)');
+    initialRoles.forEach(role => roleInsert.run(role.id, role.name, JSON.stringify(role.permissions)));
+
+    db.prepare(`INSERT OR IGNORE INTO contract_settings (key, value) VALUES ('contractPrefix', 'CON-'), ('nextContractNumber', '1')`).run();
+    db.prepare(`INSERT OR IGNORE INTO ticket_settings (key, value) VALUES ('ticketPrefix', 'CAS-'), ('nextTicketNumber', '1')`).run();
+    db.prepare(`INSERT OR IGNORE INTO planner_settings (key, value) VALUES ('projectPrefix', 'PROJ-'), ('nextProjectNumber', '1'), ('pdfTopLegend', 'ACTA DE ENTREGA DE PROYECTO TI')`).run();
+    db.prepare(`INSERT OR IGNORE INTO notification_settings (service, config) VALUES ('telegram', ?)`).run(JSON.stringify({ botToken: '', chatId: '' }));
+
+    seedGeographicData(db);
     seedNotificationTemplates(db);
 }
 
