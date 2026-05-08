@@ -10,6 +10,7 @@ import type { Equipment } from '@/modules/core/types';
 
 // Ensure the route is never statically generated during build
 export const dynamic = 'force-dynamic';
+export const dynamicParams = true;
 export const revalidate = 0;
 
 export async function GET(
