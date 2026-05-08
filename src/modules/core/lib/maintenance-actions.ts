@@ -2,6 +2,7 @@
 
 /**
  * @fileoverview Maintenance Server Actions for database auditing and legacy migrations.
+ * Refactored for strict production serialization.
  */
 
 import { connectDb } from "./db";
@@ -47,7 +48,7 @@ export async function runDatabaseAudit(): Promise<AuditResult[]> {
         }
     }
 
-    return results;
+    return JSON.parse(JSON.stringify(results));
 }
 
 /**
@@ -57,14 +58,19 @@ export async function detectLegacyFiles(): Promise<string[]> {
     const dbDir = path.join(process.cwd(), 'dbs');
     if (!fs.existsSync(dbDir)) return [];
     
-    const files = fs.readdirSync(dbDir);
-    const legacyFiles = [
-        'contracts.db', 'tickets.db', 'planner.db', 'licenses.db', 
-        'it_tools.db', 'cost_assistant.db', 'notifications.db', 
-        'warehouse.db', 'requests.db'
-    ];
-    
-    return files.filter(f => legacyFiles.includes(f));
+    try {
+        const files = fs.readdirSync(dbDir);
+        const legacyFiles = [
+            'contracts.db', 'tickets.db', 'planner.db', 'licenses.db', 
+            'it_tools.db', 'cost_assistant.db', 'notifications.db', 
+            'warehouse.db', 'requests.db'
+        ];
+        
+        const detected = files.filter(f => legacyFiles.includes(f));
+        return JSON.parse(JSON.stringify(detected));
+    } catch {
+        return [];
+    }
 }
 
 /**
@@ -83,6 +89,8 @@ export async function runLegacyMigration(): Promise<{ success: boolean, message:
     try {
         for (const file of legacyFiles) {
             const legacyPath = path.join(dbDir, file);
+            if (!fs.existsSync(legacyPath)) continue;
+            
             const legacyDb = new Database(legacyPath);
             
             try {
@@ -109,8 +117,6 @@ export async function runLegacyMigration(): Promise<{ success: boolean, message:
                     totalMigrated += notes.length;
                 }
 
-                // Add other legacy migrations as needed (contracts, etc)
-                
                 // Backup legacy file before deleting
                 fs.copyFileSync(legacyPath, `${legacyPath}.migrated.bak`);
                 fs.unlinkSync(legacyPath);

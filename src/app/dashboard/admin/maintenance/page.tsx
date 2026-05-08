@@ -1,6 +1,6 @@
 /**
  * @fileoverview System maintenance page for administrators.
- * Enhanced with Database Audit and Legacy Migrator.
+ * Enhanced with robust error handling and defensive date parsing.
  */
 "use client";
 
@@ -33,7 +33,7 @@ import { restoreAllFromUpdateBackup, listAllUpdateBackups, deleteOldUpdateBackup
 import type { UpdateBackupInfo, DatabaseModule } from '../../../../modules/core/types';
 import { useAuthorization } from "../../../../modules/core/hooks/useAuthorization";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, isValid } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
@@ -88,16 +88,26 @@ export default function MaintenancePage() {
                 getDbModules(),
                 detectLegacyFiles()
             ]);
-            setUpdateBackups(backups);
-            setDbModules(modules);
-            setLegacyFiles(legacy);
-            if (backups.length > 0) {
-                const latestTimestamp = backups.reduce((latest: string, current: UpdateBackupInfo) => new Date(current.date) > new Date(latest) ? current.date : latest, backups[0].date);
+            setUpdateBackups(backups || []);
+            setDbModules(modules || []);
+            setLegacyFiles(legacy || []);
+            
+            if (backups && backups.length > 0) {
+                const latestTimestamp = backups.reduce((latest: string, current: UpdateBackupInfo) => {
+                    const latestDate = new Date(latest);
+                    const currentDate = new Date(current.date);
+                    return isValid(currentDate) && currentDate > latestDate ? current.date : latest;
+                }, backups[0].date);
                 setSelectedRestoreTimestamp(latestTimestamp);
             }
         } catch(error: unknown) {
+            console.error("Maintenance Data Error:", error);
             logError("Error fetching maintenance data", { error: (error as Error).message });
-            toast({ title: "Error", description: "No se pudieron cargar los datos de mantenimiento.", variant: "destructive" });
+            toast({ 
+                title: "Error de Datos", 
+                description: "No se pudieron cargar los datos de mantenimiento. Revise la consola del servidor.", 
+                variant: "destructive" 
+            });
         } finally {
             setIsLoading(false);
         }
@@ -115,7 +125,7 @@ export default function MaintenancePage() {
         try {
             const results = await runDatabaseAudit();
             setAuditResults(results);
-            const issues = results.filter(r => r.status !== 'ok').length;
+            const issues = (results || []).filter(r => r.status !== 'ok').length;
             if (issues === 0) {
                 toast({ title: "Auditoría Exitosa", description: "La base de datos está íntegra y actualizada." });
             } else {
@@ -350,7 +360,7 @@ export default function MaintenancePage() {
                                 Ejecutar Auditoría de Sistema
                             </Button>
                             <p className="text-xs text-muted-foreground self-center">
-                                Compara la estructura actual contra el diseño oficial v{user?.recentActivity?.includes('v') ? '2.2.0' : 'Actual'}.
+                                Compara la estructura actual contra el diseño oficial v2.2.0.
                             </p>
                         </div>
 
@@ -441,9 +451,11 @@ export default function MaintenancePage() {
                                             <SelectValue placeholder="Seleccione un punto de restauración..." />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            {uniqueTimestamps.slice(0, showAllRestorePoints ? undefined : 5).map(ts => (
-                                                <SelectItem key={ts} value={ts}>{format(parseISO(ts), "dd/MM/yyyy 'a las' HH:mm:ss", { locale: es })}</SelectItem>
-                                            ))}
+                                            {uniqueTimestamps.slice(0, showAllRestorePoints ? undefined : 5).map(ts => {
+                                                const d = new Date(ts);
+                                                const label = isValid(d) ? format(d, "dd/MM/yyyy 'a las' HH:mm:ss", { locale: es }) : ts;
+                                                return <SelectItem key={ts} value={ts}>{label}</SelectItem>
+                                            })}
                                         </SelectContent>
                                     </Select>
                                     <div className="flex items-center space-x-2 pt-1">
@@ -489,19 +501,21 @@ export default function MaintenancePage() {
                                 <ScrollArea className="h-60 w-full rounded-md border p-2">
                                      {updateBackups.length > 0 ? (
                                         <div className="space-y-2">
-                                            {updateBackups.map(b => (
-                                                <div key={b.fileName} className="flex items-center justify-between rounded-md p-2 hover:bg-muted">
-                                                    <div>
-                                                        <p className="font-semibold text-sm">{b.moduleName}</p>
-                                                        <p className="text-xs text-muted-foreground">
-                                                            {format(parseISO(b.date), "dd/MM/yyyy HH:mm:ss", { locale: es })}
-                                                        </p>
+                                            {updateBackups.map(b => {
+                                                const d = new Date(b.date);
+                                                const dateLabel = isValid(d) ? format(d, "dd/MM/yyyy HH:mm:ss", { locale: es }) : b.date;
+                                                return (
+                                                    <div key={b.fileName} className="flex items-center justify-between rounded-md p-2 hover:bg-muted">
+                                                        <div>
+                                                            <p className="font-semibold text-sm">{b.moduleName}</p>
+                                                            <p className="text-xs text-muted-foreground">{dateLabel}</p>
+                                                        </div>
+                                                        <a href={`/api/temp-backups?file=${encodeURIComponent(b.fileName)}`} download={b.fileName}>
+                                                            <Button variant="ghost" size="icon"><Download className="h-4 w-4"/></Button>
+                                                        </a>
                                                     </div>
-                                                    <a href={`/api/temp-backups?file=${encodeURIComponent(b.fileName)}`} download={b.fileName}>
-                                                        <Button variant="ghost" size="icon"><Download className="h-4 w-4"/></Button>
-                                                    </a>
-                                                </div>
-                                            ))}
+                                                )
+                                            })}
                                         </div>
                                      ) : (
                                         <div className="flex h-full items-center justify-center">
