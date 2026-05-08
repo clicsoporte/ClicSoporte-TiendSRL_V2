@@ -1,5 +1,6 @@
 /**
  * @fileoverview The main dashboard page for the admin section.
+ * Enhanced visibility logic to handle specific module permissions.
  */
 'use client';
 import { adminTools } from "@/modules/admin/lib/data";
@@ -13,14 +14,15 @@ import type { Tool } from "@/modules/core/types";
 
 export default function AdminDashboardPage() {
     const { setTitle } = usePageTitle();
-    const { hasPermission } = useAuthorization(['admin:settings:general']);
-    const { unreadSuggestionsCount } = useAuth();
+    const { hasPermission } = useAuthorization();
+    const { unreadSuggestionsCount, userRole } = useAuth();
 
     useEffect(() => {
         setTitle("Administración");
     }, [setTitle]);
 
-    const isAuthorized = hasPermission('admin:settings:general');
+    // Authorized if has any admin permission or is super admin
+    const isAuthorized = userRole?.permissions.some(p => p.startsWith('admin:')) || userRole?.id === 'admin';
 
     const isToolVisible = useCallback((tool: Tool) => {
         switch (tool.id) {
@@ -51,16 +53,14 @@ export default function AdminDashboardPage() {
                 return hasPermission('admin:logs:read');
             case 'provider-management':
                 return hasPermission('tickets:admin:settings');
+            case 'marketing-center':
+                return hasPermission('admin:marketing:manage');
             default:
                 return true;
         }
     }, [hasPermission]);
 
-    if (isAuthorized === false) {
-        return null;
-    }
-
-    if (isAuthorized === null) {
+    if (!userRole) {
         return (
              <main className="flex-1 p-4 md:p-6 lg:p-8">
                 <div className="grid gap-8">
@@ -73,6 +73,14 @@ export default function AdminDashboardPage() {
                     </div>
                 </div>
                 </div>
+            </main>
+        );
+    }
+
+    if (!isAuthorized) {
+        return (
+            <main className="flex-1 p-10 text-center">
+                <p className="text-muted-foreground">No tienes permisos para acceder a las herramientas administrativas.</p>
             </main>
         );
     }

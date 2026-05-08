@@ -555,7 +555,7 @@ export async function initializeMainDatabase(db: Database) {
             FOREIGN KEY (equipmentId) REFERENCES inventory_equipment(id) ON DELETE SET NULL
         );
 
-        -- MARKETING MODULE (v3.0)
+        -- MARKETING MODULE (v3.1)
         CREATE TABLE IF NOT EXISTS marketing_ads (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             softwareId INTEGER NOT NULL,
@@ -565,6 +565,7 @@ export async function initializeMainDatabase(db: Database) {
             targetUrl TEXT,
             isEnabled INTEGER DEFAULT 1,
             targetType TEXT DEFAULT 'all', -- 'all', 'free', 'premium'
+            expiresAt TEXT, -- ISO Date for self-termination
             createdAt TEXT NOT NULL,
             FOREIGN KEY (softwareId) REFERENCES software_products(id) ON DELETE CASCADE
         );
@@ -755,6 +756,11 @@ export async function runMainMigrations(db: Database) {
     const tableInfo = (table: string) => db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
     const hasColumn = (table: string, col: string) => new Set(tableInfo(table).map(c => c.name)).has(col);
 
+    // Ensure marketing table has expiresAt (v3.1)
+    if (!hasColumn('marketing_ads', 'expiresAt')) {
+        db.exec(`ALTER TABLE marketing_ads ADD COLUMN expiresAt TEXT;`);
+    }
+
     // Ensure inventory tables are created if base existed
     db.exec(`
         CREATE TABLE IF NOT EXISTS inventory_equipment (
@@ -810,7 +816,7 @@ export async function runMainMigrations(db: Database) {
             FOREIGN KEY (equipmentId) REFERENCES inventory_equipment(id) ON DELETE SET NULL
         );
         
-        -- Marketing Module (v3.0)
+        -- Marketing Module (v3.1)
         CREATE TABLE IF NOT EXISTS marketing_ads (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             softwareId INTEGER NOT NULL,
@@ -820,6 +826,7 @@ export async function runMainMigrations(db: Database) {
             targetUrl TEXT,
             isEnabled INTEGER DEFAULT 1,
             targetType TEXT DEFAULT 'all',
+            expiresAt TEXT,
             createdAt TEXT NOT NULL,
             FOREIGN KEY (softwareId) REFERENCES software_products(id) ON DELETE CASCADE
         );

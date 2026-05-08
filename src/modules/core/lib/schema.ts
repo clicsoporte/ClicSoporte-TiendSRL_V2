@@ -97,5 +97,6 @@ export const MASTER_SCHEMA: ExpectedSchema = {
     notification_settings: ['service', 'config'],
     scheduled_tasks: ['id', 'name', 'schedule', 'taskId', 'enabled'],
     notifications: ['id', 'userId', 'message', 'href', 'isRead', 'timestamp', 'entityId', 'entityType'],
-    notification_templates: ['eventId', 'subject', 'body', 'telegram', 'internal']
+    notification_templates: ['eventId', 'subject', 'body', 'telegram', 'internal'],
+    marketing_ads: ['id', 'softwareId', 'imageUrl', 'description', 'price', 'targetUrl', 'isEnabled', 'targetType', 'expiresAt', 'createdAt']
 };

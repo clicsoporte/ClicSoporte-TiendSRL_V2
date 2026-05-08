@@ -895,5 +895,6 @@ export type MarketingAd = {
     targetUrl: string;
     isEnabled: boolean;
     targetType: 'all' | 'free' | 'premium';
+    expiresAt: string | null; // ISO Date
     createdAt: string;
 };

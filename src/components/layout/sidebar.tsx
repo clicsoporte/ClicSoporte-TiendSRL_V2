@@ -37,7 +37,8 @@ import {
   Receipt,
   Wallet,
   BookCopy,
-  Laptop
+  Laptop,
+  Megaphone
 } from "lucide-react";
 import type { Tool } from "../../modules/core/types";
 import { UserNav } from "./user-nav";
@@ -63,7 +64,7 @@ export function AppSidebar() {
     return pathname.startsWith(href);
   };
   
-  const hasAdminAccess = userRole?.permissions.some(p => p.startsWith('admin:'));
+  const hasAdminAccess = userRole?.permissions.some(p => p.startsWith('admin:')) || userRole?.id === 'admin';
 
   if (isLoading) {
     return (
@@ -165,6 +166,16 @@ export function AppSidebar() {
       bgColor: "bg-slate-700",
       textColor: "text-white",
       permission: "it-tools:access"
+    },
+    {
+      id: "marketing",
+      name: "Centro Marketing",
+      description: "Publicidad centralizada.",
+      href: "/dashboard/admin/marketing",
+      icon: Megaphone,
+      bgColor: "bg-purple-600",
+      textColor: "text-white",
+      permission: "admin:marketing:manage"
     },
      {
       id: "hacienda-query",

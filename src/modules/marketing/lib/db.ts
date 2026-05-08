@@ -31,16 +31,16 @@ export async function saveMarketingAd(ad: Omit<MarketingAd, 'id' | 'createdAt'> 
         db.prepare(`
             UPDATE marketing_ads SET 
                 softwareId = ?, imageUrl = ?, description = ?, price = ?, 
-                targetUrl = ?, isEnabled = ?, targetType = ?
+                targetUrl = ?, isEnabled = ?, targetType = ?, expiresAt = ?
             WHERE id = ?
-        `).run(ad.softwareId, ad.imageUrl, ad.description, ad.price, ad.targetUrl, ad.isEnabled ? 1 : 0, ad.targetType, ad.id);
+        `).run(ad.softwareId, ad.imageUrl, ad.description, ad.price, ad.targetUrl, ad.isEnabled ? 1 : 0, ad.targetType, ad.expiresAt || null, ad.id);
         
         return { ...ad, createdAt: now } as MarketingAd;
     } else {
         const info = db.prepare(`
-            INSERT INTO marketing_ads (softwareId, imageUrl, description, price, targetUrl, isEnabled, targetType, createdAt)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(ad.softwareId, ad.imageUrl, ad.description, ad.price, ad.targetUrl, ad.isEnabled ? 1 : 0, ad.targetType, now);
+            INSERT INTO marketing_ads (softwareId, imageUrl, description, price, targetUrl, isEnabled, targetType, expiresAt, createdAt)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(ad.softwareId, ad.imageUrl, ad.description, ad.price, ad.targetUrl, ad.isEnabled ? 1 : 0, ad.targetType, ad.expiresAt || null, now);
         
         return { ...ad, id: Number(info.lastInsertRowid), createdAt: now } as MarketingAd;
     }
@@ -53,7 +53,7 @@ export async function deleteMarketingAd(id: number): Promise<void> {
 }
 
 /**
- * Internal delivery: Get active ads for a software product.
+ * Internal delivery: Get active and NON-EXPIRED ads for a software product.
  */
 export async function getActiveAdsForSoftware(softwareName: string, status?: string): Promise<MarketingAd[]> {
     const db = await connectDb();
@@ -62,7 +62,12 @@ export async function getActiveAdsForSoftware(softwareName: string, status?: str
     const product = db.prepare('SELECT id FROM software_products WHERE name = ?').get(softwareName) as { id: number } | undefined;
     if (!product) return [];
 
-    let query = "SELECT * FROM marketing_ads WHERE softwareId = ? AND isEnabled = 1";
+    let query = `
+        SELECT * FROM marketing_ads 
+        WHERE softwareId = ? 
+        AND isEnabled = 1 
+        AND (expiresAt IS NULL OR expiresAt > datetime('now'))
+    `;
     const params: any[] = [product.id];
 
     if (status) {
