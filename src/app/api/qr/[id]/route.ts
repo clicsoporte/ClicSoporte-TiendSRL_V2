@@ -1,6 +1,6 @@
 /**
  * @fileoverview API Route for autonomous QR Code generation.
- * Marked as strictly dynamic to avoid build-time static generation errors.
+ * Optimized for production build compatibility.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -11,16 +11,15 @@ import type { Equipment } from '@/modules/core/types';
 // Ensure the route is never statically generated during build
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
-export const fetchCache = 'force-no-store';
 
 export async function GET(
     request: NextRequest,
-    context: { params: { id: string } }
+    { params }: { params: { id: string } }
 ) {
-    // Build-time safety: contest.params might be empty or missing during some build phases
-    const id = context?.params?.id;
+    const id = params?.id;
     
-    if (!id || id === '[id]') {
+    // Safety check for Next.js build-time collection or invalid IDs
+    if (!id || id === '[id]' || id === 'undefined') {
         return new NextResponse('Missing or invalid ID', { status: 400 });
     }
 
