@@ -1,7 +1,7 @@
 
 /**
  * @fileoverview API Endpoint for registering free licenses.
- * Optimized for Hybrid Licensing v2.9: Handles conditional mandatory fields.
+ * Optimized for Hybrid Licensing v2.10: Includes Identity Injection.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -80,13 +80,16 @@ export async function POST(req: NextRequest) {
 
         await upsertLeadCustomer(customerData);
 
-        // 7. Create Free License Record
+        // 7. Create Free License Record with Identity Injection
         const now = new Date().toISOString();
         const licenseInfo = {
             softwareId: software.id,
             softwareName: software.name,
             softwareVersion: software.currentVersion || '1.0.0',
             customerId: customerData.id,
+            customerName: customerData.name,
+            customerEmail: customerData.email,
+            customerPhone: customerData.phone,
             hardwareId: hardwareId,
             activationToken: 'FREE-LICENSE',
             isPerpetual: true,

@@ -1,7 +1,7 @@
 
 /**
  * @fileoverview Main page for the License Management module.
- * Enhanced for Hybrid Licensing v2.9 (Product Identity Protection).
+ * Enhanced for Hybrid Licensing v2.10 (Identity Injection).
  */
 'use client';
 
@@ -97,9 +97,9 @@ const SERVER_URL = '${SERVER_URL}';
 const APP_IDENTITY = 'Clic-Turnos'; // DEBE COINCIDIR CON EL NOMBRE EN EL SERVIDOR
 
 /**
- * PASO 2: ACTIVACIÓN (SDK v2.9)
- * Nota: Los campos customerEmail/Phone son obligatorios solo si el cliente es NUEVO.
- * Si isLocal=true en el Paso 1, puedes enviar estos campos vacíos ("").
+ * PASO 2: ACTIVACIÓN (SDK v2.10)
+ * Nota: Los campos de contacto son obligatorios solo si el cliente es NUEVO.
+ * El servidor inyectará la Identidad Maestra (Nombre/Email) en el archivo firmado.
  */
 export async function activateSoftware(payload: {
     taxId: string,
@@ -118,7 +118,7 @@ export async function activateSoftware(payload: {
             softwareName: APP_IDENTITY,
             hardwareId,
             activationToken: payload.token,
-            ...payload // Envía strings vacíos para campos bloqueados
+            ...payload 
         })
     });
 
@@ -128,77 +128,59 @@ export async function activateSoftware(payload: {
 }`,
         logic: `/**
  * PASO 3: LÓGICA DE UI
- * Autocompletado y bloqueo de campos para proteger datos maestros.
  */
 async function onTaxIdBlur(id) {
     const info = await verifyClientInfo(id);
     if (info.found) {
-        // Importante: No permitas editar el nombre si el servidor ya lo tiene
         setFormValue('customerName', info.data.name);
         setFieldDisabled('customerName', true); 
         
         if (info.isLocal) {
-            // Ya es cliente interno: Bloquea todo, no pedimos nada más.
+            // Cliente existente: No pedimos nada más.
             setFieldDisabled('customerEmail', true);
             setFieldDisabled('customerPhone', true);
-            // Puedes poner valores dummy en el form para pasar validaciones locales de la UI
-            setFormValue('customerEmail', 'registrado@sistema.local');
-        } else {
-            // Viene de Hacienda: El nombre es oficial pero necesitamos Email/Tel manual.
-            setFieldDisabled('customerEmail', false);
         }
     }
 }`,
         validation: `/**
- * PASO 4: VALIDACIÓN CRIPTOGRÁFICA Y DE IDENTIDAD
+ * PASO 4: VALIDACIÓN Y AUTO-CONFIGURACIÓN
  */
-import crypto from 'crypto';
-
-const MY_PRODUCT_NAME = 'Clic-Turnos';
-
-export function validateLicense(licenseFileJson, publicKeyPem, currentHardwareId) {
+export function validateAndSetup(licenseFileJson, publicKeyPem, currentHardwareId) {
     const { license_info, signature } = JSON.parse(licenseFileJson);
     
-    // A. Verificar Firma RSA
-    const verifier = crypto.createVerify('RSA-SHA256');
-    const message = JSON.stringify(license_info, Object.keys(license_info).sort());
-    verifier.update(message);
-    if (!verifier.verify(publicKeyPem, signature, 'hex')) throw new Error("Licencia corrupta.");
+    // 1. Validar Firma RSA... (ver código previo)
 
-    // B. Verificar Identidad del Producto (Evita suplantación)
-    if (license_info.softwareName !== MY_PRODUCT_NAME) {
-        throw new Error("Esta licencia no corresponde a este producto.");
-    }
-
-    // C. Verificar Hardware
-    if (license_info.hardwareId !== currentHardwareId) {
-        throw new Error("Hardware ID no coincide (Licencia en otra PC).");
-    }
-
-    // D. Verificar Módulos (Estándar: m01 es el CORE)
-    if (!license_info.modules.m01) {
-        throw new Error("El módulo principal (m01) no está activo.");
-    }
+    // 2. Extraer Identidad Inyectada por el Servidor
+    const { customerName, customerEmail, customerPhone } = license_info;
+    
+    // 3. Guardar en la configuración local del Software Hijo
+    saveAppOwnerData({ 
+        companyName: customerName, 
+        email: customerEmail,
+        phone: customerPhone 
+    });
 
     return license_info;
 }`,
         sync: `/**
- * PASO 5: SINCRONIZACIÓN (FORZAR VALIDACIÓN ONLINE)
+ * PASO 5: SINCRONIZACIÓN (BOTÓN FORZAR)
+ * Si editas el nombre del cliente en el Servidor, este botón
+ * descarga la nueva identidad firmada.
  */
 async function onSyncButtonClick() {
     try {
         const updatedFile = await activateSoftware({
             taxId: currentTaxId,
             token: currentToken, 
-            customerName: currentName,
-            customerEmail: '', // Seguro enviar vacío para clientes locales
+            customerName: '', // El servidor usará el nombre real guardado
+            customerEmail: '',
             customerPhone: ''
         });
         
-        saveLocalLicense(updatedFile);
-        alert("Licencia actualizada desde el servidor.");
+        const info = validateAndSetup(updatedFile, key, hwid);
+        alert("Identidad de Licencia Actualizada: " + info.customerName);
     } catch (e) {
-        alert("Error de sincronización: " + e.message);
+        alert("Error: " + e.message);
     }
 }`
     };
@@ -441,10 +423,10 @@ async function onSyncButtonClick() {
                         <DialogHeader className="p-6 pb-2 border-b">
                             <div className="flex items-center gap-2">
                                 <Code2 className="h-5 w-5 text-primary" />
-                                <DialogTitle>Kit de Integración (SDK Estándar v2.9)</DialogTitle>
+                                <DialogTitle>Kit de Integración (SDK Estándar v2.10)</DialogTitle>
                             </div>
                             <DialogDescription>
-                                Implementa validación de identidad del producto para evitar el uso cruzado de licencias entre diferentes programas.
+                                Implementa la inyección de identidad oficial para autoconfigurar la ficha del cliente en el software hijo.
                             </DialogDescription>
                         </DialogHeader>
                         
@@ -453,7 +435,7 @@ async function onSyncButtonClick() {
                                 <TabsTrigger value="verify" className="text-xs font-bold text-primary">1. Verificación</TabsTrigger>
                                 <TabsTrigger value="actions" className="text-xs">2. Activación</TabsTrigger>
                                 <TabsTrigger value="logic" className="text-xs">3. Lógica UI</TabsTrigger>
-                                <TabsTrigger value="validation" className="text-xs">4. Validación RSA</TabsTrigger>
+                                <TabsTrigger value="validation" className="text-xs">4. Identidad Inyectada</TabsTrigger>
                                 <TabsTrigger value="sync" className="text-xs font-bold text-green-600">5. Sincronización</TabsTrigger>
                             </TabsList>
                             

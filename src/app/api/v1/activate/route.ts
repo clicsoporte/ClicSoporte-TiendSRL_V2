@@ -2,13 +2,13 @@
 /**
  * @fileoverview API Endpoint for child software activation.
  * Handles the linking between an activation token and a hardware ID.
- * Enhanced with software identification by Name.
+ * Enhanced with software identification by Name and Identity injection.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDb } from '@/modules/core/lib/db';
 import { signLicenseData } from '@/modules/licenses/lib/crypto';
-import type { License, SoftwareProduct } from '@/modules/core/types';
+import type { License, SoftwareProduct, Customer } from '@/modules/core/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -45,7 +45,10 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Licencia no válida o token inexistente para este producto.' }, { status: 404 });
         }
 
-        // 3. CHECK FOR RE-INSTALLATION ON SAME HARDWARE
+        // 3. Resolve Customer Master Data for Identity Injection
+        const customer = db.prepare('SELECT name, email, phone FROM customers WHERE id = ?').get(license.customerId) as Pick<Customer, 'name' | 'email' | 'phone'> | undefined;
+
+        // 4. CHECK FOR RE-INSTALLATION ON SAME HARDWARE
         if (license.hardwareId === hardwareId && license.licenseKey) {
             return NextResponse.json({
                 success: true,
@@ -53,22 +56,25 @@ export async function POST(req: NextRequest) {
             });
         }
 
-        // 4. CHECK FOR MULTI-PC ATTEMPT
+        // 5. CHECK FOR MULTI-PC ATTEMPT
         if (license.hardwareId && license.hardwareId !== hardwareId) {
             return NextResponse.json({ error: 'Esta licencia ya está vinculada a otro equipo.' }, { status: 403 });
         }
 
-        // 5. Bind hardwareId if not already set
+        // 6. Bind hardwareId if not already set
         if (!license.hardwareId) {
             db.prepare('UPDATE licenses SET hardwareId = ? WHERE id = ?').run(hardwareId, license.id);
         }
 
-        // 6. Generate signed payload
+        // 7. Generate signed payload with Master Identity
         const licenseInfo = {
             softwareId: software.id,
             softwareName: software.name,
             softwareVersion: software.currentVersion || '1.0.0',
             customerId: license.customerId,
+            customerName: customer?.name || '',
+            customerEmail: customer?.email || '',
+            customerPhone: customer?.phone || '',
             hardwareId: hardwareId,
             activationToken: activationToken,
             isPerpetual: !!license.isPerpetual,
