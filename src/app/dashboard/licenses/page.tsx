@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Main page for the License Management module.
  * Enhanced for Hybrid Licensing v2.9 (Product Identity Protection).
@@ -97,7 +96,8 @@ const SERVER_URL = '${SERVER_URL}';
 const APP_IDENTITY = 'Clic-Turnos'; // DEBE COINCIDIR CON EL NOMBRE EN EL SERVIDOR
 
 /**
- * PASO 2: ACTIVACIÓN (POR NOMBRE DE PRODUCTO)
+ * PASO 2: ACTIVACIÓN
+ * Estándar: Para aplicaciones NO modulares, siempre se valida el Módulo 1 (m01).
  */
 export async function activateSoftware(payload: {
     taxId: string,
@@ -113,10 +113,10 @@ export async function activateSoftware(payload: {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-            ...payload, 
-            softwareName: APP_IDENTITY, // Identificación estable
+            softwareName: APP_IDENTITY,
             hardwareId,
-            activationToken: payload.token 
+            activationToken: payload.token,
+            ...payload
         })
     });
 
@@ -126,6 +126,7 @@ export async function activateSoftware(payload: {
 }`,
         logic: `/**
  * PASO 3: LÓGICA DE UI
+ * Autocompletado y bloqueo de campos para proteger datos maestros.
  */
 async function onTaxIdBlur(id) {
     const info = await verifyClientInfo(id);
@@ -133,6 +134,7 @@ async function onTaxIdBlur(id) {
         setFormName(info.data.name);
         setFieldNameDisabled(true); 
         
+        // Si ya es cliente local, no pedimos contactos (ya los tenemos)
         if (info.isLocal) {
             setShowContactFields(false); 
         } else {
@@ -145,33 +147,36 @@ async function onTaxIdBlur(id) {
  */
 import crypto from 'crypto';
 
-const MY_PRODUCT_NAME = 'Clic-Turnos'; // IDENTIDAD DEL SOFTWARE
+const MY_PRODUCT_NAME = 'Clic-Turnos';
 
 export function validateLicense(licenseFileJson, publicKeyPem, currentHardwareId) {
     const { license_info, signature } = JSON.parse(licenseFileJson);
     
-    // A. Verificar Firma (Integridad)
+    // A. Verificar Firma RSA
     const verifier = crypto.createVerify('RSA-SHA256');
     const message = JSON.stringify(license_info, Object.keys(license_info).sort());
     verifier.update(message);
-    const isSignatureValid = verifier.verify(publicKeyPem, signature, 'hex');
-    
-    if (!isSignatureValid) throw new Error("Firma inválida. El archivo fue alterado.");
+    if (!verifier.verify(publicKeyPem, signature, 'hex')) throw new Error("Licencia corrupta.");
 
-    // B. Verificar Identidad del Producto (Evita Impersonación)
+    // B. Verificar Identidad del Producto (Evita suplantación)
     if (license_info.softwareName !== MY_PRODUCT_NAME) {
-        throw new Error("Esta licencia pertenece a otro producto.");
+        throw new Error("Esta licencia no corresponde a este producto.");
     }
 
-    // C. Verificar Hardware (Evita Copia)
+    // C. Verificar Hardware
     if (license_info.hardwareId !== currentHardwareId) {
-        throw new Error("Hardware ID no coincide.");
+        throw new Error("Hardware ID no coincide (Licencia en otra PC).");
+    }
+
+    // D. Verificar Módulos (Estándar: m01 es el CORE)
+    if (!license_info.modules.m01) {
+        throw new Error("El módulo principal (m01) no está activo.");
     }
 
     return license_info;
 }`,
         sync: `/**
- * PASO 5: SINCRONIZACIÓN
+ * PASO 5: SINCRONIZACIÓN (FORZAR VALIDACIÓN ONLINE)
  */
 async function onSyncButtonClick() {
     try {
@@ -184,9 +189,9 @@ async function onSyncButtonClick() {
         });
         
         saveLocalLicense(updatedFile);
-        alert("Sincronización exitosa.");
+        alert("Licencia actualizada desde el servidor.");
     } catch (e) {
-        alert("Error: " + e.message);
+        alert("Error de sincronización: " + e.message);
     }
 }`
     };
@@ -335,6 +340,9 @@ async function onSyncButtonClick() {
                                                                         );
                                                                     })}
                                                                 </div>
+                                                                <p className="text-[10px] text-muted-foreground italic border-t pt-2">
+                                                                    * Estándar: Para aplicaciones simples, active siempre el <b>Módulo 1</b> como disparador de activación global.
+                                                                </p>
                                                             </div>
                                                         ) : (
                                                             <div className="flex flex-col items-center justify-center h-full text-center p-10 border-2 border-dashed rounded-2xl opacity-40">
