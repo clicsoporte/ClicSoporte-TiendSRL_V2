@@ -123,7 +123,7 @@ export async function activateSoftware(payload: {
 
     const result = await res.json();
     if (!res.ok) throw new Error(result.error);
-    return result.license_file;
+    return result.license_file; // Retorna el JSON firmado
 }`,
         logic: `/**
  * PASO 3: LÓGICA DE UI
@@ -141,18 +141,39 @@ async function onTaxIdBlur(id) {
         }
     }
 }`,
-        validation: `/**
- * PASO 4: VALIDACIÓN Y AUTO-CONFIGURACIÓN
+        rsa: `/**
+ * PASO 4: VERIFICACIÓN CRIPTOGRÁFICA (Node.js/Electron)
+ * Importante: La clave pública debe estar embebida en el software cliente.
  */
-export function validateAndSetup(licenseFileJson, publicKeyPem, currentHardwareId) {
-    const { license_info, signature } = JSON.parse(licenseFileJson);
-    
-    // 1. Validar Firma RSA... (ver código previo)
+import crypto from 'crypto';
 
-    // 2. Extraer Identidad Inyectada por el Servidor
+export function verifyServerSignature(signedJson, publicKeyPem) {
+    const { license_info, ads_info, signature } = JSON.parse(signedJson);
+    const dataToVerify = license_info || ads_info;
+    
+    // El servidor ordena las llaves alfabéticamente antes de firmar
+    const message = JSON.stringify(dataToVerify, Object.keys(dataToVerify).sort());
+    
+    const verifier = crypto.createVerify('RSA-SHA256');
+    verifier.update(message);
+    
+    return verifier.verify(publicKeyPem, signature, 'hex');
+}`,
+        validation: `/**
+ * PASO 5: VALIDACIÓN Y AUTO-CONFIGURACIÓN
+ */
+export function validateAndSetup(licenseFileJson, publicKeyPem) {
+    if (!verifyServerSignature(licenseFileJson, publicKeyPem)) {
+        throw new Error("Firma inválida: El archivo de licencia ha sido alterado.");
+    }
+
+    const { license_info } = JSON.parse(licenseFileJson);
+    
+    // 1. Extraer Identidad Inyectada por el Servidor
     const { customerName, customerEmail, customerPhone } = license_info;
     
-    // 3. Guardar en la configuración local del Software Hijo
+    // 2. Guardar en la configuración local del Software Hijo
+    // Esto asegura que el "About" del programa muestre datos oficiales.
     saveAppOwnerData({ 
         companyName: customerName, 
         email: customerEmail,
@@ -169,12 +190,12 @@ export async function syncGlobalAds(licenseType: 'free' | 'premium') {
     const res = await fetch(\`\${SERVER_URL}/api/v1/marketing?software=Clic-Turnos&status=\${licenseType}\`);
     const { payload } = await res.json();
     
-    // El payload viene firmado con RSA para evitar suplantación de publicidad
-    const { ads_info, signature } = JSON.parse(payload);
-    
-    // Validar firma usando la clave pública...
-    
-    return ads_info.ads; // Retorna array de { imageUrl, description, price, targetUrl }
+    // Validar firma del anuncio para evitar "ad-jacking"
+    if (verifyServerSignature(payload, publicKeyPem)) {
+        const { ads_info } = JSON.parse(payload);
+        return ads_info.ads; // Array de { imageUrl, description, price, targetUrl }
+    }
+    return [];
 }`
     };
 
@@ -428,7 +449,8 @@ export async function syncGlobalAds(licenseType: 'free' | 'premium') {
                                 <TabsTrigger value="verify" className="text-xs font-bold text-primary">1. Verificación</TabsTrigger>
                                 <TabsTrigger value="actions" className="text-xs">2. Activación</TabsTrigger>
                                 <TabsTrigger value="logic" className="text-xs">3. Lógica UI</TabsTrigger>
-                                <TabsTrigger value="validation" className="text-xs">4. Identidad Inyectada</TabsTrigger>
+                                <TabsTrigger value="rsa" className="text-xs font-bold text-red-600">4. Validación RSA</TabsTrigger>
+                                <TabsTrigger value="validation" className="text-xs">5. Identidad Inyectada</TabsTrigger>
                                 <TabsTrigger value="marketing" className="text-xs font-bold text-purple-600">6. Publicidad Dinámica</TabsTrigger>
                             </TabsList>
                             
@@ -463,6 +485,17 @@ export async function syncGlobalAds(licenseType: 'free' | 'premium') {
                                         </Button>
                                         <pre className="bg-slate-950 text-slate-100 p-6 rounded-lg text-[11px] font-mono overflow-auto max-h-[600px]">
                                             {sdkCode.logic}
+                                        </pre>
+                                    </div>
+                                </TabsContent>
+                                <TabsContent value="rsa" className="m-0 h-full">
+                                    <div className="p-4 relative">
+                                        <Button variant="secondary" size="sm" className="absolute top-6 right-6 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.rsa, 'rsa')}>
+                                            {copiedSection === 'rsa' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
+                                            {copiedSection === 'rsa' ? 'Copiado' : 'Copiar'}
+                                        </Button>
+                                        <pre className="bg-slate-950 text-slate-100 p-6 rounded-lg text-[11px] font-mono overflow-auto max-h-[600px]">
+                                            {sdkCode.rsa}
                                         </pre>
                                     </div>
                                 </TabsContent>
