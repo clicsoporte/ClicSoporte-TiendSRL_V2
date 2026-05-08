@@ -32,20 +32,24 @@ const StatWidget = ({ title, value, subValue, icon: Icon, colorClass, href }: { 
 );
 
 export default function DashboardPage() {
-  const { userRole, isLoading: isAuthLoading, unreadSuggestionsCount } = useAuth();
+  const { userRole, isLoading: isAuthLoading, unreadSuggestionsCount, hasPermission } = useAuth();
   const [visibleTools, setVisibleTools] = useState<Tool[]>([]);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [isStatsLoading, setIsStatsLoading] = useState(true);
   const { setTitle } = usePageTitle();
 
   const fetchStats = useCallback(async () => {
+      if (!hasPermission('dashboard:stats:view')) {
+          setIsStatsLoading(false);
+          return;
+      }
       try {
           const data = await getDashboardStats();
           setStats(data);
       } finally {
           setIsStatsLoading(false);
       }
-  }, []);
+  }, [hasPermission]);
 
   useEffect(() => {
     setTitle("Panel Principal");
@@ -87,69 +91,84 @@ export default function DashboardPage() {
   return (
       <main className="flex-1 p-4 md:p-6 lg:p-8">
         <div className="space-y-8">
-          <section>
-            <div className="flex items-center justify-between mb-4">
-                <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4" /> Resumen de Operaciones
-                </h2>
-                <div className="flex gap-2">
-                    <Button size="sm" variant="outline" className="h-8 text-xs" asChild>
-                        <Link href="/dashboard/tickets"><Plus className="mr-1 h-3 w-3"/> Ticket</Link>
-                    </Button>
-                    <Button size="sm" variant="outline" className="h-8 text-xs" asChild>
-                        <Link href="/dashboard/quoter"><Plus className="mr-1 h-3 w-3"/> Cotización</Link>
-                    </Button>
-                </div>
-            </div>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {isStatsLoading ? (
-                    [1,2,3,4].map(i => <Skeleton key={i} className="h-24 w-full" />)
-                ) : (
-                    <>
-                        <StatWidget 
-                            title="Soporte Activo" 
-                            value={stats?.activeTickets || 0} 
-                            subValue={stats?.urgentTickets ? `${stats.urgentTickets} Urgentes` : 'Sin casos críticos'}
-                            icon={Ticket} 
-                            colorClass={stats?.urgentTickets ? "bg-red-600" : "bg-blue-500"} 
-                            href="/dashboard/tickets"
-                        />
-                        <StatWidget 
-                            title="Proyectos TI" 
-                            value={stats?.activeProjects || 0} 
-                            subValue="En ejecución / pruebas"
-                            icon={CalendarCheck} 
-                            colorClass="bg-purple-600" 
-                            href="/dashboard/planner"
-                        />
-                        <StatWidget 
-                            title="Contratos por Vencer" 
-                            value={stats?.expiringContracts || 0} 
-                            subValue="Próximos 30 días"
-                            icon={FileText} 
-                            colorClass={stats?.expiringContracts ? "bg-orange-500" : "bg-green-600"} 
-                            href="/dashboard/contracts"
-                        />
-                        <StatWidget 
-                            title="Sugerencias" 
-                            value={unreadSuggestionsCount} 
-                            subValue="Feedback del equipo"
-                            icon={AlertCircle} 
-                            colorClass="bg-emerald-600" 
-                            href="/dashboard/admin/suggestions"
-                        />
-                    </>
-                )}
-            </div>
-          </section>
+          {/* Section 1: Stats Overview - Protected by dashboard:stats:view */}
+          {hasPermission('dashboard:stats:view') && (
+            <section>
+              <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                      <AlertCircle className="h-4 w-4" /> Resumen de Operaciones
+                  </h2>
+                  <div className="flex gap-2">
+                      {hasPermission('tickets:create') && (
+                        <Button size="sm" variant="outline" className="h-8 text-xs" asChild>
+                            <Link href="/dashboard/tickets"><Plus className="mr-1 h-3 w-3"/> Ticket</Link>
+                        </Button>
+                      )}
+                      {hasPermission('quotes:create') && (
+                        <Button size="sm" variant="outline" className="h-8 text-xs" asChild>
+                            <Link href="/dashboard/quoter"><Plus className="mr-1 h-3 w-3"/> Cotización</Link>
+                        </Button>
+                      )}
+                  </div>
+              </div>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {isStatsLoading ? (
+                      [1,2,3,4].map(i => <Skeleton key={i} className="h-24 w-full" />)
+                  ) : (
+                      <>
+                          {hasPermission('tickets:read:all') && (
+                            <StatWidget 
+                                title="Soporte Activo" 
+                                value={stats?.activeTickets || 0} 
+                                subValue={stats?.urgentTickets ? `${stats.urgentTickets} Urgentes` : 'Sin casos críticos'}
+                                icon={Ticket} 
+                                colorClass={stats?.urgentTickets ? "bg-red-600" : "bg-blue-500"} 
+                                href="/dashboard/tickets"
+                            />
+                          )}
+                          {hasPermission('planner:read') && (
+                            <StatWidget 
+                                title="Proyectos TI" 
+                                value={stats?.activeProjects || 0} 
+                                subValue="En ejecución / pruebas"
+                                icon={CalendarCheck} 
+                                colorClass="bg-purple-600" 
+                                href="/dashboard/planner"
+                            />
+                          )}
+                          {hasPermission('contracts:read') && (
+                            <StatWidget 
+                                title="Contratos por Vencer" 
+                                value={stats?.expiringContracts || 0} 
+                                subValue="Próximos 30 días"
+                                icon={FileText} 
+                                colorClass={stats?.expiringContracts ? "bg-orange-500" : "bg-green-600"} 
+                                href="/dashboard/contracts"
+                            />
+                          )}
+                          {hasPermission('admin:suggestions:read') && (
+                            <StatWidget 
+                                title="Sugerencias" 
+                                value={unreadSuggestionsCount} 
+                                subValue="Feedback del equipo"
+                                icon={AlertCircle} 
+                                colorClass="bg-emerald-600" 
+                                href="/dashboard/admin/suggestions"
+                            />
+                          )}
+                      </>
+                  )}
+              </div>
+            </section>
+          )}
 
           <section>
             <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-4">
               Accesos Directos
             </h2>
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {/* Financial Group Card */}
+              {/* Financial Group Card - Already self-protecting */}
               <FinanceGroupCard />
 
               {/* Other Operational Tools */}
