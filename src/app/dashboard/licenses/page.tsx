@@ -1,7 +1,6 @@
-
 /**
  * @fileoverview Main page for the License Management module.
- * Enhanced for Hybrid Licensing v3.0 (Marketing Injection).
+ * Enhanced for Hybrid Licensing v3.5 (Telemetry & UI Presets).
  */
 'use client';
 
@@ -73,7 +72,7 @@ export default function LicensesPage() {
     const SERVER_URL = state.companyData?.publicUrl || 'https://soporte.clicsoporte.com';
 
     const sdkCode = {
-        meta: `version: v3.3 fecha: 25/05/2024`,
+        meta: `version: v3.5 fecha: 25/05/2024`,
         schema: `{
   "success": true,
   "license_file": {
@@ -97,7 +96,7 @@ export default function LicensesPage() {
   }
 }`,
         verify: `/**
- * PASO 1: VERIFICACIÓN INTELIGENTE (SDK v3.3)
+ * PASO 1: VERIFICACIÓN INTELIGENTE (SDK v3.5)
  * El cliente ingresa su Cédula y obtenemos sus datos oficiales para evitar doble registro.
  */
 export async function verifyClientInfo(taxId: string) {
@@ -115,7 +114,7 @@ export async function verifyClientInfo(taxId: string) {
 }`,
         actions: `'use server';
 /**
- * PASO 2: ACTIVACIÓN (SDK v3.3)
+ * PASO 2: ACTIVACIÓN (SDK v3.5)
  * El servidor devuelve un objeto estructurado. Ya NO es necesario JSON.parse(result.license_file).
  */
 export async function activateSoftware(payload: {
@@ -163,7 +162,7 @@ export function verifyServerSignature(licenseFile, publicKeyPem) {
     return verifier.verify(publicKeyPem, signature, 'hex');
 }`,
         marketing: `/**
- * PASO 6: PUBLICIDAD DINÁMICA (SDK v3.3)
+ * PASO 6: PUBLICIDAD DINÁMICA (SDK v3.5)
  * Descarga anuncios globales firmados segmentados por tipo de licencia.
  */
 export async function syncGlobalAds(licenseType: 'free' | 'premium') {
@@ -222,7 +221,7 @@ export async function syncGlobalAds(licenseType: 'free' | 'premium') {
                                                                         onSelect={actions.handleSelectCompany}
                                                                         value={state.companySearchTerm}
                                                                         onValueChange={actions.setCompanySearchTerm}
-                                                                        placeholder="Buscar cliente..."
+                                                                        placeholder="Buscar cliente por nombre o alias..."
                                                                         open={state.isCompanySearchOpen}
                                                                         onOpenChange={actions.setIsCompanySearchOpen}
                                                                     />
@@ -274,23 +273,35 @@ export async function syncGlobalAds(licenseType: 'free' | 'premium') {
                                                                 </div>
                                                             )}
 
-                                                            <div className="grid grid-cols-2 gap-4 pt-2">
-                                                                <div className="space-y-2">
-                                                                    <Label>Vencimiento</Label>
+                                                            <div className="space-y-4 pt-2">
+                                                                <div className="flex items-center justify-between">
+                                                                    <Label>Vencimiento de Licencia</Label>
+                                                                    <div className="flex items-center space-x-2">
+                                                                        <Checkbox id="is-perpetual" checked={state.currentLicense.isPerpetual} onCheckedChange={(checked) => actions.handleCurrentLicenseChange('isPerpetual', !!checked)} />
+                                                                        <Label htmlFor="is-perpetual" className="text-xs">Sin vencimiento</Label>
+                                                                    </div>
+                                                                </div>
+                                                                
+                                                                <div className="grid grid-cols-2 gap-4">
                                                                     <Popover>
                                                                         <PopoverTrigger asChild>
                                                                             <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !state.currentLicense.expirationDate && "text-muted-foreground")} disabled={state.currentLicense.isPerpetual}>
                                                                                 <CalendarIcon className="mr-2 h-4 w-4"/>
-                                                                                {state.currentLicense.expirationDate ? format(parseISO(state.currentLicense.expirationDate), 'dd/MM/yyyy') : <span>Fecha</span>}
+                                                                                {state.currentLicense.expirationDate ? format(parseISO(state.currentLicense.expirationDate), 'dd/MM/yyyy') : <span>Seleccionar fecha...</span>}
                                                                             </Button>
                                                                         </PopoverTrigger>
                                                                         <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={state.currentLicense.expirationDate ? parseISO(state.currentLicense.expirationDate) : undefined} onSelect={(date) => actions.handleCurrentLicenseChange('expirationDate', date?.toISOString().split('T')[0] || '')} initialFocus/></PopoverContent>
                                                                     </Popover>
                                                                 </div>
-                                                                <div className="flex items-center space-x-2 pt-6">
-                                                                    <Checkbox id="is-perpetual" checked={state.currentLicense.isPerpetual} onCheckedChange={(checked) => actions.handleCurrentLicenseChange('isPerpetual', !!checked)} />
-                                                                    <Label htmlFor="is-perpetual" className="text-xs">Uso Perpetuo</Label>
-                                                                </div>
+
+                                                                {!state.currentLicense.isPerpetual && (
+                                                                    <div className="flex flex-wrap gap-2">
+                                                                        <Button type="button" variant="outline" size="sm" className="text-[10px] h-7 px-2" onClick={() => actions.setExpirationDatePreset(30)}>+1 Mes</Button>
+                                                                        <Button type="button" variant="outline" size="sm" className="text-[10px] h-7 px-2" onClick={() => actions.setExpirationDatePreset(90)}>+3 Meses</Button>
+                                                                        <Button type="button" variant="outline" size="sm" className="text-[10px] h-7 px-2" onClick={() => actions.setExpirationDatePreset(180)}>+6 Meses</Button>
+                                                                        <Button type="button" variant="outline" size="sm" className="text-[10px] h-7 px-2" onClick={() => actions.setExpirationDatePreset(365)}>+1 Año</Button>
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         </div>
 
@@ -350,13 +361,15 @@ export async function syncGlobalAds(licenseType: 'free' | 'premium') {
                         </div>
                     </CardHeader>
                     <CardContent>
-                        <div className="rounded-lg border">
+                        <div className="rounded-lg border overflow-hidden">
                             <Table>
                                 <TableHeader>
-                                    <TableRow className="bg-muted/50">
+                                    <TableRow className="bg-muted/50 text-[11px] uppercase font-bold">
                                         <TableHead>Software</TableHead>
+                                        <TableHead>Código Cliente</TableHead>
+                                        <TableHead>Identificación / Cédula</TableHead>
                                         <TableHead>Cliente</TableHead>
-                                        <TableHead>Identificación / Token</TableHead>
+                                        <TableHead>Token / Serial</TableHead>
                                         <TableHead>Vencimiento</TableHead>
                                         <TableHead>Estado</TableHead>
                                         <TableHead className="text-right">Acciones</TableHead>
@@ -377,7 +390,14 @@ export async function syncGlobalAds(licenseType: 'free' | 'premium') {
                                                         </span>
                                                     </div>
                                                 </TableCell>
-                                                <TableCell className="text-sm font-medium">{client?.name || license.customerId || 'No asignado'}</TableCell>
+                                                <TableCell className="font-mono text-xs">{client?.id || 'N/A'}</TableCell>
+                                                <TableCell className="text-xs">{client?.taxId || 'N/A'}</TableCell>
+                                                <TableCell className="text-sm font-medium">
+                                                    <div className="flex flex-col">
+                                                        <span>{client?.name || license.customerId || 'No asignado'}</span>
+                                                        {client?.commercialName && <span className="text-[9px] text-primary font-bold uppercase">{client.commercialName}</span>}
+                                                    </div>
+                                                </TableCell>
                                                 <TableCell>
                                                     {software?.isInternal ? (
                                                         <div className="flex flex-col">
@@ -417,7 +437,7 @@ export async function syncGlobalAds(licenseType: 'free' | 'premium') {
                             <div className="flex items-center justify-between w-full pr-8">
                                 <div className="flex items-center gap-2">
                                     <Code2 className="h-5 w-5 text-primary" />
-                                    <DialogTitle>Kit de Integración (SDK Estándar v3.3)</DialogTitle>
+                                    <DialogTitle>Kit de Integración (SDK Estándar v3.5)</DialogTitle>
                                 </div>
                                 <Badge variant="outline" className="font-mono text-[10px] uppercase text-primary border-primary/30">
                                     {sdkCode.meta}

@@ -1,7 +1,7 @@
 'use server';
 
 /**
- * @fileoverview Maintenance Server Actions for database auditing and legacy migrations.
+ * @fileoverview Maintenance Server Actions for database auditing and system telemetry.
  * Refactored for strict production serialization.
  */
 
@@ -9,6 +9,8 @@ import { connectDb } from "./db";
 import { MASTER_SCHEMA } from "./schema";
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
+import { execSync } from 'child_process';
 import Database from 'better-sqlite3';
 import { logInfo, logError, logWarn } from "./logger";
 import type { Ticket, TicketThread, ITNote } from "@/modules/core/types";
@@ -18,6 +20,65 @@ export type AuditResult = {
     status: 'ok' | 'missing_table' | 'missing_columns';
     missingColumns: string[];
 };
+
+export type SystemStats = {
+    serverTime: string;
+    timezone: string;
+    uptime: string;
+    memory: {
+        total: string;
+        free: string;
+        usedPercent: number;
+    };
+    disk: {
+        total: string;
+        used: string;
+        available: string;
+        usedPercent: string;
+    };
+    os: string;
+};
+
+/**
+ * Retrieves server telemetry data (CPU, Mem, Disk, Time).
+ */
+export async function getServerStats(): Promise<SystemStats> {
+    const totalMem = os.totalmem();
+    const freeMem = os.freemem();
+    const usedMem = totalMem - freeMem;
+    const usedPercent = (usedMem / totalMem) * 100;
+
+    const uptimeSeconds = os.uptime();
+    const days = Math.floor(uptimeSeconds / (3600 * 24));
+    const hours = Math.floor((uptimeSeconds % (3600 * 24)) / 3600);
+    const minutes = Math.floor((uptimeSeconds % 3600) / 60);
+
+    let diskInfo = { total: 'N/A', used: 'N/A', available: 'N/A', usedPercent: '0%' };
+    try {
+        const df = execSync('df -h /').toString().split('\n')[1].split(/\s+/);
+        diskInfo = {
+            total: df[1],
+            used: df[2],
+            available: df[3],
+            usedPercent: df[4]
+        };
+    } catch (e) {
+        console.warn("Could not get disk info:", e);
+    }
+
+    return {
+        serverTime: new Date().toLocaleString('es-CR'),
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        uptime: `${days}d ${hours}h ${minutes}m`,
+        memory: {
+            total: (totalMem / (1024 ** 3)).toFixed(2) + ' GB',
+            free: (freeMem / (1024 ** 3)).toFixed(2) + ' GB',
+            usedPercent: Math.round(usedPercent)
+        },
+        disk: diskInfo,
+        os: `${os.type()} ${os.release()} (${os.arch()})`
+    };
+}
 
 /**
  * Compares the current database structure against the master schema.

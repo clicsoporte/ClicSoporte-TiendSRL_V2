@@ -1,6 +1,7 @@
 /**
  * @fileoverview Help Center page with advanced mini-tutorials for MSP operations.
  * Enhanced with practical examples and business logic explanations.
+ * Refactored to include real-time server telemetry.
  */
 "use client";
 
@@ -8,11 +9,13 @@ import { useEffect, useState, useMemo } from "react";
 import { usePageTitle } from "@/modules/core/hooks/usePageTitle";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Search, LifeBuoy, Rocket, Wrench, AlertTriangle, ShieldCheck, MapPin, Zap, Wallet, BellRing, GitFork, KeyRound } from "lucide-react";
+import { Search, LifeBuoy, Rocket, Wrench, AlertTriangle, ShieldCheck, MapPin, Zap, Wallet, BellRing, GitFork, KeyRound, Server, Activity, Database, HardDrive, Clock } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/modules/core/hooks/useAuth";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { getServerStats, type SystemStats } from "@/modules/core/lib/maintenance-actions";
+import { Progress } from "@/components/ui/progress";
 
 // --- Helper Functions ---
 const normalizeText = (text: string | null | undefined): string => {
@@ -94,9 +97,22 @@ export default function HelpPage() {
   const { setTitle } = usePageTitle();
   const { companyData } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
+  const [stats, setStats] = useState<SystemStats | null>(null);
+  const [loadingStats, setLoadingStats] = useState(true);
 
   useEffect(() => {
     setTitle("Centro de Ayuda");
+    const fetchStats = async () => {
+        try {
+            const data = await getServerStats();
+            setStats(data);
+        } finally {
+            setLoadingStats(false);
+        }
+    };
+    fetchStats();
+    const interval = setInterval(fetchStats, 10000); // Refresh every 10s
+    return () => clearInterval(interval);
   }, [setTitle]);
 
   const helpSections = [
@@ -286,6 +302,84 @@ export default function HelpPage() {
           </CardContent>
         </Card>
 
+        <section className="pt-8 border-t space-y-6">
+            <div className="flex items-center gap-2 text-muted-foreground">
+                <Activity className="h-4 w-4" />
+                <h3 className="text-xs font-bold uppercase tracking-widest">Telemetría del Servidor (Real-time)</h3>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <Card className="bg-card/50">
+                    <CardHeader className="p-4 pb-2">
+                        <CardTitle className="text-[10px] font-black uppercase text-muted-foreground flex items-center gap-1.5">
+                            <Clock className="h-3 w-3 text-primary" /> Fecha y Hora VPS
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-4 pt-0">
+                        {loadingStats ? <Skeleton className="h-6 w-full" /> : (
+                            <>
+                                <p className="text-sm font-black">{stats?.serverTime}</p>
+                                <p className="text-[10px] text-muted-foreground truncate">{stats?.timezone}</p>
+                            </>
+                        )}
+                    </CardContent>
+                </Card>
+
+                <Card className="bg-card/50">
+                    <CardHeader className="p-4 pb-2">
+                        <CardTitle className="text-[10px] font-black uppercase text-muted-foreground flex items-center gap-1.5">
+                            <Activity className="h-3 w-3 text-primary" /> Uso de Memoria RAM
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-4 pt-0 space-y-2">
+                        {loadingStats ? <Skeleton className="h-6 w-full" /> : (
+                            <>
+                                <div className="flex justify-between items-end">
+                                    <p className="text-sm font-black">{stats?.memory.usedPercent}%</p>
+                                    <p className="text-[9px] font-bold text-muted-foreground">Total: {stats?.memory.total}</p>
+                                </div>
+                                <Progress value={stats?.memory.usedPercent} className="h-1.5" />
+                            </>
+                        )}
+                    </CardContent>
+                </Card>
+
+                <Card className="bg-card/50">
+                    <CardHeader className="p-4 pb-2">
+                        <CardTitle className="text-[10px] font-black uppercase text-muted-foreground flex items-center gap-1.5">
+                            <HardDrive className="h-3 w-3 text-primary" /> Almacenamiento
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-4 pt-0 space-y-2">
+                        {loadingStats ? <Skeleton className="h-6 w-full" /> : (
+                            <>
+                                <div className="flex justify-between items-end">
+                                    <p className="text-sm font-black">{stats?.disk.usedPercent}</p>
+                                    <p className="text-[9px] font-bold text-muted-foreground">Libre: {stats?.disk.available}</p>
+                                </div>
+                                <Progress value={parseInt(stats?.disk.usedPercent || '0')} className="h-1.5" />
+                            </>
+                        )}
+                    </CardContent>
+                </Card>
+
+                <Card className="bg-card/50">
+                    <CardHeader className="p-4 pb-2">
+                        <CardTitle className="text-[10px] font-black uppercase text-muted-foreground flex items-center gap-1.5">
+                            <Server className="h-3 w-3 text-primary" /> Tiempo de Actividad
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-4 pt-0">
+                        {loadingStats ? <Skeleton className="h-6 w-full" /> : (
+                            <>
+                                <p className="text-sm font-black">{stats?.uptime}</p>
+                                <p className="text-[10px] text-muted-foreground truncate">{stats?.os}</p>
+                            </>
+                        )}
+                    </CardContent>
+                </Card>
+            </div>
+        </section>
+
         <section className="pt-8 border-t">
             <div className="flex items-center gap-2 mb-4 text-muted-foreground">
                 <Wrench className="h-4 w-4" />
@@ -293,12 +387,12 @@ export default function HelpPage() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="p-4 rounded-xl border bg-white">
-                    <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Versión Actual</p>
-                    <p className="text-lg font-black">{companyData?.systemVersion || "2.2.0"}</p>
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Versión del Software</p>
+                    <p className="text-lg font-black">{companyData?.systemVersion || "2.5.0"}</p>
                 </div>
                 <div className="p-4 rounded-xl border bg-white">
                     <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Motor de BD</p>
-                    <p className="text-lg font-black">SQLite 3 (WAL Mode)</p>
+                    <p className="text-lg font-black">SQLite 3 (Unificada)</p>
                 </div>
                 <div className="p-4 rounded-xl border bg-white">
                     <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Estado de Sincronización</p>

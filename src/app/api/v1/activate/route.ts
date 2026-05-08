@@ -1,8 +1,7 @@
-
 /**
  * @fileoverview API Endpoint for child software activation.
  * Handles the linking between an activation token and a hardware ID.
- * Refactored for SDK v3.3: Returns structured JSON object instead of string.
+ * Refactored for SDK v3.5: Implements hardware uniqueness check and structured response.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -35,7 +34,23 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: `El software '${softwareName || softwareId}' no está registrado en el sistema.` }, { status: 404 });
         }
 
-        // 2. Find the license by token and software
+        // 2. CHECK FOR HARDWARE COLLISION
+        // Ensure this hardwareId does not have ANOTHER active license for the same software
+        const otherLicense = db.prepare(`
+            SELECT id, activationToken FROM licenses 
+            WHERE softwareId = ? 
+            AND hardwareId = ? 
+            AND status = 'active' 
+            AND activationToken != ?
+        `).get(software.id, hardwareId, activationToken) as { id: number, activationToken: string } | undefined;
+
+        if (otherLicense) {
+            return NextResponse.json({ 
+                error: `OPERACIÓN DENEGADA: Este equipo ya cuenta con una licencia activa para este software (${otherLicense.activationToken}). Debe revocar la licencia anterior antes de activar una nueva.` 
+            }, { status: 409 });
+        }
+
+        // 3. Find the requested license by token and software
         const license = db.prepare(`
             SELECT * FROM licenses 
             WHERE softwareId = ? AND activationToken = ? AND status = 'active'
@@ -45,31 +60,30 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Licencia no válida o token inexistente para este producto.' }, { status: 404 });
         }
 
-        // 3. Resolve Customer Master Data for Identity Injection
+        // 4. Resolve Customer Master Data for Identity Injection
         const customer = db.prepare('SELECT name, email, phone FROM customers WHERE id = ?').get(license.customerId) as Pick<Customer, 'name' | 'email' | 'phone'> | undefined;
 
-        // 4. CHECK FOR RE-INSTALLATION ON SAME HARDWARE
+        // 5. CHECK FOR RE-INSTALLATION ON SAME HARDWARE
         if (license.hardwareId === hardwareId && license.licenseKey) {
-            // Already structured in DB? If so parse, if not return as is
             try {
                 const existingFile = JSON.parse(license.licenseKey);
                 return NextResponse.json({ success: true, license_file: existingFile });
             } catch {
-                return NextResponse.json({ success: true, license_file: license.licenseKey });
+                // If it wasn't valid JSON, it will be re-signed below
             }
         }
 
-        // 5. CHECK FOR MULTI-PC ATTEMPT
+        // 6. CHECK FOR MULTI-PC ATTEMPT (Already bound to ANOTHER hardware)
         if (license.hardwareId && license.hardwareId !== hardwareId) {
             return NextResponse.json({ error: 'Esta licencia ya está vinculada a otro equipo.' }, { status: 403 });
         }
 
-        // 6. Bind hardwareId if not already set
+        // 7. Bind hardwareId if not already set
         if (!license.hardwareId) {
             db.prepare('UPDATE licenses SET hardwareId = ? WHERE id = ?').run(hardwareId, license.id);
         }
 
-        // 7. Generate signed payload with Master Identity
+        // 8. Generate signed payload with Master Identity
         const licenseInfo = {
             softwareId: software.id,
             softwareName: software.name,

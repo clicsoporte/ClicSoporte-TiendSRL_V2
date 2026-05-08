@@ -290,7 +290,7 @@ export const useLicenses = () => {
         if (debouncedCompanySearch.length < 2) return [];
         const searchTerms = debouncedCompanySearch.toLowerCase().split(' ').filter(Boolean);
         return customers.filter(c => {
-            const targetText = `${c.id} ${c.name} ${c.taxId}`.toLowerCase();
+            const targetText = `${c.id} ${c.name} ${c.taxId} ${c.commercialName || ''}`.toLowerCase();
             return searchTerms.every(term => targetText.includes(term));
         }).map(c => ({ value: c.id, label: `[${c.id}] ${c.name} (${c.taxId})` }));
     }, [customers, debouncedCompanySearch]);
