@@ -1,6 +1,6 @@
 /**
  * @fileoverview API Route to safely serve temporary backup files for download.
- * Marked as strictly dynamic to avoid build-time static generation errors.
+ * Optimized for production build compatibility.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -9,7 +9,6 @@ import fs from 'fs';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
-export const fetchCache = 'force-no-store';
 
 export async function GET(request: NextRequest) {
     try {
