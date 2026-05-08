@@ -1,7 +1,7 @@
 
 /**
  * @fileoverview API Endpoint for registering free licenses.
- * Enhanced with software identification by Name.
+ * Optimized for Hybrid Licensing v2.9: Handles conditional mandatory fields.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -17,13 +17,14 @@ export async function POST(req: NextRequest) {
         const body = await req.json();
         const { softwareId, softwareName, hardwareId, customerName, customerEmail, customerPhone, taxId } = body;
 
-        if ((!softwareId && !softwareName) || !hardwareId || !customerName || !customerEmail || !taxId) {
-            return NextResponse.json({ error: 'Faltan datos obligatorios para el registro.' }, { status: 400 });
+        // 1. Basic validation (Identifiers are always mandatory)
+        if ((!softwareId && !softwareName) || !hardwareId || !taxId) {
+            return NextResponse.json({ error: 'Faltan identificadores obligatorios (Software, HardwareID o TaxID)' }, { status: 400 });
         }
 
         const db = await connectDb();
 
-        // 1. Resolve Software
+        // 2. Resolve Software
         let software: SoftwareProduct | undefined;
         if (softwareId) {
             software = db.prepare('SELECT * FROM software_products WHERE id = ?').get(softwareId) as SoftwareProduct | undefined;
@@ -32,10 +33,20 @@ export async function POST(req: NextRequest) {
         }
 
         if (!software) {
-            return NextResponse.json({ error: `El software '${softwareName || softwareId}' no está registrado.` }, { status: 404 });
+            return NextResponse.json({ error: `El software '${softwareName || softwareId}' no está registrado en el catálogo.` }, { status: 404 });
         }
 
-        // 2. CHECK FOR RE-INSTALLATION
+        // 3. CHECK IF CUSTOMER EXISTS
+        const existingCustomer = db.prepare('SELECT * FROM customers WHERE id = ? OR taxId = ?').get(taxId, taxId) as Customer | undefined;
+
+        // 4. Conditional Validation: Contact info is ONLY mandatory for NEW customers
+        if (!existingCustomer) {
+            if (!customerName || !customerEmail) {
+                return NextResponse.json({ error: 'Faltan datos obligatorios para el registro de nuevo cliente (Nombre y Email).' }, { status: 400 });
+            }
+        }
+
+        // 5. CHECK FOR RE-INSTALLATION ON SAME HARDWARE
         const existingLicense = db.prepare(`
             SELECT * FROM licenses 
             WHERE softwareId = ? AND hardwareId = ? AND status = 'active'
@@ -44,32 +55,32 @@ export async function POST(req: NextRequest) {
         if (existingLicense && existingLicense.licenseKey) {
             return NextResponse.json({ 
                 success: true, 
-                message: 'Restaurando licencia existente.',
+                message: 'Restaurando licencia existente para este hardware.',
                 license_file: existingLicense.licenseKey 
             });
         }
 
-        // 3. Ensure/Create the Customer (Protects existing data)
+        // 6. Ensure/Create the Customer (Protects existing data internally)
         const customerData: Customer = {
             id: taxId.trim().toUpperCase(),
-            name: customerName,
+            name: customerName || (existingCustomer?.name || 'Cliente Nuevo'),
             taxId: taxId.trim().toUpperCase(),
-            email: customerEmail,
-            phone: customerPhone || '',
+            email: customerEmail || (existingCustomer?.email || ''),
+            phone: customerPhone || (existingCustomer?.phone || ''),
             active: 'S',
-            address: 'Registro Online (Free)',
+            address: existingCustomer?.address || 'Registro Online (Lead)',
             contacts: [],
             currency: 'CRC',
             creditLimit: 0,
             paymentCondition: '0',
             salesperson: 'SISTEMA ONLINE',
-            electronicDocEmail: customerEmail,
+            electronicDocEmail: customerEmail || (existingCustomer?.electronicDocEmail || ''),
             isManual: true
         };
 
         await upsertLeadCustomer(customerData);
 
-        // 4. Create Free License Record
+        // 7. Create Free License Record
         const now = new Date().toISOString();
         const licenseInfo = {
             softwareId: software.id,

@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Main page for the License Management module.
  * Enhanced for Hybrid Licensing v2.9 (Product Identity Protection).
@@ -96,8 +97,9 @@ const SERVER_URL = '${SERVER_URL}';
 const APP_IDENTITY = 'Clic-Turnos'; // DEBE COINCIDIR CON EL NOMBRE EN EL SERVIDOR
 
 /**
- * PASO 2: ACTIVACIÓN
- * Estándar: Para aplicaciones NO modulares, siempre se valida el Módulo 1 (m01).
+ * PASO 2: ACTIVACIÓN (SDK v2.9)
+ * Nota: Los campos customerEmail/Phone son obligatorios solo si el cliente es NUEVO.
+ * Si isLocal=true en el Paso 1, puedes enviar estos campos vacíos ("").
  */
 export async function activateSoftware(payload: {
     taxId: string,
@@ -116,7 +118,7 @@ export async function activateSoftware(payload: {
             softwareName: APP_IDENTITY,
             hardwareId,
             activationToken: payload.token,
-            ...payload
+            ...payload // Envía strings vacíos para campos bloqueados
         })
     });
 
@@ -131,14 +133,19 @@ export async function activateSoftware(payload: {
 async function onTaxIdBlur(id) {
     const info = await verifyClientInfo(id);
     if (info.found) {
-        setFormName(info.data.name);
-        setFieldNameDisabled(true); 
+        // Importante: No permitas editar el nombre si el servidor ya lo tiene
+        setFormValue('customerName', info.data.name);
+        setFieldDisabled('customerName', true); 
         
-        // Si ya es cliente local, no pedimos contactos (ya los tenemos)
         if (info.isLocal) {
-            setShowContactFields(false); 
+            // Ya es cliente interno: Bloquea todo, no pedimos nada más.
+            setFieldDisabled('customerEmail', true);
+            setFieldDisabled('customerPhone', true);
+            // Puedes poner valores dummy en el form para pasar validaciones locales de la UI
+            setFormValue('customerEmail', 'registrado@sistema.local');
         } else {
-            setShowContactFields(true);
+            // Viene de Hacienda: El nombre es oficial pero necesitamos Email/Tel manual.
+            setFieldDisabled('customerEmail', false);
         }
     }
 }`,
@@ -184,7 +191,7 @@ async function onSyncButtonClick() {
             taxId: currentTaxId,
             token: currentToken, 
             customerName: currentName,
-            customerEmail: '',
+            customerEmail: '', // Seguro enviar vacío para clientes locales
             customerPhone: ''
         });
         
