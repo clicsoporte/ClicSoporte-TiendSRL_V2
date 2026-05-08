@@ -8,10 +8,8 @@ import { connectDb } from '@/modules/core/lib/db';
 import QRCode from 'qrcode';
 import type { Equipment } from '@/modules/core/types';
 
-// Ensure the route is never statically generated during build
+// Force dynamic ensures this is never pre-rendered during build
 export const dynamic = 'force-dynamic';
-export const dynamicParams = true;
-export const revalidate = 0;
 
 export async function GET(
     request: NextRequest,
@@ -19,9 +17,9 @@ export async function GET(
 ) {
     const id = params?.id;
     
-    // Safety check for Next.js build-time collection or invalid IDs
+    // Safety check for Next.js build-time tracing or invalid IDs
     if (!id || id === '[id]' || id === 'undefined') {
-        return new NextResponse('Missing or invalid ID', { status: 400 });
+        return new NextResponse('Invalid or Placeholder ID', { status: 400 });
     }
 
     try {
