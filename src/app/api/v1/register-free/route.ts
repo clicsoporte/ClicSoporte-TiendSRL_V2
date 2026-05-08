@@ -1,7 +1,7 @@
 
 /**
  * @fileoverview API Endpoint for registering free licenses.
- * Optimized for re-installations and duplicate detection.
+ * Enhanced with software identification by Name.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -15,29 +15,36 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
-        const { softwareId, hardwareId, customerName, customerEmail, customerPhone, taxId } = body;
+        const { softwareId, softwareName, hardwareId, customerName, customerEmail, customerPhone, taxId } = body;
 
-        if (!softwareId || !hardwareId || !customerName || !customerEmail || !taxId) {
+        if ((!softwareId && !softwareName) || !hardwareId || !customerName || !customerEmail || !taxId) {
             return NextResponse.json({ error: 'Faltan datos obligatorios para el registro.' }, { status: 400 });
         }
 
         const db = await connectDb();
 
-        // 1. Get Software Details
-        const software = db.prepare('SELECT * FROM software_products WHERE id = ?').get(softwareId) as SoftwareProduct | undefined;
-        if (!software) return NextResponse.json({ error: 'El software especificado no existe.' }, { status: 404 });
+        // 1. Resolve Software
+        let software: SoftwareProduct | undefined;
+        if (softwareId) {
+            software = db.prepare('SELECT * FROM software_products WHERE id = ?').get(softwareId) as SoftwareProduct | undefined;
+        } else if (softwareName) {
+            software = db.prepare('SELECT * FROM software_products WHERE name = ?').get(softwareName) as SoftwareProduct | undefined;
+        }
+
+        if (!software) {
+            return NextResponse.json({ error: `El software '${softwareName || softwareId}' no está registrado.` }, { status: 404 });
+        }
 
         // 2. CHECK FOR RE-INSTALLATION
-        // If this specific PC already has a license for this software, return it immediately
         const existingLicense = db.prepare(`
             SELECT * FROM licenses 
             WHERE softwareId = ? AND hardwareId = ? AND status = 'active'
-        `).get(softwareId, hardwareId) as License | undefined;
+        `).get(software.id, hardwareId) as License | undefined;
 
         if (existingLicense && existingLicense.licenseKey) {
             return NextResponse.json({ 
                 success: true, 
-                message: 'Bienvenido de nuevo. Restaurando licencia existente.',
+                message: 'Restaurando licencia existente.',
                 license_file: existingLicense.licenseKey 
             });
         }
@@ -65,7 +72,7 @@ export async function POST(req: NextRequest) {
         // 4. Create Free License Record
         const now = new Date().toISOString();
         const licenseInfo = {
-            softwareId: Number(softwareId),
+            softwareId: software.id,
             softwareName: software.name,
             softwareVersion: software.currentVersion || '1.0.0',
             customerId: customerData.id,
@@ -73,7 +80,7 @@ export async function POST(req: NextRequest) {
             activationToken: 'FREE-LICENSE',
             isPerpetual: true,
             expirationDate: '',
-            status: 'FREE_MODE',
+            status: 'active',
             createdAt: now,
             modules: {
                 m01: true, m02: false, m03: false, m04: false, m05: false,
@@ -87,7 +94,7 @@ export async function POST(req: NextRequest) {
             INSERT INTO licenses (
                 licenseKey, activationToken, softwareId, customerId, hardwareId, isPerpetual, expirationDate, status, createdAt, m01_val
             ) VALUES (?, 'FREE-LICENSE', ?, ?, ?, 1, '', 'active', ?, 1)
-        `).run(signedData, softwareId, customerData.id, hardwareId, now);
+        `).run(signedData, software.id, customerData.id, hardwareId, now);
 
         return NextResponse.json({
             success: true,

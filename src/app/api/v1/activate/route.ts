@@ -2,7 +2,7 @@
 /**
  * @fileoverview API Endpoint for child software activation.
  * Handles the linking between an activation token and a hardware ID.
- * Enhanced with same-hardware re-activation support.
+ * Enhanced with software identification by Name.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -15,26 +15,37 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
-        const { softwareId, activationToken, hardwareId } = body;
+        const { softwareId, softwareName, activationToken, hardwareId } = body;
 
-        if (!softwareId || !activationToken || !hardwareId) {
-            return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 });
+        if ((!softwareId && !softwareName) || !activationToken || !hardwareId) {
+            return NextResponse.json({ error: 'Faltan parámetros obligatorios (Software, Token o HardwareID)' }, { status: 400 });
         }
 
         const db = await connectDb();
 
-        // 1. Find the license by token and software
+        // 1. Resolve Software
+        let software: SoftwareProduct | undefined;
+        if (softwareId) {
+            software = db.prepare('SELECT * FROM software_products WHERE id = ?').get(softwareId) as SoftwareProduct | undefined;
+        } else if (softwareName) {
+            software = db.prepare('SELECT * FROM software_products WHERE name = ?').get(softwareName) as SoftwareProduct | undefined;
+        }
+
+        if (!software) {
+            return NextResponse.json({ error: `El software '${softwareName || softwareId}' no está registrado en el sistema.` }, { status: 404 });
+        }
+
+        // 2. Find the license by token and software
         const license = db.prepare(`
             SELECT * FROM licenses 
             WHERE softwareId = ? AND activationToken = ? AND status = 'active'
-        `).get(softwareId, activationToken) as License | undefined;
+        `).get(software.id, activationToken) as License | undefined;
 
         if (!license) {
-            return NextResponse.json({ error: 'Licencia no válida o token inexistente.' }, { status: 404 });
+            return NextResponse.json({ error: 'Licencia no válida o token inexistente para este producto.' }, { status: 404 });
         }
 
-        // 2. CHECK FOR RE-INSTALLATION ON SAME HARDWARE
-        // If the license is already bound to this hardwareId, just return the signed file
+        // 3. CHECK FOR RE-INSTALLATION ON SAME HARDWARE
         if (license.hardwareId === hardwareId && license.licenseKey) {
             return NextResponse.json({
                 success: true,
@@ -42,21 +53,17 @@ export async function POST(req: NextRequest) {
             });
         }
 
-        // 3. CHECK FOR MULTI-PC ATTEMPT
-        // If already bound to DIFFERENT hardware, reject
+        // 4. CHECK FOR MULTI-PC ATTEMPT
         if (license.hardwareId && license.hardwareId !== hardwareId) {
-            return NextResponse.json({ error: 'Esta licencia ya está vinculada a otro equipo. Contacte a soporte técnico para transferirla.' }, { status: 403 });
+            return NextResponse.json({ error: 'Esta licencia ya está vinculada a otro equipo.' }, { status: 403 });
         }
 
-        // 4. Bind hardwareId if not already set (First time activation)
+        // 5. Bind hardwareId if not already set
         if (!license.hardwareId) {
             db.prepare('UPDATE licenses SET hardwareId = ? WHERE id = ?').run(hardwareId, license.id);
         }
 
-        // 5. Get software details for the payload
-        const software = db.prepare('SELECT * FROM software_products WHERE id = ?').get(softwareId) as SoftwareProduct;
-
-        // 6. Generate signed payload with standard structure v2.6
+        // 6. Generate signed payload
         const licenseInfo = {
             softwareId: software.id,
             softwareName: software.name,
@@ -76,7 +83,7 @@ export async function POST(req: NextRequest) {
 
         const signedData = await signLicenseData(licenseInfo);
 
-        // Update stored licenseKey to cache the signed result
+        // Cache signed result
         db.prepare('UPDATE licenses SET licenseKey = ? WHERE id = ?').run(signedData, license.id);
 
         return NextResponse.json({

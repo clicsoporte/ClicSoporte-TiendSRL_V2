@@ -1,7 +1,7 @@
 
 /**
  * @fileoverview Main page for the License Management module.
- * Enhanced for Hybrid Licensing v2.8 (Intelligent 2-Step Protocol & Sync).
+ * Enhanced for Hybrid Licensing v2.9 (Product Identity Protection).
  */
 'use client';
 
@@ -22,7 +22,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SearchInput } from '@/components/ui/search-input';
-import { PlusCircle, MoreVertical, CalendarIcon, Loader2, Trash2, Download, Edit, ShieldCheck, Boxes, Settings2, Info, Code2, Copy, Check, KeyRound } from 'lucide-react';
+import { PlusCircle, MoreVertical, CalendarIcon, Loader2, Trash2, Download, Edit, ShieldCheck, Boxes, Settings2, Info, Code2, Copy, Check, KeyRound, Eye } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
@@ -82,8 +82,6 @@ export async function verifyClientInfo(taxId: string) {
     const result = await res.json();
     
     if (result.exists) {
-        // Autocompletar formulario:
-        // result.data.name (Viene de local o Hacienda)
         return { 
             found: true, 
             data: result.data, 
@@ -96,17 +94,17 @@ export async function verifyClientInfo(taxId: string) {
 import { generateHardwareId } from '@/lib/license-validator';
 
 const SERVER_URL = '${SERVER_URL}';
+const APP_IDENTITY = 'Clic-Turnos'; // DEBE COINCIDIR CON EL NOMBRE EN EL SERVIDOR
 
 /**
- * PASO 2: ACTIVACIÓN (PREMIUM O GRATIS)
+ * PASO 2: ACTIVACIÓN (POR NOMBRE DE PRODUCTO)
  */
 export async function activateSoftware(payload: {
-    softwareId: number,
     taxId: string,
     customerName: string,
     customerEmail: string,
     customerPhone: string,
-    token?: string // Si viene token, es Premium. Si no, es Gratis.
+    token?: string
 }) {
     const hardwareId = await generateHardwareId();
     const endpoint = payload.token ? 'activate' : 'register-free';
@@ -116,6 +114,7 @@ export async function activateSoftware(payload: {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
             ...payload, 
+            softwareName: APP_IDENTITY, // Identificación estable
             hardwareId,
             activationToken: payload.token 
         })
@@ -123,42 +122,48 @@ export async function activateSoftware(payload: {
 
     const result = await res.json();
     if (!res.ok) throw new Error(result.error);
-    return result.license_file; // Guardar el JSON devuelto en un archivo local
+    return result.license_file;
 }`,
         logic: `/**
- * PASO 3: LÓGICA DE UI (PROTECCIÓN DE DATOS)
+ * PASO 3: LÓGICA DE UI
  */
 async function onTaxIdBlur(id) {
     const info = await verifyClientInfo(id);
     if (info.found) {
         setFormName(info.data.name);
-        setFieldNameDisabled(true); // Bloquear nombre oficial
+        setFieldNameDisabled(true); 
         
         if (info.isLocal) {
-            // SI YA EXISTE: NO PEDIR NI PERMITIR ENVIAR CORREO/TELÉFONO
-            // Se asume que el servidor usará sus datos maestros.
             setShowContactFields(false); 
         } else {
-            // SI ES NUEVO (HACIENDA): PEDIR CONTACTO MANUAL
             setShowContactFields(true);
         }
     }
 }`,
         validation: `/**
- * PASO 4: VALIDACIÓN CRIPTOGRÁFICA (OFFLINE)
+ * PASO 4: VALIDACIÓN CRIPTOGRÁFICA Y DE IDENTIDAD
  */
 import crypto from 'crypto';
+
+const MY_PRODUCT_NAME = 'Clic-Turnos'; // IDENTIDAD DEL SOFTWARE
 
 export function validateLicense(licenseFileJson, publicKeyPem, currentHardwareId) {
     const { license_info, signature } = JSON.parse(licenseFileJson);
     
+    // A. Verificar Firma (Integridad)
     const verifier = crypto.createVerify('RSA-SHA256');
     const message = JSON.stringify(license_info, Object.keys(license_info).sort());
     verifier.update(message);
+    const isSignatureValid = verifier.verify(publicKeyPem, signature, 'hex');
     
-    const isValid = verifier.verify(publicKeyPem, signature, 'hex');
-    if (!isValid) throw new Error("Firma digital inválida.");
+    if (!isSignatureValid) throw new Error("Firma inválida. El archivo fue alterado.");
 
+    // B. Verificar Identidad del Producto (Evita Impersonación)
+    if (license_info.softwareName !== MY_PRODUCT_NAME) {
+        throw new Error("Esta licencia pertenece a otro producto.");
+    }
+
+    // C. Verificar Hardware (Evita Copia)
     if (license_info.hardwareId !== currentHardwareId) {
         throw new Error("Hardware ID no coincide.");
     }
@@ -166,25 +171,22 @@ export function validateLicense(licenseFileJson, publicKeyPem, currentHardwareId
     return license_info;
 }`,
         sync: `/**
- * PASO 5: SINCRONIZACIÓN (FORZAR VALIDACIÓN)
- * Útil para reactivar software después de renovar en el servidor.
- * Se llama a la misma función del Paso 2.
+ * PASO 5: SINCRONIZACIÓN
  */
 async function onSyncButtonClick() {
     try {
         const updatedFile = await activateSoftware({
-            softwareId: currentSoftwareId,
             taxId: currentTaxId,
-            token: currentToken, // Omitir si es versión gratis
+            token: currentToken, 
             customerName: currentName,
-            customerEmail: '', // No necesario si ya existe
+            customerEmail: '',
             customerPhone: ''
         });
         
         saveLocalLicense(updatedFile);
-        alert("Sincronización exitosa. Licencia actualizada.");
+        alert("Sincronización exitosa.");
     } catch (e) {
-        alert("Error al sincronizar: " + e.message);
+        alert("Error: " + e.message);
     }
 }`
     };
@@ -424,10 +426,10 @@ async function onSyncButtonClick() {
                         <DialogHeader className="p-6 pb-2 border-b">
                             <div className="flex items-center gap-2">
                                 <Code2 className="h-5 w-5 text-primary" />
-                                <DialogTitle>Kit de Integración (SDK Estándar v2.8)</DialogTitle>
+                                <DialogTitle>Kit de Integración (SDK Estándar v2.9)</DialogTitle>
                             </div>
                             <DialogDescription>
-                                Implementa el refresco automático para reactivar software renovado en el servidor sin soporte manual.
+                                Implementa validación de identidad del producto para evitar el uso cruzado de licencias entre diferentes programas.
                             </DialogDescription>
                         </DialogHeader>
                         
