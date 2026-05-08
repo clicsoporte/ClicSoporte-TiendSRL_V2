@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Lógica de autenticación del servidor.
  */
@@ -6,7 +5,7 @@
 
 import { cookies } from 'next/headers';
 import { connectDb, getUnreadSuggestionsCount } from './db';
-import type { User, ExchangeRateApiResponse, Company, Contract, Role, Customer } from '../types';
+import type { User, ExchangeRateApiResponse, Company, Contract, Role, SoftwareProduct } from '../types';
 import bcrypt from 'bcryptjs';
 import { logInfo, logWarn, logError } from './logger';
 import { SESSION_COOKIE, SALT_ROUNDS, SESSION_DURATION } from './auth-constants';
@@ -231,13 +230,13 @@ export async function getInitialAuthData() {
 
         // 3. Consolidar consumo por jerarquía (Pool Global)
         const poolMap = new Map<string, number>(); // Root ID -> totalMs
-        customersData.forEach((c: Customer) => {
+        customersData.forEach((c: any) => {
             const raw = rawConsumptionMap.get(c.id) || 0;
             const rootId = c.parentCustomerId || c.id;
             poolMap.set(rootId, (poolMap.get(rootId) || 0) + raw);
         });
 
-        const enrichedCustomers = customersData.map((customer: Customer) => {
+        const enrichedCustomers = customersData.map((customer: any) => {
             const rootId = customer.parentCustomerId || customer.id;
             
             // Consumo individual para la fila
@@ -248,7 +247,7 @@ export async function getInitialAuthData() {
             let availableHours = contractMap.get(ownerId) || 0;
             
             if (availableHours === 0) {
-                const owner = customersData.find(x => x.id === ownerId);
+                const owner = customersData.find((x: any) => x.id === ownerId);
                 if (owner?.supportPackageId) {
                     const pkg = companySettings.supportPackages.find(p => p.id === owner.supportPackageId);
                     availableHours = pkg?.defaultHours || 0;
@@ -265,6 +264,9 @@ export async function getInitialAuthData() {
                 availableHours: availableHours
             };
         });
+
+        // 4. Fetch software products
+        const softwareProducts = db.prepare('SELECT * FROM software_products ORDER BY name').all() as SoftwareProduct[];
 
         const rateData: { rate: number | null; date: string | null } = { rate: null, date: null };
         const erRes = exchangeRate as ExchangeRateApiResponse | null;
@@ -283,6 +285,7 @@ export async function getInitialAuthData() {
             exchangeRate: rateData, 
             unreadSuggestions, 
             users, 
+            softwareProducts,
             exemptionLaws: [] 
         }));
     } catch (error: unknown) {
@@ -290,7 +293,7 @@ export async function getInitialAuthData() {
         console.error("Error crítico en getInitialAuthData:", err.message);
         return {
             roles: [], companySettings: {} as Company, customers: [], products: [], stock: [], exemptions: [],
-            exchangeRate: { rate: null, date: null }, unreadSuggestions: 0, users: [], exemptionLaws: []
+            exchangeRate: { rate: null, date: null }, unreadSuggestions: 0, users: [], softwareProducts: [], exemptionLaws: []
         };
     }
 }

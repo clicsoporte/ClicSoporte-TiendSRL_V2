@@ -1,16 +1,15 @@
-'use client';
-
 /**
  * @fileoverview Management UI for Dynamic Marketing Campaigns (v3.1).
  * Features campaign expiration and improved preview.
  */
+'use client';
 
 import { useState, useEffect } from 'react';
 import { usePageTitle } from '@/modules/core/hooks/usePageTitle';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { useAuth } from '@/modules/core/hooks/useAuth';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,12 +20,13 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { PlusCircle, Megaphone, Trash2, Edit, Loader2, Link as LinkIcon, Image as ImageIcon, Users, Calendar, AlertCircle } from 'lucide-react';
 import { getAllAds, saveAd, deleteAd } from '@/modules/marketing/lib/actions';
-import type { MarketingAd } from '@/modules/core/types';
+import type { MarketingAd, SoftwareProduct } from '@/modules/core/types';
 import { Badge } from '@/components/ui/badge';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { format, isPast, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { Textarea } from '@/components/ui/textarea';
 
 const emptyAd: Partial<MarketingAd> = {
     softwareId: 0,
@@ -142,7 +142,7 @@ export default function MarketingClient() {
                         </TableHeader>
                         <TableBody>
                             {ads.map(ad => {
-                                const software = softwareProducts.find(p => p.id === ad.softwareId);
+                                const software = softwareProducts.find((p: SoftwareProduct) => p.id === ad.softwareId);
                                 const isExpired = ad.expiresAt && isPast(parseISO(ad.expiresAt));
                                 
                                 return (
@@ -208,7 +208,7 @@ export default function MarketingClient() {
                                 <Select value={String(currentAd.softwareId)} onValueChange={v => setCurrentAd({...currentAd, softwareId: Number(v)})}>
                                     <SelectTrigger><SelectValue placeholder="Seleccione..."/></SelectTrigger>
                                     <SelectContent>
-                                        {softwareProducts.map(p => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}
+                                        {softwareProducts.map((p: SoftwareProduct) => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -247,7 +247,7 @@ export default function MarketingClient() {
                         <div className="space-y-4">
                             <div className="space-y-2">
                                 <Label>Descripción Destacada (Máx 30 palabras)</Label>
-                                <Textarea value={currentAd.description} onChange={e => setCurrentAd({...currentAd, description: e.target.value})} placeholder="Ej: ¡Nuevo tóner compatible disponible!..." rows={3} />
+                                <Textarea value={currentAd.description} onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCurrentAd({...currentAd, description: e.target.value})} placeholder="Ej: ¡Nuevo tóner compatible disponible!..." rows={3} />
                             </div>
                             <div className="space-y-2">
                                 <Label>Texto de Precio / Oferta</Label>

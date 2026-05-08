@@ -4,7 +4,7 @@
 'use client';
 
 import React, { createContext, useState, useContext, ReactNode, FC, useEffect, useCallback } from "react";
-import type { User, Role, Company, Product, Customer, StockInfo, Exemption, ExemptionLaw, Notification } from "../types";
+import type { User, Role, Company, Product, Customer, StockInfo, Exemption, ExemptionLaw, Notification, SoftwareProduct } from "../types";
 import { getCurrentUser, logout as logoutServer } from '../lib/auth-client';
 import { getInitialAuthData } from '../lib/auth';
 import { getNotifications, markNotificationsAsRead } from "@/modules/notifications/lib/db";
@@ -20,6 +20,7 @@ interface AuthContextType {
   customers: Customer[];
   products: Product[];
   users: User[];
+  softwareProducts: SoftwareProduct[];
   stockLevels: StockInfo[];
   allExemptions: Exemption[];
   exemptionLaws: ExemptionLaw[];
@@ -47,6 +48,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [softwareProducts, setSoftwareProducts] = useState<SoftwareProduct[]>([]);
   const [stockLevels, setStockLevels] = useState<StockInfo[]>([]);
   const [allExemptions, setAllExemptions] = useState<Exemption[]>([]);
   const [exemptionLaws, setExemptionLaws] = useState<ExemptionLaw[]>([]);
@@ -78,6 +80,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
       setCustomers(data.customers);
       setProducts(data.products);
       setUsers(data.users);
+      setSoftwareProducts(data.softwareProducts || []);
       setStockLevels(data.stock);
       setAllExemptions(data.exemptions);
       setExemptionLaws(data.exemptionLaws);
@@ -139,6 +142,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     customers,
     products,
     users,
+    softwareProducts,
     stockLevels,
     allExemptions,
     exemptionLaws,

@@ -19,7 +19,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/group-radio"; // Note: RadioGroup components fixed here
 
 export default function PlannerSettingsPage() {
     const { isAuthorized } = useAuthorization(['admin:settings:planner']);
@@ -53,17 +53,17 @@ export default function PlannerSettingsPage() {
             toast({ title: "Datos incompletos", description: "El ID y el Nombre de la asignación son requeridos.", variant: "destructive" });
             return;
         }
-        if (settings.assignments.some(m => m.id === newAssignment.id)) {
+        if (settings.assignments.some((m: { id: string }) => m.id === newAssignment.id)) {
             toast({ title: "ID Duplicado", description: "Ya existe una asignación con ese ID.", variant: "destructive" });
             return;
         }
-        setSettings(prev => prev ? { ...prev, assignments: [...prev.assignments, newAssignment] } : null);
+        setSettings((prev: PlannerSettings | null) => prev ? { ...prev, assignments: [...prev.assignments, newAssignment] } : null);
         setNewAssignment({ id: "", name: "" });
     };
 
     const handleDeleteAssignment = (id: string) => {
         if (!settings) return;
-        setSettings(prev => prev ? { ...prev, assignments: prev.assignments.filter(m => m.id !== id) } : null);
+        setSettings((prev: PlannerSettings | null) => prev ? { ...prev, assignments: prev.assignments.filter((m: { id: string }) => m.id !== id) } : null);
         toast({ title: "Asignación Eliminada", description: "La asignación ha sido eliminada. Guarda los cambios para confirmar.", variant: "destructive"});
     };
 
@@ -113,7 +113,7 @@ export default function PlannerSettingsPage() {
                                 <Input
                                     id="projectPrefix"
                                     value={settings.projectPrefix || ''}
-                                    onChange={(e) => setSettings(prev => prev ? { ...prev, projectPrefix: e.target.value } : null)}
+                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSettings((prev: PlannerSettings | null) => prev ? { ...prev, projectPrefix: e.target.value } : null)}
                                 />
                             </div>
                             <div className="space-y-2">
@@ -122,7 +122,7 @@ export default function PlannerSettingsPage() {
                                     id="nextProjectNumber"
                                     type="number"
                                     value={settings.nextProjectNumber || 1}
-                                    onChange={(e) => setSettings(prev => prev ? { ...prev, nextProjectNumber: Number(e.target.value) } : null)}
+                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSettings((prev: PlannerSettings | null) => prev ? { ...prev, nextProjectNumber: Number(e.target.value) } : null)}
                                 />
                             </div>
                             <div className="space-y-2">
@@ -130,7 +130,7 @@ export default function PlannerSettingsPage() {
                                 <Input
                                     id="assignment-label"
                                     value={settings.assignmentLabel}
-                                    onChange={(e) => setSettings(prev => prev ? { ...prev, assignmentLabel: e.target.value } : null)}
+                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSettings((prev: PlannerSettings | null) => prev ? { ...prev, assignmentLabel: e.target.value } : null)}
                                 />
                                 <p className="text-sm text-muted-foreground">
                                     Cambia el texto que se muestra para la asignación (ej: &quot;Técnico&quot;, &quot;Recurso&quot;, &quot;Encargado&quot;).
@@ -143,7 +143,7 @@ export default function PlannerSettingsPage() {
                                 <Switch
                                     id="show-customer-tax-id"
                                     checked={settings.showCustomerTaxId}
-                                    onCheckedChange={(checked) => setSettings(prev => prev ? { ...prev, showCustomerTaxId: checked } : null)}
+                                    onCheckedChange={(checked: boolean) => setSettings((prev: PlannerSettings | null) => prev ? { ...prev, showCustomerTaxId: checked } : null)}
                                 />
                                 <Label htmlFor="show-customer-tax-id">Mostrar cédula junto al nombre del cliente</Label>
                             </div>
@@ -151,7 +151,7 @@ export default function PlannerSettingsPage() {
                                 <Switch
                                     id="require-assignment"
                                     checked={settings.requireAssignmentForStart}
-                                    onCheckedChange={(checked) => setSettings(prev => prev ? { ...prev, requireAssignmentForStart: checked } : null)}
+                                    onCheckedChange={(checked: boolean) => setSettings((prev: PlannerSettings | null) => prev ? { ...prev, requireAssignmentForStart: checked } : null)}
                                 />
                                 <Label htmlFor="require-assignment">Requerir asignación para iniciar el proyecto</Label>
                             </div>
@@ -169,7 +169,7 @@ export default function PlannerSettingsPage() {
                                 <CardDescription className="mb-4">Añade o elimina las opciones de asignación disponibles.</CardDescription>
                                 <div className="space-y-4">
                                     <div className="max-h-60 overflow-y-auto pr-2 space-y-2">
-                                        {settings.assignments && settings.assignments.map(assignment => (
+                                        {settings.assignments && settings.assignments.map((assignment: { id: string; name: string }) => (
                                             <div key={assignment.id} className="flex items-center justify-between rounded-lg border p-3">
                                                 <div>
                                                     <p className="font-medium">{assignment.name}</p>
@@ -185,11 +185,11 @@ export default function PlannerSettingsPage() {
                                     <div className="flex items-end gap-2 pt-2">
                                         <div className="grid flex-1 gap-2">
                                             <Label htmlFor="assignment-id">ID de Asignación</Label>
-                                            <Input id="assignment-id" value={newAssignment.id} onChange={(e) => setNewAssignment(prev => ({ ...prev, id: e.target.value }))} placeholder="Ej: JUG" />
+                                            <Input id="assignment-id" value={newAssignment.id} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewAssignment(prev => ({ ...prev, id: e.target.value }))} placeholder="Ej: JUG" />
                                         </div>
                                         <div className="grid flex-1 gap-2">
                                             <Label htmlFor="assignment-name">Nombre de Asignación</Label>
-                                            <Input id="assignment-name" value={newAssignment.name} onChange={(e) => setNewAssignment(prev => ({ ...prev, name: e.target.value }))} placeholder="Ej: Jonathan Ugalde" />
+                                            <Input id="assignment-name" value={newAssignment.name} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewAssignment(prev => ({ ...prev, name: e.target.value }))} placeholder="Ej: Jonathan Ugalde" />
                                         </div>
                                         <Button size="icon" onClick={handleAddAssignment}>
                                             <PlusCircle className="h-4 w-4" />
@@ -212,7 +212,7 @@ export default function PlannerSettingsPage() {
                                         <Input
                                             id="pdf-top-legend"
                                             value={settings.pdfTopLegend || ''}
-                                            onChange={(e) => setSettings(prev => prev ? { ...prev, pdfTopLegend: e.target.value } : null)}
+                                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSettings((prev: PlannerSettings | null) => prev ? { ...prev, pdfTopLegend: e.target.value } : null)}
                                         />
                                     </div>
                                     <div className="grid grid-cols-2 gap-6">
@@ -220,7 +220,7 @@ export default function PlannerSettingsPage() {
                                             <Label>Tamaño del Papel</Label>
                                             <RadioGroup
                                                 value={settings.pdfPaperSize}
-                                                onValueChange={(value) => setSettings(prev => prev ? { ...prev, pdfPaperSize: value as 'letter' | 'legal' } : null)}
+                                                onValueChange={(value: string) => setSettings((prev: PlannerSettings | null) => prev ? { ...prev, pdfPaperSize: value as 'letter' | 'legal' } : null)}
                                                 className="flex items-center gap-4"
                                             >
                                                 <div className="flex items-center space-x-2">

@@ -455,6 +455,17 @@ export type ProjectItem = {
     type: 'material' | 'service';
 };
 
+export type PlannerSettings = {
+    projectPrefix: string;
+    nextProjectNumber: number;
+    assignmentLabel: string;
+    showCustomerTaxId: boolean;
+    requireAssignmentForStart: boolean;
+    pdfTopLegend: string;
+    pdfPaperSize: 'letter' | 'legal';
+    assignments: { id: string; name: string }[];
+};
+
 export type { DateRange };
 
 // --- Stock Management Types ---
