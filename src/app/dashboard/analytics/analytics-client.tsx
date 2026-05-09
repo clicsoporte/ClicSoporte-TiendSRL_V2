@@ -319,10 +319,20 @@ export default function AnalyticsClient() {
                                 <CardContent className="h-[300px]">
                                     <ResponsiveContainer width="100%" height="100%">
                                         <PieChart>
-                                            <Pie data={state.kpis?.byTopic || []} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value" nameKey="label" label={({ label }) => label}>
+                                            <Pie 
+                                                data={state.kpis?.byTopic || []} 
+                                                cx="50%" 
+                                                cy="50%" 
+                                                innerRadius={60} 
+                                                outerRadius={80} 
+                                                paddingAngle={5} 
+                                                dataKey="value" 
+                                                nameKey="label"
+                                            >
                                                 {(state.kpis?.byTopic || []).map((_entry, index: number) => (<Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />))}
                                             </Pie>
                                             <Tooltip />
+                                            <Legend layout="horizontal" verticalAlign="bottom" align="center" wrapperStyle={{ fontSize: '10px', paddingTop: '10px' }} />
                                         </PieChart>
                                     </ResponsiveContainer>
                                 </CardContent>
