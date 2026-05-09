@@ -21,7 +21,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SearchInput } from '@/components/ui/search-input';
-import { PlusCircle, MoreVertical, CalendarIcon, Loader2, Trash2, Download, Edit, ShieldCheck, Boxes, Settings2, Info, Code2, Copy, Check, KeyRound } from 'lucide-react';
+import { PlusCircle, MoreVertical, CalendarIcon, Loader2, Trash2, Download, Edit, ShieldCheck, Boxes, Settings2, Info, Code2, Copy, Check } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
@@ -42,7 +42,7 @@ export default function LicensesPage() {
         : null;
     
     const handleCopy = (text: string, section: string) => {
-        navigator.clipboard.set(text);
+        navigator.clipboard.writeText(text);
         setCopiedSection(section);
         setTimeout(() => setCopiedSection(null), 2000);
     };
@@ -406,7 +406,7 @@ const handleSyncLicense = async () => {
                                                             </div>
                                                         ) : (
                                                             <div className="flex flex-col items-center justify-center h-full text-center p-10 border-2 border-dashed rounded-2xl opacity-40">
-                                                                <KeyRound className="h-20 w-20 mb-4" />
+                                                                <ShieldCheck className="h-20 w-20 mb-4" />
                                                                 <p className="text-sm font-bold">Licencia de Tercero</p>
                                                             </div>
                                                         )}
