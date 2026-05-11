@@ -11,9 +11,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogClose, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { PlusCircle, Search, Edit, Trash2, Loader2, UserPlus, Building2, Mail, Phone, Briefcase, SearchIcon, CheckCircle2, AlertCircle, MapPin, ShieldCheck, RefreshCw, Users, MessageCircle, X, ShieldAlert, BellRing, GitFork } from 'lucide-react';
+import { PlusCircle, Search, Edit, Trash2, Loader2, UserPlus, Building2, Mail, Phone, Briefcase, SearchIcon, CheckCircle2, AlertCircle, MapPin, ShieldCheck, RefreshCw, Users, MessageCircle, X, ShieldAlert, BellRing, GitFork, UserCheck, Star } from 'lucide-react';
 import { useToast } from '@/modules/core/hooks/use-toast';
-import { upsertCustomer, deleteCustomer } from '@/modules/core/lib/data-access-db';
+import { upsertCustomer, deleteCustomer, promoteLead } from '@/modules/core/lib/data-access-db';
 import { getContributorInfo } from '@/modules/hacienda/lib/actions';
 import { getCRGeoData } from '@/modules/tickets/lib/actions';
 import type { Customer, CustomerContact, HaciendaContributorInfo, Province, Canton, District } from '@/modules/core/types';
@@ -25,6 +25,7 @@ import { cn } from '@/lib/utils';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const emptyContact: CustomerContact = {
     id: '',
@@ -64,7 +65,8 @@ const emptyCustomer: Customer = {
     isBlocked: false,
     blockedReason: '',
     notifyTickets: true,
-    notifyLicenses: true
+    notifyLicenses: true,
+    isLead: false
 };
 
 export default function CustomersClient() {
@@ -80,12 +82,11 @@ export default function CustomersClient() {
     const [isHaciendaLoading, setIsHaciendaLoading] = useState(false);
     const [currentCustomer, setCurrentCustomer] = useState<Customer>(emptyCustomer);
     const [isEditing, setIsEditing] = useState(false);
+    const [activeTab, setActiveTab] = useState<'masters' | 'leads'>('masters');
     
-    // Contact editing state
     const [newContact, setNewContact] = useState<CustomerContact>(emptyContact);
     const [editingContactId, setEditingContactId] = useState<string | null>(null);
 
-    // View Contacts state
     const [viewingCustomer, setViewingCustomer] = useState<Customer | null>(null);
     const [isContactsViewOpen, setContactsViewOpen] = useState(false);
 
@@ -136,19 +137,19 @@ export default function CustomersClient() {
     }, [currentCustomer.taxId, isEditing, toast, companyData?.searchDebounceTime]);
 
     const filteredCustomers = useMemo(() => {
-        if (!searchTerm) return customers;
+        const baseList = (customers || []).filter(c => activeTab === 'leads' ? c.isLead : !c.isLead);
+        if (!searchTerm) return baseList;
         const lowerSearch = searchTerm.toLowerCase();
-        return (customers || []).filter(c => 
+        return baseList.filter(c => 
             c.name.toLowerCase().includes(lowerSearch) || 
             (c.commercialName || "").toLowerCase().includes(lowerSearch) ||
             c.id.toLowerCase().includes(lowerSearch) ||
             c.taxId.includes(lowerSearch)
         );
-    }, [customers, searchTerm]);
+    }, [customers, searchTerm, activeTab]);
 
-    // Parent candidate options: Companies that are NOT currently children of others
     const parentCandidates = useMemo(() => {
-        return (customers || []).filter(c => !c.parentCustomerId && c.id !== currentCustomer.id);
+        return (customers || []).filter(c => !c.parentCustomerId && c.id !== currentCustomer.id && !c.isLead);
     }, [customers, currentCustomer.id]);
 
     const cantonsForProvince = useMemo(() => geoData.cantons.filter(c => c.provinceId === currentCustomer.provinceId), [geoData.cantons, currentCustomer.provinceId]);
@@ -208,10 +209,25 @@ export default function CustomersClient() {
             isBlocked: !!customer.isBlocked,
             blockedReason: customer.blockedReason || '',
             notifyTickets: customer.notifyTickets !== false,
-            notifyLicenses: customer.notifyLicenses !== false
+            notifyLicenses: customer.notifyLicenses !== false,
+            isLead: !!customer.isLead
         });
         setIsEditing(true);
         setFormOpen(true);
+    };
+
+    const handlePromote = async (id: string) => {
+        if (!hasPermission('customers:update')) return;
+        setIsSubmitting(true);
+        try {
+            await promoteLead(id);
+            toast({ title: "Promoción Exitosa", description: "El prospecto ahora es Cliente Premium Maestro." });
+            await refreshAuth();
+        } catch (error: unknown) {
+            toast({ title: "Error", description: (error as Error).message, variant: "destructive" });
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     const handleViewContacts = (customer: Customer) => {
@@ -693,159 +709,146 @@ export default function CustomersClient() {
                 </div>
             </div>
 
-            <Card>
-                <CardHeader>
-                    <div className="flex items-center relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input 
-                            placeholder="Buscar por nombre, comercial, código o cédula..." 
-                            className="pl-9"
-                            value={searchTerm}
-                            onChange={e => setSearchTerm(e.target.value)}
-                        />
-                    </div>
-                </CardHeader>
-                <CardContent>
-                    <div className="rounded-md border">
-                        <Table>
-                            <TableHeader>
-                                <TableRow className="bg-muted/50">
-                                    <TableHead className="w-[80px]">Código</TableHead>
-                                    <TableHead>Cliente / Comercial</TableHead>
-                                    <TableHead>Cédula</TableHead>
-                                    <TableHead>Plan de Soporte</TableHead>
-                                    <TableHead className="text-center">Hrs. Mes</TableHead>
-                                    <TableHead className="text-center">Consumido</TableHead>
-                                    <TableHead className="text-center">Saldo</TableHead>
-                                    <TableHead>Estado</TableHead>
-                                    <TableHead className="text-center">Contactos</TableHead>
-                                    <TableHead className="text-right">Acciones</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {filteredCustomers.length > 0 ? (
-                                    filteredCustomers.map(customer => {
-                                        const pkg = companyData?.supportPackages.find(p => p.id === customer.supportPackageId);
-                                        const consumed = customer.consumedHours || 0;
-                                        const available = customer.availableHours || 0;
-                                        
-                                        // Use consolidated pool for balance if it's a hierarchy participant
-                                        const poolConsumed = (customer as Customer & { poolConsumedHours?: number }).poolConsumedHours || consumed;
-                                        const balance = available - poolConsumed;
-                                        const percentageUsed = available > 0 ? (poolConsumed / available) * 100 : 0;
-                                        
-                                        const contactCount = (customer.contacts || []).length;
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
+                <TabsList className="bg-muted p-1">
+                    <TabsTrigger value="masters" className="flex items-center gap-2">
+                        <Star className="h-4 w-4" /> Clientes Maestro
+                    </TabsTrigger>
+                    <TabsTrigger value="leads" className="flex items-center gap-2">
+                        <Users className="h-4 w-4" /> Prospectos Gratis (Leads)
+                    </TabsTrigger>
+                </TabsList>
 
-                                        return (
-                                            <TableRow key={customer.id} className={cn(customer.isBlocked && "bg-destructive/5", customer.parentCustomerId && "bg-blue-50/20")}>
-                                                <TableCell className="font-mono text-xs">{customer.id}</TableCell>
-                                                <TableCell>
-                                                    <div className="flex flex-col">
-                                                        <span className="font-bold text-sm">{customer.name}</span>
-                                                        {customer.commercialName && (
-                                                            <span className="text-[10px] text-primary font-black uppercase tracking-tighter">★ {customer.commercialName}</span>
-                                                        )}
-                                                        {customer.parentCustomerId && (
-                                                            <span className="text-[9px] text-blue-600 font-bold flex items-center gap-1 mt-0.5">
-                                                                <GitFork className="h-2 w-2" /> Hijo de: {customer.parentCustomerId}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="text-xs">{customer.taxId}</TableCell>
-                                                <TableCell>
-                                                    {pkg ? (
-                                                        <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-[10px]">
-                                                            <ShieldCheck className="h-3 w-3 mr-1" /> {pkg.name}
-                                                        </Badge>
-                                                    ) : (
-                                                        <span className="text-[10px] text-muted-foreground italic">Soporte por Evento</span>
-                                                    )}
-                                                </TableCell>
-                                                <TableCell className="text-center font-mono font-bold text-xs">{available > 0 ? `${available}h` : '-'}</TableCell>
-                                                <TableCell className="text-center">
-                                                    <div className="flex flex-col items-center">
-                                                        <span className={cn("font-mono text-xs", consumed > 0 ? "font-bold" : "text-muted-foreground")} title="Uso individual">
-                                                            {consumed.toFixed(1)}h
-                                                        </span>
-                                                        {available > 0 && (
-                                                            <div className="w-12 h-1 bg-muted rounded-full mt-1 overflow-hidden" title={`Uso del grupo: ${poolConsumed.toFixed(1)}h`}>
-                                                                <div 
-                                                                    className={cn("h-full", percentageUsed > 90 ? "bg-red-500" : percentageUsed > 70 ? "bg-orange-500" : "bg-green-500")} 
-                                                                    style={{ width: `${Math.min(percentageUsed, 100)}%` }} 
-                                                                />
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="text-center">
-                                                    {available > 0 ? (
-                                                        <Badge variant={balance < 0 ? "destructive" : "secondary"} className={cn("text-[10px] h-5", balance > 0 && "bg-green-50 text-green-700 border-green-200")}>
-                                                            {balance.toFixed(1)}h
-                                                        </Badge>
-                                                    ) : '-'}
-                                                </TableCell>
-                                                <TableCell>
-                                                    {customer.isBlocked ? (
-                                                        <Badge variant="destructive" className="text-[10px] h-5 uppercase font-black" title={customer.blockedReason || 'Cliente Bloqueado'}>
-                                                            BLOQUEADO
-                                                        </Badge>
-                                                    ) : (
-                                                        <Badge variant={customer.active === 'S' ? 'default' : 'secondary'} className="text-[10px] h-5 uppercase">
-                                                            {customer.active === 'S' ? 'ACTIVO' : 'INACTIVO'}
-                                                        </Badge>
-                                                    )}
-                                                </TableCell>
-                                                <TableCell className="text-center">
-                                                    {canViewContacts ? (
-                                                        <Button 
-                                                            variant="ghost" 
-                                                            size="sm" 
-                                                            className={cn("h-8 px-2 gap-1.5", contactCount > 0 ? "text-primary" : "text-muted-foreground opacity-50")}
-                                                            onClick={() => handleViewContacts(customer)}
-                                                        >
-                                                            <Users className="h-4 w-4" />
-                                                            <span className="text-xs font-bold">{contactCount}</span>
-                                                        </Button>
-                                                    ) : '-'}
-                                                </TableCell>
-                                                <TableCell className="text-right">
-                                                    <div className="flex justify-end gap-1">
-                                                        {hasPermission('customers:update') && (
-                                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(customer)}><Edit className="h-4 w-4" /></Button>
-                                                        )}
-                                                        {hasPermission('customers:delete') && (
-                                                            <AlertDialog>
-                                                                <AlertDialogTrigger asChild>
-                                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive"><Trash2 className="h-4 w-4" /></Button>
-                                                                </AlertDialogTrigger>
-                                                                <AlertDialogContent>
-                                                                    <AlertDialogHeader>
-                                                                        <AlertDialogTitle>¿Eliminar cliente?</AlertDialogTitle>
-                                                                        <AlertDialogDescription>Esta acción borrará permanentemente a <strong>{customer.name}</strong>.</AlertDialogDescription>
-                                                                    </AlertDialogHeader>
-                                                                    <AlertDialogFooter>
-                                                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                                        <AlertDialogAction onClick={() => handleDelete(customer.id)} className="bg-destructive text-destructive-foreground">Eliminar</AlertDialogAction>
-                                                                    </AlertDialogFooter>
-                                                                </AlertDialogContent>
-                                                            </AlertDialog>
-                                                        )}
-                                                    </div>
-                                                </TableCell>
-                                            </TableRow>
-                                        );
-                                    })
-                                ) : (
-                                    <TableRow>
-                                        <TableCell colSpan={10} className="h-24 text-center">No se encontraron clientes.</TableCell>
+                <Card className="mt-4">
+                    <CardHeader>
+                        <div className="flex items-center relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input 
+                                placeholder={activeTab === 'masters' ? "Buscar en cartera oficial..." : "Buscar prospectos gratuitos..."}
+                                className="pl-9"
+                                value={searchTerm}
+                                onChange={e => setSearchTerm(e.target.value)}
+                            />
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="rounded-md border">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow className="bg-muted/50 text-[11px] uppercase font-bold">
+                                        <TableHead className="w-[80px]">Código</TableHead>
+                                        <TableHead>Cliente / Comercial</TableHead>
+                                        <TableHead>Cédula</TableHead>
+                                        <TableHead>Estado Tributario</TableHead>
+                                        {activeTab === 'masters' && (
+                                            <>
+                                                <TableHead>Plan</TableHead>
+                                                <TableHead className="text-center">Saldo</TableHead>
+                                            </>
+                                        )}
+                                        <TableHead className="text-center">Contactos</TableHead>
+                                        <TableHead className="text-right">Acciones</TableHead>
                                     </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
-                    </div>
-                </CardContent>
-            </Card>
+                                </TableHeader>
+                                <TableBody>
+                                    {filteredCustomers.length > 0 ? (
+                                        filteredCustomers.map(customer => {
+                                            const pkg = companyData?.supportPackages.find(p => p.id === customer.supportPackageId);
+                                            const consumed = customer.consumedHours || 0;
+                                            const available = customer.availableHours || 0;
+                                            const poolConsumed = (customer as any).poolConsumedHours || consumed;
+                                            const balance = available - poolConsumed;
+                                            const contactCount = (customer.contacts || []).length;
+
+                                            return (
+                                                <TableRow key={customer.id} className={cn(customer.isBlocked && "bg-destructive/5", customer.parentCustomerId && "bg-blue-50/20")}>
+                                                    <TableCell className="font-mono text-xs">{customer.id}</TableCell>
+                                                    <TableCell>
+                                                        <div className="flex flex-col">
+                                                            <span className="font-bold text-sm">{customer.name}</span>
+                                                            {customer.commercialName && (
+                                                                <span className="text-[10px] text-primary font-black uppercase tracking-tighter">★ {customer.commercialName}</span>
+                                                            )}
+                                                            {customer.parentCustomerId && (
+                                                                <span className="text-[9px] text-blue-600 font-bold flex items-center gap-1 mt-0.5">
+                                                                    <GitFork className="h-2 w-2" /> Hijo de: {customer.parentCustomerId}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell className="text-xs">{customer.taxId}</TableCell>
+                                                    <TableCell>
+                                                        <Badge variant={customer.taxStatus?.toLowerCase().includes('inscrito') ? 'default' : 'outline'} className="text-[9px] h-4 uppercase">
+                                                            {customer.taxStatus || 'N/A'}
+                                                        </Badge>
+                                                    </TableCell>
+                                                    {activeTab === 'masters' && (
+                                                        <>
+                                                            <TableCell>
+                                                                {pkg ? <Badge variant="outline" className="text-[9px] border-blue-200 text-blue-700 bg-blue-50">{pkg.name}</Badge> : <span className="text-[10px] text-muted-foreground italic">Evento</span>}
+                                                            </TableCell>
+                                                            <TableCell className="text-center">
+                                                                {available > 0 ? (
+                                                                    <Badge variant={balance < 0 ? "destructive" : "secondary"} className={cn("text-[10px] h-5", balance > 0 && "bg-green-50 text-green-700")}>
+                                                                        {balance.toFixed(1)}h
+                                                                    </Badge>
+                                                                ) : '-'}
+                                                            </TableCell>
+                                                        </>
+                                                    )}
+                                                    <TableCell className="text-center">
+                                                        {canViewContacts ? (
+                                                            <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => handleViewContacts(customer)}>
+                                                                <Users className="h-3.5 w-3.5 mr-1" />
+                                                                <span className="text-xs font-bold">{contactCount}</span>
+                                                            </Button>
+                                                        ) : '-'}
+                                                    </TableCell>
+                                                    <TableCell className="text-right">
+                                                        <div className="flex justify-end gap-1">
+                                                            {activeTab === 'leads' && hasPermission('customers:update') && (
+                                                                <Button variant="outline" size="sm" className="h-8 text-[10px] font-black uppercase bg-primary text-primary-foreground hover:bg-primary/90 border-none" onClick={() => handlePromote(customer.id)}>
+                                                                    Promover de Prospecto Gratis a Cliente Premium
+                                                                </Button>
+                                                            )}
+                                                            {hasPermission('customers:update') && (
+                                                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(customer)}><Edit className="h-4 w-4" /></Button>
+                                                            )}
+                                                            {hasPermission('customers:delete') && (
+                                                                <AlertDialog>
+                                                                    <AlertDialogTrigger asChild>
+                                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                                                                    </AlertDialogTrigger>
+                                                                    <AlertDialogContent>
+                                                                        <AlertDialogHeader>
+                                                                            <AlertDialogTitle>¿Eliminar {activeTab === 'leads' ? 'prospecto' : 'cliente'}?</AlertDialogTitle>
+                                                                            <AlertDialogDescription>Esta acción borrará permanentemente a <strong>{customer.name}</strong>.</AlertDialogDescription>
+                                                                        </AlertDialogHeader>
+                                                                        <AlertDialogFooter>
+                                                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                                            <AlertDialogAction onClick={() => handleDelete(customer.id)} className="bg-destructive text-destructive-foreground">Eliminar</AlertDialogAction>
+                                                                        </AlertDialogFooter>
+                                                                    </AlertDialogContent>
+                                                                </AlertDialog>
+                                                            )}
+                                                        </div>
+                                                    </TableCell>
+                                                </TableRow>
+                                            );
+                                        })
+                                    ) : (
+                                        <TableRow>
+                                            <TableCell colSpan={activeTab === 'masters' ? 8 : 6} className="h-24 text-center text-muted-foreground italic">
+                                                No se encontraron {activeTab === 'leads' ? 'prospectos' : 'clientes'}.
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </CardContent>
+                </Card>
+            </Tabs>
 
             {/* Dialog for Quick Viewing Contacts */}
             <Dialog open={isContactsViewOpen} onOpenChange={setContactsViewOpen}>

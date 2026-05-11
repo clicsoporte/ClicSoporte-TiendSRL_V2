@@ -28,7 +28,7 @@ export const MASTER_SCHEMA: ExpectedSchema = {
         'salesperson', 'active', 'email', 'electronicDocEmail', 'isManual', 'contacts', 
         'supportPackageId', 'taxRegime', 'taxStatus', 'isTaxMoroso', 'isTaxOmiso', 
         'taxAdministration', 'taxActivities', 'provinceId', 'cantonId', 'districtId', 'telegramChatId',
-        'isBlocked', 'blockedReason', 'notifyTickets', 'notifyLicenses', 'parentCustomerId'
+        'isBlocked', 'blockedReason', 'notifyTickets', 'notifyLicenses', 'parentCustomerId', 'isLead'
     ],
     products: ['id', 'description', 'classification', 'lastEntry', 'active', 'notes', 'unit', 'isBasicGood', 'cabys'],
     stock: ['itemId', 'stockByWarehouse', 'totalStock'],
@@ -98,5 +98,6 @@ export const MASTER_SCHEMA: ExpectedSchema = {
     scheduled_tasks: ['id', 'name', 'schedule', 'taskId', 'enabled'],
     notifications: ['id', 'userId', 'message', 'href', 'isRead', 'timestamp', 'entityId', 'entityType'],
     notification_templates: ['eventId', 'subject', 'body', 'telegram', 'internal'],
-    marketing_ads: ['id', 'softwareId', 'imageUrl', 'description', 'price', 'targetUrl', 'isEnabled', 'targetType', 'expiresAt', 'createdAt']
+    marketing_ads: ['id', 'softwareId', 'imageUrl', 'description', 'price', 'targetUrl', 'isEnabled', 'targetType', 'expiresAt', 'createdAt'],
+    otp_verifications: ['id', 'email', 'code', 'expiresAt', 'isUsed']
 };

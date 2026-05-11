@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Funciones de servidor para acceder a datos maestros (clientes, productos, etc.).
  */
@@ -10,6 +9,7 @@ import { logInfo, logError } from './logger';
 import { authorizeAction } from './auth-guard';
 import { getCurrentUser } from './session';
 import { permissionTree } from './permissions';
+import { revalidatePath } from 'next/cache';
 
 /**
  * Ayudante para verificar permisos granulares de forma recursiva en el servidor.
@@ -57,7 +57,8 @@ export async function getAllCustomers(): Promise<Customer[]> {
             blockedReason: c.blockedReason as string | null,
             notifyTickets: c.notifyTickets === 1,
             notifyLicenses: c.notifyLicenses === 1,
-            parentCustomerId: c.parentCustomerId as string | null
+            parentCustomerId: c.parentCustomerId as string | null,
+            isLead: c.isLead === 1
         }));
         return JSON.parse(JSON.stringify(enrichedResults));
     } catch (error) {
@@ -89,13 +90,13 @@ export async function upsertCustomer(customer: Customer): Promise<Customer> {
                 id, name, commercialName, address, phone, taxId, currency, creditLimit, paymentCondition, salesperson, active, email, electronicDocEmail, isManual, contacts,
                 taxRegime, taxStatus, isTaxMoroso, isTaxOmiso, taxAdministration, taxActivities,
                 provinceId, cantonId, districtId, supportPackageId, parentCustomerId, telegramChatId, isBlocked, blockedReason,
-                notifyTickets, notifyLicenses
+                notifyTickets, notifyLicenses, isLead
             )
             VALUES (
                 @id, @name, @commercialName, @address, @phone, @taxId, @currency, @creditLimit, @paymentCondition, @salesperson, @active, @email, @electronicDocEmail, 1, @contacts,
                 @taxRegime, @taxStatus, @isTaxMoroso, @isTaxOmiso, @taxAdministration, @taxActivities,
                 @provinceId, @cantonId, @districtId, @supportPackageId, @parentCustomerId, @telegramChatId, @isBlocked, @blockedReason,
-                @notifyTickets, @notifyLicenses
+                @notifyTickets, @notifyLicenses, @isLead
             )
             ON CONFLICT(id) DO UPDATE SET
                 name = excluded.name, commercialName = excluded.commercialName, address = excluded.address, phone = excluded.phone, taxId = excluded.taxId, currency = excluded.currency,
@@ -106,7 +107,7 @@ export async function upsertCustomer(customer: Customer): Promise<Customer> {
                 provinceId = excluded.provinceId, cantonId = excluded.cantonId, districtId = excluded.districtId,
                 supportPackageId = excluded.supportPackageId, parentCustomerId = excluded.parentCustomerId, telegramChatId = excluded.telegramChatId,
                 isBlocked = excluded.isBlocked, blockedReason = excluded.blockedReason,
-                notifyTickets = excluded.notifyTickets, notifyLicenses = excluded.notifyLicenses
+                notifyTickets = excluded.notifyTickets, notifyLicenses = excluded.notifyLicenses, isLead = excluded.isLead
         `);
         
         const params = {
@@ -139,11 +140,13 @@ export async function upsertCustomer(customer: Customer): Promise<Customer> {
             isBlocked: customer.isBlocked ? 1 : 0,
             blockedReason: customer.blockedReason || null,
             notifyTickets: customer.notifyTickets !== false ? 1 : 0,
-            notifyLicenses: customer.notifyLicenses !== false ? 1 : 0
+            notifyLicenses: customer.notifyLicenses !== false ? 1 : 0,
+            isLead: customer.isLead ? 1 : 0
         };
 
         stmt.run(params);
         await logInfo(`Cliente gestionado manualmente: ${customer.name} (${customer.id})`);
+        revalidatePath('/dashboard/customers');
         return customer;
     } catch (error: unknown) {
         const err = error as Error;
@@ -175,11 +178,11 @@ export async function upsertLeadCustomer(customer: Customer): Promise<Customer> 
         const stmt = db.prepare(`
             INSERT INTO customers (
                 id, name, commercialName, address, phone, taxId, currency, salesperson, active, email, electronicDocEmail, isManual, contacts,
-                taxActivities, isBlocked, notifyTickets, notifyLicenses
+                taxActivities, isBlocked, notifyTickets, notifyLicenses, isLead
             )
             VALUES (
                 @id, @name, @commercialName, @address, @phone, @taxId, @currency, 'SISTEMA ONLINE', 'S', @email, @electronicDocEmail, 1, @contacts,
-                @taxActivities, 0, 1, 1
+                @taxActivities, 0, 1, 1, 1
             )
         `);
         
@@ -187,7 +190,7 @@ export async function upsertLeadCustomer(customer: Customer): Promise<Customer> 
             id: customer.id,
             name: customer.name,
             commercialName: customer.commercialName || null,
-            address: customer.address || 'Registro Online (Free)',
+            address: customer.address || 'Registro Online (Lead OTP)',
             phone: customer.phone || null,
             taxId: customer.taxId,
             currency: customer.currency || 'CRC',
@@ -198,10 +201,28 @@ export async function upsertLeadCustomer(customer: Customer): Promise<Customer> 
         };
 
         stmt.run(params);
+        revalidatePath('/dashboard/customers');
         return customer;
     } catch (error: unknown) {
         const err = error as Error;
         await logError("Falla en registro de Lead vía API", { error: err.message, customerId: customer.id });
+        throw err;
+    }
+}
+
+/**
+ * Promotes a Lead to Premium Client.
+ */
+export async function promoteLead(id: string): Promise<void> {
+    await authorizeAction('customers:update');
+    const db = await connectDb();
+    try {
+        db.prepare('UPDATE customers SET isLead = 0 WHERE id = ?').run(id);
+        await logInfo(`Lead promovido a Cliente Maestro ID: ${id}`);
+        revalidatePath('/dashboard/customers');
+    } catch (error: unknown) {
+        const err = error as Error;
+        logError("Failed to promote lead", { error: err.message, id });
         throw err;
     }
 }
@@ -215,6 +236,7 @@ export async function deleteCustomer(id: string): Promise<void> {
     try {
         db.prepare('DELETE FROM customers WHERE id = ?').run(id);
         await logInfo(`Cliente eliminado ID: ${id}`);
+        revalidatePath('/dashboard/customers');
     } catch (error: unknown) {
         const err = error as Error;
         await logError("Error al eliminar cliente", { error: err.message, id });

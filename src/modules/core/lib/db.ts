@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Main database initialization and shared utility functions.
  * Unified into a single source of truth: intratool.db
@@ -239,7 +238,8 @@ export async function runMainMigrations(db: Database) {
             taxAdministration TEXT, taxActivities TEXT, provinceId INTEGER,
             cantonId INTEGER, districtId INTEGER, telegramChatId TEXT,
             isBlocked INTEGER DEFAULT 0, blockedReason TEXT,
-            notifyTickets INTEGER DEFAULT 1, notifyLicenses INTEGER DEFAULT 1
+            notifyTickets INTEGER DEFAULT 1, notifyLicenses INTEGER DEFAULT 1,
+            isLead INTEGER DEFAULT 0
         );
 
         CREATE TABLE IF NOT EXISTS products (
@@ -341,6 +341,14 @@ export async function runMainMigrations(db: Database) {
             timestamp TEXT NOT NULL, entityId INTEGER, entityType TEXT
         );
 
+        CREATE TABLE IF NOT EXISTS otp_verifications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT NOT NULL,
+            code TEXT NOT NULL,
+            expiresAt TEXT NOT NULL,
+            isUsed INTEGER DEFAULT 0
+        );
+
         -- SHARED TABLES
         CREATE TABLE IF NOT EXISTS exchange_rates (date TEXT PRIMARY KEY, rate REAL NOT NULL);
         CREATE TABLE IF NOT EXISTS provinces (id INTEGER PRIMARY KEY, name TEXT NOT NULL);
@@ -366,6 +374,7 @@ export async function runMainMigrations(db: Database) {
     if (!hasColumn('company_settings', 'systemVersion')) db.exec(`ALTER TABLE company_settings ADD COLUMN systemVersion TEXT;`);
     if (!hasColumn('company_settings', 'publicUrl')) db.exec(`ALTER TABLE company_settings ADD COLUMN publicUrl TEXT;`);
     if (!hasColumn('company_settings', 'internalHourCost')) db.exec(`ALTER TABLE company_settings ADD COLUMN internalHourCost REAL DEFAULT 0;`);
+    if (!hasColumn('customers', 'isLead')) db.exec(`ALTER TABLE customers ADD COLUMN isLead INTEGER DEFAULT 0;`);
 
     // 3. SEEDING & DATA UPDATES
     const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number };

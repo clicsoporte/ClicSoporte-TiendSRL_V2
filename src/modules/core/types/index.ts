@@ -154,6 +154,8 @@ export type Customer = {
     // Notification Preferences
     notifyTickets?: boolean;
     notifyLicenses?: boolean;
+    // Lead Management (v3.7)
+    isLead?: boolean;
 };
 
 /**

@@ -1,13 +1,13 @@
-
 /**
- * @fileoverview API Endpoint for registering free licenses.
- * Refactored for SDK v3.3: Returns structured JSON object and ensures master identity injection.
+ * @fileoverview API Endpoint for registering free licenses with OTP validation.
+ * Refactored for Handshake v3.7: Requires otpCode and creates customer as Lead.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDb } from '@/modules/core/lib/db';
 import { signLicenseData } from '@/modules/licenses/lib/crypto';
 import { upsertLeadCustomer } from '@/modules/core/lib/data-access-db';
+import { verifyOtp } from '@/modules/core/lib/otp-service';
 import type { Customer, License, SoftwareProduct } from '@/modules/core/types';
 
 export const dynamic = 'force-dynamic';
@@ -15,16 +15,31 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
-        const { softwareId, softwareName, hardwareId, customerName, customerEmail, customerPhone, taxId } = body;
+        const { 
+            softwareId, softwareName, hardwareId, 
+            customerName, customerEmail, customerPhone, taxId, 
+            otpCode 
+        } = body;
 
-        // 1. Basic validation (Identifiers are always mandatory)
-        if ((!softwareId && !softwareName) || !hardwareId || !taxId) {
-            return NextResponse.json({ error: 'Faltan identificadores obligatorios (Software, HardwareID o TaxID)' }, { status: 400 });
+        // 1. Handshake Validation
+        if (!otpCode) {
+            return NextResponse.json({ error: 'Validación requerida: Ingrese el código OTP enviado a su correo.' }, { status: 403 });
+        }
+
+        // 2. Identity Check
+        if ((!softwareId && !softwareName) || !hardwareId || !taxId || !customerEmail) {
+            return NextResponse.json({ error: 'Faltan identificadores obligatorios (Software, HardwareID, Email o TaxID)' }, { status: 400 });
+        }
+
+        // 3. Verify OTP
+        const isOtpValid = await verifyOtp(customerEmail.trim().toLowerCase(), otpCode);
+        if (!isOtpValid) {
+            return NextResponse.json({ error: 'Código OTP inválido o expirado. Solicite uno nuevo.' }, { status: 401 });
         }
 
         const db = await connectDb();
 
-        // 2. Resolve Software
+        // 4. Resolve Software
         let software: SoftwareProduct | undefined;
         if (softwareId) {
             software = db.prepare('SELECT * FROM software_products WHERE id = ?').get(softwareId) as SoftwareProduct | undefined;
@@ -33,20 +48,10 @@ export async function POST(req: NextRequest) {
         }
 
         if (!software) {
-            return NextResponse.json({ error: `El software '${softwareName || softwareId}' no está registrado en el catálogo.` }, { status: 404 });
+            return NextResponse.json({ error: `El software '${softwareName || softwareId}' no está registrado.` }, { status: 404 });
         }
 
-        // 3. CHECK IF CUSTOMER EXISTS
-        const existingCustomer = db.prepare('SELECT * FROM customers WHERE id = ? OR taxId = ?').get(taxId, taxId) as Customer | undefined;
-
-        // 4. Conditional Validation: Contact info is ONLY mandatory for NEW customers
-        if (!existingCustomer) {
-            if (!customerName || !customerEmail) {
-                return NextResponse.json({ error: 'Faltan datos obligatorios para el registro de nuevo cliente (Nombre y Email).' }, { status: 400 });
-            }
-        }
-
-        // 5. CHECK FOR RE-INSTALLATION ON SAME HARDWARE
+        // 5. CHECK FOR RE-INSTALLATION (Self-healing)
         const existingLicense = db.prepare(`
             SELECT * FROM licenses 
             WHERE softwareId = ? AND hardwareId = ? AND status = 'active'
@@ -57,39 +62,36 @@ export async function POST(req: NextRequest) {
                 const existingFile = JSON.parse(existingLicense.licenseKey);
                 return NextResponse.json({ 
                     success: true, 
-                    message: 'Restaurando licencia existente para este hardware.',
+                    message: 'Restaurando licencia existente.',
                     license_file: existingFile 
                 });
             } catch {
-                return NextResponse.json({ 
-                    success: true, 
-                    message: 'Restaurando licencia existente para este hardware.',
-                    license_file: existingLicense.licenseKey 
-                });
+                return NextResponse.json({ success: true, license_file: existingLicense.licenseKey });
             }
         }
 
-        // 6. Ensure/Create the Customer (Protects existing data internally)
+        // 6. Create the Customer as LEAD (Segregation)
         const customerData: Customer = {
             id: taxId.trim().toUpperCase(),
-            name: customerName || (existingCustomer?.name || 'Cliente Nuevo'),
+            name: customerName || 'Lead Nuevo',
             taxId: taxId.trim().toUpperCase(),
-            email: customerEmail || (existingCustomer?.email || ''),
-            phone: customerPhone || (existingCustomer?.phone || ''),
+            email: customerEmail.trim().toLowerCase(),
+            phone: customerPhone || '',
             active: 'S',
-            address: existingCustomer?.address || 'Registro Online (Lead)',
+            address: 'Registro Online (Lead OTP)',
             contacts: [],
             currency: 'CRC',
             creditLimit: 0,
             paymentCondition: '0',
             salesperson: 'SISTEMA ONLINE',
-            electronicDocEmail: customerEmail || (existingCustomer?.electronicDocEmail || ''),
-            isManual: true
+            electronicDocEmail: customerEmail.trim().toLowerCase(),
+            isManual: true,
+            isLead: true // Mark as lead for UI segregation
         };
 
         await upsertLeadCustomer(customerData);
 
-        // 7. Create Free License Record with Identity Injection
+        // 7. Generate Signed Payload
         const now = new Date().toISOString();
         const licenseInfo = {
             softwareId: software.id,
@@ -102,7 +104,6 @@ export async function POST(req: NextRequest) {
             hardwareId: hardwareId,
             activationToken: 'FREE-LICENSE',
             isPerpetual: true,
-            expirationDate: '',
             status: 'active',
             createdAt: now,
             modules: {
@@ -126,7 +127,7 @@ export async function POST(req: NextRequest) {
         });
 
     } catch (error: unknown) {
-        console.error('Free Registration API Error:', error);
+        console.error('Free OTP Registration Error:', error);
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }
 }
