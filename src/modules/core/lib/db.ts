@@ -1,7 +1,7 @@
 /**
  * @fileoverview Main database initialization and shared utility functions.
  * Unified into a single source of truth: intratool.db
- * Refactored for idempotent migrations (Safe for existing production DBs).
+ * Refactorizado para blindaje de producción: Normalización estricta e idempotencia.
  */
 "use server";
 
@@ -160,10 +160,10 @@ function seedNotificationTemplates(db: Database) {
         },
         {
             eventId: 'onLicenseAssigned',
-            subject: '[ASIGNACIÓN] Nueva Licencia: {{softwareName}}',
-            body: '<div style="font-family: sans-serif; color: #333;"><h2 style="color: #2563eb;">Nueva Licencia de Software Asignada</h2><p>Hola <b>{{customerName}}</b>, se ha registrado una nueva licencia de software en su perfil.</p><div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 20px 0;"><p><b>Software:</b> {{softwareName}}</p><p><b>Tipo:</b> {{type}}</p><p><b>Vencimiento:</b> {{expirationDate}}</p>{{#if hardwareId}}<p><b>Hardware ID:</b> {{hardwareId}}</p>{{/if}}</div><p style="font-size: 12px; color: #666;">Gracias por su preferencia.</p></div>',
-            telegram: '🔑 <b>NUEVA LICENCIA ASIGNADA</b>\n\n<b>Software:</b> {{softwareName}}\n<b>Cliente:</b> {{customerName}}\n<b>Vence:</b> {{expirationDate}}',
-            internal: 'Nueva licencia {{softwareName}} asignada a {{customerName}}'
+            subject: '[ASIGNACIÓN] {{licenseStatus}}: {{softwareName}}',
+            body: '<div style="font-family: sans-serif; color: #333;"><h2 style="color: #2563eb;">{{licenseStatus}}</h2><p>Hola <b>{{customerName}}</b>, se ha registrado una nueva licencia de software en su perfil.</p><div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 20px 0;"><p><b>Software:</b> {{softwareName}}</p><p><b>Tipo:</b> {{type}}</p><p><b>Estado:</b> {{licenseStatus}}</p><p><b>Vencimiento:</b> {{expirationDate}}</p>{{#if hardwareId}}<p><b>Hardware ID:</b> {{hardwareId}}</p>{{/if}}</div><p style="font-size: 12px; color: #666;">Gracias por su preferencia.</p></div>',
+            telegram: '🔑 <b>{{licenseStatus}}</b>\n\n<b>Software:</b> {{softwareName}}\n<b>Cliente:</b> {{customerName}}\n<b>Vence:</b> {{expirationDate}}',
+            internal: '{{licenseStatus}}: {{softwareName}} para {{customerName}}'
         },
         {
             eventId: 'onContractAutoRenewed',
@@ -246,6 +246,20 @@ export async function runMainMigrations(db: Database) {
             id TEXT PRIMARY KEY, description TEXT NOT NULL, classification TEXT,
             lastEntry TEXT, active TEXT DEFAULT 'S', notes TEXT, unit TEXT,
             isBasicGood TEXT DEFAULT 'N', cabys TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS stock (
+            itemId TEXT PRIMARY KEY, stockByWarehouse TEXT NOT NULL, totalStock REAL DEFAULT 0
+        );
+
+        CREATE TABLE IF NOT EXISTS exemptions (
+            code TEXT PRIMARY KEY, description TEXT, customer TEXT,
+            authNumber TEXT, startDate TEXT, endDate TEXT,
+            percentage REAL, docType TEXT, institutionName TEXT, institutionCode TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS cabys_catalog (
+            code TEXT PRIMARY KEY, description TEXT NOT NULL, taxRate REAL NOT NULL
         );
 
         CREATE TABLE IF NOT EXISTS contracts (

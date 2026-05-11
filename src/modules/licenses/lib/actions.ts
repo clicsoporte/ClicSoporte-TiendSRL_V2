@@ -38,9 +38,11 @@ export async function addLicense(license: Omit<License, 'id' | 'createdAt'>): Pr
     
     if (newLicense.customerId) {
         await triggerNotificationEvent('onLicenseAssigned', {
+            id: newLicense.id,
             customerId: newLicense.customerId,
             softwareName: software?.name || 'Software',
             type: software?.isInternal ? 'SaaS Propios' : 'Terceros',
+            licenseStatus: 'LICENCIA PREMIUM (Manual)',
             expirationDate: newLicense.isPerpetual ? 'Perpetua' : (newLicense.expirationDate ? format(parseISO(newLicense.expirationDate), 'dd/MM/yyyy') : 'N/A'),
             hardwareId: newLicense.hardwareId || null
         });

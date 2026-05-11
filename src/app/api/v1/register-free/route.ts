@@ -1,6 +1,6 @@
 /**
  * @fileoverview API Endpoint for registering free licenses with OTP validation.
- * Refactored for Production Blindado: Strict normalization and non-destructive upsert.
+ * Refactored for Production Blindado: Strict normalization and notification support.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -8,6 +8,7 @@ import { connectDb } from '@/modules/core/lib/db';
 import { signLicenseData } from '@/modules/licenses/lib/crypto';
 import { upsertLeadCustomer } from '@/modules/core/lib/data-access-db';
 import { verifyOtp } from '@/modules/core/lib/otp-service';
+import { triggerNotificationEvent } from '@/modules/notifications/lib/notifications-engine';
 import type { Customer, License, SoftwareProduct } from '@/modules/core/types';
 
 export const dynamic = 'force-dynamic';
@@ -119,11 +120,27 @@ export async function POST(req: NextRequest) {
         const signedDataString = await signLicenseData(licenseInfo);
         const structuredLicenseFile = JSON.parse(signedDataString);
 
-        db.prepare(`
+        const info = db.prepare(`
             INSERT INTO licenses (
                 licenseKey, activationToken, softwareId, customerId, hardwareId, isPerpetual, expirationDate, status, createdAt, m01_val
             ) VALUES (?, 'FREE-LICENSE', ?, ?, ?, 1, '', 'active', ?, 1)
         `).run(signedDataString, software.id, customerData.id, normalizedHardwareId, now);
+
+        // 8. NOTIFICACIÓN DE NUEVO PROSPECTO (FREE)
+        try {
+            await triggerNotificationEvent('onLicenseAssigned', {
+                id: Number(info.lastInsertRowid),
+                customerId: customerData.id,
+                customerName: customerData.name,
+                softwareName: software.name,
+                type: 'SaaS Propios',
+                licenseStatus: 'NUEVO PROSPECTO (FREE)',
+                expirationDate: 'Perpetua (Demo)',
+                hardwareId: normalizedHardwareId
+            });
+        } catch (notifErr) {
+            console.error("Fallo al enviar notificación de registro Free:", notifErr);
+        }
 
         return NextResponse.json({
             success: true,
