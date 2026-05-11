@@ -16,9 +16,17 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { 
+    Dialog, 
+    DialogContent, 
+    DialogFooter, 
+    DialogHeader, 
+    DialogTitle, 
+    DialogTrigger, 
+    DialogClose 
+} from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { PlusCircle, Trash2, Edit, BellRing, Clock, Send, Loader2, Mail, RefreshCw, Play, LayoutTemplate, Info, Save, ChevronRight, Eye } from 'lucide-react';
+import { PlusCircle, Trash2, Edit, BellRing, Clock, Send, Loader2, Mail, RefreshCw, Play, LayoutTemplate, Info, Save, ChevronRight, Eye, X } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import type { NotificationRule, ScheduledTask, NotificationServiceConfig, EmailSettings, NotificationTemplate } from '@/modules/core/types';
 import { 
