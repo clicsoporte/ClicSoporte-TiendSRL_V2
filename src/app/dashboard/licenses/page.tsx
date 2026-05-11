@@ -413,7 +413,7 @@ export async function fetchMarketingAds(licenseStatus: 'free' | 'premium') {
                                 </TabsContent>
                                 <TabsContent value="register" className="m-0 h-full">
                                     <div className="p-4 relative">
-                                        <p className="text-[11px] text-muted-foreground mb-3 italic">Finaliza el registro enviando el OTP ingresado. Crea un "Prospecto" en el servidor.</p>
+                                        <p className="text-[11px] text-muted-foreground mb-3 italic">Finaliza el registro enviando el OTP ingresado. Crea un &quot;Prospecto&quot; en el servidor.</p>
                                         <Button variant="secondary" size="sm" className="absolute top-12 right-6 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.register, 'register')}>
                                             {copiedSection === 'register' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
                                             {copiedSection === 'register' ? 'Copiado' : 'Copiar'}
