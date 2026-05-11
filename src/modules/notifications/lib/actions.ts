@@ -14,15 +14,18 @@ import {
     deleteScheduledTask as deleteTaskServer,
     getNotificationServiceSettings as getSettingsServer,
     saveNotificationServiceSettings as saveSettingsServer,
-    connectNotificationsDb
+    connectNotificationsDb,
+    getAllNotificationTemplates as getAllTemplatesServer,
+    updateNotificationTemplate as updateTemplateServer
 } from './db';
 import { sendTelegramMessage, getTelegramUpdates } from './telegram-service';
 import { sendEmail, getEmailSettings } from '../../core/lib/email-service';
-import type { NotificationRule, ScheduledTask, NotificationServiceConfig } from '@/modules/core/types';
+import type { NotificationRule, ScheduledTask, NotificationServiceConfig, NotificationTemplate } from '@/modules/core/types';
 import { logInfo, logError } from '@/modules/core/lib/logger';
 import { initScheduler } from './scheduler';
 import { authorizeAction } from '@/modules/core/lib/auth-guard';
 import { format } from 'date-fns';
+import { revalidatePath } from 'next/cache';
 
 /**
  * Retrieves all notification rules for the UI.
@@ -94,7 +97,8 @@ export async function testNotificationRule(ruleId: number): Promise<{ success: b
             softwareName: 'Software Corporativo Demo',
             expirationDate: format(new Date(), 'dd/MM/yyyy'),
             userName: 'Administrador de Pruebas',
-            type: 'Propio / SaaS'
+            type: 'Propio / SaaS',
+            licenseStatus: 'PRUEBA TÉCNICA'
         };
 
         // Helper to apply simple template syntax
@@ -207,4 +211,27 @@ export async function testTelegram(chatId?: string) {
 
 export async function fetchTelegramChatId() {
     return await getTelegramUpdates();
+}
+
+/**
+ * TEMPLATES ACTIONS
+ */
+
+export async function getAllNotificationTemplates(): Promise<NotificationTemplate[]> {
+    await authorizeAction('admin:access');
+    const templates = await getAllTemplatesServer();
+    return JSON.parse(JSON.stringify(templates));
+}
+
+export async function saveNotificationTemplate(template: NotificationTemplate): Promise<void> {
+    await authorizeAction('admin:access');
+    try {
+        await updateTemplateServer(template);
+        await logInfo(`Notification template updated: ${template.eventId}`);
+        revalidatePath('/dashboard/admin/notifications');
+    } catch (error: unknown) {
+        const err = error as Error;
+        await logError(`Failed to save notification template`, { error: err.message, eventId: template.eventId });
+        throw err;
+    }
 }

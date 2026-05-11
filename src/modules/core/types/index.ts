@@ -766,6 +766,14 @@ export type NotificationRule = {
     enabled: boolean;
 };
 
+export type NotificationTemplate = {
+    eventId: string;
+    subject: string;
+    body: string;
+    telegram: string;
+    internal: string;
+};
+
 export type ScheduledTask = {
     id: number;
     name: string;

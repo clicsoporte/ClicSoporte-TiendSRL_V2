@@ -5,7 +5,7 @@
 "use server";
 
 import { connectDb } from '@/modules/core/lib/db';
-import type { NotificationRule, NotificationServiceConfig, ScheduledTask, Notification } from '@/modules/core/types';
+import type { NotificationRule, NotificationServiceConfig, ScheduledTask, Notification, NotificationTemplate } from '@/modules/core/types';
 import { authorizeAction } from '@/modules/core/lib/auth-guard';
 import { logError } from '@/modules/core/lib/logger';
 
@@ -196,4 +196,35 @@ export async function markNotificationsAsRead(notificationIds: number[], userId:
 export async function createNotification(notification: Omit<Notification, 'id' | 'timestamp' | 'isRead'>): Promise<void> {
     const db = await connectNotificationsDb();
     db.prepare(`INSERT INTO notifications (userId, message, href, isRead, timestamp, entityId, entityType) VALUES (@userId, @message, @href, 0, datetime('now'), @entityId, @entityType)`).run(notification);
+}
+
+/**
+ * TEMPLATES MANAGEMENT
+ */
+
+export async function getAllNotificationTemplates(): Promise<NotificationTemplate[]> {
+    const db = await connectNotificationsDb();
+    try {
+        const rows = db.prepare('SELECT * FROM notification_templates ORDER BY eventId ASC').all() as NotificationTemplate[];
+        return JSON.parse(JSON.stringify(rows));
+    } catch (error) {
+        console.error("Failed to get notification templates:", error);
+        return [];
+    }
+}
+
+export async function updateNotificationTemplate(template: NotificationTemplate): Promise<void> {
+    await authorizeAction('admin:settings:general');
+    const db = await connectNotificationsDb();
+    try {
+        db.prepare(`
+            UPDATE notification_templates 
+            SET subject = @subject, body = @body, telegram = @telegram, internal = @internal 
+            WHERE eventId = @eventId
+        `).run(template);
+    } catch (error: unknown) {
+        const err = error as Error;
+        await logError("DB Error updating notification template", { error: err.message, eventId: template.eventId });
+        throw new Error(`No se pudo actualizar la plantilla: ${err.message}`);
+    }
 }
