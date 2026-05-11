@@ -1,6 +1,6 @@
 /**
  * @fileoverview Main page for the License Management module.
- * Enhanced for Hybrid Licensing v3.7 (OTP Handshake & Ads Delivery).
+ * Enhanced for Hybrid Licensing v3.7.2 (Full SDK with OTP, RSA and Ads).
  */
 'use client';
 
@@ -21,7 +21,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SearchInput } from '@/components/ui/search-input';
-import { PlusCircle, MoreVertical, CalendarIcon, Loader2, Trash2, Download, Edit, ShieldCheck, Boxes, Settings2, Info, Code2, Copy, Check, Megaphone } from 'lucide-react';
+import { PlusCircle, MoreVertical, CalendarIcon, Loader2, Trash2, Download, Edit, ShieldCheck, Boxes, Settings2, Info, Code2, Copy, Check, Megaphone, Terminal } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
@@ -72,10 +72,39 @@ export default function LicensesPage() {
     const SERVER_URL = state.companyData?.publicUrl || 'https://soporte.clicsoporte.com';
 
     const sdkCode = {
-        meta: `version: v3.7.1 (Production Ready) fecha: ${new Date().toLocaleDateString()}`,
+        meta: `v3.7.2 (Production Ready) - Ref: docs/Plan.txt`,
+        schema: `{
+  "success": true,
+  "license_file": {
+    "license_info": {
+      "softwareId": 12,
+      "softwareName": "Nombre-Software",
+      "customerName": "Nombre Oficial del Cliente", // Inyectado por Servidor
+      "customerEmail": "cliente@oficial.com",        // Inyectado por Servidor
+      "hardwareId": "ABC-123-XYZ",
+      "status": "active",
+      "isPerpetual": false,
+      "expirationDate": "2025-12-31",
+      "modules": { "m01": true, "m02": false, ... }
+    },
+    "signature": "hash_hex_firmado_rsa"
+  }
+}`,
+        verify: `/**
+ * PASO 1: VERIFICACIÓN INTELIGENTE (v3.7)
+ * Consulta si el cliente existe para evitar duplicados.
+ */
+export async function verifyClientInfo(taxId: string) {
+    const res = await fetch(\`${SERVER_URL}/api/v1/verify-client?taxId=\${taxId}\`);
+    const result = await res.json();
+    if (result.exists) {
+        return { found: true, data: result.data, source: result.source };
+    }
+    return { found: false };
+}`,
         requestOtp: `/**
- * PASO 1: SOLICITAR CÓDIGO OTP (v3.7)
- * Inicia el handshake enviando el correo del cliente.
+ * PASO 2.1: SOLICITAR OTP (Handshake)
+ * Envía un código de 8 caracteres al correo del usuario.
  */
 export async function requestValidationCode(email: string) {
     const res = await fetch(\`${SERVER_URL}/api/v1/request-otp\`, {
@@ -86,42 +115,68 @@ export async function requestValidationCode(email: string) {
     return await res.json();
 }`,
         register: `/**
- * PASO 2: REGISTRO CON OTP (v3.7)
- * Envía los datos del equipo junto con el código recibido por el usuario.
+ * PASO 2.2: REGISTRO CON OTP (Free/Lead)
+ * Crea el prospecto y entrega la licencia firmada.
  */
 export async function registerFreeLicense(payload: {
     taxId: string,
     customerName: string,
     customerEmail: string,
-    otpCode: string, // El código de 8 caracteres
+    otpCode: string, 
     hardwareId: string
 }) {
     const res = await fetch(\`${SERVER_URL}/api/v1/register-free\`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-            softwareName: 'Mi-Software-Hijo',
-            ...payload 
-        })
+        body: JSON.stringify({ softwareName: 'Tu-Software', ...payload })
     });
-
     const result = await res.json();
     if (!res.ok) throw new Error(result.error);
-    
-    return result.license_file; // Objeto firmado con RSA
+    return result.license_file; // Objeto con info y firma
+}`,
+        activate: `/**
+ * PASO 3: ACTIVACIÓN PREMIUM (Tokens)
+ * Para licencias pagas vendidas manualmente en el Dashboard.
+ */
+export async function activatePremiumLicense(token: string, hardwareId: string) {
+    const res = await fetch(\`${SERVER_URL}/api/v1/activate\`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+            activationToken: token.toUpperCase(), 
+            hardwareId, 
+            softwareName: 'Tu-Software' 
+        })
+    });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.error);
+    return result.license_file;
+}`,
+        rsa: `/**
+ * PASO 4: VALIDACIÓN CRIPTOGRÁFICA (Seguridad)
+ * Verifica que el servidor firmó la licencia con RSA-SHA256.
+ */
+import crypto from 'crypto';
+
+export function verifyServerSignature(licenseFile, publicKeyPem) {
+    const { license_info, signature } = licenseFile;
+    // IMPORTANTE: Ordenar llaves para coincidir con la firma del servidor
+    const message = JSON.stringify(license_info, Object.keys(license_info).sort());
+    const verifier = crypto.createVerify('RSA-SHA256');
+    verifier.update(message);
+    return verifier.verify(publicKeyPem, signature, 'hex');
 }`,
         marketing: `/**
- * PASO 3: CONSUMO DE PUBLICIDAD FIRMADA (v3.7)
- * Descarga los anuncios configurados para este software.
- * Segmentación sugerida: 'free' o 'premium'.
+ * PASO 5: PUBLICIDAD DINÁMICA FIRMADA
+ * Descarga anuncios globales segmentados por 'free' o 'premium'.
  */
 export async function fetchMarketingAds(licenseStatus: 'free' | 'premium') {
-    const res = await fetch(\`${SERVER_URL}/api/v1/marketing?software=Mi-Software&status=\${licenseStatus}\`);
-    const data = await res.json();
+    const res = await fetch(\`${SERVER_URL}/api/v1/marketing?software=Tu-Software&status=\${licenseStatus}\`);
+    const { payload } = await res.json();
     
-    if (data.success) {
-        // 'data.payload' contiene la publicidad firmada con RSA
-        return data.payload.ads; 
+    // El 'payload' viene firmado. Validar antes de mostrar.
+    if (verifyServerSignature(payload, publicKeyPem)) {
+        return payload.license_info.ads; 
     }
     return [];
 }`
@@ -380,57 +435,110 @@ export async function fetchMarketingAds(licenseStatus: 'free' | 'premium') {
                 </Card>
 
                 <Dialog open={isSdkDialogOpen} onOpenChange={setSdkDialogOpen}>
-                    <DialogContent className="sm:max-w-4xl h-[90vh] flex flex-col p-0 overflow-hidden">
+                    <DialogContent className="sm:max-w-5xl h-[90vh] flex flex-col p-0 overflow-hidden">
                         <DialogHeader className="p-6 pb-2 border-b">
                             <div className="flex items-center gap-2">
                                 <Code2 className="h-5 w-5 text-primary" />
                                 <DialogTitle>Kit de Integración (SDK Oficial {sdkCode.meta})</DialogTitle>
                             </div>
                             <DialogDescription>
-                                Implementa el handshake seguro y la sincronización de publicidad dinámica para el software hijo.
+                                Implementa la arquitectura híbrida de verificación, activación y marketing dinámico firmado.
                             </DialogDescription>
                         </DialogHeader>
                         
-                        <Tabs defaultValue="otp" className="flex-1 overflow-hidden flex flex-col">
+                        <Tabs defaultValue="schema" className="flex-1 overflow-hidden flex flex-col">
                             <TabsList className="px-6 border-b rounded-none bg-muted/20 h-10 overflow-x-auto justify-start">
-                                <TabsTrigger value="otp" className="text-xs font-bold">1. Validación (OTP)</TabsTrigger>
-                                <TabsTrigger value="register" className="text-xs font-bold">2. Registro Seguro</TabsTrigger>
-                                <TabsTrigger value="marketing" className="text-xs font-bold text-primary flex gap-1.5"><Megaphone className="h-3 w-3" /> 3. Publicidad Dinámica</TabsTrigger>
+                                <TabsTrigger value="schema" className="text-xs font-bold flex gap-1.5"><Terminal className="h-3 w-3"/> Respuesta</TabsTrigger>
+                                <TabsTrigger value="verify" className="text-xs font-bold">1. Verificación</TabsTrigger>
+                                <TabsTrigger value="register" className="text-xs font-bold">2. Registro Free (OTP)</TabsTrigger>
+                                <TabsTrigger value="activate" className="text-xs font-bold">3. Activación Premium</TabsTrigger>
+                                <TabsTrigger value="rsa" className="text-xs font-bold">4. Validación RSA</TabsTrigger>
+                                <TabsTrigger value="marketing" className="text-xs font-bold text-primary flex gap-1.5"><Megaphone className="h-3 w-3" /> 5. Marketing</TabsTrigger>
                             </TabsList>
                             
                             <div className="flex-1 overflow-y-auto p-0">
-                                <TabsContent value="otp" className="m-0 h-full">
-                                    <div className="p-4 relative">
-                                        <p className="text-[11px] text-muted-foreground mb-3 italic">Dispara el envío de código de 8 caracteres al correo del usuario.</p>
-                                        <Button variant="secondary" size="sm" className="absolute top-12 right-6 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.requestOtp, 'otp')}>
-                                            {copiedSection === 'otp' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
-                                            {copiedSection === 'otp' ? 'Copiado' : 'Copiar'}
+                                <TabsContent value="schema" className="m-0 h-full p-4">
+                                    <div className="relative">
+                                        <p className="text-[11px] text-muted-foreground mb-3 italic">Estructura del archivo de licencia devuelto por el servidor.</p>
+                                        <Button variant="secondary" size="sm" className="absolute top-8 right-2 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.schema, 'schema')}>
+                                            {copiedSection === 'schema' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
+                                            {copiedSection === 'schema' ? 'Copiado' : 'Copiar'}
                                         </Button>
-                                        <pre className="bg-slate-950 text-orange-200 p-6 rounded-lg text-[11px] font-mono overflow-auto max-h-[600px]">
-                                            {sdkCode.requestOtp}
+                                        <pre className="bg-slate-950 text-emerald-400 p-6 rounded-lg text-[11px] font-mono overflow-auto">
+                                            {sdkCode.schema}
                                         </pre>
                                     </div>
                                 </TabsContent>
-                                <TabsContent value="register" className="m-0 h-full">
-                                    <div className="p-4 relative">
-                                        <p className="text-[11px] text-muted-foreground mb-3 italic">Finaliza el registro enviando el OTP ingresado. Crea un &quot;Prospecto&quot; en el servidor.</p>
-                                        <Button variant="secondary" size="sm" className="absolute top-12 right-6 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.register, 'register')}>
-                                            {copiedSection === 'register' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
-                                            {copiedSection === 'register' ? 'Copiado' : 'Copiar'}
+
+                                <TabsContent value="verify" className="m-0 h-full p-4">
+                                    <div className="relative">
+                                        <Button variant="secondary" size="sm" className="absolute top-8 right-2 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.verify, 'verify')}>
+                                            {copiedSection === 'verify' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
+                                            {copiedSection === 'verify' ? 'Copiado' : 'Copiar'}
                                         </Button>
-                                        <pre className="bg-slate-950 text-slate-100 p-6 rounded-lg text-[11px] font-mono overflow-auto max-h-[600px]">
-                                            {sdkCode.register}
+                                        <pre className="bg-slate-950 text-slate-100 p-6 rounded-lg text-[11px] font-mono overflow-auto">
+                                            {sdkCode.verify}
                                         </pre>
                                     </div>
                                 </TabsContent>
-                                <TabsContent value="marketing" className="m-0 h-full">
-                                    <div className="p-4 relative">
-                                        <p className="text-[11px] text-muted-foreground mb-3 italic">Descarga la publicidad vigente. El servidor entrega un payload firmado por RSA para evitar manipulación.</p>
-                                        <Button variant="secondary" size="sm" className="absolute top-12 right-6 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.marketing, 'marketing')}>
+
+                                <TabsContent value="register" className="m-0 h-full p-4">
+                                    <div className="space-y-4">
+                                        <div className="relative">
+                                            <p className="text-[10px] font-black uppercase text-primary mb-2">Paso 1: Solicitar Código OTP</p>
+                                            <Button variant="secondary" size="sm" className="absolute top-6 right-2 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.requestOtp, 'otp')}>
+                                                {copiedSection === 'otp' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
+                                                {copiedSection === 'otp' ? 'Copiado' : 'Copiar'}
+                                            </Button>
+                                            <pre className="bg-slate-950 text-orange-200 p-4 rounded-lg text-[11px] font-mono overflow-auto">
+                                                {sdkCode.requestOtp}
+                                            </pre>
+                                        </div>
+                                        <div className="relative">
+                                            <p className="text-[10px] font-black uppercase text-primary mb-2">Paso 2: Finalizar Registro</p>
+                                            <Button variant="secondary" size="sm" className="absolute top-6 right-2 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.register, 'reg')}>
+                                                {copiedSection === 'reg' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
+                                                {copiedSection === 'reg' ? 'Copiado' : 'Copiar'}
+                                            </Button>
+                                            <pre className="bg-slate-950 text-slate-100 p-4 rounded-lg text-[11px] font-mono overflow-auto">
+                                                {sdkCode.register}
+                                            </pre>
+                                        </div>
+                                    </div>
+                                </TabsContent>
+
+                                <TabsContent value="activate" className="m-0 h-full p-4">
+                                    <div className="relative">
+                                        <Button variant="secondary" size="sm" className="absolute top-8 right-2 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.activate, 'activate')}>
+                                            {copiedSection === 'activate' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
+                                            {copiedSection === 'activate' ? 'Copiado' : 'Copiar'}
+                                        </Button>
+                                        <pre className="bg-slate-950 text-slate-100 p-6 rounded-lg text-[11px] font-mono overflow-auto">
+                                            {sdkCode.activate}
+                                        </pre>
+                                    </div>
+                                </TabsContent>
+
+                                <TabsContent value="rsa" className="m-0 h-full p-4">
+                                    <div className="relative">
+                                        <Button variant="secondary" size="sm" className="absolute top-8 right-2 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.rsa, 'rsa')}>
+                                            {copiedSection === 'rsa' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
+                                            {copiedSection === 'rsa' ? 'Copiado' : 'Copiar'}
+                                        </Button>
+                                        <pre className="bg-slate-950 text-yellow-100 p-6 rounded-lg text-[11px] font-mono overflow-auto">
+                                            {sdkCode.rsa}
+                                        </pre>
+                                    </div>
+                                </TabsContent>
+
+                                <TabsContent value="marketing" className="m-0 h-full p-4">
+                                    <div className="relative">
+                                        <p className="text-[11px] text-muted-foreground mb-3 italic">Consumo de anuncios dinámicos segmentados y validados criptográficamente.</p>
+                                        <Button variant="secondary" size="sm" className="absolute top-8 right-2 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.marketing, 'marketing')}>
                                             {copiedSection === 'marketing' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
                                             {copiedSection === 'marketing' ? 'Copiado' : 'Copiar'}
                                         </Button>
-                                        <pre className="bg-slate-950 text-blue-200 p-6 rounded-lg text-[11px] font-mono overflow-auto max-h-[600px]">
+                                        <pre className="bg-slate-950 text-blue-200 p-6 rounded-lg text-[11px] font-mono overflow-auto">
                                             {sdkCode.marketing}
                                         </pre>
                                     </div>
