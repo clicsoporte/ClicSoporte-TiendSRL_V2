@@ -1,6 +1,6 @@
 /**
  * @fileoverview Main page for the License Management module.
- * Enhanced for Hybrid Licensing v3.7.2 (Full SDK with OTP, RSA and Ads).
+ * Enhanced for Hybrid Licensing v3.7.3 (Full SDK with OTP, RSA, Ads and Manual Sync UI).
  */
 'use client';
 
@@ -21,7 +21,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SearchInput } from '@/components/ui/search-input';
-import { PlusCircle, MoreVertical, CalendarIcon, Loader2, Trash2, Download, Edit, ShieldCheck, Boxes, Settings2, Info, Code2, Copy, Check, Megaphone, Terminal } from 'lucide-react';
+import { PlusCircle, MoreVertical, CalendarIcon, Loader2, Trash2, Download, Edit, ShieldCheck, Boxes, Settings2, Info, Code2, Copy, Check, Megaphone, Terminal, MonitorPlay } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
@@ -72,7 +72,7 @@ export default function LicensesPage() {
     const SERVER_URL = state.companyData?.publicUrl || 'https://soporte.clicsoporte.com';
 
     const sdkCode = {
-        meta: `v3.7.2 (Production Ready) - Ref: docs/Plan.txt`,
+        meta: `v3.7.3 (Final Shield) - Ref: docs/Botonlic.txt`,
         schema: `{
   "success": true,
   "license_file": {
@@ -179,7 +179,54 @@ export async function fetchMarketingAds(licenseStatus: 'free' | 'premium') {
         return payload.license_info.ads; 
     }
     return [];
-}`
+}`,
+        uiPanel: `/**
+ * PASO 6: PANEL DE ACTIVACIÓN (UI RECOMENDADA)
+ * Implementación de un botón de sincronización forzada en el software hijo.
+ */
+const handleManualSync = async () => {
+    setIsSyncing(true);
+    try {
+        // 1. Forzar re-activación (actualiza módulos y fechas)
+        const newLicense = await activatePremiumLicense(savedToken, localHardwareId);
+        
+        // 2. Validar firma inmediatamente
+        const isValid = verifyServerSignature(newLicense, publicKey);
+        if (isValid) {
+            saveLicenseLocally(newLicense);
+            toast({ title: "Sincronización Exitosa", description: "Datos de licencia actualizados." });
+        }
+
+        // 3. Forzar actualización de publicidad
+        const status = newLicense.license_info.activationToken === 'FREE-LICENSE' ? 'free' : 'premium';
+        const freshAds = await fetchMarketingAds(status);
+        updateLocalAds(freshAds);
+
+    } catch (e) {
+        toast({ title: "Error de Conexión", description: "No se pudo contactar al servidor central.", variant: "destructive" });
+    } finally {
+        setIsSyncing(false);
+    }
+};
+
+// JSX SUGERIDO PARA EL HIJO:
+<Card className="border-primary/20">
+    <CardHeader>
+        <CardTitle className="text-sm flex items-center gap-2"><KeyRound className="h-4 w-4"/> Licencia de Software</CardTitle>
+    </CardHeader>
+    <CardContent className="space-y-4">
+        <div className="flex justify-between items-center bg-muted/30 p-3 rounded-lg">
+            <span className="text-xs font-bold uppercase">Estado:</span>
+            <Badge variant={isLocalLicenseValid ? 'default' : 'destructive'}>
+                {isLocalLicenseValid ? 'ACTIVA' : 'INVALIDA'}
+            </Badge>
+        </div>
+        <Button onClick={handleManualSync} disabled={isSyncing} className="w-full">
+            {isSyncing ? <Loader2 className="animate-spin mr-2 h-4 w-4"/> : <RefreshCw className="mr-2 h-4 w-4"/>}
+            Sincronizar y Forzar Actualización
+        </Button>
+    </CardContent>
+</Card>`
     };
 
     return (
@@ -454,6 +501,7 @@ export async function fetchMarketingAds(licenseStatus: 'free' | 'premium') {
                                 <TabsTrigger value="activate" className="text-xs font-bold">3. Activación Premium</TabsTrigger>
                                 <TabsTrigger value="rsa" className="text-xs font-bold">4. Validación RSA</TabsTrigger>
                                 <TabsTrigger value="marketing" className="text-xs font-bold text-primary flex gap-1.5"><Megaphone className="h-3 w-3" /> 5. Marketing</TabsTrigger>
+                                <TabsTrigger value="uiPanel" className="text-xs font-black uppercase text-indigo-600 flex gap-1.5"><MonitorPlay className="h-3 w-3" /> 6. UI: Panel Activación</TabsTrigger>
                             </TabsList>
                             
                             <div className="flex-1 overflow-y-auto p-0">
@@ -543,11 +591,24 @@ export async function fetchMarketingAds(licenseStatus: 'free' | 'premium') {
                                         </pre>
                                     </div>
                                 </TabsContent>
+
+                                <TabsContent value="uiPanel" className="m-0 h-full p-4">
+                                    <div className="relative">
+                                        <p className="text-[11px] text-muted-foreground mb-3 italic">Lógica sugerida para el Panel de Control del software hijo (Sincronización Manual).</p>
+                                        <Button variant="secondary" size="sm" className="absolute top-8 right-2 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.uiPanel, 'uipanel')}>
+                                            {copiedSection === 'uipanel' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
+                                            {copiedSection === 'uipanel' ? 'Copiado' : 'Copiar'}
+                                        </Button>
+                                        <pre className="bg-slate-950 text-indigo-200 p-6 rounded-lg text-[11px] font-mono overflow-auto">
+                                            {sdkCode.uiPanel}
+                                        </pre>
+                                    </div>
+                                </TabsContent>
                             </div>
                         </Tabs>
                         
                         <DialogFooter className="p-6 border-t bg-muted/10">
-                            <DialogClose asChild><Button variant="outline">Cerrar Documentación</Button></DialogClose>
+                            <DialogClose asChild><Button variant="outline">Cerrar Kit</Button></DialogClose>
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
