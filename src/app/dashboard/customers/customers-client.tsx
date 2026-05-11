@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogClose, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { PlusCircle, Search, Edit, Trash2, Loader2, UserPlus, Building2, Mail, Phone, Briefcase, SearchIcon, CheckCircle2, AlertCircle, MapPin, ShieldCheck, RefreshCw, Users, MessageCircle, X, ShieldAlert, BellRing, GitFork, UserCheck, Star } from 'lucide-react';
+import { PlusCircle, Search, Edit, Trash2, Loader2, UserPlus, Building2, Mail, Phone, Briefcase, SearchIcon, CheckCircle2, AlertCircle, MapPin, ShieldCheck, RefreshCw, Users, MessageCircle, X, ShieldAlert, BellRing, GitFork, Star } from 'lucide-react';
 import { useToast } from '@/modules/core/hooks/use-toast';
 import { upsertCustomer, deleteCustomer, promoteLead } from '@/modules/core/lib/data-access-db';
 import { getContributorInfo } from '@/modules/hacienda/lib/actions';
@@ -25,7 +25,7 @@ import { cn } from '@/lib/utils';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
 import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const emptyContact: CustomerContact = {
     id: '',
@@ -709,7 +709,7 @@ export default function CustomersClient() {
                 </div>
             </div>
 
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'masters' | 'leads')} className="w-full">
                 <TabsList className="bg-muted p-1">
                     <TabsTrigger value="masters" className="flex items-center gap-2">
                         <Star className="h-4 w-4" /> Clientes Maestro
@@ -756,7 +756,7 @@ export default function CustomersClient() {
                                             const pkg = companyData?.supportPackages.find(p => p.id === customer.supportPackageId);
                                             const consumed = customer.consumedHours || 0;
                                             const available = customer.availableHours || 0;
-                                            const poolConsumed = (customer as any).poolConsumedHours || consumed;
+                                            const poolConsumed = (customer as Customer & { poolConsumedHours?: number }).poolConsumedHours || consumed;
                                             const balance = available - poolConsumed;
                                             const contactCount = (customer.contacts || []).length;
 
