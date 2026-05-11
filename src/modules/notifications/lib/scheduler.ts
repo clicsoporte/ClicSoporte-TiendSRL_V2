@@ -1,4 +1,3 @@
-
 'use server';
 
 /**
@@ -118,6 +117,24 @@ async function executeExpirationCheck() {
 }
 
 /**
+ * Task: OTP Table Cleanup.
+ * Removes expired verification codes to maintain database hygiene.
+ */
+async function executeOtpCleanup() {
+    try {
+        const db = await connectDb();
+        const now = new Date().toISOString();
+        const result = db.prepare('DELETE FROM otp_verifications WHERE expiresAt < ?').run(now);
+        if (result.changes > 0) {
+            await logInfo(`Higiene del Sistema: Se han purgado ${result.changes} códigos OTP expirados.`);
+        }
+    } catch (error: unknown) {
+        const err = error as Error;
+        await logError('Higiene OTP: Fallo al purgar códigos.', { error: err.message });
+    }
+}
+
+/**
  * Task: Automatic Contract Renewal.
  */
 async function executeAutoRenewals() {
@@ -188,6 +205,11 @@ export async function initScheduler() {
             console.log(`TASK SCHEDULED: [${task.name}] with frequency [${task.schedule}]`);
         }
     }
+
+    // Always run hygiene tasks daily if not defined in DB
+    cron.schedule('0 0 * * *', async () => {
+        await executeOtpCleanup();
+    });
     
-    await logInfo('Scheduler re-initialized', { totalActiveTasks: runningJobs.size });
+    await logInfo('Scheduler re-initialized', { totalActiveTasks: runningJobs.size + 1 });
 }

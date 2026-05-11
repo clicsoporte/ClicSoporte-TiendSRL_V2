@@ -1,6 +1,6 @@
 /**
  * @fileoverview Main page for the License Management module.
- * Enhanced for Hybrid Licensing v3.7 (OTP Handshake & Lead Promotion).
+ * Enhanced for Hybrid Licensing v3.7 (OTP Handshake & Ads Delivery).
  */
 'use client';
 
@@ -21,7 +21,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SearchInput } from '@/components/ui/search-input';
-import { PlusCircle, MoreVertical, CalendarIcon, Loader2, Trash2, Download, Edit, ShieldCheck, Boxes, Settings2, Info, Code2, Copy, Check } from 'lucide-react';
+import { PlusCircle, MoreVertical, CalendarIcon, Loader2, Trash2, Download, Edit, ShieldCheck, Boxes, Settings2, Info, Code2, Copy, Check, Megaphone } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
@@ -72,7 +72,7 @@ export default function LicensesPage() {
     const SERVER_URL = state.companyData?.publicUrl || 'https://soporte.clicsoporte.com';
 
     const sdkCode = {
-        meta: `version: v3.7.0 (Handshake OTP) fecha: 26/05/2024`,
+        meta: `version: v3.7.1 (Production Ready) fecha: ${new Date().toLocaleDateString()}`,
         requestOtp: `/**
  * PASO 1: SOLICITAR CÓDIGO OTP (v3.7)
  * Inicia el handshake enviando el correo del cliente.
@@ -81,14 +81,13 @@ export async function requestValidationCode(email: string) {
     const res = await fetch(\`${SERVER_URL}/api/v1/request-otp\`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email })
+        body: JSON.stringify({ email: email.toLowerCase().trim() })
     });
     return await res.json();
 }`,
         register: `/**
  * PASO 2: REGISTRO CON OTP (v3.7)
  * Envía los datos del equipo junto con el código recibido por el usuario.
- * El servidor validará el OTP y creará el registro como "Prospecto Gratis".
  */
 export async function registerFreeLicense(payload: {
     taxId: string,
@@ -111,23 +110,21 @@ export async function registerFreeLicense(payload: {
     
     return result.license_file; // Objeto firmado con RSA
 }`,
-        ui: `/**
- * EJEMPLO DE INTERFAZ RECOMENDADA (v3.7)
+        marketing: `/**
+ * PASO 3: CONSUMO DE PUBLICIDAD FIRMADA (v3.7)
+ * Descarga los anuncios configurados para este software.
+ * Segmentación sugerida: 'free' o 'premium'.
  */
-const Step1 = () => (
-    <div>
-        <Input placeholder="Tu Correo..." onChange={...} />
-        <Button onClick={handleRequestOtp}>Enviar Código</Button>
-    </div>
-);
-
-const Step2 = () => (
-    <div>
-        <p>Hemos enviado un código a tu correo.</p>
-        <Input placeholder="Código OTP (8 caracteres)..." onChange={...} />
-        <Button onClick={handleRegister}>Activar Ahora</Button>
-    </div>
-);`
+export async function fetchMarketingAds(licenseStatus: 'free' | 'premium') {
+    const res = await fetch(\`${SERVER_URL}/api/v1/marketing?software=Mi-Software&status=\${licenseStatus}\`);
+    const data = await res.json();
+    
+    if (data.success) {
+        // 'data.payload' contiene la publicidad firmada con RSA
+        return data.payload.ads; 
+    }
+    return [];
+}`
     };
 
     return (
@@ -286,9 +283,6 @@ const Step2 = () => (
                                                                         );
                                                                     })}
                                                                 </div>
-                                                                <p className="text-[10px] text-muted-foreground italic border-t pt-2">
-                                                                    * Estándar: Para aplicaciones simples, active siempre el <b>Módulo 1</b> como disparador de activación global.
-                                                                </p>
                                                             </div>
                                                         ) : (
                                                             <div className="flex flex-col items-center justify-center h-full text-center p-10 border-2 border-dashed rounded-2xl opacity-40">
@@ -319,7 +313,6 @@ const Step2 = () => (
                                 <TableHeader>
                                     <TableRow className="bg-muted/50 text-[11px] uppercase font-bold">
                                         <TableHead>Software</TableHead>
-                                        <TableHead>Código Cliente</TableHead>
                                         <TableHead>Identificación / Cédula</TableHead>
                                         <TableHead>Cliente</TableHead>
                                         <TableHead>Token / Serial</TableHead>
@@ -343,13 +336,12 @@ const Step2 = () => (
                                                         </span>
                                                     </div>
                                                 </TableCell>
-                                                <TableCell className="font-mono text-xs">{client?.id || 'N/A'}</TableCell>
-                                                <TableCell className="text-xs">{client?.taxId || 'N/A'}</TableCell>
+                                                <TableCell className="text-xs font-mono">{client?.taxId || 'N/A'}</TableCell>
                                                 <TableCell className="text-sm font-medium">
                                                     <div className="flex flex-col">
                                                         <div className="flex items-center gap-1.5">
                                                             <span>{client?.name || license.customerId || 'No asignado'}</span>
-                                                            {client?.isLead && <Badge className="bg-orange-100 text-orange-700 text-[8px] h-3.5 border-none">LEAD</Badge>}
+                                                            {client?.isLead && <Badge className="bg-orange-100 text-orange-700 text-[8px] h-3.5 border-none">PROSPECTO</Badge>}
                                                         </div>
                                                         {client?.commercialName && <span className="text-[9px] text-primary font-bold uppercase">{client.commercialName}</span>}
                                                     </div>
@@ -390,28 +382,26 @@ const Step2 = () => (
                 <Dialog open={isSdkDialogOpen} onOpenChange={setSdkDialogOpen}>
                     <DialogContent className="sm:max-w-4xl h-[90vh] flex flex-col p-0 overflow-hidden">
                         <DialogHeader className="p-6 pb-2 border-b">
-                            <div className="flex items-center justify-between w-full pr-8">
-                                <div className="flex items-center gap-2">
-                                    <Code2 className="h-5 w-5 text-primary" />
-                                    <DialogTitle>Kit de Integración (SDK Estándar {sdkCode.meta})</DialogTitle>
-                                </div>
+                            <div className="flex items-center gap-2">
+                                <Code2 className="h-5 w-5 text-primary" />
+                                <DialogTitle>Kit de Integración (SDK Oficial {sdkCode.meta})</DialogTitle>
                             </div>
                             <DialogDescription>
-                                Implementa el handshake de validación OTP y registro segregado de Leads para activaciones masivas.
+                                Implementa el handshake seguro y la sincronización de publicidad dinámica para el software hijo.
                             </DialogDescription>
                         </DialogHeader>
                         
                         <Tabs defaultValue="otp" className="flex-1 overflow-hidden flex flex-col">
                             <TabsList className="px-6 border-b rounded-none bg-muted/20 h-10 overflow-x-auto justify-start">
-                                <TabsTrigger value="otp" className="text-xs font-bold text-orange-600">1. Handshake (OTP)</TabsTrigger>
-                                <TabsTrigger value="register" className="text-xs font-bold text-primary">2. Registro Lead</TabsTrigger>
-                                <TabsTrigger value="ui" className="text-xs font-bold text-green-600">Ejemplo Interfaz</TabsTrigger>
+                                <TabsTrigger value="otp" className="text-xs font-bold">1. Validación (OTP)</TabsTrigger>
+                                <TabsTrigger value="register" className="text-xs font-bold">2. Registro Seguro</TabsTrigger>
+                                <TabsTrigger value="marketing" className="text-xs font-bold text-primary flex gap-1.5"><Megaphone className="h-3 w-3" /> 3. Publicidad Dinámica</TabsTrigger>
                             </TabsList>
                             
                             <div className="flex-1 overflow-y-auto p-0">
                                 <TabsContent value="otp" className="m-0 h-full">
                                     <div className="p-4 relative">
-                                        <p className="text-[11px] text-muted-foreground mb-3 italic">Paso 1: Solicitar código de verificación de correo.</p>
+                                        <p className="text-[11px] text-muted-foreground mb-3 italic">Dispara el envío de código de 8 caracteres al correo del usuario.</p>
                                         <Button variant="secondary" size="sm" className="absolute top-12 right-6 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.requestOtp, 'otp')}>
                                             {copiedSection === 'otp' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
                                             {copiedSection === 'otp' ? 'Copiado' : 'Copiar'}
@@ -423,7 +413,7 @@ const Step2 = () => (
                                 </TabsContent>
                                 <TabsContent value="register" className="m-0 h-full">
                                     <div className="p-4 relative">
-                                        <p className="text-[11px] text-muted-foreground mb-3 italic">Paso 2: Finalizar registro gratuito adjuntando el OTP.</p>
+                                        <p className="text-[11px] text-muted-foreground mb-3 italic">Finaliza el registro enviando el OTP ingresado. Crea un "Prospecto" en el servidor.</p>
                                         <Button variant="secondary" size="sm" className="absolute top-12 right-6 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.register, 'register')}>
                                             {copiedSection === 'register' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
                                             {copiedSection === 'register' ? 'Copiado' : 'Copiar'}
@@ -433,14 +423,15 @@ const Step2 = () => (
                                         </pre>
                                     </div>
                                 </TabsContent>
-                                <TabsContent value="ui" className="m-0 h-full">
+                                <TabsContent value="marketing" className="m-0 h-full">
                                     <div className="p-4 relative">
-                                        <Button variant="secondary" size="sm" className="absolute top-6 right-6 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.ui, 'ui')}>
-                                            {copiedSection === 'ui' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
-                                            {copiedSection === 'ui' ? 'Copiado' : 'Copiar'}
+                                        <p className="text-[11px] text-muted-foreground mb-3 italic">Descarga la publicidad vigente. El servidor entrega un payload firmado por RSA para evitar manipulación.</p>
+                                        <Button variant="secondary" size="sm" className="absolute top-12 right-6 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.marketing, 'marketing')}>
+                                            {copiedSection === 'marketing' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
+                                            {copiedSection === 'marketing' ? 'Copiado' : 'Copiar'}
                                         </Button>
-                                        <pre className="bg-slate-950 text-green-200 p-6 rounded-lg text-[11px] font-mono overflow-auto max-h-[600px]">
-                                            {sdkCode.ui}
+                                        <pre className="bg-slate-950 text-blue-200 p-6 rounded-lg text-[11px] font-mono overflow-auto max-h-[600px]">
+                                            {sdkCode.marketing}
                                         </pre>
                                     </div>
                                 </TabsContent>
@@ -448,7 +439,7 @@ const Step2 = () => (
                         </Tabs>
                         
                         <DialogFooter className="p-6 border-t bg-muted/10">
-                            <DialogClose asChild><Button variant="outline">Cerrar SDK</Button></DialogClose>
+                            <DialogClose asChild><Button variant="outline">Cerrar Documentación</Button></DialogClose>
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
@@ -457,7 +448,6 @@ const Step2 = () => (
                     <DialogContent className="sm:max-w-3xl">
                         <DialogHeader>
                             <DialogTitle className="flex items-center gap-2"><Boxes className="h-5 w-5 text-primary" /> Catálogo de Productos de Software</DialogTitle>
-                            <DialogDescription>Define los nombres de los módulos para cada programa de tu autoría.</DialogDescription>
                         </DialogHeader>
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 py-4">
                             <div className="space-y-4">
@@ -490,7 +480,6 @@ const Step2 = () => (
                                     <div className="space-y-2">
                                         <Label>Versión Actual (Centralizada)</Label>
                                         <Input value={state.newSoftwareProduct.currentVersion || ''} onChange={e => actions.handleNewSoftwareChange('currentVersion', e.target.value)} placeholder="Ej: 2.5.0" />
-                                        <p className="text-[10px] text-muted-foreground italic">Al cambiar la versión aquí, todos los clientes recibirán el aviso de actualización.</p>
                                     </div>
                                     <div className="flex items-center space-x-2 pb-2"><Checkbox id="is-internal-soft" checked={state.newSoftwareProduct.isInternal} onCheckedChange={checked => actions.handleNewSoftwareChange('isInternal', !!checked)}/><Label htmlFor="is-internal-soft" className="text-xs">Es Software Propio (Permite Módulos)</Label></div>
                                     <Button className="w-full" onClick={actions.handleSaveSoftware}>

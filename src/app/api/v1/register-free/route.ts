@@ -1,6 +1,6 @@
 /**
  * @fileoverview API Endpoint for registering free licenses with OTP validation.
- * Refactored for Handshake v3.7: Requires otpCode and creates customer as Lead.
+ * Refactored for Production Blindado: Strict normalization and non-destructive upsert.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -26,13 +26,17 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Validación requerida: Ingrese el código OTP enviado a su correo.' }, { status: 403 });
         }
 
-        // 2. Identity Check
-        if ((!softwareId && !softwareName) || !hardwareId || !taxId || !customerEmail) {
+        // 2. Strict Normalization (Producción)
+        const normalizedEmail = String(customerEmail || '').trim().toLowerCase();
+        const normalizedTaxId = String(taxId || '').trim().toUpperCase();
+        const normalizedHardwareId = String(hardwareId || '').trim();
+
+        if ((!softwareId && !softwareName) || !normalizedHardwareId || !normalizedTaxId || !normalizedEmail) {
             return NextResponse.json({ error: 'Faltan identificadores obligatorios (Software, HardwareID, Email o TaxID)' }, { status: 400 });
         }
 
         // 3. Verify OTP
-        const isOtpValid = await verifyOtp(customerEmail.trim().toLowerCase(), otpCode);
+        const isOtpValid = await verifyOtp(normalizedEmail, otpCode);
         if (!isOtpValid) {
             return NextResponse.json({ error: 'Código OTP inválido o expirado. Solicite uno nuevo.' }, { status: 401 });
         }
@@ -55,7 +59,7 @@ export async function POST(req: NextRequest) {
         const existingLicense = db.prepare(`
             SELECT * FROM licenses 
             WHERE softwareId = ? AND hardwareId = ? AND status = 'active'
-        `).get(software.id, hardwareId) as License | undefined;
+        `).get(software.id, normalizedHardwareId) as License | undefined;
 
         if (existingLicense && existingLicense.licenseKey) {
             try {
@@ -70,12 +74,12 @@ export async function POST(req: NextRequest) {
             }
         }
 
-        // 6. Create the Customer as LEAD (Segregation)
+        // 6. Create the Customer as LEAD (Non-destructive)
         const customerData: Customer = {
-            id: taxId.trim().toUpperCase(),
-            name: customerName || 'Lead Nuevo',
-            taxId: taxId.trim().toUpperCase(),
-            email: customerEmail.trim().toLowerCase(),
+            id: normalizedTaxId,
+            name: String(customerName || 'Prospecto Nuevo').trim(),
+            taxId: normalizedTaxId,
+            email: normalizedEmail,
             phone: customerPhone || '',
             active: 'S',
             address: 'Registro Online (Lead OTP)',
@@ -84,9 +88,9 @@ export async function POST(req: NextRequest) {
             creditLimit: 0,
             paymentCondition: '0',
             salesperson: 'SISTEMA ONLINE',
-            electronicDocEmail: customerEmail.trim().toLowerCase(),
+            electronicDocEmail: normalizedEmail,
             isManual: true,
-            isLead: true // Mark as lead for UI segregation
+            isLead: true 
         };
 
         await upsertLeadCustomer(customerData);
@@ -101,7 +105,7 @@ export async function POST(req: NextRequest) {
             customerName: customerData.name,
             customerEmail: customerData.email,
             customerPhone: customerData.phone,
-            hardwareId: hardwareId,
+            hardwareId: normalizedHardwareId,
             activationToken: 'FREE-LICENSE',
             isPerpetual: true,
             status: 'active',
@@ -119,7 +123,7 @@ export async function POST(req: NextRequest) {
             INSERT INTO licenses (
                 licenseKey, activationToken, softwareId, customerId, hardwareId, isPerpetual, expirationDate, status, createdAt, m01_val
             ) VALUES (?, 'FREE-LICENSE', ?, ?, ?, 1, '', 'active', ?, 1)
-        `).run(signedDataString, software.id, customerData.id, hardwareId, now);
+        `).run(signedDataString, software.id, customerData.id, normalizedHardwareId, now);
 
         return NextResponse.json({
             success: true,

@@ -1,5 +1,6 @@
 /**
  * @fileoverview Funciones de servidor para acceder a datos maestros (clientes, productos, etc.).
+ * Refactorizado para blindaje de producción: Normalización estricta e idempotencia.
  */
 "use server";
 
@@ -69,12 +70,16 @@ export async function getAllCustomers(): Promise<Customer[]> {
 
 /**
  * Crea o actualiza un cliente manualmente.
- * REQUIERE SESIÓN ACTIVA.
+ * Normaliza ID y TaxID para evitar duplicados.
  */
 export async function upsertCustomer(customer: Customer): Promise<Customer> {
     const db = await connectDb();
     
-    const existing = db.prepare('SELECT id, supportPackageId FROM customers WHERE id = ?').get(customer.id) as { id: string, supportPackageId: string | null } | undefined;
+    // Normalización de identidad
+    const normalizedId = customer.id.trim().toUpperCase();
+    const normalizedTaxId = customer.taxId.trim().toUpperCase();
+
+    const existing = db.prepare('SELECT id, supportPackageId FROM customers WHERE id = ?').get(normalizedId) as { id: string, supportPackageId: string | null } | undefined;
     await authorizeAction(existing ? 'customers:update' : 'customers:create');
 
     if (existing && customer.supportPackageId !== existing.supportPackageId) {
@@ -111,19 +116,19 @@ export async function upsertCustomer(customer: Customer): Promise<Customer> {
         `);
         
         const params = {
-            id: customer.id,
-            name: customer.name,
-            commercialName: customer.commercialName || null,
+            id: normalizedId,
+            name: customer.name.trim(),
+            commercialName: customer.commercialName?.trim() || null,
             address: customer.address || null,
             phone: customer.phone || null,
-            taxId: customer.taxId,
+            taxId: normalizedTaxId,
             currency: customer.currency || 'CRC',
             creditLimit: customer.creditLimit || 0,
             paymentCondition: customer.paymentCondition || '0',
             salesperson: customer.salesperson || null,
             active: customer.active || 'S',
-            email: customer.email || null,
-            electronicDocEmail: customer.electronicDocEmail || null,
+            email: customer.email?.trim().toLowerCase() || null,
+            electronicDocEmail: customer.electronicDocEmail?.trim().toLowerCase() || null,
             contacts: JSON.stringify(customer.contacts || []),
             taxRegime: customer.taxRegime || null,
             taxStatus: customer.taxStatus || null,
@@ -145,36 +150,41 @@ export async function upsertCustomer(customer: Customer): Promise<Customer> {
         };
 
         stmt.run(params);
-        await logInfo(`Cliente gestionado manualmente: ${customer.name} (${customer.id})`);
+        await logInfo(`Cliente gestionado manualmente: ${customer.name} (${normalizedId})`);
         revalidatePath('/dashboard/customers');
         return customer;
     } catch (error: unknown) {
         const err = error as Error;
         await logError("Falla crítica al guardar cliente", { 
             message: err.message, 
-            customerId: customer.id,
-            taxId: customer.taxId 
+            customerId: normalizedId,
+            taxId: normalizedTaxId 
         });
         throw new Error(`Error en el servidor al procesar el cliente: ${err.message}`);
     }
 }
 
 /**
- * upsertLeadCustomer: Versión mejorada que NO sobrescribe datos de clientes existentes.
- * Protege la integridad de la base de datos local frente a entradas de la API.
+ * upsertLeadCustomer: Blindaje extremo. NO sobrescribe datos de clientes existentes.
+ * Asegura la integridad de los datos maestros frente a entradas de la API.
  */
 export async function upsertLeadCustomer(customer: Customer): Promise<Customer> {
     const db = await connectDb();
+    
+    // Normalización forzada
+    const normalizedTaxId = customer.taxId.trim().toUpperCase();
+    const normalizedId = customer.id.trim().toUpperCase();
+
     try {
-        // Primero verificamos si el cliente ya existe
-        const existing = db.prepare('SELECT id FROM customers WHERE id = ? OR taxId = ?').get(customer.id, customer.taxId);
+        // Verificación de colisión con Cartera Oficial o Leads existentes
+        const existing = db.prepare('SELECT id, isLead FROM customers WHERE id = ? OR taxId = ?').get(normalizedId, normalizedTaxId) as { id: string, isLead: number } | undefined;
         
         if (existing) {
-            // Si existe, no hacemos nada para proteger los datos maestros
+            // Si el cliente ya existe, no hacemos nada (idempotencia segura)
+            await logInfo(`Registro Lead omitido: El cliente ${normalizedId} ya existe en el sistema.`, { isLead: !!existing.isLead });
             return customer;
         }
 
-        // Si no existe, lo creamos como un nuevo Lead
         const stmt = db.prepare(`
             INSERT INTO customers (
                 id, name, commercialName, address, phone, taxId, currency, salesperson, active, email, electronicDocEmail, isManual, contacts,
@@ -187,15 +197,15 @@ export async function upsertLeadCustomer(customer: Customer): Promise<Customer> 
         `);
         
         const params = {
-            id: customer.id,
-            name: customer.name,
-            commercialName: customer.commercialName || null,
+            id: normalizedId,
+            name: customer.name.trim(),
+            commercialName: customer.commercialName?.trim() || null,
             address: customer.address || 'Registro Online (Lead OTP)',
             phone: customer.phone || null,
-            taxId: customer.taxId,
+            taxId: normalizedTaxId,
             currency: customer.currency || 'CRC',
-            email: customer.email || null,
-            electronicDocEmail: customer.electronicDocEmail || null,
+            email: customer.email?.trim().toLowerCase() || null,
+            electronicDocEmail: customer.electronicDocEmail?.trim().toLowerCase() || null,
             contacts: JSON.stringify(customer.contacts || []),
             taxActivities: customer.taxActivities || '[]'
         };
@@ -205,7 +215,7 @@ export async function upsertLeadCustomer(customer: Customer): Promise<Customer> 
         return customer;
     } catch (error: unknown) {
         const err = error as Error;
-        await logError("Falla en registro de Lead vía API", { error: err.message, customerId: customer.id });
+        await logError("Falla en registro de Lead vía API", { error: err.message, customerId: normalizedId });
         throw err;
     }
 }

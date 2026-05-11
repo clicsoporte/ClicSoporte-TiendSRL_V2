@@ -1,8 +1,6 @@
-
 /**
  * @fileoverview API Endpoint for client verification and autocomplete.
- * Checks local database first, then falls back to Hacienda API.
- * Privacy-focused: Does not leak sensitive contact info to public requests.
+ * Refactored for Production Blindado: Strict TaxID normalization.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -15,11 +13,14 @@ export const dynamic = 'force-dynamic';
 export async function GET(req: NextRequest) {
     try {
         const { searchParams } = new URL(req.url);
-        const taxId = searchParams.get('taxId')?.trim().toUpperCase();
+        const rawTaxId = searchParams.get('taxId');
 
-        if (!taxId) {
+        if (!rawTaxId) {
             return NextResponse.json({ error: 'Tax ID is required' }, { status: 400 });
         }
+
+        // Normalización estricta
+        const taxId = rawTaxId.trim().toUpperCase();
 
         const db = await connectDb();
 
@@ -32,8 +33,8 @@ export async function GET(req: NextRequest) {
                 source: 'local',
                 data: {
                     name: localCustomer.name,
-                    isBlocked: !!localCustomer.isBlocked
-                    // Note: Email and Phone removed for privacy in public API
+                    isBlocked: !!localCustomer.isBlocked,
+                    isLead: !!localCustomer.isLead
                 }
             });
         }
@@ -47,7 +48,8 @@ export async function GET(req: NextRequest) {
                 source: 'hacienda',
                 data: {
                     name: haciendaInfo.nombre,
-                    isBlocked: false
+                    isBlocked: false,
+                    isLead: false
                 }
             });
         }
