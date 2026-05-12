@@ -1,6 +1,6 @@
 /**
  * @fileoverview Main page for the License Management module.
- * Enhanced for Hybrid Licensing v3.8.1 (Full SDK + Dynamic Compliance Policies).
+ * Enhanced for Hybrid Licensing v3.8.2 (Full SDK + Dynamic Compliance Policies Context).
  */
 'use client';
 
@@ -21,7 +21,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SearchInput } from '@/components/ui/search-input';
-import { PlusCircle, MoreVertical, CalendarIcon, Loader2, Trash2, Download, Edit, ShieldCheck, Boxes, Settings2, Info, Code2, Copy, Check, Terminal, MonitorPlay, ShieldAlert } from 'lucide-react';
+import { PlusCircle, MoreVertical, CalendarIcon, Loader2, Trash2, Download, Edit, ShieldCheck, Boxes, Settings2, Info, Code2, Copy, Check, Terminal, MonitorPlay, ShieldAlert, AlertCircle } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
@@ -29,6 +29,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import type { License, SoftwareProduct } from '@/modules/core/types';
 
 export default function LicensesPage() {
@@ -72,7 +73,7 @@ export default function LicensesPage() {
     const SERVER_URL = state.companyData?.publicUrl || 'https://soporte.clicsoporte.com';
 
     const sdkCode = {
-        meta: `v3.8.1 (Compliance Pack)`,
+        meta: `v3.8.2 (Compliance & Context)`,
         schema: `{
   "success": true,
   "license_file": {
@@ -561,15 +562,27 @@ const handleManualSync = async () => {
                                 </TabsContent>
 
                                 <TabsContent value="compliance" className="m-0 h-full p-4">
-                                    <div className="relative">
-                                        <p className="text-[11px] text-muted-foreground mb-3 italic">Implementación de protecciones Anti-Clock e lógica de Nag Screen para versiones Free.</p>
-                                        <Button variant="secondary" size="sm" className="absolute top-8 right-2 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.compliance, 'compliance')}>
-                                            {copiedSection === 'compliance' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
-                                            {copiedSection === 'compliance' ? 'Copiado' : 'Copiar'}
-                                        </Button>
-                                        <pre className="bg-slate-950 text-orange-200 p-6 rounded-lg text-[11px] font-mono overflow-auto">
-                                            {sdkCode.compliance}
-                                        </pre>
+                                    <div className="space-y-4">
+                                        <Alert className="bg-blue-50 border-blue-200">
+                                            <Info className="h-4 w-4 text-blue-600" />
+                                            <AlertTitle className="text-blue-800 text-xs font-bold uppercase">Contexto de Negocio</AlertTitle>
+                                            <AlertDescription className="text-[11px] text-blue-700 leading-relaxed">
+                                                Las Políticas Dinámicas (Compliance) actúan como un manual de comportamiento inyectado y firmado. 
+                                                Para versiones <b>FREE</b>, son restrictivas (Nag Screen, Sync obligatorio) para incentivar la conversión. 
+                                                Para versiones <b>PREMIUM</b>, son permisivas (Uso Offline, HWID Lock) para priorizar la experiencia. 
+                                                Al estar dentro del paquete firmado RSA, el hijo tiene una fuente de verdad absoluta e inalterable.
+                                            </AlertDescription>
+                                        </Alert>
+                                        <div className="relative">
+                                            <p className="text-[11px] text-muted-foreground mb-3 italic">Implementación de protecciones Anti-Clock e lógica de Nag Screen para versiones Free.</p>
+                                            <Button variant="secondary" size="sm" className="absolute top-8 right-2 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.compliance, 'compliance')}>
+                                                {copiedSection === 'compliance' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
+                                                {copiedSection === 'compliance' ? 'Copiado' : 'Copiar'}
+                                            </Button>
+                                            <pre className="bg-slate-950 text-orange-200 p-6 rounded-lg text-[11px] font-mono overflow-auto">
+                                                {sdkCode.compliance}
+                                            </pre>
+                                        </div>
                                     </div>
                                 </TabsContent>
 
@@ -595,8 +608,19 @@ const handleManualSync = async () => {
 
                 <Dialog open={state.isSoftwareDialogOpen} onOpenChange={actions.setIsSoftwareDialogOpen}>
                     <DialogContent className="sm:max-w-5xl h-[90vh] flex flex-col p-0">
-                        <DialogHeader className="p-6 b-border-b">
-                            <DialogTitle className="flex items-center gap-2"><Boxes className="h-5 w-5 text-primary" /> Catálogo de Productos de Software</DialogTitle>
+                        <DialogHeader className="p-6 pb-2 border-b">
+                            <div className="flex items-center gap-2">
+                                <Boxes className="h-5 w-5 text-primary" />
+                                <DialogTitle>Catálogo de Productos de Software</DialogTitle>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <button className="rounded-full h-5 w-5 bg-muted flex items-center justify-center text-[10px] font-bold text-muted-foreground hover:bg-primary/20 hover:text-primary transition-colors">?</button>
+                                    </TooltipTrigger>
+                                    <TooltipContent className="max-w-sm">
+                                        <p className="text-xs">Define los productos que tu empresa desarrolla o distribuye. Permite mapear hasta 10 módulos lógicos y configurar políticas de conexión para el SDK hijo.</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </div>
                         </DialogHeader>
                         
                         <div className="flex-1 overflow-hidden grid grid-cols-1 lg:grid-cols-2">
@@ -634,20 +658,44 @@ const handleManualSync = async () => {
                                             <p className="text-[10px] font-black uppercase text-primary tracking-widest flex items-center gap-1"><ShieldAlert className="h-3 w-3"/> Políticas Dinámicas (Compliance)</p>
                                             <div className="grid grid-cols-2 gap-3">
                                                 <div className="space-y-1.5">
-                                                    <Label className="text-[9px] uppercase font-bold">Sync Gracia Free (Días)</Label>
+                                                    <Label className="text-[9px] uppercase font-bold flex items-center gap-1">
+                                                        Sync Gracia Free (Días)
+                                                        <Tooltip>
+                                                            <TooltipTrigger><Info className="h-2.5 w-2.5 text-muted-foreground"/></TooltipTrigger>
+                                                            <TooltipContent className="max-w-xs"><p>Días máximos que una licencia Free puede operar sin reportarse al servidor antes de bloquearse.</p></TooltipContent>
+                                                        </Tooltip>
+                                                    </Label>
                                                     <Input type="number" value={state.newSoftwareProduct.syncFrequencyFree || 7} onChange={e => actions.handleNewSoftwareChange('syncFrequencyFree', Number(e.target.value))} className="h-8 text-xs" />
                                                 </div>
                                                 <div className="space-y-1.5">
-                                                    <Label className="text-[9px] uppercase font-bold">Frescura Anuncios (Días)</Label>
+                                                    <Label className="text-[9px] uppercase font-bold flex items-center gap-1">
+                                                        Frescura Anuncios (Días)
+                                                        <Tooltip>
+                                                            <TooltipTrigger><Info className="h-2.5 w-2.5 text-muted-foreground"/></TooltipTrigger>
+                                                            <TooltipContent className="max-w-xs"><p>Días de frescura de la publicidad. Superado este tiempo, se activa el Nag Screen en el hijo.</p></TooltipContent>
+                                                        </Tooltip>
+                                                    </Label>
                                                     <Input type="number" value={state.newSoftwareProduct.adRefreshFrequency || 2} onChange={e => actions.handleNewSoftwareChange('adRefreshFrequency', Number(e.target.value))} className="h-8 text-xs" />
                                                 </div>
                                                 <div className="space-y-1.5">
-                                                    <Label className="text-[9px] uppercase font-bold">Bloqueo Nag Screen (Seg)</Label>
+                                                    <Label className="text-[9px] uppercase font-bold flex items-center gap-1">
+                                                        Bloqueo Nag Screen (Seg)
+                                                        <Tooltip>
+                                                            <TooltipTrigger><Info className="h-2.5 w-2.5 text-muted-foreground"/></TooltipTrigger>
+                                                            <TooltipContent className="max-w-xs"><p>Segundos que la pantalla permanecerá bloqueada por el Nag Screen cada hora de uso.</p></TooltipContent>
+                                                        </Tooltip>
+                                                    </Label>
                                                     <Input type="number" value={state.newSoftwareProduct.nagScreenTimer || 60} onChange={e => actions.handleNewSoftwareChange('nagScreenTimer', Number(e.target.value))} className="h-8 text-xs" />
                                                 </div>
                                                 <div className="flex items-center space-x-2 pt-5">
                                                     <Switch checked={!!state.newSoftwareProduct.allowOfflinePremium} onCheckedChange={val => actions.handleNewSoftwareChange('allowOfflinePremium', val)} />
-                                                    <Label className="text-[9px] uppercase font-bold">Offline Premium</Label>
+                                                    <Label className="text-[9px] uppercase font-bold flex items-center gap-1">
+                                                        Offline Premium
+                                                        <Tooltip>
+                                                            <TooltipTrigger><Info className="h-2.5 w-2.5 text-muted-foreground"/></TooltipTrigger>
+                                                            <TooltipContent className="max-w-xs"><p>Si se permite el funcionamiento 100% offline para versiones pagas tras la validación inicial.</p></TooltipContent>
+                                                        </Tooltip>
+                                                    </Label>
                                                 </div>
                                             </div>
                                         </div>
