@@ -40,6 +40,10 @@ const emptySoftwareProduct: Omit<SoftwareProduct, 'id'> = {
     name: '',
     isInternal: false,
     currentVersion: '1.0.0',
+    syncFrequencyFree: 7,
+    adRefreshFrequency: 2,
+    nagScreenTimer: 60,
+    allowOfflinePremium: true,
     m01_name: '', m02_name: '', m03_name: '', m04_name: '', m05_name: '',
     m06_name: '', m07_name: '', m08_name: '', m09_name: '', m10_name: ''
 };
@@ -99,7 +103,7 @@ export const useLicenses = () => {
         updateState({ currentLicense: { ...state.currentLicense, [field]: value } });
     };
     
-    const handleNewSoftwareChange = (field: keyof SoftwareProduct, value: string | boolean | null) => {
+    const handleNewSoftwareChange = (field: keyof SoftwareProduct, value: string | number | boolean | null) => {
         updateState({ newSoftwareProduct: { ...state.newSoftwareProduct, [field]: value } });
     };
 
@@ -232,7 +236,7 @@ export const useLicenses = () => {
         try {
             await deleteSoftwareProduct(id);
             updateState({ softwareProducts: state.softwareProducts.filter(p => p.id !== id) });
-            toast({ title: "Producto Eliminado" });
+            toast({ title: "Producto Eliminar" });
         } catch (error: unknown) {
             const err = error as Error;
             toast({ title: "Error", description: err.message, variant: "destructive" });

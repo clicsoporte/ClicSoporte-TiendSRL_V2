@@ -448,7 +448,7 @@ const handleManualSync = async () => {
 
                                 <TabsContent value="compliance" className="m-0 h-full p-4">
                                     <div className="relative">
-                                        <p className="text-[11px] text-muted-foreground mb-3 italic">Implementación de protecciones Anti-Clock y lógica de Nag Screen para versiones Free.</p>
+                                        <p className="text-[11px] text-muted-foreground mb-3 italic">Implementación de protecciones Anti-Clock e lógica de Nag Screen para versiones Free.</p>
                                         <Button variant="secondary" size="sm" className="absolute top-8 right-2 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.compliance, 'compliance')}>
                                             {copiedSection === 'compliance' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
                                             {copiedSection === 'compliance' ? 'Copiado' : 'Copiar'}
@@ -481,7 +481,7 @@ const handleManualSync = async () => {
 
                 <Dialog open={state.isSoftwareDialogOpen} onOpenChange={actions.setIsSoftwareDialogOpen}>
                     <DialogContent className="sm:max-w-5xl h-[90vh] flex flex-col p-0">
-                        <DialogHeader className="p-6 border-b">
+                        <DialogHeader className="p-6 b-border-b">
                             <DialogTitle className="flex items-center gap-2"><Boxes className="h-5 w-5 text-primary" /> Catálogo de Productos de Software</DialogTitle>
                         </DialogHeader>
                         
