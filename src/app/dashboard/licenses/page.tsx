@@ -1,6 +1,6 @@
 /**
  * @fileoverview Main page for the License Management module.
- * Enhanced for Hybrid Licensing v3.8.0 (Full SDK + Dynamic Compliance Policies).
+ * Enhanced for Hybrid Licensing v3.8.1 (Full SDK + Dynamic Compliance Policies).
  */
 'use client';
 
@@ -72,15 +72,20 @@ export default function LicensesPage() {
     const SERVER_URL = state.companyData?.publicUrl || 'https://soporte.clicsoporte.com';
 
     const sdkCode = {
-        meta: `v3.8.0 (Compliance Pack)`,
+        meta: `v3.8.1 (Compliance Pack)`,
         schema: `{
   "success": true,
   "license_file": {
     "license_info": {
       "softwareId": 12,
-      "softwareName": "Nombre-Software",
+      "softwareName": "Clic-Turnos",
       "customerName": "Nombre Oficial del Cliente", 
+      "customerEmail": "cliente@oficial.com",        
+      "customerPhone": "8888-8888",
       "hardwareId": "ABC-123-XYZ",
+      "status": "active",
+      "isPerpetual": false,
+      "expirationDate": "2025-12-31",
       "policies": {
         "syncFrequencyFree": 7,    // Días de gracia sin internet (Free)
         "adRefreshFrequency": 2,   // Días de frescura de anuncios
@@ -93,13 +98,83 @@ export default function LicensesPage() {
   }
 }`,
         verify: `/**
- * PASO 1: VERIFICACIÓN INTELIGENTE
- * Consulta si el cliente existe para evitar duplicados.
+ * PASO 1: VERIFICACIÓN INTELIGENTE (SDK v3.3+)
+ * El cliente ingresa su Cédula y obtenemos sus datos oficiales para evitar doble registro.
  */
 export async function verifyClientInfo(taxId: string) {
     const res = await fetch(\`${SERVER_URL}/api/v1/verify-client?taxId=\${taxId}\`);
     const result = await res.json();
-    return result.exists ? { found: true, data: result.data } : { found: false };
+    
+    if (result.exists) {
+        return { 
+            found: true, 
+            data: result.data, 
+            isLocal: result.source === 'local' 
+        };
+    }
+    return { found: false };
+}`,
+        activation: `/**
+ * PASO 2: ACTIVACIÓN (SDK v3.3+)
+ * El servidor devuelve un objeto estructurado. Ya NO es necesario JSON.parse(result.license_file).
+ */
+export async function activateSoftware(payload: {
+    taxId: string,
+    customerName: string,
+    customerEmail: string,
+    customerPhone: string,
+    token?: string
+}) {
+    const hardwareId = await generateHardwareId(); // Fingerprint local
+    const endpoint = payload.token ? 'activate' : 'register-free';
+    
+    const res = await fetch(\`${SERVER_URL}/api/v1/\${endpoint}\`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+            softwareName: 'Clic-Turnos',
+            hardwareId,
+            activationToken: payload.token,
+            ...payload 
+        })
+    });
+
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.error);
+    
+    // result.license_file ya es un OBJETO con license_info y signature
+    return result.license_file; 
+}`,
+        rsa: `/**
+ * PASO 3: VERIFICACIÓN CRIPTOGRÁFICA
+ * Validamos que el servidor sea quien dice ser usando la clave pública PEM.
+ */
+import crypto from 'crypto';
+
+export function verifyServerSignature(licenseFile, publicKeyPem) {
+    const { license_info, signature } = licenseFile;
+    
+    // IMPORTANTE: Ordenar llaves alfabéticamente para coincidir con la firma del servidor
+    const message = JSON.stringify(license_info, Object.keys(license_info).sort());
+    
+    const verifier = crypto.createVerify('RSA-SHA256');
+    verifier.update(message);
+    
+    return verifier.verify(publicKeyPem, signature, 'hex');
+}`,
+        marketing: `/**
+ * PASO 4: PUBLICIDAD DINÁMICA (SDK v3.3+)
+ * Descarga anuncios globales firmados segmentados por tipo de licencia.
+ */
+export async function syncGlobalAds(licenseType: 'free' | 'premium') {
+    const res = await fetch(\`${SERVER_URL}/api/v1/marketing?software=Clic-Turnos&status=\${licenseType}\`);
+    const { payload } = await res.json();
+    
+    // Validar firma del anuncio antes de mostrarlo
+    if (verifyServerSignature(payload, publicKeyPem)) {
+        return payload.payload.ads; 
+    }
+    return [];
 }`,
         compliance: `/**
  * PASO 7: ESTRATEGIA DE CUMPLIMIENTO (COMPLIANCE)
@@ -408,22 +483,25 @@ const handleManualSync = async () => {
                                 <DialogTitle>Kit de Integración (SDK Oficial {sdkCode.meta})</DialogTitle>
                             </div>
                             <DialogDescription>
-                                Implementa la arquitectura híbrida de cumplimiento dinámico, validación RSA y marketing firmado.
+                                Documentación técnica paso a paso para la integración con sistemas hijos.
                             </DialogDescription>
                         </DialogHeader>
                         
                         <Tabs defaultValue="schema" className="flex-1 overflow-hidden flex flex-col">
-                            <TabsList className="px-6 border-b rounded-none bg-muted/20 h-10 overflow-x-auto justify-start">
-                                <TabsTrigger value="schema" className="text-xs font-bold flex gap-1.5"><Terminal className="h-3 w-3"/> Respuesta</TabsTrigger>
-                                <TabsTrigger value="verify" className="text-xs font-bold">1. Verificación</TabsTrigger>
-                                <TabsTrigger value="compliance" className="text-xs font-black uppercase text-red-600 flex gap-1.5"><ShieldAlert className="h-3 w-3"/> 7. Políticas</TabsTrigger>
-                                <TabsTrigger value="uiPanel" className="text-xs font-bold flex gap-1.5"><MonitorPlay className="h-3 w-3" /> 6. UI: Panel</TabsTrigger>
+                            <TabsList className="px-6 border-b rounded-none bg-muted/20 h-10 overflow-x-auto justify-start flex-nowrap">
+                                <TabsTrigger value="schema" className="text-xs font-bold shrink-0"><Terminal className="h-3 w-3 mr-1.5"/> Esquema</TabsTrigger>
+                                <TabsTrigger value="verify" className="text-xs font-bold shrink-0">1. Verificación</TabsTrigger>
+                                <TabsTrigger value="activation" className="text-xs font-bold shrink-0">2. Activación</TabsTrigger>
+                                <TabsTrigger value="rsa" className="text-xs font-bold shrink-0">3. Validación RSA</TabsTrigger>
+                                <TabsTrigger value="marketing" className="text-xs font-bold shrink-0">4. Publicidad</TabsTrigger>
+                                <TabsTrigger value="uiPanel" className="text-xs font-bold shrink-0"><MonitorPlay className="h-3 w-3 mr-1.5" /> 6. UI: Panel</TabsTrigger>
+                                <TabsTrigger value="compliance" className="text-xs font-black uppercase text-red-600 shrink-0"><ShieldAlert className="h-3 w-3 mr-1.5"/> 7. Políticas</TabsTrigger>
                             </TabsList>
                             
                             <div className="flex-1 overflow-y-auto p-0">
                                 <TabsContent value="schema" className="m-0 h-full p-4">
                                     <div className="relative">
-                                        <p className="text-[11px] text-muted-foreground mb-3 italic">Contrato de datos v3.8. Incluye el objeto &quot;policies&quot; inyectado dinámicamente.</p>
+                                        <p className="text-[11px] text-muted-foreground mb-3 italic">Esquema del objeto JSON firmado. Incluye las políticas de cumplimiento v3.8.</p>
                                         <Button variant="secondary" size="sm" className="absolute top-8 right-2 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.schema, 'schema')}>
                                             {copiedSection === 'schema' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
                                             {copiedSection === 'schema' ? 'Copiado' : 'Copiar'}
@@ -442,6 +520,42 @@ const handleManualSync = async () => {
                                         </Button>
                                         <pre className="bg-slate-950 text-slate-100 p-6 rounded-lg text-[11px] font-mono overflow-auto">
                                             {sdkCode.verify}
+                                        </pre>
+                                    </div>
+                                </TabsContent>
+
+                                <TabsContent value="activation" className="m-0 h-full p-4">
+                                    <div className="relative">
+                                        <Button variant="secondary" size="sm" className="absolute top-8 right-2 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.activation, 'activation')}>
+                                            {copiedSection === 'activation' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
+                                            {copiedSection === 'activation' ? 'Copiado' : 'Copiar'}
+                                        </Button>
+                                        <pre className="bg-slate-950 text-slate-100 p-6 rounded-lg text-[11px] font-mono overflow-auto">
+                                            {sdkCode.activation}
+                                        </pre>
+                                    </div>
+                                </TabsContent>
+
+                                <TabsContent value="rsa" className="m-0 h-full p-4">
+                                    <div className="relative">
+                                        <Button variant="secondary" size="sm" className="absolute top-8 right-2 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.rsa, 'rsa')}>
+                                            {copiedSection === 'rsa' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
+                                            {copiedSection === 'rsa' ? 'Copiado' : 'Copiar'}
+                                        </Button>
+                                        <pre className="bg-slate-950 text-slate-100 p-6 rounded-lg text-[11px] font-mono overflow-auto">
+                                            {sdkCode.rsa}
+                                        </pre>
+                                    </div>
+                                </TabsContent>
+
+                                <TabsContent value="marketing" className="m-0 h-full p-4">
+                                    <div className="relative">
+                                        <Button variant="secondary" size="sm" className="absolute top-8 right-2 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.marketing, 'marketing')}>
+                                            {copiedSection === 'marketing' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
+                                            {copiedSection === 'marketing' ? 'Copiado' : 'Copiar'}
+                                        </Button>
+                                        <pre className="bg-slate-950 text-slate-100 p-6 rounded-lg text-[11px] font-mono overflow-auto">
+                                            {sdkCode.marketing}
                                         </pre>
                                     </div>
                                 </TabsContent>
