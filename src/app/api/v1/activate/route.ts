@@ -1,6 +1,6 @@
 /**
  * @fileoverview API Endpoint for child software activation.
- * Refactored for Production Blindado: Strict ID normalization.
+ * Refactored for Production Blindado: Strict ID normalization and Dynamic Policies v3.8.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
         // 6. Resolve Customer for Identity Injection
         const customer = db.prepare('SELECT name, email, phone FROM customers WHERE id = ?').get(license.customerId) as Pick<Customer, 'name' | 'email' | 'phone'> | undefined;
 
-        // 7. Generate signed payload
+        // 7. Generate signed payload with Policies (v3.8)
         const licenseInfo = {
             softwareId: software.id,
             softwareName: software.name,
@@ -90,6 +90,12 @@ export async function POST(req: NextRequest) {
             expirationDate: license.expirationDate || '',
             status: 'active',
             createdAt: license.createdAt,
+            policies: {
+                syncFrequencyFree: software.syncFrequencyFree || 7,
+                adRefreshFrequency: software.adRefreshFrequency || 2,
+                nagScreenTimer: software.nagScreenTimer || 60,
+                allowOfflinePremium: !!software.allowOfflinePremium
+            },
             modules: {
                 m01: !!license.m01_val, m02: !!license.m02_val, m03: !!license.m03_val, m04: !!license.m04_val, m05: !!license.m05_val,
                 m06: !!license.m06_val, m07: !!license.m07_val, m08: !!license.m08_val, m09: !!license.m09_val, m10: !!license.m10_val

@@ -744,6 +744,11 @@ export type SoftwareProduct = {
     name: string;
     isInternal: boolean;
     currentVersion?: string | null; // Centralized version monitoring
+    // Connection Policies (v3.8)
+    syncFrequencyFree: number; // Days (default 7)
+    adRefreshFrequency: number; // Days (default 2)
+    nagScreenTimer: number; // Seconds (default 60)
+    allowOfflinePremium: boolean; // Default true
     // Module Names Mapping
     m01_name?: string; m02_name?: string; m03_name?: string; m04_name?: string; m05_name?: string;
     m06_name?: string; m07_name?: string; m08_name?: string; m09_name?: string; m10_name?: string;

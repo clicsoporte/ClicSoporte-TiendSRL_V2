@@ -1,7 +1,6 @@
-
 /**
  * @fileoverview Server-side functions for the licenses module.
- * Unified into intratool.db.
+ * Unified into intratool.db. Handles Hybrid Protocol v3.8 with Connection Policies.
  */
 "use server";
 
@@ -50,7 +49,7 @@ export async function addLicense(licenseData: Omit<License, 'id' | 'createdAt'>)
     const now = new Date().toISOString();
 
     if (software.isInternal) {
-        // Build the rich payload with modules for the signed licenseKey
+        // Build the rich payload with modules and policies (v3.8)
         const licenseInfo = {
             softwareId: licenseData.softwareId,
             softwareName: software.name,
@@ -60,8 +59,14 @@ export async function addLicense(licenseData: Omit<License, 'id' | 'createdAt'>)
             activationToken: activationToken,
             isPerpetual: licenseData.isPerpetual,
             expirationDate: licenseData.expirationDate,
-            status: 'active', // Important for consistency with API
+            status: 'active',
             createdAt: now,
+            policies: {
+                syncFrequencyFree: software.syncFrequencyFree || 7,
+                adRefreshFrequency: software.adRefreshFrequency || 2,
+                nagScreenTimer: software.nagScreenTimer || 60,
+                allowOfflinePremium: !!software.allowOfflinePremium
+            },
             modules: {
                 m01: licenseData.m01_val, m02: licenseData.m02_val, m03: licenseData.m03_val, m04: licenseData.m04_val, m05: licenseData.m05_val,
                 m06: licenseData.m06_val, m07: licenseData.m07_val, m08: licenseData.m08_val, m09: licenseData.m09_val, m10: licenseData.m10_val
@@ -130,6 +135,12 @@ export async function updateLicense(license: License): Promise<License> {
             expirationDate: license.expirationDate,
             status: license.status,
             createdAt: license.createdAt,
+            policies: {
+                syncFrequencyFree: software.syncFrequencyFree || 7,
+                adRefreshFrequency: software.adRefreshFrequency || 2,
+                nagScreenTimer: software.nagScreenTimer || 60,
+                allowOfflinePremium: !!software.allowOfflinePremium
+            },
             modules: {
                 m01: license.m01_val, m02: license.m02_val, m03: license.m03_val, m04: license.m04_val, m05: license.m05_val,
                 m06: license.m06_val, m07: license.m07_val, m08: license.m08_val, m09: license.m09_val, m10: license.m10_val
@@ -176,7 +187,8 @@ export async function deleteLicense(id: number): Promise<void> {
 
 export async function getSoftwareProducts(): Promise<SoftwareProduct[]> {
     const db = await connectLicensesDb();
-    return db.prepare('SELECT * FROM software_products ORDER BY name').all() as SoftwareProduct[];
+    const rows = db.prepare('SELECT * FROM software_products ORDER BY name').all() as (Omit<SoftwareProduct, 'allowOfflinePremium'> & { allowOfflinePremium: number })[];
+    return rows.map(r => ({ ...r, allowOfflinePremium: r.allowOfflinePremium === 1 }));
 }
 
 export async function addSoftwareProduct(product: Omit<SoftwareProduct, 'id'>): Promise<SoftwareProduct> {
@@ -185,14 +197,20 @@ export async function addSoftwareProduct(product: Omit<SoftwareProduct, 'id'>): 
     const info = db.prepare(`
         INSERT INTO software_products (
             name, isInternal, currentVersion,
+            syncFrequencyFree, adRefreshFrequency, nagScreenTimer, allowOfflinePremium,
             m01_name, m02_name, m03_name, m04_name, m05_name,
             m06_name, m07_name, m08_name, m09_name, m10_name
         ) VALUES (
             @name, @isInternal, @currentVersion,
+            @syncFrequencyFree, @adRefreshFrequency, @nagScreenTimer, @allowOfflinePremium,
             @m01_name, @m02_name, @m03_name, @m04_name, @m05_name,
             @m06_name, @m07_name, @m08_name, @m09_name, @m10_name
         )
-    `).run({ ...product, isInternal: product.isInternal ? 1 : 0 });
+    `).run({ 
+        ...product, 
+        isInternal: product.isInternal ? 1 : 0,
+        allowOfflinePremium: product.allowOfflinePremium ? 1 : 0
+    });
     return db.prepare('SELECT * FROM software_products WHERE id = ?').get(info.lastInsertRowid) as SoftwareProduct;
 }
 
@@ -202,10 +220,16 @@ export async function updateSoftwareProduct(product: SoftwareProduct): Promise<S
     db.prepare(`
         UPDATE software_products SET 
             name = @name, isInternal = @isInternal, currentVersion = @currentVersion,
+            syncFrequencyFree = @syncFrequencyFree, adRefreshFrequency = @adRefreshFrequency,
+            nagScreenTimer = @nagScreenTimer, allowOfflinePremium = @allowOfflinePremium,
             m01_name = @m01_name, m02_name = @m02_name, m03_name = @m03_name, m04_name = @m04_name, m05_name = @m05_name,
             m06_name = @m06_name, m07_name = @m07_name, m08_name = @m08_name, m09_name = @m09_name, m10_name = @m10_name
         WHERE id = @id
-    `).run({ ...product, isInternal: product.isInternal ? 1 : 0 });
+    `).run({ 
+        ...product, 
+        isInternal: product.isInternal ? 1 : 0,
+        allowOfflinePremium: product.allowOfflinePremium ? 1 : 0
+    });
     return product;
 }
 

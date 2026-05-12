@@ -302,6 +302,8 @@ export async function runMainMigrations(db: Database) {
         CREATE TABLE IF NOT EXISTS software_products (
             id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE,
             isInternal BOOLEAN NOT NULL DEFAULT FALSE, currentVersion TEXT,
+            syncFrequencyFree INTEGER DEFAULT 7, adRefreshFrequency INTEGER DEFAULT 2,
+            nagScreenTimer INTEGER DEFAULT 60, allowOfflinePremium BOOLEAN DEFAULT TRUE,
             m01_name TEXT, m02_name TEXT, m03_name TEXT, m04_name TEXT, m05_name TEXT,
             m06_name TEXT, m07_name TEXT, m08_name TEXT, m09_name TEXT, m10_name TEXT
         );
@@ -389,6 +391,12 @@ export async function runMainMigrations(db: Database) {
     if (!hasColumn('company_settings', 'publicUrl')) db.exec(`ALTER TABLE company_settings ADD COLUMN publicUrl TEXT;`);
     if (!hasColumn('company_settings', 'internalHourCost')) db.exec(`ALTER TABLE company_settings ADD COLUMN internalHourCost REAL DEFAULT 0;`);
     if (!hasColumn('customers', 'isLead')) db.exec(`ALTER TABLE customers ADD COLUMN isLead INTEGER DEFAULT 0;`);
+    
+    // Policy Fields (v3.8)
+    if (!hasColumn('software_products', 'syncFrequencyFree')) db.exec(`ALTER TABLE software_products ADD COLUMN syncFrequencyFree INTEGER DEFAULT 7;`);
+    if (!hasColumn('software_products', 'adRefreshFrequency')) db.exec(`ALTER TABLE software_products ADD COLUMN adRefreshFrequency INTEGER DEFAULT 2;`);
+    if (!hasColumn('software_products', 'nagScreenTimer')) db.exec(`ALTER TABLE software_products ADD COLUMN nagScreenTimer INTEGER DEFAULT 60;`);
+    if (!hasColumn('software_products', 'allowOfflinePremium')) db.exec(`ALTER TABLE software_products ADD COLUMN allowOfflinePremium BOOLEAN DEFAULT 1;`);
 
     // 3. SEEDING & DATA UPDATES
     const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number };

@@ -1,6 +1,6 @@
 /**
  * @fileoverview Main page for the License Management module.
- * Enhanced for Hybrid Licensing v3.7.3 (Full SDK with OTP, RSA, Ads and Manual Sync UI).
+ * Enhanced for Hybrid Licensing v3.8.0 (Full SDK + Dynamic Compliance Policies).
  */
 'use client';
 
@@ -21,7 +21,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SearchInput } from '@/components/ui/search-input';
-import { PlusCircle, MoreVertical, CalendarIcon, Loader2, Trash2, Download, Edit, ShieldCheck, Boxes, Settings2, Info, Code2, Copy, Check, Megaphone, Terminal, MonitorPlay } from 'lucide-react';
+import { PlusCircle, MoreVertical, CalendarIcon, Loader2, Trash2, Download, Edit, ShieldCheck, Boxes, Settings2, Info, Code2, Copy, Check, Megaphone, Terminal, MonitorPlay, ShieldAlert, Zap } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
@@ -72,161 +72,80 @@ export default function LicensesPage() {
     const SERVER_URL = state.companyData?.publicUrl || 'https://soporte.clicsoporte.com';
 
     const sdkCode = {
-        meta: `v3.7.3 (Final Shield) - Ref: docs/Botonlic.txt`,
+        meta: `v3.8.0 (Compliance Pack)`,
         schema: `{
   "success": true,
   "license_file": {
     "license_info": {
       "softwareId": 12,
       "softwareName": "Nombre-Software",
-      "customerName": "Nombre Oficial del Cliente", // Inyectado por Servidor
-      "customerEmail": "cliente@oficial.com",        // Inyectado por Servidor
+      "customerName": "Nombre Oficial del Cliente", 
       "hardwareId": "ABC-123-XYZ",
-      "status": "active",
-      "isPerpetual": false,
-      "expirationDate": "2025-12-31",
+      "policies": {
+        "syncFrequencyFree": 7,    // Días de gracia sin internet (Free)
+        "adRefreshFrequency": 2,   // Días de frescura de anuncios
+        "nagScreenTimer": 60,      // Segundos de bloqueo (Nag)
+        "allowOfflinePremium": true
+      },
       "modules": { "m01": true, "m02": false, ... }
     },
     "signature": "hash_hex_firmado_rsa"
   }
 }`,
         verify: `/**
- * PASO 1: VERIFICACIÓN INTELIGENTE (v3.7)
+ * PASO 1: VERIFICACIÓN INTELIGENTE
  * Consulta si el cliente existe para evitar duplicados.
  */
 export async function verifyClientInfo(taxId: string) {
     const res = await fetch(\`${SERVER_URL}/api/v1/verify-client?taxId=\${taxId}\`);
     const result = await res.json();
-    if (result.exists) {
-        return { found: true, data: result.data, source: result.source };
-    }
-    return { found: false };
+    return result.exists ? { found: true, data: result.data } : { found: false };
 }`,
-        requestOtp: `/**
- * PASO 2.1: SOLICITAR OTP (Handshake)
- * Envía un código de 8 caracteres al correo del usuario.
+        compliance: `/**
+ * PASO 7: ESTRATEGIA DE CUMPLIMIENTO (COMPLIANCE)
+ * Blindaje contra manipulación de fecha y falta de anuncios.
  */
-export async function requestValidationCode(email: string) {
-    const res = await fetch(\`${SERVER_URL}/api/v1/request-otp\`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.toLowerCase().trim() })
-    });
-    return await res.json();
-}`,
-        register: `/**
- * PASO 2.2: REGISTRO CON OTP (Free/Lead)
- * Crea el prospecto y entrega la licencia firmada.
- */
-export async function registerFreeLicense(payload: {
-    taxId: string,
-    customerName: string,
-    customerEmail: string,
-    otpCode: string, 
-    hardwareId: string
-}) {
-    const res = await fetch(\`${SERVER_URL}/api/v1/register-free\`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ softwareName: 'Tu-Software', ...payload })
-    });
-    const result = await res.json();
-    if (!res.ok) throw new Error(result.error);
-    return result.license_file; // Objeto con info y firma
-}`,
-        activate: `/**
- * PASO 3: ACTIVACIÓN PREMIUM (Tokens)
- * Para licencias pagas vendidas manualmente en el Dashboard.
- */
-export async function activatePremiumLicense(token: string, hardwareId: string) {
-    const res = await fetch(\`${SERVER_URL}/api/v1/activate\`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-            activationToken: token.toUpperCase(), 
-            hardwareId, 
-            softwareName: 'Tu-Software' 
-        })
-    });
-    const result = await res.json();
-    if (!res.ok) throw new Error(result.error);
-    return result.license_file;
-}`,
-        rsa: `/**
- * PASO 4: VALIDACIÓN CRIPTOGRÁFICA (Seguridad)
- * Verifica que el servidor firmó la licencia con RSA-SHA256.
- */
-import crypto from 'crypto';
 
-export function verifyServerSignature(licenseFile, publicKeyPem) {
-    const { license_info, signature } = licenseFile;
-    // IMPORTANTE: Ordenar llaves para coincidir con la firma del servidor
-    const message = JSON.stringify(license_info, Object.keys(license_info).sort());
-    const verifier = crypto.createVerify('RSA-SHA256');
-    verifier.update(message);
-    return verifier.verify(publicKeyPem, signature, 'hex');
-}`,
-        marketing: `/**
- * PASO 5: PUBLICIDAD DINÁMICA FIRMADA
- * Descarga anuncios globales segmentados por 'free' o 'premium'.
- */
-export async function fetchMarketingAds(licenseStatus: 'free' | 'premium') {
-    const res = await fetch(\`${SERVER_URL}/api/v1/marketing?software=Tu-Software&status=\${licenseStatus}\`);
-    const { payload } = await res.json();
-    
-    // El 'payload' viene firmado. Validar antes de mostrar.
-    if (verifyServerSignature(payload, publicKeyPem)) {
-        return payload.license_info.ads; 
+// 1. Anti-Clock Tamper (LKT: Last Known Time)
+export function validateSystemTime(currentDate) {
+    const lkt = localStorage.getItem('LKT_STAMP');
+    if (lkt && currentDate < new Date(lkt)) {
+        throw new Error("RELOJ ATRASADO DETECTADO: El sistema requiere re-calibrar con el servidor.");
     }
-    return [];
+    localStorage.setItem('LKT_STAMP', currentDate.toISOString());
+}
+
+// 2. Nag Screen Logic (Para versiones FREE)
+export function checkAdFreshness(lastAdSyncDate, policies) {
+    const daysSinceSync = diffInDays(new Date(), lastAdSyncDate);
+    if (daysSinceSync > policies.adRefreshFrequency) {
+        // Disparar Nag Screen: Bloqueo de UI por policies.nagScreenTimer segundos
+        showNagScreen(policies.nagScreenTimer);
+    }
+}
+
+// 3. HWID Enforcement
+export function validateHardware(signedHwid, localHwid) {
+    if (signedHwid !== localHwid) {
+        return { status: 'INVALID_HARDWARE', message: 'Licencia vinculada a otra PC.' };
+    }
+    return { status: 'OK' };
 }`,
         uiPanel: `/**
- * PASO 6: PANEL DE ACTIVACIÓN (UI RECOMENDADA)
- * Implementación de un botón de sincronización forzada en el software hijo.
+ * PASO 6: PANEL DE ACTIVACIÓN (Sincronización Forzada)
  */
 const handleManualSync = async () => {
     setIsSyncing(true);
     try {
-        // 1. Forzar re-activación (actualiza módulos y fechas)
         const newLicense = await activatePremiumLicense(savedToken, localHardwareId);
-        
-        // 2. Validar firma inmediatamente
-        const isValid = verifyServerSignature(newLicense, publicKey);
-        if (isValid) {
+        if (verifyServerSignature(newLicense, publicKey)) {
             saveLicenseLocally(newLicense);
-            toast({ title: "Sincronización Exitosa", description: "Datos de licencia actualizados." });
+            toast({ title: "Sincronización Exitosa" });
         }
-
-        // 3. Forzar actualización de publicidad
-        const status = newLicense.license_info.activationToken === 'FREE-LICENSE' ? 'free' : 'premium';
-        const freshAds = await fetchMarketingAds(status);
-        updateLocalAds(freshAds);
-
     } catch (e) {
-        toast({ title: "Error de Conexión", description: "No se pudo contactar al servidor central.", variant: "destructive" });
-    } finally {
-        setIsSyncing(false);
-    }
-};
-
-// JSX SUGERIDO PARA EL HIJO:
-<Card className="border-primary/20">
-    <CardHeader>
-        <CardTitle className="text-sm flex items-center gap-2"><KeyRound className="h-4 w-4"/> Licencia de Software</CardTitle>
-    </CardHeader>
-    <CardContent className="space-y-4">
-        <div className="flex justify-between items-center bg-muted/30 p-3 rounded-lg">
-            <span className="text-xs font-bold uppercase">Estado:</span>
-            <Badge variant={isLocalLicenseValid ? 'default' : 'destructive'}>
-                {isLocalLicenseValid ? 'ACTIVA' : 'INVALIDA'}
-            </Badge>
-        </div>
-        <Button onClick={handleManualSync} disabled={isSyncing} className="w-full">
-            {isSyncing ? <Loader2 className="animate-spin mr-2 h-4 w-4"/> : <RefreshCw className="mr-2 h-4 w-4"/>}
-            Sincronizar y Forzar Actualización
-        </Button>
-    </CardContent>
-</Card>`
+        toast({ title: "Error de Conexión", variant: "destructive" });
+    } finally { setIsSyncing(false); }
+};`
     };
 
     return (
@@ -239,7 +158,7 @@ const handleManualSync = async () => {
                                 <CardTitle className="text-2xl font-bold flex items-center gap-2">
                                     <ShieldCheck className="h-6 w-6 text-primary" /> Gestión de Licenciamiento Híbrido
                                 </CardTitle>
-                                <CardDescription>Administración central de activaciones internas y llaves de terceros.</CardDescription>
+                                <CardDescription>Administración central de activaciones y políticas de cumplimiento v3.8.</CardDescription>
                             </div>
                             <div className="flex gap-2 flex-wrap">
                                 <Button variant="outline" onClick={() => setSdkDialogOpen(true)}>
@@ -272,7 +191,7 @@ const handleManualSync = async () => {
                                                                         options={selectors.clientCustomerOptions}
                                                                         onSelect={actions.handleSelectCompany}
                                                                         value={state.companySearchTerm}
-                                                                        onValueChange={state.companySearchTerm ? () => {} : actions.setCompanySearchTerm}
+                                                                        onValueChange={actions.setCompanySearchTerm}
                                                                         placeholder="Buscar cliente por nombre o alias..."
                                                                         open={state.isCompanySearchOpen}
                                                                         onOpenChange={actions.setIsCompanySearchOpen}
@@ -489,7 +408,7 @@ const handleManualSync = async () => {
                                 <DialogTitle>Kit de Integración (SDK Oficial {sdkCode.meta})</DialogTitle>
                             </div>
                             <DialogDescription>
-                                Implementa la arquitectura híbrida de verificación, activación y marketing dinámico firmado.
+                                Implementa la arquitectura híbrida de cumplimiento dinámico, validación RSA y marketing firmado.
                             </DialogDescription>
                         </DialogHeader>
                         
@@ -497,17 +416,14 @@ const handleManualSync = async () => {
                             <TabsList className="px-6 border-b rounded-none bg-muted/20 h-10 overflow-x-auto justify-start">
                                 <TabsTrigger value="schema" className="text-xs font-bold flex gap-1.5"><Terminal className="h-3 w-3"/> Respuesta</TabsTrigger>
                                 <TabsTrigger value="verify" className="text-xs font-bold">1. Verificación</TabsTrigger>
-                                <TabsTrigger value="register" className="text-xs font-bold">2. Registro Free (OTP)</TabsTrigger>
-                                <TabsTrigger value="activate" className="text-xs font-bold">3. Activación Premium</TabsTrigger>
-                                <TabsTrigger value="rsa" className="text-xs font-bold">4. Validación RSA</TabsTrigger>
-                                <TabsTrigger value="marketing" className="text-xs font-bold text-primary flex gap-1.5"><Megaphone className="h-3 w-3" /> 5. Marketing</TabsTrigger>
-                                <TabsTrigger value="uiPanel" className="text-xs font-black uppercase text-indigo-600 flex gap-1.5"><MonitorPlay className="h-3 w-3" /> 6. UI: Panel Activación</TabsTrigger>
+                                <TabsTrigger value="compliance" className="text-xs font-black uppercase text-red-600 flex gap-1.5"><ShieldAlert className="h-3 w-3"/> 7. Políticas</TabsTrigger>
+                                <TabsTrigger value="uiPanel" className="text-xs font-bold flex gap-1.5"><MonitorPlay className="h-3 w-3" /> 6. UI: Panel</TabsTrigger>
                             </TabsList>
                             
                             <div className="flex-1 overflow-y-auto p-0">
                                 <TabsContent value="schema" className="m-0 h-full p-4">
                                     <div className="relative">
-                                        <p className="text-[11px] text-muted-foreground mb-3 italic">Estructura del archivo de licencia devuelto por el servidor.</p>
+                                        <p className="text-[11px] text-muted-foreground mb-3 italic">Contrato de datos v3.8. Incluye el objeto &quot;policies&quot; inyectado dinámicamente.</p>
                                         <Button variant="secondary" size="sm" className="absolute top-8 right-2 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.schema, 'schema')}>
                                             {copiedSection === 'schema' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
                                             {copiedSection === 'schema' ? 'Copiado' : 'Copiar'}
@@ -530,71 +446,21 @@ const handleManualSync = async () => {
                                     </div>
                                 </TabsContent>
 
-                                <TabsContent value="register" className="m-0 h-full p-4">
-                                    <div className="space-y-4">
-                                        <div className="relative">
-                                            <p className="text-[10px] font-black uppercase text-primary mb-2">Paso 1: Solicitar Código OTP</p>
-                                            <Button variant="secondary" size="sm" className="absolute top-6 right-2 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.requestOtp, 'otp')}>
-                                                {copiedSection === 'otp' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
-                                                {copiedSection === 'otp' ? 'Copiado' : 'Copiar'}
-                                            </Button>
-                                            <pre className="bg-slate-950 text-orange-200 p-4 rounded-lg text-[11px] font-mono overflow-auto">
-                                                {sdkCode.requestOtp}
-                                            </pre>
-                                        </div>
-                                        <div className="relative">
-                                            <p className="text-[10px] font-black uppercase text-primary mb-2">Paso 2: Finalizar Registro</p>
-                                            <Button variant="secondary" size="sm" className="absolute top-6 right-2 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.register, 'reg')}>
-                                                {copiedSection === 'reg' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
-                                                {copiedSection === 'reg' ? 'Copiado' : 'Copiar'}
-                                            </Button>
-                                            <pre className="bg-slate-950 text-slate-100 p-4 rounded-lg text-[11px] font-mono overflow-auto">
-                                                {sdkCode.register}
-                                            </pre>
-                                        </div>
-                                    </div>
-                                </TabsContent>
-
-                                <TabsContent value="activate" className="m-0 h-full p-4">
+                                <TabsContent value="compliance" className="m-0 h-full p-4">
                                     <div className="relative">
-                                        <Button variant="secondary" size="sm" className="absolute top-8 right-2 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.activate, 'activate')}>
-                                            {copiedSection === 'activate' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
-                                            {copiedSection === 'activate' ? 'Copiado' : 'Copiar'}
+                                        <p className="text-[11px] text-muted-foreground mb-3 italic">Implementación de protecciones Anti-Clock y lógica de Nag Screen para versiones Free.</p>
+                                        <Button variant="secondary" size="sm" className="absolute top-8 right-2 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.compliance, 'compliance')}>
+                                            {copiedSection === 'compliance' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
+                                            {copiedSection === 'compliance' ? 'Copiado' : 'Copiar'}
                                         </Button>
-                                        <pre className="bg-slate-950 text-slate-100 p-6 rounded-lg text-[11px] font-mono overflow-auto">
-                                            {sdkCode.activate}
-                                        </pre>
-                                    </div>
-                                </TabsContent>
-
-                                <TabsContent value="rsa" className="m-0 h-full p-4">
-                                    <div className="relative">
-                                        <Button variant="secondary" size="sm" className="absolute top-8 right-2 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.rsa, 'rsa')}>
-                                            {copiedSection === 'rsa' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
-                                            {copiedSection === 'rsa' ? 'Copiado' : 'Copiar'}
-                                        </Button>
-                                        <pre className="bg-slate-950 text-yellow-100 p-6 rounded-lg text-[11px] font-mono overflow-auto">
-                                            {sdkCode.rsa}
-                                        </pre>
-                                    </div>
-                                </TabsContent>
-
-                                <TabsContent value="marketing" className="m-0 h-full p-4">
-                                    <div className="relative">
-                                        <p className="text-[11px] text-muted-foreground mb-3 italic">Consumo de anuncios dinámicos segmentados y validados criptográficamente.</p>
-                                        <Button variant="secondary" size="sm" className="absolute top-8 right-2 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.marketing, 'marketing')}>
-                                            {copiedSection === 'marketing' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
-                                            {copiedSection === 'marketing' ? 'Copiado' : 'Copiar'}
-                                        </Button>
-                                        <pre className="bg-slate-950 text-blue-200 p-6 rounded-lg text-[11px] font-mono overflow-auto">
-                                            {sdkCode.marketing}
+                                        <pre className="bg-slate-950 text-orange-200 p-6 rounded-lg text-[11px] font-mono overflow-auto">
+                                            {sdkCode.compliance}
                                         </pre>
                                     </div>
                                 </TabsContent>
 
                                 <TabsContent value="uiPanel" className="m-0 h-full p-4">
                                     <div className="relative">
-                                        <p className="text-[11px] text-muted-foreground mb-3 italic">Lógica sugerida para el Panel de Control del software hijo (Sincronización Manual).</p>
                                         <Button variant="secondary" size="sm" className="absolute top-8 right-2 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.uiPanel, 'uipanel')}>
                                             {copiedSection === 'uipanel' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
                                             {copiedSection === 'uipanel' ? 'Copiado' : 'Copiar'}
@@ -614,22 +480,23 @@ const handleManualSync = async () => {
                 </Dialog>
 
                 <Dialog open={state.isSoftwareDialogOpen} onOpenChange={actions.setIsSoftwareDialogOpen}>
-                    <DialogContent className="sm:max-w-3xl">
-                        <DialogHeader>
+                    <DialogContent className="sm:max-w-5xl h-[90vh] flex flex-col p-0">
+                        <DialogHeader className="p-6 border-b">
                             <DialogTitle className="flex items-center gap-2"><Boxes className="h-5 w-5 text-primary" /> Catálogo de Productos de Software</DialogTitle>
                         </DialogHeader>
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 py-4">
-                            <div className="space-y-4">
-                                <ScrollArea className="h-64 border rounded-md">
+                        
+                        <div className="flex-1 overflow-hidden grid grid-cols-1 lg:grid-cols-2">
+                            <div className="p-6 border-r overflow-y-auto space-y-4 bg-muted/5">
+                                <h3 className="text-xs font-black uppercase text-muted-foreground tracking-widest">Listado Maestro</h3>
+                                <ScrollArea className="h-[250px] border rounded-md bg-background">
                                     <Table>
-                                        <TableHeader><TableRow><TableHead>Producto</TableHead><TableHead className="text-right"></TableHead></TableRow></TableHeader>
                                         <TableBody>
                                             {state.softwareProducts.map(p => (
                                                 <TableRow key={p.id} className={cn("cursor-pointer", state.newSoftwareProduct.id === p.id && "bg-primary/5")}>
                                                     <TableCell onClick={() => actions.handleOpenSoftwareEdit(p)}>
                                                         <div className="flex flex-col">
                                                             <p className="font-bold text-sm">{p.name}</p>
-                                                            <p className="text-[10px] text-muted-foreground uppercase">{p.isInternal ? `Propio - ${p.currentVersion || 'v1.0'}` : 'Tercero'}</p>
+                                                            <p className="text-[9px] text-muted-foreground uppercase">{p.isInternal ? `Propio - ${p.currentVersion || 'v1.0'}` : 'Tercero'}</p>
                                                         </div>
                                                     </TableCell>
                                                     <TableCell className="text-right">
@@ -641,54 +508,74 @@ const handleManualSync = async () => {
                                     </Table>
                                 </ScrollArea>
 
-                                <div className="space-y-4 border p-4 rounded-lg bg-muted/10">
-                                    <div className="space-y-2">
-                                        <Label>Nombre del Software</Label>
-                                        <Input value={state.newSoftwareProduct.name} onChange={e => actions.handleNewSoftwareChange('name', e.target.value)} placeholder="Ej: Clic-POS Pro" />
+                                <div className="space-y-4 border p-4 rounded-xl bg-card shadow-sm">
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold">Nombre</Label><Input value={state.newSoftwareProduct.name} onChange={e => actions.handleNewSoftwareChange('name', e.target.value)} className="h-8 text-xs" /></div>
+                                        <div className="space-y-1.5"><Label className="text-[10px] uppercase font-bold">Versión</Label><Input value={state.newSoftwareProduct.currentVersion || ''} onChange={e => actions.handleNewSoftwareChange('currentVersion', e.target.value)} className="h-8 text-xs" /></div>
                                     </div>
-                                    <div className="space-y-2">
-                                        <Label>Versión Actual (Centralizada)</Label>
-                                        <Input value={state.newSoftwareProduct.currentVersion || ''} onChange={e => actions.handleNewSoftwareChange('currentVersion', e.target.value)} placeholder="Ej: 2.5.0" />
+                                    <div className="flex items-center space-x-2 border-t pt-2"><Checkbox id="is-internal-soft" checked={state.newSoftwareProduct.isInternal} onCheckedChange={checked => actions.handleNewSoftwareChange('isInternal', !!checked)}/><Label htmlFor="is-internal-soft" className="text-xs">Soporte Híbrido (Propio)</Label></div>
+                                    
+                                    {state.newSoftwareProduct.isInternal && (
+                                        <div className="pt-2 space-y-4 border-t">
+                                            <p className="text-[10px] font-black uppercase text-primary tracking-widest flex items-center gap-1"><ShieldAlert className="h-3 w-3"/> Políticas Dinámicas (Compliance)</p>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div className="space-y-1.5">
+                                                    <Label className="text-[9px] uppercase font-bold">Sync Gracia Free (Días)</Label>
+                                                    <Input type="number" value={state.newSoftwareProduct.syncFrequencyFree || 7} onChange={e => actions.handleNewSoftwareChange('syncFrequencyFree', Number(e.target.value))} className="h-8 text-xs" />
+                                                </div>
+                                                <div className="space-y-1.5">
+                                                    <Label className="text-[9px] uppercase font-bold">Frescura Anuncios (Días)</Label>
+                                                    <Input type="number" value={state.newSoftwareProduct.adRefreshFrequency || 2} onChange={e => actions.handleNewSoftwareChange('adRefreshFrequency', Number(e.target.value))} className="h-8 text-xs" />
+                                                </div>
+                                                <div className="space-y-1.5">
+                                                    <Label className="text-[9px] uppercase font-bold">Bloqueo Nag Screen (Seg)</Label>
+                                                    <Input type="number" value={state.newSoftwareProduct.nagScreenTimer || 60} onChange={e => actions.handleNewSoftwareChange('nagScreenTimer', Number(e.target.value))} className="h-8 text-xs" />
+                                                </div>
+                                                <div className="flex items-center space-x-2 pt-5">
+                                                    <Switch checked={!!state.newSoftwareProduct.allowOfflinePremium} onCheckedChange={val => actions.handleNewSoftwareChange('allowOfflinePremium', val)} />
+                                                    <Label className="text-[9px] uppercase font-bold">Offline Premium</Label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div className="pt-2 flex gap-2">
+                                        <Button className="flex-1 h-9" onClick={actions.handleSaveSoftware}>{state.isSoftwareEditing ? 'Actualizar' : 'Añadir'}</Button>
+                                        {state.isSoftwareEditing && <Button variant="ghost" className="h-9 px-3" onClick={() => { actions.setSoftwareEditing(false); actions.handleNewSoftwareChange('name', ''); }}>X</Button>}
                                     </div>
-                                    <div className="flex items-center space-x-2 pb-2"><Checkbox id="is-internal-soft" checked={state.newSoftwareProduct.isInternal} onCheckedChange={checked => actions.handleNewSoftwareChange('isInternal', !!checked)}/><Label htmlFor="is-internal-soft" className="text-xs">Es Software Propio (Permite Módulos)</Label></div>
-                                    <Button className="w-full" onClick={actions.handleSaveSoftware}>
-                                        {state.isSoftwareEditing ? 'Actualizar Producto' : 'Añadir al Catálogo'}
-                                    </Button>
-                                    {state.isSoftwareEditing && <Button variant="ghost" className="w-full text-xs" onClick={() => { actions.setSoftwareEditing(false); actions.handleNewSoftwareChange('name', ''); }}>Cancelar Edición</Button>}
                                 </div>
                             </div>
 
-                            <div className="space-y-4">
-                                <Label className="text-xs font-black uppercase text-muted-foreground flex items-center gap-2">
-                                    <Settings2 className="h-3 w-3" /> Mapeo de Protocolo (m01 - m10)
-                                </Label>
+                            <div className="p-6 overflow-y-auto space-y-4">
+                                <h3 className="text-xs font-black uppercase text-muted-foreground tracking-widest flex items-center gap-2">
+                                    <Settings2 className="h-4 w-4" /> Mapeo de Protocolo (m01 - m10)
+                                </h3>
                                 {state.newSoftwareProduct.isInternal ? (
-                                    <ScrollArea className="h-[400px] pr-4">
-                                        <div className="grid gap-4">
-                                            {moduleKeys.map((key, i) => {
-                                                const productRec = state.newSoftwareProduct as unknown as Record<string, string>;
-                                                return (
-                                                    <div key={key} className="space-y-1.5 p-3 rounded-lg border bg-background">
-                                                        <Label className="text-[10px] font-bold text-primary uppercase">Nombre del Módulo {i+1} (ID: {key.toUpperCase()})</Label>
-                                                        <Input 
-                                                            value={productRec[`${key}_name`] || ''} 
-                                                            onChange={e => actions.handleNewSoftwareChange(`${key}_name` as keyof SoftwareProduct, e.target.value)}
-                                                            placeholder="Ej: Facturación, Inventarios..."
-                                                            className="h-8 text-xs"
-                                                        />
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    </ScrollArea>
+                                    <div className="grid gap-3">
+                                        {moduleKeys.map((key, i) => {
+                                            const productRec = state.newSoftwareProduct as unknown as Record<string, string>;
+                                            return (
+                                                <div key={key} className="space-y-1.5 p-3 rounded-lg border bg-background shadow-sm group hover:border-primary/50 transition-colors">
+                                                    <Label className="text-[9px] font-bold text-primary uppercase">Módulo {i+1} (ID: {key.toUpperCase()})</Label>
+                                                    <Input 
+                                                        value={productRec[`${key}_name`] || ''} 
+                                                        onChange={e => actions.handleNewSoftwareChange(`${key}_name` as keyof SoftwareProduct, e.target.value)}
+                                                        placeholder="Nombre comercial del módulo..."
+                                                        className="h-8 text-xs"
+                                                    />
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
                                 ) : (
                                     <div className="flex flex-col items-center justify-center h-[400px] text-center p-10 border-2 border-dashed rounded-xl opacity-20 bg-muted/50">
                                         <Settings2 className="h-10 w-10 mb-2" />
-                                        <p className="text-[10px] font-bold uppercase">Mapeo Desactivado</p>
+                                        <p className="text-[10px] font-bold uppercase">Mapeo Desactivado para Terceros</p>
                                     </div>
                                 )}
                             </div>
                         </div>
+                        <DialogFooter className="p-4 border-t bg-muted/10"><DialogClose asChild><Button variant="ghost">Cerrar Catálogo</Button></DialogClose></DialogFooter>
                     </DialogContent>
                 </Dialog>
 

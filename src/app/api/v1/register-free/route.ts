@@ -1,6 +1,6 @@
 /**
  * @fileoverview API Endpoint for registering free licenses with OTP validation.
- * Refactored for Production Blindado: Strict normalization and notification support.
+ * Refactored for Production Blindado: Strict Dynamic Policies v3.8.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
 
         await upsertLeadCustomer(customerData);
 
-        // 7. Generate Signed Payload
+        // 7. Generate Signed Payload with Policies (v3.8)
         const now = new Date().toISOString();
         const licenseInfo = {
             softwareId: software.id,
@@ -111,6 +111,12 @@ export async function POST(req: NextRequest) {
             isPerpetual: true,
             status: 'active',
             createdAt: now,
+            policies: {
+                syncFrequencyFree: software.syncFrequencyFree || 7,
+                adRefreshFrequency: software.adRefreshFrequency || 2,
+                nagScreenTimer: software.nagScreenTimer || 60,
+                allowOfflinePremium: !!software.allowOfflinePremium
+            },
             modules: {
                 m01: true, m02: false, m03: false, m04: false, m05: false,
                 m06: false, m07: false, m08: false, m09: false, m10: false
