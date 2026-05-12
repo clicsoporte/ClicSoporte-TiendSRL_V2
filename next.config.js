@@ -21,6 +21,7 @@ const nextConfig = {
       bodySizeLimit: '50mb',
     },
     instrumentationHook: true,
+    serverComponentsExternalPackages: ['better-sqlite3', 'mssql'],
   },
 };
 

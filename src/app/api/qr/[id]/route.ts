@@ -1,6 +1,6 @@
 /**
  * @fileoverview API Route for autonomous QR Code generation.
- * Optimized for production build compatibility.
+ * Optimized for production build compatibility and runtime-only execution.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -10,20 +10,28 @@ import type { Equipment } from '@/modules/core/types';
 
 // Force dynamic ensures this is never pre-rendered during build
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export async function GET(
     request: NextRequest,
     { params }: { params: { id: string } }
 ) {
+    // Safety check for dynamic parameters during build-time tracing
     const id = params?.id;
     
-    // Safety check for Next.js build-time tracing or invalid IDs
     if (!id || id === '[id]' || id === 'undefined') {
-        return new NextResponse('Invalid or Placeholder ID', { status: 400 });
+        return new NextResponse('Invalid or Missing ID', { status: 400 });
     }
 
     try {
         const db = await connectDb();
+        
+        // Defensive check for table existence before querying
+        const tableCheck = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='inventory_equipment'").get();
+        if (!tableCheck) {
+            return new NextResponse('System initialization in progress', { status: 503 });
+        }
+
         const equipment = db.prepare('SELECT * FROM inventory_equipment WHERE id = ?').get(id) as Equipment | undefined;
 
         if (!equipment) {
