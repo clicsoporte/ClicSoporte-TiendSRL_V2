@@ -191,6 +191,44 @@ export async function syncGlobalAds(licenseType: 'free' | 'premium') {
     }
     return [];
 }`,
+        uiPanel: `/**
+ * PASO 6: PANEL DE ACTIVACIÓN (EJEMPLO REACT)
+ * Implementación de un panel para que el usuario fuerce la sincronización.
+ */
+import { useState } from 'react';
+import { Button } from './ui/button';
+import { toast } from './ui/use-toast';
+
+export function LicensePanel() {
+    const [isSyncing, setIsSyncing] = useState(false);
+
+    const handleManualSync = async () => {
+        setIsSyncing(true);
+        try {
+            // 1. Re-validar licencia
+            const license = await activateSoftware({ ...params });
+            // 2. Re-validar firma RSA
+            if (verifyServerSignature(license, publicKey)) {
+                // 3. Actualizar publicidad
+                const ads = await syncGlobalAds(license.license_info.status);
+                toast({ title: "Sincronización Exitosa" });
+            }
+        } catch (e) {
+            toast({ title: "Error", description: e.message, variant: "destructive" });
+        } finally {
+            setIsSyncing(false);
+        }
+    };
+
+    return (
+        <div className="p-4 border rounded-lg">
+            <h3 className="font-bold">Estado de Licencia</h3>
+            <Button onClick={handleManualSync} disabled={isSyncing}>
+                {isSyncing ? "Sincronizando..." : "Sincronizar Ahora"}
+            </Button>
+        </div>
+    );
+}`,
         compliance: `/**
  * PASO 7: ESTRATEGIA DE CUMPLIMIENTO (COMPLIANCE)
  * Blindaje contra manipulación de fecha y falta de anuncios.
@@ -742,7 +780,7 @@ export function validateSystemTime(currentDate) {
                 </Dialog>
 
                 {/* Confirmación Doble Licencia Perpetua */}
-                <AlertDialog open={state.showPerpetualConfirm} onOpenChange={actions.confirmPerpetual ? undefined : (v) => actions.setShowPerpetualConfirm(v)}>
+                <AlertDialog open={state.showPerpetualConfirm} onOpenChange={(v) => actions.setShowPerpetualConfirm(v)}>
                     <AlertDialogContent>
                         <AlertDialogHeader>
                             <AlertDialogTitle className="flex items-center gap-2 text-primary">
