@@ -1,5 +1,6 @@
 /**
  * @fileoverview Custom hook for managing the state and logic of the Licenses page.
+ * Enhanced with permission checks and double verification for perpetual licenses.
  */
 'use client';
 
@@ -49,7 +50,7 @@ const emptySoftwareProduct: Omit<SoftwareProduct, 'id'> = {
 };
 
 export const useLicenses = () => {
-    const { isAuthorized } = useAuthorization(['licenses:read']);
+    const { isAuthorized, hasPermission } = useAuthorization(['licenses:read']);
     const { setTitle } = usePageTitle();
     const { toast } = useToast();
     const { companyData, customers } = useAuth();
@@ -68,6 +69,8 @@ export const useLicenses = () => {
         licenseToDelete: null as License | null,
         companySearchTerm: '',
         isCompanySearchOpen: false,
+        // Double verification state
+        showPerpetualConfirm: false
     });
 
     const updateState = useCallback((newState: Partial<typeof state>) => {
@@ -100,7 +103,28 @@ export const useLicenses = () => {
     }, [isAuthorized, loadInitialData, setTitle]);
 
     const handleCurrentLicenseChange = (field: keyof License, value: string | number | boolean | null) => {
+        // Special check for perpetual license
+        if (field === 'isPerpetual' && value === true) {
+            if (!hasPermission('licenses:perpetual:assign')) {
+                toast({ 
+                    title: "Acceso Denegado", 
+                    description: "No tienes permisos para asignar licencias perpetuas.", 
+                    variant: "destructive" 
+                });
+                return;
+            }
+            updateState({ showPerpetualConfirm: true });
+            return;
+        }
+
         updateState({ currentLicense: { ...state.currentLicense, [field]: value } });
+    };
+
+    const confirmPerpetual = () => {
+        updateState({ 
+            currentLicense: { ...state.currentLicense, isPerpetual: true, expirationDate: '' },
+            showPerpetualConfirm: false 
+        });
     };
     
     const handleNewSoftwareChange = (field: keyof SoftwareProduct, value: string | number | boolean | null) => {
@@ -214,7 +238,7 @@ export const useLicenses = () => {
                 const updated = await updateSoftwareProduct(productData as SoftwareProduct);
                 updateState({ 
                     softwareProducts: state.softwareProducts.map(p => p.id === updated.id ? updated : p),
-                    newSoftwareProduct: emptySoftwareProduct,
+                    newSoftwareProduct: emptySoftwareProduct as Omit<SoftwareProduct, 'id'>,
                     isSoftwareEditing: false
                 });
                 toast({ title: "Software Actualizado" });
@@ -222,7 +246,7 @@ export const useLicenses = () => {
                 const newProd = await addSoftwareProduct(productData);
                 updateState({ 
                     softwareProducts: [...state.softwareProducts, newProd], 
-                    newSoftwareProduct: emptySoftwareProduct 
+                    newSoftwareProduct: emptySoftwareProduct as Omit<SoftwareProduct, 'id'>
                 });
                 toast({ title: "Software Creado" });
             }
@@ -236,7 +260,7 @@ export const useLicenses = () => {
         try {
             await deleteSoftwareProduct(id);
             updateState({ softwareProducts: state.softwareProducts.filter(p => p.id !== id) });
-            toast({ title: "Producto Eliminar" });
+            toast({ title: "Producto Eliminado" });
         } catch (error: unknown) {
             const err = error as Error;
             toast({ title: "Error", description: err.message, variant: "destructive" });
@@ -327,6 +351,8 @@ export const useLicenses = () => {
         setExpirationDatePreset,
         handleGenerateKeys,
         downloadLicenseFile,
+        confirmPerpetual,
+        setShowPerpetualConfirm: (val: boolean) => updateState({ showPerpetualConfirm: val })
     };
 
     const selectors = {

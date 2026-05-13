@@ -1,6 +1,6 @@
 /**
  * @fileoverview Service for OTP (One-Time Password) generation, delivery and validation.
- * Reuses the generation logic from password recovery for consistency.
+ * Features 1-minute throttling per email to protect against SMTP abuse.
  */
 "use server";
 
@@ -11,7 +11,6 @@ import { logInfo, logError, logWarn } from './logger';
 
 /**
  * Generates an 8-character random code (alphanumeric).
- * Matches the existing password recovery logic.
  */
 function generateCode(): string {
     return Math.random().toString(36).slice(-8).toUpperCase();
@@ -19,23 +18,44 @@ function generateCode(): string {
 
 /**
  * Requests an OTP code for a given email.
- * Marks any previous codes for this email as used.
+ * Includes a 60-second cooldown period to prevent spam.
  */
 export async function requestOtp(email: string): Promise<boolean> {
     const db = await connectDb();
+    const normalizedEmail = email.trim().toLowerCase();
+    const now = new Date();
+
+    // 1. Throttling Check (1 minute)
+    const lastRequest = db.prepare(`
+        SELECT expiresAt FROM otp_verifications 
+        WHERE email = ? 
+        ORDER BY id DESC LIMIT 1
+    `).get(normalizedEmail) as { expiresAt: string } | undefined;
+
+    if (lastRequest) {
+        // Since expiresAt is now + 30m, we check if it was created less than 29m ago
+        const lastRequestTime = new Date(new Date(lastRequest.expiresAt).getTime() - 30 * 60 * 1000);
+        const diffSeconds = (now.getTime() - lastRequestTime.getTime()) / 1000;
+        
+        if (diffSeconds < 60) {
+            await logWarn(`OTP request throttled for ${normalizedEmail}`, { secondsRemaining: Math.ceil(60 - diffSeconds) });
+            throw new Error(`Por favor, espera ${Math.ceil(60 - diffSeconds)} segundos antes de solicitar un nuevo código.`);
+        }
+    }
+
     const code = generateCode();
-    const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString(); // 30 minutes
+    const expiresAt = new Date(now.getTime() + 30 * 60 * 1000).toISOString(); // 30 minutes
 
     try {
         const company = await getCompanySettings();
         
-        // 1. Store in DB
+        // 2. Store in DB
         db.prepare(`
             INSERT INTO otp_verifications (email, code, expiresAt, isUsed)
             VALUES (?, ?, ?, 0)
-        `).run(email, code, expiresAt);
+        `).run(normalizedEmail, code, expiresAt);
 
-        // 2. Send via Email
+        // 3. Send via Email
         const html = `
             <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px; max-width: 500px;">
                 <h2 style="color: #2563eb;">Verificación de Correo</h2>
@@ -49,16 +69,16 @@ export async function requestOtp(email: string): Promise<boolean> {
         `;
 
         await sendEmail({
-            to: email,
+            to: normalizedEmail,
             subject: `Código de Verificación: ${code}`,
             html
         });
 
-        await logInfo(`OTP code requested for ${email}`);
+        await logInfo(`OTP code requested for ${normalizedEmail}`);
         return true;
     } catch (error: unknown) {
-        logError("Failed to process OTP request", { error: (error as Error).message, email });
-        return false;
+        logError("Failed to process OTP request", { error: (error as Error).message, email: normalizedEmail });
+        throw error;
     }
 }
 
@@ -74,7 +94,7 @@ export async function verifyOtp(email: string, code: string): Promise<boolean> {
         SELECT * FROM otp_verifications 
         WHERE email = ? AND code = ? AND isUsed = 0 AND expiresAt > ?
         ORDER BY id DESC LIMIT 1
-    `).get(email, code.toUpperCase(), now) as { id: number } | undefined;
+    `).get(email.trim().toLowerCase(), code.toUpperCase(), now) as { id: number } | undefined;
 
     if (record) {
         // Delete immediately - One time use only!

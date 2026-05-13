@@ -1,6 +1,7 @@
 /**
  * @fileoverview Server-side functions for maintenance operations (backup, restore, reset).
  * Simplified for single database architecture. Refactored for production robustness.
+ * Includes cryptographic keys in the backup process.
  */
 "use server";
 
@@ -11,11 +12,12 @@ import { triggerNotificationEvent } from '@/modules/notifications/lib/notificati
 
 const dbDirectory = path.join(process.cwd(), 'dbs');
 const DB_FILE = 'intratool.db';
+const KEYS_DIR = path.join(dbDirectory, 'keys');
 const UPDATE_BACKUP_DIR = 'update_backups';
 const backupDir = path.join(dbDirectory, UPDATE_BACKUP_DIR);
 
 /**
- * Creates a backup of the central database.
+ * Creates a backup of the central database and cryptographic keys.
  */
 export async function backupAllForUpdate(): Promise<void> {
     if (!fs.existsSync(backupDir)) {
@@ -25,10 +27,21 @@ export async function backupAllForUpdate(): Promise<void> {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const sourcePath = path.join(dbDirectory, DB_FILE);
     
+    // 1. Backup Main Database
     if (fs.existsSync(sourcePath)) {
         const backupFileName = `clic-tools-main_${timestamp}.db`;
         const backupPath = path.join(backupDir, backupFileName);
         fs.copyFileSync(sourcePath, backupPath);
+    }
+
+    // 2. Backup RSA Keys (Critical for license validation after restore)
+    if (fs.existsSync(KEYS_DIR)) {
+        const keysBackupDir = path.join(backupDir, `keys_${timestamp}`);
+        fs.mkdirSync(keysBackupDir, { recursive: true });
+        const keyFiles = fs.readdirSync(KEYS_DIR);
+        for (const file of keyFiles) {
+            fs.copyFileSync(path.join(KEYS_DIR, file), path.join(keysBackupDir, file));
+        }
     }
 
     await triggerNotificationEvent('onBackupCompleted', { timestamp: new Date().toLocaleString() });
@@ -36,6 +49,7 @@ export async function backupAllForUpdate(): Promise<void> {
 
 /**
  * Restores the database from a specific backup timestamp.
+ * Also restores the corresponding cryptographic keys.
  */
 export async function restoreAllFromUpdateBackup(timestamp: string): Promise<void> {
     const backups = await listAllUpdateBackups();
@@ -44,12 +58,26 @@ export async function restoreAllFromUpdateBackup(timestamp: string): Promise<voi
     if (!backup) {
         throw new Error("No backup files found for the selected timestamp.");
     }
+
+    // Clean timestamp for file matching (removes ISO extra bits to match backup folder naming)
+    const folderTimestamp = backup.date.replace(/[:.]/g, '-');
     
     const sourceBackupPath = path.join(backupDir, backup.fileName);
     const targetRestorePath = path.join(dbDirectory, `${DB_FILE}_restore.db`);
     
+    // 1. Restore Database
     if (fs.existsSync(sourceBackupPath)) {
         fs.copyFileSync(sourceBackupPath, targetRestorePath);
+    }
+
+    // 2. Restore Keys
+    const keysBackupDir = path.join(backupDir, `keys_${folderTimestamp}`);
+    if (fs.existsSync(keysBackupDir)) {
+        if (!fs.existsSync(KEYS_DIR)) fs.mkdirSync(KEYS_DIR, { recursive: true });
+        const keyFiles = fs.readdirSync(keysBackupDir);
+        for (const file of keyFiles) {
+            fs.copyFileSync(path.join(keysBackupDir, file), path.join(KEYS_DIR, file));
+        }
     }
 }
 
@@ -112,6 +140,12 @@ export async function deleteOldUpdateBackups(): Promise<number> {
         if (fs.existsSync(filePath)) {
             fs.unlinkSync(filePath);
             deletedCount++;
+        }
+        // Also delete key folder if exists
+        const folderTimestamp = b.date.replace(/[:.]/g, '-');
+        const keysBackupDir = path.join(backupDir, `keys_${folderTimestamp}`);
+        if (fs.existsSync(keysBackupDir)) {
+            fs.rmSync(keysBackupDir, { recursive: true, force: true });
         }
     }
     return deletedCount;

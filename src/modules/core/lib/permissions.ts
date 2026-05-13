@@ -21,7 +21,7 @@ export const permissionGroups = {
         "contracts:read", "contracts:create", "contracts:update", "contracts:delete"
     ],
     "Gestión de Licencias": [
-        "licenses:read", "licenses:manage", "licenses:admin:keys"
+        "licenses:read", "licenses:manage", "licenses:admin:keys", "licenses:perpetual:assign"
     ],
     "Proyectos TI": [
         "planner:read", "planner:create", "planner:status:approve", "planner:status:in-progress", 
@@ -83,6 +83,7 @@ export const permissionTranslations: Record<string, string> = {
     "licenses:read": "Licencias: Ver Listado",
     "licenses:manage": "Licencias: Crear / Editar",
     "licenses:admin:keys": "Licencias: Gestión de Claves",
+    "licenses:perpetual:assign": "Licencias: Autorizar Licencias Perpetuas",
     "it-tools:access": "IT-Tools: Acceso General",
     "it-tools:notes:read": "Notas TI: Ver Listado",
     "it-tools:notes:create": "Notas TI: Crear Nueva",
@@ -154,6 +155,7 @@ export const permissionTree: Record<string, string[]> = {
 
     "licenses:manage": ["licenses:read"],
     "licenses:admin:keys": ["admin:access"],
+    "licenses:perpetual:assign": ["licenses:manage"],
     "admin:marketing:manage": ["admin:access"],
 
     "inventory:manage": ["inventory:read"],

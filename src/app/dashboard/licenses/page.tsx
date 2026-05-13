@@ -1,6 +1,6 @@
 /**
  * @fileoverview Main page for the License Management module.
- * Enhanced for Hybrid Licensing v3.8.2 (Full SDK + Dynamic Compliance Policies Context).
+ * Enhanced for Hybrid Licensing v3.8.3 (Full SDK + Production Hardening).
  */
 'use client';
 
@@ -73,7 +73,7 @@ export default function LicensesPage() {
     const SERVER_URL = state.companyData?.publicUrl || 'https://soporte.clicsoporte.com';
 
     const sdkCode = {
-        meta: `v3.8.2 (Compliance & Context)`,
+        meta: `v3.8.3 (Hardening & Compliance)`,
         schema: `{
   "success": true,
   "license_file": {
@@ -116,17 +116,31 @@ export async function verifyClientInfo(taxId: string) {
     return { found: false };
 }`,
         activation: `/**
- * PASO 2: ACTIVACIÓN (SDK v3.3+)
- * El servidor devuelve un objeto estructurado. Ya NO es necesario JSON.parse(result.license_file).
+ * PASO 2: REGISTRO FREE / ACTIVACIÓN (SDK v3.8+)
+ * IMPORTANTE: El servidor tiene Throttling de 1 minuto por correo para OTP.
+ * Si recibe error 429, debe indicar al cliente que espere.
  */
+
+// A. SOLICITAR CÓDIGO (FREE)
+export async function requestOtp(email: string) {
+    const res = await fetch(\`${SERVER_URL}/api/v1/request-otp\`, {
+        method: 'POST',
+        body: JSON.stringify({ email })
+    });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.error); // Puede ser Throttling
+    return result;
+}
+
+// B. ACTIVAR (CANJEAR TOKEN O OTP)
 export async function activateSoftware(payload: {
     taxId: string,
     customerName: string,
     customerEmail: string,
     customerPhone: string,
-    token?: string
+    token?: string // Token Premium o Código OTP Free
 }) {
-    const hardwareId = await generateHardwareId(); // Fingerprint local
+    const hardwareId = await generateHardwareId(); 
     const endpoint = payload.token ? 'activate' : 'register-free';
     
     const res = await fetch(\`${SERVER_URL}/api/v1/\${endpoint}\`, {
@@ -141,9 +155,8 @@ export async function activateSoftware(payload: {
     });
 
     const result = await res.json();
-    if (!res.ok) throw new Error(result.error);
+    if (!res.ok) throw new Error(result.error); // Maneja errores de Multi-PC
     
-    // result.license_file ya es un OBJETO con license_info y signature
     return result.license_file; 
 }`,
         rsa: `/**
@@ -164,8 +177,8 @@ export function verifyServerSignature(licenseFile, publicKeyPem) {
     return verifier.verify(publicKeyPem, signature, 'hex');
 }`,
         marketing: `/**
- * PASO 4: PUBLICIDAD DINÁMICA (SDK v3.3+)
- * Descarga anuncios globales firmados segmentados por tipo de licencia.
+ * PASO 4: PUBLICIDAD DINÁMICA (SDK v3.8+)
+ * Descarga anuncios globales firmados segmentados.
  */
 export async function syncGlobalAds(licenseType: 'free' | 'premium') {
     const res = await fetch(\`${SERVER_URL}/api/v1/marketing?software=Clic-Turnos&status=\${licenseType}\`);
@@ -173,7 +186,8 @@ export async function syncGlobalAds(licenseType: 'free' | 'premium') {
     
     // Validar firma del anuncio antes de mostrarlo
     if (verifyServerSignature(payload, publicKeyPem)) {
-        return payload.payload.ads; 
+        // Estructura: { license_info: { ads: [...] } }
+        return payload.license_info.ads; 
     }
     return [];
 }`,
@@ -192,36 +206,10 @@ export function validateSystemTime(currentDate) {
 }
 
 // 2. Nag Screen Logic (Para versiones FREE)
-export function checkAdFreshness(lastAdSyncDate, policies) {
-    const daysSinceSync = diffInDays(new Date(), lastAdSyncDate);
-    if (daysSinceSync > policies.adRefreshFrequency) {
-        // Disparar Nag Screen: Bloqueo de UI por policies.nagScreenTimer segundos
-        showNagScreen(policies.nagScreenTimer);
-    }
-}
+// Se dispara si Hoy - LastSync > policies.adRefreshFrequency
 
 // 3. HWID Enforcement
-export function validateHardware(signedHwid, localHwid) {
-    if (signedHwid !== localHwid) {
-        return { status: 'INVALID_HARDWARE', message: 'Licencia vinculada a otra PC.' };
-    }
-    return { status: 'OK' };
-}`,
-        uiPanel: `/**
- * PASO 6: PANEL DE ACTIVACIÓN (Sincronización Forzada)
- */
-const handleManualSync = async () => {
-    setIsSyncing(true);
-    try {
-        const newLicense = await activatePremiumLicense(savedToken, localHardwareId);
-        if (verifyServerSignature(newLicense, publicKey)) {
-            saveLicenseLocally(newLicense);
-            toast({ title: "Sincronización Exitosa" });
-        }
-    } catch (e) {
-        toast({ title: "Error de Conexión", variant: "destructive" });
-    } finally { setIsSyncing(false); }
-};`
+// Se debe comparar el HardwareID del equipo local contra el firmado en la licencia.`
     };
 
     return (
@@ -322,9 +310,19 @@ const handleManualSync = async () => {
 
                                                             <div className="space-y-4 pt-2">
                                                                 <div className="flex items-center justify-between">
-                                                                    <Label>Vencimiento de Licencia</Label>
+                                                                    <Label className="flex items-center gap-2">
+                                                                        Licencia Perpetua
+                                                                        <Tooltip>
+                                                                            <TooltipTrigger><Info className="h-3 w-3 text-muted-foreground"/></TooltipTrigger>
+                                                                            <TooltipContent><p>Activa el permiso de uso offline ilimitado una vez validada la firma.</p></TooltipContent>
+                                                                        </Tooltip>
+                                                                    </Label>
                                                                     <div className="flex items-center space-x-2">
-                                                                        <Checkbox id="is-perpetual" checked={state.currentLicense.isPerpetual} onCheckedChange={(checked) => actions.handleCurrentLicenseChange('isPerpetual', !!checked)} />
+                                                                        <Checkbox 
+                                                                            id="is-perpetual" 
+                                                                            checked={state.currentLicense.isPerpetual} 
+                                                                            onCheckedChange={(checked) => actions.handleCurrentLicenseChange('isPerpetual', !!checked)} 
+                                                                        />
                                                                         <Label htmlFor="is-perpetual" className="text-xs">Sin vencimiento</Label>
                                                                     </div>
                                                                 </div>
@@ -476,6 +474,7 @@ const handleManualSync = async () => {
                     </CardContent>
                 </Card>
 
+                {/* kit de Integración (SDK) */}
                 <Dialog open={isSdkDialogOpen} onOpenChange={setSdkDialogOpen}>
                     <DialogContent className="sm:max-w-5xl h-[90vh] flex flex-col p-0 overflow-hidden">
                         <DialogHeader className="p-6 pb-2 border-b">
@@ -606,6 +605,7 @@ const handleManualSync = async () => {
                     </DialogContent>
                 </Dialog>
 
+                {/* Diálogo Catálogo Software */}
                 <Dialog open={state.isSoftwareDialogOpen} onOpenChange={actions.setIsSoftwareDialogOpen}>
                     <DialogContent className="sm:max-w-5xl h-[90vh] flex flex-col p-0">
                         <DialogHeader className="p-6 pb-2 border-b">
@@ -690,7 +690,7 @@ const handleManualSync = async () => {
                                                 <div className="flex items-center space-x-2 pt-5">
                                                     <Switch checked={!!state.newSoftwareProduct.allowOfflinePremium} onCheckedChange={val => actions.handleNewSoftwareChange('allowOfflinePremium', val)} />
                                                     <Label className="text-[9px] uppercase font-bold flex items-center gap-1">
-                                                        Offline Premium
+                                                        Licencia Perpetua
                                                         <Tooltip>
                                                             <TooltipTrigger><Info className="h-2.5 w-2.5 text-muted-foreground"/></TooltipTrigger>
                                                             <TooltipContent className="max-w-xs"><p>Si se permite el funcionamiento 100% offline para versiones pagas tras la validación inicial.</p></TooltipContent>
@@ -740,6 +740,26 @@ const handleManualSync = async () => {
                         <DialogFooter className="p-4 border-t bg-muted/10"><DialogClose asChild><Button variant="ghost">Cerrar Catálogo</Button></DialogClose></DialogFooter>
                     </DialogContent>
                 </Dialog>
+
+                {/* Confirmación Doble Licencia Perpetua */}
+                <AlertDialog open={state.showPerpetualConfirm} onOpenChange={actions.confirmPerpetual ? undefined : (v) => actions.setShowPerpetualConfirm(v)}>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle className="flex items-center gap-2 text-primary">
+                                <ShieldAlert /> ¡AUTORIZACIÓN DE LICENCIA PERPETUA!
+                            </AlertDialogTitle>
+                            <AlertDialogDescription className="space-y-3">
+                                <p className="font-bold text-foreground">Estás a punto de marcar esta licencia como PERPETUA (Offline Ilimitado).</p>
+                                <p>Esto otorgará al software hijo el permiso de funcionar <b>para siempre sin conexión al API</b> una vez validada la firma inicial.</p>
+                                <p className="text-xs text-muted-foreground italic">Esta acción es crítica y solo debe realizarse para clientes con pago único finalizado.</p>
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel onClick={() => actions.setShowPerpetualConfirm(false)}>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={actions.confirmPerpetual} className="bg-primary text-white">Entiendo, Proceder</AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
 
                 <AlertDialog open={!!state.licenseToDelete} onOpenChange={(open) => !open && actions.setLicenseToDelete(null)}>
                     <AlertDialogContent>

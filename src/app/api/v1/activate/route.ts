@@ -1,6 +1,7 @@
 /**
  * @fileoverview API Endpoint for child software activation.
- * Refactored for Production Blindado: Strict ID normalization and Dynamic Policies v3.8.
+ * Refactored for Production Blindado: Strict Multi-PC protection and Collision checks.
+ * Includes support contact information in error responses.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -9,6 +10,8 @@ import { signLicenseData } from '@/modules/licenses/lib/crypto';
 import type { License, SoftwareProduct, Customer } from '@/modules/core/types';
 
 export const dynamic = 'force-dynamic';
+
+const CONTACT_INFO = "Favor contactar a Soporte Técnico: soporte@clicsoporte.com o WhatsApp +50640000630";
 
 export async function POST(req: NextRequest) {
     try {
@@ -34,10 +37,10 @@ export async function POST(req: NextRequest) {
         }
 
         if (!software) {
-            return NextResponse.json({ error: `El software '${softwareName || softwareId}' no está registrado.` }, { status: 404 });
+            return NextResponse.json({ error: `El software '${softwareName || softwareId}' no está registrado en nuestra central.` }, { status: 404 });
         }
 
-        // 2. CHECK FOR HARDWARE COLLISION
+        // 2. CHECK FOR HARDWARE COLLISION (Duplicate PC protection)
         const otherLicense = db.prepare(`
             SELECT id, activationToken FROM licenses 
             WHERE softwareId = ? 
@@ -48,7 +51,7 @@ export async function POST(req: NextRequest) {
 
         if (otherLicense) {
             return NextResponse.json({ 
-                error: `OPERACIÓN DENEGADA: Este equipo ya cuenta con una licencia activa para este software (${otherLicense.activationToken}).` 
+                error: `OPERACIÓN DENEGADA: Este equipo ya cuenta con una licencia activa para este software (${otherLicense.activationToken}). ${CONTACT_INFO}` 
             }, { status: 409 });
         }
 
@@ -59,15 +62,17 @@ export async function POST(req: NextRequest) {
         `).get(software.id, normalizedToken) as License | undefined;
 
         if (!license) {
-            return NextResponse.json({ error: 'Licencia no válida o token inexistente.' }, { status: 404 });
+            return NextResponse.json({ error: `Licencia no válida o token inexistente. ${CONTACT_INFO}` }, { status: 404 });
         }
 
-        // 4. CHECK FOR MULTI-PC ATTEMPT
+        // 4. CHECK FOR MULTI-PC ATTEMPT (Hardware Lock)
         if (license.hardwareId && license.hardwareId !== normalizedHardwareId) {
-            return NextResponse.json({ error: 'Esta licencia ya está vinculada a otro equipo.' }, { status: 403 });
+            return NextResponse.json({ 
+                error: `OPERACIÓN DENEGADA: Esta licencia ya está vinculada a otro equipo y no puede ser transferida automáticamente. ${CONTACT_INFO}` 
+            }, { status: 403 });
         }
 
-        // 5. Bind hardwareId if not set
+        // 5. Bind hardwareId if not set (First-time activation)
         if (!license.hardwareId) {
             db.prepare('UPDATE licenses SET hardwareId = ? WHERE id = ?').run(normalizedHardwareId, license.id);
         }
@@ -114,6 +119,6 @@ export async function POST(req: NextRequest) {
 
     } catch (error: unknown) {
         console.error('Activation API Error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Error interno del servidor. Intente más tarde.' }, { status: 500 });
     }
 }
