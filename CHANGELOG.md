@@ -2,6 +2,12 @@
 
 Registro de cambios y evolución de la plataforma Clic-Tools para gestión de MSP.
 
+## [2.3.2] - 2024-05-28
+### Añadido (Seguridad y UX)
+- **Validación Cruzada de Perpetuidad**: El sistema ahora impide emitir licencias "(perpetua)" si el software no tiene habilitada esta capacidad técnica en el Catálogo de Software.
+- **Sincronización de Interfaz**: Se actualizó la etiqueta "Sin vencimiento" a "Sin vencimiento (perpetua)" para mayor claridad comercial.
+- **Advertencias Contextuales**: Nuevo aviso en el formulario de emisión que indica cuando una licencia no puede ser perpetua debido a la configuración global del producto.
+
 ## [2.3.1] - 2024-05-27
 ### Añadido (Blindaje de Producción)
 - **Throttling de Seguridad (OTP)**: Límite de 1 minuto entre solicitudes de código para un mismo correo para proteger el servidor SMTP.

@@ -42,6 +42,9 @@ export default function LicensesPage() {
         ? state.softwareProducts.find(p => p.id === state.currentLicense.softwareId)
         : null;
     
+    // VALIDATION: Check if perpetual mode is supported by the selected software's global config
+    const isPerpetualSupported = selectedSoftware?.isInternal ? !!selectedSoftware.allowOfflinePremium : true;
+
     const handleCopy = (text: string, section: string) => {
         navigator.clipboard.writeText(text);
         setCopiedSection(section);
@@ -359,12 +362,22 @@ export function validateSystemTime(currentDate) {
                                                                         <Checkbox 
                                                                             id="is-perpetual" 
                                                                             checked={state.currentLicense.isPerpetual} 
-                                                                            onCheckedChange={(checked) => actions.handleCurrentLicenseChange('isPerpetual', !!checked)} 
+                                                                            onCheckedChange={(checked) => actions.handleCurrentLicenseChange('isPerpetual', !!checked)}
+                                                                            disabled={!isPerpetualSupported}
                                                                         />
-                                                                        <Label htmlFor="is-perpetual" className="text-xs">Sin vencimiento</Label>
+                                                                        <Label htmlFor="is-perpetual" className={cn("text-xs", !isPerpetualSupported && "opacity-50")}>Sin vencimiento (perpetua)</Label>
                                                                     </div>
                                                                 </div>
                                                                 
+                                                                {!isPerpetualSupported && selectedSoftware && (
+                                                                    <Alert className="py-2 bg-amber-50 border-amber-200">
+                                                                        <AlertTriangle className="h-4 w-4 text-amber-600" />
+                                                                        <AlertDescription className="text-[10px] text-amber-700">
+                                                                            Este software no tiene habilitada la capacidad de <b>Licencia Perpetua</b> en el catálogo. Actívela primero para asignar este derecho.
+                                                                        </AlertDescription>
+                                                                    </Alert>
+                                                                )}
+
                                                                 <div className="grid grid-cols-2 gap-4">
                                                                     <Popover>
                                                                         <PopoverTrigger asChild>
@@ -794,7 +807,7 @@ export function validateSystemTime(currentDate) {
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                             <AlertDialogCancel onClick={() => actions.setShowPerpetualConfirm(false)}>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction onClick={actions.confirmPerpetual} className="bg-primary text-white">Entiendo, Proceder</AlertDialogAction>
+                            <AlertDialogAction onClick={() => { actions.confirmPerpetual(); }} className="bg-primary text-white">Entiendo, Proceder</AlertDialogAction>
                         </AlertDialogFooter>
                     </AlertDialogContent>
                 </AlertDialog>
