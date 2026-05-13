@@ -21,7 +21,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SearchInput } from '@/components/ui/search-input';
-import { PlusCircle, MoreVertical, CalendarIcon, Loader2, Trash2, Download, Edit, ShieldCheck, Boxes, Settings2, Info, Code2, Copy, Check, Terminal, MonitorPlay, ShieldAlert } from 'lucide-react';
+import { PlusCircle, MoreVertical, CalendarIcon, Loader2, Trash2, Download, Edit, ShieldCheck, Boxes, Settings2, Info, Code2, Copy, Check, Terminal, MonitorPlay, ShieldAlert, AlertTriangle } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
@@ -716,7 +716,7 @@ export function validateSystemTime(currentDate) {
                                                             <TooltipContent className="max-w-xs"><p>Días máximos que una licencia Free puede operar sin reportarse al servidor antes de bloquearse.</p></TooltipContent>
                                                         </Tooltip>
                                                     </Label>
-                                                    <Input type="number" value={state.newSoftwareProduct.syncFrequencyFree || 7} onChange={e => actions.handleNewSoftwareChange('syncFrequencyFree', Number(e.target.value))} className="h-8 text-xs" />
+                                                    <Input type="number" value={state.newSoftwareProduct.syncFrequencyFree || 7} onChange={e => actions.handleNewSoftwareChange('syncFrequencyFree', Number(e.target.value)} className="h-8 text-xs" />
                                                 </div>
                                                 <div className="space-y-1.5">
                                                     <Label className="text-[9px] uppercase font-bold flex items-center gap-1">
@@ -726,7 +726,7 @@ export function validateSystemTime(currentDate) {
                                                             <TooltipContent className="max-w-xs"><p>Días de frescura de la publicidad. Superado este tiempo, se activa el Nag Screen en el hijo.</p></TooltipContent>
                                                         </Tooltip>
                                                     </Label>
-                                                    <Input type="number" value={state.newSoftwareProduct.adRefreshFrequency || 2} onChange={e => actions.handleNewSoftwareChange('adRefreshFrequency', Number(e.target.value))} className="h-8 text-xs" />
+                                                    <Input type="number" value={state.newSoftwareProduct.adRefreshFrequency || 2} onChange={e => actions.handleNewSoftwareChange('adRefreshFrequency', Number(e.target.value)} className="h-8 text-xs" />
                                                 </div>
                                                 <div className="space-y-1.5">
                                                     <Label className="text-[9px] uppercase font-bold flex items-center gap-1">
@@ -736,7 +736,7 @@ export function validateSystemTime(currentDate) {
                                                             <TooltipContent className="max-w-xs"><p>Segundos que la pantalla permanecerá bloqueada por el Nag Screen cada hora de uso.</p></TooltipContent>
                                                         </Tooltip>
                                                     </Label>
-                                                    <Input type="number" value={state.newSoftwareProduct.nagScreenTimer || 60} onChange={e => actions.handleNewSoftwareChange('nagScreenTimer', Number(e.target.value))} className="h-8 text-xs" />
+                                                    <Input type="number" value={state.newSoftwareProduct.nagScreenTimer || 60} onChange={e => actions.handleNewSoftwareChange('nagScreenTimer', Number(e.target.value)} className="h-8 text-xs" />
                                                 </div>
                                                 <div className="flex items-center space-x-2 pt-5">
                                                     <Switch checked={!!state.newSoftwareProduct.allowOfflinePremium} onCheckedChange={val => actions.handleNewSoftwareChange('allowOfflinePremium', val)} />
