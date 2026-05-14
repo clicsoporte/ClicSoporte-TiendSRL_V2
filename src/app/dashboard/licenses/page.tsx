@@ -1,6 +1,6 @@
 /**
  * @fileoverview Main page for the License Management module.
- * Enhanced for Hybrid Licensing v3.8.3 (Full SDK + Production Hardening).
+ * Enhanced for Hybrid Licensing v3.8.4 (Production Hardened).
  */
 'use client';
 
@@ -76,7 +76,7 @@ export default function LicensesPage() {
     const SERVER_URL = state.companyData?.publicUrl || 'https://soporte.clicsoporte.com';
 
     const sdkCode = {
-        meta: `v3.8.3 (Hardening & Compliance)`,
+        meta: `v3.8.4 (Production Certified)`,
         schema: `{
   "success": true,
   "license_file": {
@@ -119,9 +119,9 @@ export async function verifyClientInfo(taxId: string) {
     return { found: false };
 }`,
         activation: `/**
- * PASO 2: REGISTRO FREE / ACTIVACIÓN (SDK v3.8+)
+ * PASO 2: REGISTRO FREE / ACTIVACIÓN (SDK v3.8.4)
  * IMPORTANTE: El servidor tiene Throttling de 1 minuto por correo para OTP.
- * Si recibe error 429, debe indicar al cliente que espere.
+ * El software hijo DEBE indicar al usuario esperar si recibe error 429.
  */
 
 // A. SOLICITAR CÓDIGO (FREE)
@@ -131,7 +131,7 @@ export async function requestOtp(email: string) {
         body: JSON.stringify({ email })
     });
     const result = await res.json();
-    if (!res.ok) throw new Error(result.error); // Puede ser Throttling
+    if (!res.ok) throw new Error(result.error); // Maneja el Throttling de 1 min
     return result;
 }
 
@@ -150,7 +150,7 @@ export async function activateSoftware(payload: {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-            softwareName: 'Clic-Turnos',
+            softwareName: 'Nombre-Software',
             hardwareId,
             activationToken: payload.token,
             ...payload 
@@ -158,7 +158,7 @@ export async function activateSoftware(payload: {
     });
 
     const result = await res.json();
-    if (!res.ok) throw new Error(result.error); // Maneja errores de Multi-PC
+    if (!res.ok) throw new Error(result.error); // Maneja errores de Multi-PC e Identidad
     
     return result.license_file; 
 }`,
@@ -180,16 +180,16 @@ export function verifyServerSignature(licenseFile, publicKeyPem) {
     return verifier.verify(publicKeyPem, signature, 'hex');
 }`,
         marketing: `/**
- * PASO 4: PUBLICIDAD DINÁMICA (SDK v3.8+)
+ * PASO 4: PUBLICIDAD DINÁMICA (SDK v3.8.4)
  * Descarga anuncios globales firmados segmentados.
  */
 export async function syncGlobalAds(licenseType: 'free' | 'premium') {
-    const res = await fetch(\`${SERVER_URL}/api/v1/marketing?software=Clic-Turnos&status=\${licenseType}\`);
+    const res = await fetch(\`${SERVER_URL}/api/v1/marketing?software=Tu-Software&status=\${licenseType}\`);
     const { payload } = await res.json();
     
-    // Validar firma del anuncio antes de mostrarlo
+    // El payload ya viene con { license_info, signature }
     if (verifyServerSignature(payload, publicKeyPem)) {
-        // Estructura: { license_info: { ads: [...] } }
+        // Los anuncios están en license_info.ads
         return payload.license_info.ads; 
     }
     return [];
@@ -263,7 +263,7 @@ export function validateSystemTime(currentDate) {
                                 <CardTitle className="text-2xl font-bold flex items-center gap-2">
                                     <ShieldCheck className="h-6 w-6 text-primary" /> Gestión de Licenciamiento Híbrido
                                 </CardTitle>
-                                <CardDescription>Administración central de activaciones y políticas de cumplimiento v3.8.</CardDescription>
+                                <CardDescription>Administración central de activaciones y políticas de cumplimiento v3.8.4.</CardDescription>
                             </div>
                             <div className="flex gap-2 flex-wrap">
                                 <Button variant="outline" onClick={() => setSdkDialogOpen(true)}>

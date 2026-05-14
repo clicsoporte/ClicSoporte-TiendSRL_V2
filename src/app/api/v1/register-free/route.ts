@@ -1,6 +1,6 @@
 /**
  * @fileoverview API Endpoint for registering free licenses with OTP validation.
- * Refactored for Production Blindado: Strict Dynamic Policies v3.8.
+ * Refactored for Production Blindado: Identity validation on re-installs and Dynamic Policies v3.8.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -8,6 +8,7 @@ import { connectDb } from '@/modules/core/lib/db';
 import { signLicenseData } from '@/modules/licenses/lib/crypto';
 import { upsertLeadCustomer } from '@/modules/core/lib/data-access-db';
 import { verifyOtp } from '@/modules/core/lib/otp-service';
+import { logWarn, logInfo } from '@/modules/core/lib/logger';
 import { triggerNotificationEvent } from '@/modules/notifications/lib/notifications-engine';
 import type { Customer, License, SoftwareProduct } from '@/modules/core/types';
 
@@ -56,22 +57,34 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: `El software '${softwareName || softwareId}' no está registrado.` }, { status: 404 });
         }
 
-        // 5. CHECK FOR RE-INSTALLATION (Self-healing)
+        // 5. CHECK FOR RE-INSTALLATION (Identity Shield)
+        // We join with customers to ensure the email matches the original owner of this Hardware ID.
         const existingLicense = db.prepare(`
-            SELECT * FROM licenses 
-            WHERE softwareId = ? AND hardwareId = ? AND status = 'active'
-        `).get(software.id, normalizedHardwareId) as License | undefined;
+            SELECT l.*, c.email FROM licenses l
+            JOIN customers c ON l.customerId = c.id
+            WHERE l.softwareId = ? AND l.hardwareId = ? AND l.status = 'active'
+        `).get(software.id, normalizedHardwareId) as (License & { email: string }) | undefined;
 
-        if (existingLicense && existingLicense.licenseKey) {
-            try {
-                const existingFile = JSON.parse(existingLicense.licenseKey);
+        if (existingLicense) {
+            if (existingLicense.email !== normalizedEmail) {
+                await logWarn(`Restauración Free denegada: Conflicto de correo`, { hwid: normalizedHardwareId, attempt: normalizedEmail, original: existingLicense.email });
                 return NextResponse.json({ 
-                    success: true, 
-                    message: 'Restaurando licencia existente.',
-                    license_file: existingFile 
-                });
-            } catch {
-                return NextResponse.json({ success: true, license_file: existingLicense.licenseKey });
+                    error: 'Este equipo ya está vinculado a una cuenta diferente. Use el correo original para restaurar o contacte a soporte.' 
+                }, { status: 403 });
+            }
+
+            if (existingLicense.licenseKey) {
+                try {
+                    const existingFile = JSON.parse(existingLicense.licenseKey);
+                    await logInfo(`Licencia Free restaurada con éxito para ${normalizedEmail}`, { hwid: normalizedHardwareId });
+                    return NextResponse.json({ 
+                        success: true, 
+                        message: 'Restaurando licencia existente.',
+                        license_file: existingFile 
+                    });
+                } catch {
+                    return NextResponse.json({ success: true, license_file: existingLicense.licenseKey });
+                }
             }
         }
 

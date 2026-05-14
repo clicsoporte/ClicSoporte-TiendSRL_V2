@@ -1,12 +1,13 @@
 /**
  * @fileoverview API Endpoint for child software activation.
  * Refactored for Production Blindado: Strict Multi-PC protection and Collision checks.
- * Includes support contact information in error responses.
+ * Includes support contact information and Server Logs for fraud detection.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDb } from '@/modules/core/lib/db';
 import { signLicenseData } from '@/modules/licenses/lib/crypto';
+import { logWarn } from '@/modules/core/lib/logger';
 import type { License, SoftwareProduct, Customer } from '@/modules/core/types';
 
 export const dynamic = 'force-dynamic';
@@ -50,6 +51,7 @@ export async function POST(req: NextRequest) {
         `).get(software.id, normalizedHardwareId, normalizedToken) as { id: number, activationToken: string } | undefined;
 
         if (otherLicense) {
+            await logWarn(`Colisión de Hardware: Equipo ya tiene licencia activa`, { hwid: normalizedHardwareId, software: software.name, existingToken: otherLicense.activationToken });
             return NextResponse.json({ 
                 error: `OPERACIÓN DENEGADA: Este equipo ya cuenta con una licencia activa para este software (${otherLicense.activationToken}). ${CONTACT_INFO}` 
             }, { status: 409 });
@@ -67,6 +69,7 @@ export async function POST(req: NextRequest) {
 
         // 4. CHECK FOR MULTI-PC ATTEMPT (Hardware Lock)
         if (license.hardwareId && license.hardwareId !== normalizedHardwareId) {
+            await logWarn(`Intento de uso Multi-PC bloqueado`, { token: normalizedToken, originalHwid: license.hardwareId, intruderHwid: normalizedHardwareId, software: software.name });
             return NextResponse.json({ 
                 error: `OPERACIÓN DENEGADA: Esta licencia ya está vinculada a otro equipo y no puede ser transferida automáticamente. ${CONTACT_INFO}` 
             }, { status: 403 });
