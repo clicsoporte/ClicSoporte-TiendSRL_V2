@@ -179,8 +179,38 @@ export function verifyServerSignature(licenseFile, publicKeyPem) {
     
     return verifier.verify(publicKeyPem, signature, 'hex');
 }`,
+        config: `/**
+ * PASO 4: AUTO-CONFIGURACIÓN (Identidad & Módulos)
+ * El servidor inyecta la Identidad Maestra. El software hijo DEBE confiar
+ * en estos datos firmados para su configuración interna.
+ */
+export function autoConfigureSoftware(licenseFile) {
+    const { license_info } = licenseFile;
+
+    // 1. Extraer Identidad Inyectada
+    // Esto asegura que el "About" del programa muestre datos oficiales del cliente.
+    const ownerData = {
+        name: license_info.customerName,
+        email: license_info.customerEmail,
+        phone: license_info.customerPhone
+    };
+    saveGlobalSettings('OWNER', ownerData);
+
+    // 2. Mapeo de Módulos (Protocolo m01 - m10)
+    // Desbloquee las funciones del software según el mapa recibido.
+    const activeModules = {
+        m01_active: !!license_info.modules.m01,
+        m02_active: !!license_info.modules.m02,
+        m03_active: !!license_info.modules.m03,
+        // ... continuar hasta m10
+    };
+    
+    applyModulePermissions(activeModules);
+    
+    return { ownerData, activeModules };
+}`,
         marketing: `/**
- * PASO 4: PUBLICIDAD DINÁMICA (SDK v3.8.4)
+ * PASO 5: PUBLICIDAD DINÁMICA (SDK v3.8.4)
  * Descarga anuncios globales firmados segmentados.
  */
 export async function syncGlobalAds(licenseType: 'free' | 'premium') {
@@ -544,7 +574,8 @@ export function validateSystemTime(currentDate) {
                                 <TabsTrigger value="verify" className="text-xs font-bold shrink-0">1. Verificación</TabsTrigger>
                                 <TabsTrigger value="activation" className="text-xs font-bold shrink-0">2. Activación</TabsTrigger>
                                 <TabsTrigger value="rsa" className="text-xs font-bold shrink-0">3. Validación RSA</TabsTrigger>
-                                <TabsTrigger value="marketing" className="text-xs font-bold shrink-0">4. Publicidad</TabsTrigger>
+                                <TabsTrigger value="config" className="text-xs font-bold shrink-0">4. Configuración</TabsTrigger>
+                                <TabsTrigger value="marketing" className="text-xs font-bold shrink-0">5. Publicidad</TabsTrigger>
                                 <TabsTrigger value="uiPanel" className="text-xs font-bold shrink-0"><MonitorPlay className="h-3 w-3 mr-1.5" /> 6. UI: Panel</TabsTrigger>
                                 <TabsTrigger value="compliance" className="text-xs font-black uppercase text-red-600 shrink-0"><ShieldAlert className="h-3 w-3 mr-1.5"/> 7. Políticas</TabsTrigger>
                             </TabsList>
@@ -595,6 +626,19 @@ export function validateSystemTime(currentDate) {
                                         </Button>
                                         <pre className="bg-slate-950 text-slate-100 p-6 rounded-lg text-[11px] font-mono overflow-auto">
                                             {sdkCode.rsa}
+                                        </pre>
+                                    </div>
+                                </TabsContent>
+
+                                <TabsContent value="config" className="m-0 h-full p-4">
+                                    <div className="relative">
+                                        <p className="text-[11px] text-muted-foreground mb-3 italic">Mapeo de Identidad Maestra y Módulos de funcionalidad (m01-m10).</p>
+                                        <Button variant="secondary" size="sm" className="absolute top-12 right-2 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.config, 'config')}>
+                                            {copiedSection === 'config' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
+                                            {copiedSection === 'config' ? 'Copiado' : 'Copiar'}
+                                        </Button>
+                                        <pre className="bg-slate-950 text-sky-300 p-6 rounded-lg text-[11px] font-mono overflow-auto">
+                                            {sdkCode.config}
                                         </pre>
                                     </div>
                                 </TabsContent>
