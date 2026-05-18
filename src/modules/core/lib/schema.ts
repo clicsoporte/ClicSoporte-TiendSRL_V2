@@ -1,6 +1,7 @@
 /**
  * @fileoverview Master schema definition for database auditing.
  * This defines the "ideal" state of the central intratool.db database.
+ * Updated for M20 Expansion: Supports 20 logical modules.
  */
 
 import type { ExpectedSchema } from '../types';
@@ -27,7 +28,7 @@ export const MASTER_SCHEMA: ExpectedSchema = {
         'id', 'name', 'commercialName', 'address', 'phone', 'taxId', 'currency', 'creditLimit', 'paymentCondition', 
         'salesperson', 'active', 'email', 'electronicDocEmail', 'isManual', 'contacts', 
         'supportPackageId', 'taxRegime', 'taxStatus', 'isTaxMoroso', 'isTaxOmiso', 
-        'taxAdministration', 'taxActivities', 'provinceId', 'cantonId', 'districtId', 'telegramChatId',
+        'taxAdministration', 'taxAdministrationText', 'taxActivities', 'provinceId', 'cantonId', 'districtId', 'telegramChatId',
         'isBlocked', 'blockedReason', 'notifyTickets', 'notifyLicenses', 'parentCustomerId', 'isLead'
     ],
     products: ['id', 'description', 'classification', 'lastEntry', 'active', 'notes', 'unit', 'isBasicGood', 'cabys'],
@@ -97,6 +98,7 @@ export const MASTER_SCHEMA: ExpectedSchema = {
         'billingStatus', 'externalInvoiceNumber', 'notes', 'isBillable', 'createdAt'
     ],
     marketing_ads: ['id', 'softwareId', 'imageUrl', 'description', 'price', 'targetUrl', 'isEnabled', 'targetType', 'expiresAt', 'createdAt'],
+    notification_templates: ['eventId', 'subject', 'body', 'telegram', 'internal'],
     notification_templates: ['eventId', 'subject', 'body', 'telegram', 'internal'],
     notification_rules: ['id', 'name', 'event', 'action', 'recipients', 'subject', 'enabled'],
     scheduled_tasks: ['id', 'name', 'schedule', 'taskId', 'enabled'],

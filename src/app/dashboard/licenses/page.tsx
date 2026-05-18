@@ -327,7 +327,7 @@ export function validateSystemTime(currentDate) {
                                                                         options={selectors.clientCustomerOptions}
                                                                         onSelect={actions.handleSelectCompany}
                                                                         value={state.companySearchTerm}
-                                                                        onValueChange={state.companySearchTerm}
+                                                                        onValueChange={(term) => actions.setCompanySearchTerm(term)}
                                                                         placeholder="Buscar cliente por nombre o alias..."
                                                                         open={state.isCompanySearchOpen}
                                                                         onOpenChange={actions.setIsCompanySearchOpen}
@@ -708,14 +708,16 @@ export function validateSystemTime(currentDate) {
                             <div className="flex items-center gap-2">
                                 <Boxes className="h-5 w-5 text-primary" />
                                 <DialogTitle>Catálogo de Productos de Software</DialogTitle>
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <button className="rounded-full h-5 w-5 bg-muted flex items-center justify-center text-[10px] font-bold text-muted-foreground hover:bg-primary/20 hover:text-primary transition-colors">?</button>
-                                    </TooltipTrigger>
-                                    <TooltipContent className="max-w-sm">
-                                        <p className="text-xs">Define los productos que tu empresa desarrolla o distribuye. Permite mapear hasta 20 módulos lógicos y configurar políticas de conexión para el SDK hijo.</p>
-                                    </TooltipContent>
-                                </Tooltip>
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <button className="rounded-full h-5 w-5 bg-muted flex items-center justify-center text-[10px] font-bold text-muted-foreground hover:bg-primary/20 hover:text-primary transition-colors">?</button>
+                                        </TooltipTrigger>
+                                        <TooltipContent className="max-w-sm">
+                                            <p className="text-xs">Define los productos que tu empresa desarrolla o distribuye. Permite mapear hasta 20 módulos lógicos y configurar políticas de conexión para el SDK hijo.</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
                             </div>
                         </DialogHeader>
                         
@@ -730,7 +732,7 @@ export function validateSystemTime(currentDate) {
                                                     <TableCell onClick={() => actions.handleOpenSoftwareEdit(p)}>
                                                         <div className="flex flex-col">
                                                             <p className="font-bold text-sm">{p.name}</p>
-                                                            <p className="text-[9px] text-muted-foreground uppercase">{p.isInternal ? `Propio - ${p.currentVersion || 'v1.0'}` : 'Tercero'}</p>
+                                                            <p className="text-[9px] text-muted-foreground uppercase">{p.isInternal ? `Propio - ${p.currentVersion || 'v1.0'}` : 'Tercerizado'}</p>
                                                         </div>
                                                     </TableCell>
                                                     <TableCell className="text-right">
@@ -756,30 +758,36 @@ export function validateSystemTime(currentDate) {
                                                 <div className="space-y-1.5">
                                                     <Label className="text-[9px] uppercase font-bold flex items-center gap-1">
                                                         Sync Gracia Free (Días)
-                                                        <Tooltip>
-                                                            <TooltipTrigger><Info className="h-2.5 w-2.5 text-muted-foreground"/></TooltipTrigger>
-                                                            <TooltipContent className="max-w-xs"><p>Días máximos que una licencia Free puede operar sin reportarse al servidor antes de bloquearse.</p></TooltipContent>
-                                                        </Tooltip>
+                                                        <TooltipProvider>
+                                                            <Tooltip>
+                                                                <TooltipTrigger><Info className="h-2.5 w-2.5 text-muted-foreground"/></TooltipTrigger>
+                                                                <TooltipContent className="max-w-xs"><p>Días máximos que una licencia Free puede operar sin reportarse al servidor antes de bloquearse.</p></TooltipContent>
+                                                            </Tooltip>
+                                                        </TooltipProvider>
                                                     </Label>
                                                     <Input type="number" value={state.newSoftwareProduct.syncFrequencyFree || 7} onChange={e => actions.handleNewSoftwareChange('syncFrequencyFree', Number(e.target.value))} className="h-8 text-xs" />
                                                 </div>
                                                 <div className="space-y-1.5">
                                                     <Label className="text-[9px] uppercase font-bold flex items-center gap-1">
                                                         Frescura Anuncios (Días)
-                                                        <Tooltip>
-                                                            <TooltipTrigger><Info className="h-2.5 w-2.5 text-muted-foreground"/></TooltipTrigger>
-                                                            <TooltipContent className="max-w-xs"><p>Días de frescura de la publicidad. Superado este tiempo, se activa el Nag Screen en el hijo.</p></TooltipContent>
-                                                        </Tooltip>
+                                                        <TooltipProvider>
+                                                            <Tooltip>
+                                                                <TooltipTrigger><Info className="h-2.5 w-2.5 text-muted-foreground"/></TooltipTrigger>
+                                                                <TooltipContent className="max-w-xs"><p>Días de frescura de la publicidad. Superado este tiempo, se activa el Nag Screen en el hijo.</p></TooltipContent>
+                                                            </Tooltip>
+                                                        </TooltipProvider>
                                                     </Label>
                                                     <Input type="number" value={state.newSoftwareProduct.adRefreshFrequency || 2} onChange={e => actions.handleNewSoftwareChange('adRefreshFrequency', Number(e.target.value))} className="h-8 text-xs" />
                                                 </div>
                                                 <div className="space-y-1.5">
                                                     <Label className="text-[9px] uppercase font-bold flex items-center gap-1">
                                                         Bloqueo Nag Screen (Seg)
-                                                        <Tooltip>
-                                                            <TooltipTrigger><Info className="h-2.5 w-2.5 text-muted-foreground"/></TooltipTrigger>
-                                                            <TooltipContent className="max-w-xs"><p>Segundos que la pantalla permanecerá bloqueada por el Nag Screen cada hora de uso.</p></TooltipContent>
-                                                        </Tooltip>
+                                                        <TooltipProvider>
+                                                            <Tooltip>
+                                                                <TooltipTrigger><Info className="h-2.5 w-2.5 text-muted-foreground"/></TooltipTrigger>
+                                                                <TooltipContent className="max-w-xs"><p>Segundos que la pantalla permanecerá bloqueada por el Nag Screen cada hora de uso.</p></TooltipContent>
+                                                            </Tooltip>
+                                                        </TooltipProvider>
                                                     </Label>
                                                     <Input type="number" value={state.newSoftwareProduct.nagScreenTimer || 60} onChange={e => actions.handleNewSoftwareChange('nagScreenTimer', Number(e.target.value))} className="h-8 text-xs" />
                                                 </div>
@@ -787,10 +795,12 @@ export function validateSystemTime(currentDate) {
                                                     <Switch checked={!!state.newSoftwareProduct.allowOfflinePremium} onCheckedChange={val => actions.handleNewSoftwareChange('allowOfflinePremium', val)} />
                                                     <Label className="text-[9px] uppercase font-bold flex items-center gap-1">
                                                         Licencia Perpetua
-                                                        <Tooltip>
-                                                            <TooltipTrigger><Info className="h-2.5 w-2.5 text-muted-foreground"/></TooltipTrigger>
-                                                            <TooltipContent className="max-w-xs"><p>Si se permite el funcionamiento 100% offline para versiones pagas tras la validación inicial.</p></TooltipContent>
-                                                        </Tooltip>
+                                                        <TooltipProvider>
+                                                            <Tooltip>
+                                                                <TooltipTrigger><Info className="h-2.5 w-2.5 text-muted-foreground"/></TooltipTrigger>
+                                                                <TooltipContent className="max-w-xs"><p>Si se permite el funcionamiento 100% offline para versiones pagas tras la validación inicial.</p></TooltipContent>
+                                                            </Tooltip>
+                                                        </TooltipProvider>
                                                     </Label>
                                                 </div>
                                             </div>

@@ -2,6 +2,7 @@
  * @fileoverview Main database initialization and shared utility functions.
  * Unified into a single source of truth: intratool.db
  * Refactorizado para blindaje de producción: Normalización estricta e idempotencia.
+ * Updated for M20 Expansion: Supports 20 logical modules.
  */
 "use server";
 
@@ -235,7 +236,7 @@ export async function runMainMigrations(db: Database) {
             electronicDocEmail TEXT, isManual INTEGER DEFAULT 0, contacts TEXT,
             supportPackageId TEXT, parentCustomerId TEXT, taxRegime TEXT,
             taxStatus TEXT, isTaxMoroso INTEGER DEFAULT 0, isTaxOmiso INTEGER DEFAULT 0,
-            taxAdministration TEXT, taxActivities TEXT, provinceId INTEGER,
+            taxAdministration TEXT, taxAdministrationText TEXT, taxActivities TEXT, provinceId INTEGER,
             cantonId INTEGER, districtId INTEGER, telegramChatId TEXT,
             isBlocked INTEGER DEFAULT 0, blockedReason TEXT,
             notifyTickets INTEGER DEFAULT 1, notifyLicenses INTEGER DEFAULT 1,
