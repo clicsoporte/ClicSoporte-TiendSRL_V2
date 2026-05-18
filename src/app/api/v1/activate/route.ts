@@ -2,6 +2,7 @@
  * @fileoverview API Endpoint for child software activation.
  * Refactored for Production Blindado: Strict Multi-PC protection and Collision checks.
  * Includes support contact information and Server Logs for fraud detection.
+ * Updated for M20 Expansion: Supports 20 logical modules.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -61,7 +62,7 @@ export async function POST(req: NextRequest) {
         const license = db.prepare(`
             SELECT * FROM licenses 
             WHERE softwareId = ? AND activationToken = ? AND status = 'active'
-        `).get(software.id, normalizedToken) as License | undefined;
+        `).get(software.id, normalizedToken) as any;
 
         if (!license) {
             return NextResponse.json({ error: `Licencia no válida o token inexistente. ${CONTACT_INFO}` }, { status: 404 });
@@ -83,7 +84,14 @@ export async function POST(req: NextRequest) {
         // 6. Resolve Customer for Identity Injection
         const customer = db.prepare('SELECT name, email, phone FROM customers WHERE id = ?').get(license.customerId) as Pick<Customer, 'name' | 'email' | 'phone'> | undefined;
 
-        // 7. Generate signed payload with Policies (v3.8)
+        // 7. Map 20 Modules status
+        const modulesMap: Record<string, boolean> = {};
+        for (let i = 1; i <= 20; i++) {
+            const key = `m${String(i).padStart(2, '0')}`;
+            modulesMap[key] = license[`${key}_val`] === 1;
+        }
+
+        // 8. Generate signed payload with Policies (v3.8)
         const licenseInfo = {
             softwareId: software.id,
             softwareName: software.name,
@@ -94,7 +102,7 @@ export async function POST(req: NextRequest) {
             customerPhone: customer?.phone || '',
             hardwareId: normalizedHardwareId,
             activationToken: normalizedToken,
-            isPerpetual: !!license.isPerpetual,
+            isPerpetual: license.isPerpetual === 1,
             expirationDate: license.expirationDate || '',
             status: 'active',
             createdAt: license.createdAt,
@@ -104,10 +112,7 @@ export async function POST(req: NextRequest) {
                 nagScreenTimer: software.nagScreenTimer || 60,
                 allowOfflinePremium: !!software.allowOfflinePremium
             },
-            modules: {
-                m01: !!license.m01_val, m02: !!license.m02_val, m03: !!license.m03_val, m04: !!license.m04_val, m05: !!license.m05_val,
-                m06: !!license.m06_val, m07: !!license.m07_val, m08: !!license.m08_val, m09: !!license.m09_val, m10: !!license.m10_val
-            }
+            modules: modulesMap
         };
 
         const signedDataString = await signLicenseData(licenseInfo);

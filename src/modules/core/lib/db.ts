@@ -293,6 +293,8 @@ export async function runMainMigrations(db: Database) {
             content TEXT, createdAt TEXT NOT NULL
         );
 
+        CREATE TABLE IF NOT EXISTS ticket_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+
         CREATE TABLE IF NOT EXISTS third_party_providers (
             id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL,
             email TEXT, phone TEXT, specialty TEXT, notes TEXT,
@@ -305,7 +307,9 @@ export async function runMainMigrations(db: Database) {
             syncFrequencyFree INTEGER DEFAULT 7, adRefreshFrequency INTEGER DEFAULT 2,
             nagScreenTimer INTEGER DEFAULT 60, allowOfflinePremium BOOLEAN DEFAULT TRUE,
             m01_name TEXT, m02_name TEXT, m03_name TEXT, m04_name TEXT, m05_name TEXT,
-            m06_name TEXT, m07_name TEXT, m08_name TEXT, m09_name TEXT, m10_name TEXT
+            m06_name TEXT, m07_name TEXT, m08_name TEXT, m09_name TEXT, m10_name TEXT,
+            m11_name TEXT, m12_name TEXT, m13_name TEXT, m14_name TEXT, m15_name TEXT,
+            m16_name TEXT, m17_name TEXT, m18_name TEXT, m19_name TEXT, m20_name TEXT
         );
 
         CREATE TABLE IF NOT EXISTS licenses (
@@ -316,7 +320,10 @@ export async function runMainMigrations(db: Database) {
             m01_val INTEGER DEFAULT 0, m02_val INTEGER DEFAULT 0, m03_val INTEGER DEFAULT 0,
             m04_val INTEGER DEFAULT 0, m05_val INTEGER DEFAULT 0, m06_val INTEGER DEFAULT 0,
             m07_val INTEGER DEFAULT 0, m08_val INTEGER DEFAULT 0, m09_val INTEGER DEFAULT 0,
-            m10_val INTEGER DEFAULT 0
+            m10_val INTEGER DEFAULT 0, m11_val INTEGER DEFAULT 0, m12_val INTEGER DEFAULT 0, 
+            m13_val INTEGER DEFAULT 0, m14_val INTEGER DEFAULT 0, m15_val INTEGER DEFAULT 0,
+            m16_val INTEGER DEFAULT 0, m17_val INTEGER DEFAULT 0, m18_val INTEGER DEFAULT 0,
+            m19_val INTEGER DEFAULT 0, m20_val INTEGER DEFAULT 0
         );
 
         CREATE TABLE IF NOT EXISTS time_entries (
@@ -365,13 +372,41 @@ export async function runMainMigrations(db: Database) {
             isUsed INTEGER DEFAULT 0
         );
 
+        CREATE TABLE IF NOT EXISTS inventory_equipment (
+            id TEXT PRIMARY KEY, clientId TEXT NOT NULL, nickname TEXT NOT NULL,
+            category TEXT NOT NULL, brand TEXT, model TEXT, serialNumber TEXT,
+            location TEXT, assignedUser TEXT, status TEXT NOT NULL DEFAULT 'active',
+            notes TEXT, createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS inventory_consumables (
+            id TEXT PRIMARY KEY, equipmentId TEXT NOT NULL, type TEXT NOT NULL,
+            description TEXT NOT NULL, partNumber TEXT NOT NULL, brand TEXT,
+            specs TEXT, isRecurring INTEGER DEFAULT 0, lastReplaced TEXT,
+            notes TEXT, createdAt TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS inventory_sale_records (
+            id TEXT PRIMARY KEY, clientId TEXT NOT NULL, equipmentId TEXT,
+            invoiceNumber TEXT NOT NULL, invoiceDate TEXT NOT NULL,
+            productName TEXT, serialNumber TEXT NOT NULL, partNumber TEXT,
+            warrantyMonths INTEGER NOT NULL, warrantyExpiry TEXT NOT NULL,
+            warrantyNotes TEXT, warrantyStatus TEXT NOT NULL DEFAULT 'active',
+            claimDate TEXT, claimNotes TEXT, createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS it_notes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL,
+            content TEXT, customerId TEXT, tags TEXT, createdBy TEXT,
+            createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL
+        );
+
         -- SHARED TABLES
         CREATE TABLE IF NOT EXISTS exchange_rates (date TEXT PRIMARY KEY, rate REAL NOT NULL);
         CREATE TABLE IF NOT EXISTS provinces (id INTEGER PRIMARY KEY, name TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS cantons (id INTEGER PRIMARY KEY, provinceId INTEGER NOT NULL, name TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS districts (id INTEGER PRIMARY KEY, cantonId INTEGER NOT NULL, name TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS contract_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
-        CREATE TABLE IF NOT EXISTS ticket_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS planner_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS notification_settings (service TEXT PRIMARY KEY, config TEXT NOT NULL);
     `;
@@ -392,11 +427,21 @@ export async function runMainMigrations(db: Database) {
     if (!hasColumn('company_settings', 'internalHourCost')) db.exec(`ALTER TABLE company_settings ADD COLUMN internalHourCost REAL DEFAULT 0;`);
     if (!hasColumn('customers', 'isLead')) db.exec(`ALTER TABLE customers ADD COLUMN isLead INTEGER DEFAULT 0;`);
     
-    // Policy Fields (v3.8)
-    if (!hasColumn('software_products', 'syncFrequencyFree')) db.exec(`ALTER TABLE software_products ADD COLUMN syncFrequencyFree INTEGER DEFAULT 7;`);
-    if (!hasColumn('software_products', 'adRefreshFrequency')) db.exec(`ALTER TABLE software_products ADD COLUMN adRefreshFrequency INTEGER DEFAULT 2;`);
-    if (!hasColumn('software_products', 'nagScreenTimer')) db.exec(`ALTER TABLE software_products ADD COLUMN nagScreenTimer INTEGER DEFAULT 60;`);
-    if (!hasColumn('software_products', 'allowOfflinePremium')) db.exec(`ALTER TABLE software_products ADD COLUMN allowOfflinePremium BOOLEAN DEFAULT 1;`);
+    // M20 Expansion: software_products (m11_name to m20_name)
+    for (let i = 11; i <= 20; i++) {
+        const col = `m${String(i).padStart(2, '0')}_name`;
+        if (!hasColumn('software_products', col)) {
+            db.exec(`ALTER TABLE software_products ADD COLUMN ${col} TEXT;`);
+        }
+    }
+
+    // M20 Expansion: licenses (m11_val to m20_val)
+    for (let i = 11; i <= 20; i++) {
+        const col = `m${String(i).padStart(2, '0')}_val`;
+        if (!hasColumn('licenses', col)) {
+            db.exec(`ALTER TABLE licenses ADD COLUMN ${col} INTEGER DEFAULT 0;`);
+        }
+    }
 
     // 3. SEEDING & DATA UPDATES
     const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number };

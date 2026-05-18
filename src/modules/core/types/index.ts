@@ -142,6 +142,7 @@ export type Customer = {
     isTaxMoroso?: boolean;
     isTaxOmiso?: boolean;
     taxAdministration?: string;
+    taxAdministrationText?: string;
     taxActivities?: string; // JSON array of activities
     // Geographic data
     provinceId?: number | null;
@@ -734,9 +735,11 @@ export type License = {
     expirationDate: string;
     status: 'active' | 'expired' | 'revoked';
     createdAt: string;
-    // Hybrid Mapping Protocol (v2.3)
+    // Hybrid Mapping Protocol (v3.9 - Expansión a 20 módulos)
     m01_val?: boolean; m02_val?: boolean; m03_val?: boolean; m04_val?: boolean; m05_val?: boolean;
     m06_val?: boolean; m07_val?: boolean; m08_val?: boolean; m09_val?: boolean; m10_val?: boolean;
+    m11_val?: boolean; m12_val?: boolean; m13_val?: boolean; m14_val?: boolean; m15_val?: boolean;
+    m16_val?: boolean; m17_val?: boolean; m18_val?: boolean; m19_val?: boolean; m20_val?: boolean;
 };
 
 export type SoftwareProduct = {
@@ -749,9 +752,11 @@ export type SoftwareProduct = {
     adRefreshFrequency: number; // Days (default 2)
     nagScreenTimer: number; // Seconds (default 60)
     allowOfflinePremium: boolean; // Default true
-    // Module Names Mapping
+    // Module Names Mapping (v3.9 - Expansión a 20 módulos)
     m01_name?: string; m02_name?: string; m03_name?: string; m04_name?: string; m05_name?: string;
     m06_name?: string; m07_name?: string; m08_name?: string; m09_name?: string; m10_name?: string;
+    m11_name?: string; m12_name?: string; m13_name?: string; m14_name?: string; m15_name?: string;
+    m16_name?: string; m17_name?: string; m18_name?: string; m19_name?: string; m20_name?: string;
 };
 
 export type ExpectedSchema = {

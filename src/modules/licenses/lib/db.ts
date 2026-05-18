@@ -1,6 +1,6 @@
 /**
  * @fileoverview Server-side functions for the licenses module.
- * Unified into intratool.db. Handles Hybrid Protocol v3.8 with Connection Policies.
+ * Unified into intratool.db. Handles Hybrid Protocol v3.9 with 20 modules expansion.
  */
 "use server";
 
@@ -24,13 +24,20 @@ function generateActivationToken(): string {
 export async function getLicenses(): Promise<License[]> {
     const db = await connectLicensesDb();
     const results = db.prepare('SELECT * FROM licenses ORDER BY createdAt DESC').all() as Record<string, unknown>[];
-    return results.map(r => ({
-        ...r,
-        id: Number(r.id),
-        m01_val: r.m01_val === 1, m02_val: r.m02_val === 1, m03_val: r.m03_val === 1, m04_val: r.m04_val === 1, m05_val: r.m05_val === 1,
-        m06_val: r.m06_val === 1, m07_val: r.m07_val === 1, m08_val: r.m08_val === 1, m09_val: r.m09_val === 1, m10_val: r.m10_val === 1,
-        isPerpetual: r.isPerpetual === 1
-    })) as unknown as License[];
+    
+    return results.map(r => {
+        const mapped: any = {
+            ...r,
+            id: Number(r.id),
+            isPerpetual: r.isPerpetual === 1
+        };
+        // Map all 20 modules
+        for (let i = 1; i <= 20; i++) {
+            const key = `m${String(i).padStart(2, '0')}_val`;
+            mapped[key] = r[key] === 1;
+        }
+        return mapped as License;
+    });
 }
 
 /**
@@ -49,7 +56,14 @@ export async function addLicense(licenseData: Omit<License, 'id' | 'createdAt'>)
     const now = new Date().toISOString();
 
     if (software.isInternal) {
-        // Build the rich payload with modules and policies (v3.8)
+        // Build modules map for the 20 slots
+        const modulesMap: Record<string, boolean> = {};
+        const licenseDataRec = licenseData as any;
+        for (let i = 1; i <= 20; i++) {
+            const key = `m${String(i).padStart(2, '0')}`;
+            modulesMap[key] = !!licenseDataRec[`${key}_val`];
+        }
+
         const licenseInfo = {
             softwareId: licenseData.softwareId,
             softwareName: software.name,
@@ -67,10 +81,7 @@ export async function addLicense(licenseData: Omit<License, 'id' | 'createdAt'>)
                 nagScreenTimer: software.nagScreenTimer || 60,
                 allowOfflinePremium: !!software.allowOfflinePremium
             },
-            modules: {
-                m01: licenseData.m01_val, m02: licenseData.m02_val, m03: licenseData.m03_val, m04: licenseData.m04_val, m05: licenseData.m05_val,
-                m06: licenseData.m06_val, m07: licenseData.m07_val, m08: licenseData.m08_val, m09: licenseData.m09_val, m10: licenseData.m10_val
-            }
+            modules: modulesMap
         };
 
         licenseKey = await signLicenseData(licenseInfo);
@@ -79,35 +90,35 @@ export async function addLicense(licenseData: Omit<License, 'id' | 'createdAt'>)
         hardwareId = null;
     }
 
-    const info = db.prepare(`
-        INSERT INTO licenses (
-            licenseKey, activationToken, softwareId, customerId, hardwareId, isPerpetual, expirationDate, status, createdAt,
-            m01_val, m02_val, m03_val, m04_val, m05_val, m06_val, m07_val, m08_val, m09_val, m10_val
-        ) VALUES (
-            @licenseKey, @activationToken, @softwareId, @customerId, @hardwareId, @isPerpetual, @expirationDate, 'active', @createdAt,
-            @m01_val, @m02_val, @m03_val, @m04_val, @m05_val, @m06_val, @m07_val, @m08_val, @m09_val, @m10_val
-        )
-    `).run({
-        licenseKey,
-        activationToken,
-        softwareId: licenseData.softwareId,
-        customerId: licenseData.customerId,
-        hardwareId,
-        isPerpetual: licenseData.isPerpetual ? 1 : 0,
-        expirationDate: licenseData.expirationDate || null,
-        createdAt: now,
-        m01_val: licenseData.m01_val ? 1 : 0, m02_val: licenseData.m02_val ? 1 : 0, m03_val: licenseData.m03_val ? 1 : 0, m04_val: licenseData.m04_val ? 1 : 0, m05_val: licenseData.m05_val ? 1 : 0,
-        m06_val: licenseData.m06_val ? 1 : 0, m07_val: licenseData.m07_val ? 1 : 0, m08_val: licenseData.m08_val ? 1 : 0, m09_val: licenseData.m09_val ? 1 : 0, m10_val: licenseData.m10_val ? 1 : 0
-    });
+    const params: any = {
+        licenseKey, activationToken, softwareId: licenseData.softwareId,
+        customerId: licenseData.customerId, hardwareId, 
+        isPerpetual: licenseData.isPerpetual ? 1 : 0, 
+        expirationDate: licenseData.expirationDate || null, 
+        createdAt: now
+    };
+
+    // Add M20 values to params
+    const licenseDataRec = licenseData as any;
+    for (let i = 1; i <= 20; i++) {
+        const key = `m${String(i).padStart(2, '0')}_val`;
+        params[key] = licenseDataRec[key] ? 1 : 0;
+    }
+
+    const cols = Object.keys(params).join(', ');
+    const placeholders = Object.keys(params).map(k => `@${k}`).join(', ');
+
+    const info = db.prepare(`INSERT INTO licenses (${cols}) VALUES (${placeholders})`).run(params);
 
     const result = db.prepare('SELECT * FROM licenses WHERE id = ?').get(info.lastInsertRowid) as Record<string, unknown>;
-    return {
-        ...result,
-        id: Number(result.id),
-        m01_val: result.m01_val === 1, m02_val: result.m02_val === 1, m03_val: result.m03_val === 1, m04_val: result.m04_val === 1, m05_val: result.m05_val === 1,
-        m06_val: result.m06_val === 1, m07_val: result.m07_val === 1, m08_val: result.m08_val === 1, m09_val: result.m09_val === 1, m10_val: result.m10_val === 1,
-        isPerpetual: result.isPerpetual === 1
-    } as unknown as License;
+    
+    // Return with mapped booleans
+    const final: any = { ...result, id: Number(result.id), isPerpetual: result.isPerpetual === 1 };
+    for (let i = 1; i <= 20; i++) {
+        const key = `m${String(i).padStart(2, '0')}_val`;
+        final[key] = result[key] === 1;
+    }
+    return final as License;
 }
 
 /**
@@ -124,6 +135,13 @@ export async function updateLicense(license: License): Promise<License> {
     let hardwareId = license.hardwareId || null;
 
     if (software.isInternal) {
+        const modulesMap: Record<string, boolean> = {};
+        const licenseRec = license as any;
+        for (let i = 1; i <= 20; i++) {
+            const key = `m${String(i).padStart(2, '0')}`;
+            modulesMap[key] = !!licenseRec[`${key}_val`];
+        }
+
         const licenseInfo = {
             softwareId: license.softwareId,
             softwareName: software.name,
@@ -141,10 +159,7 @@ export async function updateLicense(license: License): Promise<License> {
                 nagScreenTimer: software.nagScreenTimer || 60,
                 allowOfflinePremium: !!software.allowOfflinePremium
             },
-            modules: {
-                m01: license.m01_val, m02: license.m02_val, m03: license.m03_val, m04: license.m04_val, m05: license.m05_val,
-                m06: license.m06_val, m07: license.m07_val, m08: license.m08_val, m09: license.m09_val, m10: license.m10_val
-            }
+            modules: modulesMap
         };
 
         licenseKey = await signLicenseData(licenseInfo);
@@ -153,30 +168,33 @@ export async function updateLicense(license: License): Promise<License> {
         hardwareId = null;
     }
 
-    db.prepare(`
-        UPDATE licenses SET 
-            licenseKey = @licenseKey, softwareId = @softwareId, customerId = @customerId,
-            hardwareId = @hardwareId, isPerpetual = @isPerpetual, expirationDate = @expirationDate, status = @status,
-            m01_val = @m01_val, m02_val = @m02_val, m03_val = @m03_val, m04_val = @m04_val, m05_val = @m05_val,
-            m06_val = @m06_val, m07_val = @m07_val, m08_val = @m08_val, m09_val = @m09_val, m10_val = @m10_val
-        WHERE id = @id
-    `).run({
+    const params: any = {
         ...license,
         licenseKey,
         hardwareId,
-        isPerpetual: license.isPerpetual ? 1 : 0,
-        m01_val: license.m01_val ? 1 : 0, m02_val: license.m02_val ? 1 : 0, m03_val: license.m03_val ? 1 : 0, m04_val: license.m04_val ? 1 : 0, m05_val: license.m05_val ? 1 : 0,
-        m06_val: license.m06_val ? 1 : 0, m07_val: license.m07_val ? 1 : 0, m08_val: license.m08_val ? 1 : 0, m09_val: license.m09_val ? 1 : 0, m10_val: license.m10_val ? 1 : 0
-    });
+        isPerpetual: license.isPerpetual ? 1 : 0
+    };
+
+    const licenseRec = license as any;
+    for (let i = 1; i <= 20; i++) {
+        const key = `m${String(i).padStart(2, '0')}_val`;
+        params[key] = licenseRec[key] ? 1 : 0;
+    }
+
+    const setClauses = Object.keys(params)
+        .filter(k => k !== 'id')
+        .map(k => `${k} = @${k}`)
+        .join(', ');
+
+    db.prepare(`UPDATE licenses SET ${setClauses} WHERE id = @id`).run(params);
     
     const result = db.prepare('SELECT * FROM licenses WHERE id = ?').get(license.id) as Record<string, unknown>;
-    return {
-        ...result,
-        id: Number(result.id),
-        m01_val: result.m01_val === 1, m02_val: result.m02_val === 1, m03_val: result.m03_val === 1, m04_val: result.m04_val === 1, m05_val: result.m05_val === 1,
-        m06_val: result.m06_val === 1, m07_val: result.m07_val === 1, m08_val: result.m08_val === 1, m09_val: result.m09_val === 1, m10_val: result.m10_val === 1,
-        isPerpetual: result.isPerpetual === 1
-    } as unknown as License;
+    const final: any = { ...result, id: Number(result.id), isPerpetual: result.isPerpetual === 1 };
+    for (let i = 1; i <= 20; i++) {
+        const key = `m${String(i).padStart(2, '0')}_val`;
+        final[key] = result[key] === 1;
+    }
+    return final as License;
 }
 
 export async function deleteLicense(id: number): Promise<void> {
@@ -187,49 +205,41 @@ export async function deleteLicense(id: number): Promise<void> {
 
 export async function getSoftwareProducts(): Promise<SoftwareProduct[]> {
     const db = await connectLicensesDb();
-    const rows = db.prepare('SELECT * FROM software_products ORDER BY name').all() as (Omit<SoftwareProduct, 'allowOfflinePremium'> & { allowOfflinePremium: number })[];
+    const rows = db.prepare('SELECT * FROM software_products ORDER BY name').all() as any[];
     return rows.map(r => ({ ...r, allowOfflinePremium: r.allowOfflinePremium === 1 }));
 }
 
 export async function addSoftwareProduct(product: Omit<SoftwareProduct, 'id'>): Promise<SoftwareProduct> {
     await authorizeAction('licenses:manage');
     const db = await connectLicensesDb();
-    const info = db.prepare(`
-        INSERT INTO software_products (
-            name, isInternal, currentVersion,
-            syncFrequencyFree, adRefreshFrequency, nagScreenTimer, allowOfflinePremium,
-            m01_name, m02_name, m03_name, m04_name, m05_name,
-            m06_name, m07_name, m08_name, m09_name, m10_name
-        ) VALUES (
-            @name, @isInternal, @currentVersion,
-            @syncFrequencyFree, @adRefreshFrequency, @nagScreenTimer, @allowOfflinePremium,
-            @m01_name, @m02_name, @m03_name, @m04_name, @m05_name,
-            @m06_name, @m07_name, @m08_name, @m09_name, @m10_name
-        )
-    `).run({ 
+    const params = { 
         ...product, 
         isInternal: product.isInternal ? 1 : 0,
         allowOfflinePremium: product.allowOfflinePremium ? 1 : 0
-    });
+    };
+    
+    const cols = Object.keys(params).join(', ');
+    const placeholders = Object.keys(params).map(k => `@${k}`).join(', ');
+
+    const info = db.prepare(`INSERT INTO software_products (${cols}) VALUES (${placeholders})`).run(params);
     return db.prepare('SELECT * FROM software_products WHERE id = ?').get(info.lastInsertRowid) as SoftwareProduct;
 }
 
 export async function updateSoftwareProduct(product: SoftwareProduct): Promise<SoftwareProduct> {
     await authorizeAction('licenses:manage');
     const db = await connectLicensesDb();
-    db.prepare(`
-        UPDATE software_products SET 
-            name = @name, isInternal = @isInternal, currentVersion = @currentVersion,
-            syncFrequencyFree = @syncFrequencyFree, adRefreshFrequency = @adRefreshFrequency,
-            nagScreenTimer = @nagScreenTimer, allowOfflinePremium = @allowOfflinePremium,
-            m01_name = @m01_name, m02_name = @m02_name, m03_name = @m03_name, m04_name = @m04_name, m05_name = @m05_name,
-            m06_name = @m06_name, m07_name = @m07_name, m08_name = @m08_name, m09_name = @m09_name, m10_name = @m10_name
-        WHERE id = @id
-    `).run({ 
+    const params = { 
         ...product, 
         isInternal: product.isInternal ? 1 : 0,
         allowOfflinePremium: product.allowOfflinePremium ? 1 : 0
-    });
+    };
+
+    const setClauses = Object.keys(params)
+        .filter(k => k !== 'id')
+        .map(k => `${k} = @${k}`)
+        .join(', ');
+
+    db.prepare(`UPDATE software_products SET ${setClauses} WHERE id = @id`).run(params);
     return product;
 }
 

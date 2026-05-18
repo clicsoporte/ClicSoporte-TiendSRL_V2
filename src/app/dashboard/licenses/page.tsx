@@ -1,6 +1,6 @@
 /**
  * @fileoverview Main page for the License Management module.
- * Enhanced for Hybrid Licensing v3.8.4 (Production Hardened).
+ * Enhanced for Hybrid Licensing v3.9.0 (Expansion to 20 modules).
  */
 'use client';
 
@@ -71,12 +71,13 @@ export default function LicensesPage() {
         )
     }
 
-    const moduleKeys = Array.from({ length: 10 }, (_, i) => `m${(i + 1).toString().padStart(2, '0')}`);
+    // UPDATED for v3.9: 20 modules
+    const moduleKeys = Array.from({ length: 20 }, (_, i) => `m${(i + 1).toString().padStart(2, '0')}`);
 
     const SERVER_URL = state.companyData?.publicUrl || 'https://soporte.clicsoporte.com';
 
     const sdkCode = {
-        meta: `v3.8.4 (Production Certified)`,
+        meta: `v3.9.0 (Expansion M20 Certified)`,
         schema: `{
   "success": true,
   "license_file": {
@@ -96,7 +97,7 @@ export default function LicensesPage() {
         "nagScreenTimer": 60,      // Segundos de bloqueo (Nag)
         "allowOfflinePremium": true
       },
-      "modules": { "m01": true, "m02": false, ... }
+      "modules": { "m01": true, "m02": false, ..., "m20": true } // Protocolo de 20 módulos
     },
     "signature": "hash_hex_firmado_rsa"
   }
@@ -196,13 +197,13 @@ export function autoConfigureSoftware(licenseFile) {
     };
     saveGlobalSettings('OWNER', ownerData);
 
-    // 2. Mapeo de Módulos (Protocolo m01 - m10)
+    // 2. Mapeo de Módulos (Protocolo m01 - m20)
     // Desbloquee las funciones del software según el mapa recibido.
     const activeModules = {
         m01_active: !!license_info.modules.m01,
         m02_active: !!license_info.modules.m02,
-        m03_active: !!license_info.modules.m03,
-        // ... continuar hasta m10
+        // ... continuar hasta m20
+        m20_active: !!license_info.modules.m20
     };
     
     applyModulePermissions(activeModules);
@@ -293,7 +294,7 @@ export function validateSystemTime(currentDate) {
                                 <CardTitle className="text-2xl font-bold flex items-center gap-2">
                                     <ShieldCheck className="h-6 w-6 text-primary" /> Gestión de Licenciamiento Híbrido
                                 </CardTitle>
-                                <CardDescription>Administración central de activaciones y políticas de cumplimiento v3.8.4.</CardDescription>
+                                <CardDescription>Administración central de activaciones y protocolo M20 v3.9.0.</CardDescription>
                             </div>
                             <div className="flex gap-2 flex-wrap">
                                 <Button variant="outline" onClick={() => setSdkDialogOpen(true)}>
@@ -326,7 +327,7 @@ export function validateSystemTime(currentDate) {
                                                                         options={selectors.clientCustomerOptions}
                                                                         onSelect={actions.handleSelectCompany}
                                                                         value={state.companySearchTerm}
-                                                                        onValueChange={actions.setCompanySearchTerm}
+                                                                        onValueChange={state.companySearchTerm}
                                                                         placeholder="Buscar cliente por nombre o alias..."
                                                                         open={state.isCompanySearchOpen}
                                                                         onOpenChange={actions.setIsCompanySearchOpen}
@@ -434,7 +435,7 @@ export function validateSystemTime(currentDate) {
                                                         {selectedSoftware?.isInternal ? (
                                                             <div className="space-y-4">
                                                                 <h3 className="text-xs font-black uppercase text-muted-foreground tracking-widest flex items-center gap-2">
-                                                                    <Settings2 className="h-4 w-4" /> Módulos Disponibles
+                                                                    <Settings2 className="h-4 w-4" /> Módulos Disponibles (m01 - m20)
                                                                 </h3>
                                                                 <div className="grid grid-cols-1 gap-2 bg-muted/10 p-4 rounded-xl border max-h-[400px] overflow-y-auto">
                                                                     {moduleKeys.map((key) => {
@@ -536,7 +537,7 @@ export function validateSystemTime(currentDate) {
                                                 <TableCell><Badge variant={variant} className="text-[10px] h-5 uppercase">{label}</Badge></TableCell>
                                                 <TableCell className="text-right">
                                                     <DropdownMenu>
-                                                        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4"/></Button></DropdownMenuTrigger>
+                                                        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-5 w-5"/></Button></DropdownMenuTrigger>
                                                         <DropdownMenuContent align="end">
                                                             <DropdownMenuItem onSelect={() => actions.downloadLicenseFile(license)} disabled={!software?.isInternal}>
                                                                 <Download className="mr-2 h-4 w-4" />Bajar JSON (Offline)
@@ -583,7 +584,7 @@ export function validateSystemTime(currentDate) {
                             <div className="flex-1 overflow-y-auto p-0">
                                 <TabsContent value="schema" className="m-0 h-full p-4">
                                     <div className="relative">
-                                        <p className="text-[11px] text-muted-foreground mb-3 italic">Esquema del objeto JSON firmado. Incluye las políticas de cumplimiento v3.8.</p>
+                                        <p className="text-[11px] text-muted-foreground mb-3 italic">Esquema del objeto JSON firmado. Incluye las políticas de cumplimiento v3.8 y expansión M20.</p>
                                         <Button variant="secondary" size="sm" className="absolute top-8 right-2 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.schema, 'schema')}>
                                             {copiedSection === 'schema' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
                                             {copiedSection === 'schema' ? 'Copiado' : 'Copiar'}
@@ -632,7 +633,7 @@ export function validateSystemTime(currentDate) {
 
                                 <TabsContent value="config" className="m-0 h-full p-4">
                                     <div className="relative">
-                                        <p className="text-[11px] text-muted-foreground mb-3 italic">Mapeo de Identidad Maestra y Módulos de funcionalidad (m01-m10).</p>
+                                        <p className="text-[11px] text-muted-foreground mb-3 italic">Mapeo de Identidad Maestra y Módulos de funcionalidad (Rango expandido m01-m20).</p>
                                         <Button variant="secondary" size="sm" className="absolute top-12 right-2 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.config, 'config')}>
                                             {copiedSection === 'config' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
                                             {copiedSection === 'config' ? 'Copiado' : 'Copiar'}
@@ -712,7 +713,7 @@ export function validateSystemTime(currentDate) {
                                         <button className="rounded-full h-5 w-5 bg-muted flex items-center justify-center text-[10px] font-bold text-muted-foreground hover:bg-primary/20 hover:text-primary transition-colors">?</button>
                                     </TooltipTrigger>
                                     <TooltipContent className="max-w-sm">
-                                        <p className="text-xs">Define los productos que tu empresa desarrolla o distribuye. Permite mapear hasta 10 módulos lógicos y configurar políticas de conexión para el SDK hijo.</p>
+                                        <p className="text-xs">Define los productos que tu empresa desarrolla o distribuye. Permite mapear hasta 20 módulos lógicos y configurar políticas de conexión para el SDK hijo.</p>
                                     </TooltipContent>
                                 </Tooltip>
                             </div>
@@ -805,7 +806,7 @@ export function validateSystemTime(currentDate) {
 
                             <div className="p-6 overflow-y-auto space-y-4">
                                 <h3 className="text-xs font-black uppercase text-muted-foreground tracking-widest flex items-center gap-2">
-                                    <Settings2 className="h-4 w-4" /> Mapeo de Protocolo (m01 - m10)
+                                    <Settings2 className="h-4 w-4" /> Mapeo de Protocolo (m01 - m20)
                                 </h3>
                                 {state.newSoftwareProduct.isInternal ? (
                                     <div className="grid gap-3">

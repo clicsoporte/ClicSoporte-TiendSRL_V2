@@ -1,6 +1,7 @@
 /**
  * @fileoverview API Endpoint for registering free licenses with OTP validation.
  * Refactored for Production Blindado: Identity validation on re-installs and Dynamic Policies v3.8.
+ * Updated for M20 Expansion: Supports 20 logical modules in activation.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -58,7 +59,6 @@ export async function POST(req: NextRequest) {
         }
 
         // 5. CHECK FOR RE-INSTALLATION (Identity Shield)
-        // We join with customers to ensure the email matches the original owner of this Hardware ID.
         const existingLicense = db.prepare(`
             SELECT l.*, c.email FROM licenses l
             JOIN customers c ON l.customerId = c.id
@@ -109,7 +109,14 @@ export async function POST(req: NextRequest) {
 
         await upsertLeadCustomer(customerData);
 
-        // 7. Generate Signed Payload with Policies (v3.8)
+        // 7. Map 20 Modules for Free (Only m01 active)
+        const modulesMap: Record<string, boolean> = {};
+        for (let i = 1; i <= 20; i++) {
+            const key = `m${String(i).padStart(2, '0')}`;
+            modulesMap[key] = (i === 1); // Solo m01 activo para Free
+        }
+
+        // 8. Generate Signed Payload with Policies (v3.8)
         const now = new Date().toISOString();
         const licenseInfo = {
             softwareId: software.id,
@@ -130,25 +137,25 @@ export async function POST(req: NextRequest) {
                 nagScreenTimer: software.nagScreenTimer || 60,
                 allowOfflinePremium: !!software.allowOfflinePremium
             },
-            modules: {
-                m01: true, m02: false, m03: false, m04: false, m05: false,
-                m06: false, m07: false, m08: false, m09: false, m10: false
-            }
+            modules: modulesMap
         };
 
         const signedDataString = await signLicenseData(licenseInfo);
         const structuredLicenseFile = JSON.parse(signedDataString);
 
-        const info = db.prepare(`
+        // 9. Persist in DB with 20 columns support
+        db.prepare(`
             INSERT INTO licenses (
                 licenseKey, activationToken, softwareId, customerId, hardwareId, isPerpetual, expirationDate, status, createdAt, m01_val
             ) VALUES (?, 'FREE-LICENSE', ?, ?, ?, 1, '', 'active', ?, 1)
         `).run(signedDataString, software.id, customerData.id, normalizedHardwareId, now);
 
-        // 8. NOTIFICACIÓN DE NUEVO PROSPECTO (FREE)
+        const lastId = db.prepare('SELECT last_insert_rowid() as id').get() as { id: number };
+
+        // 10. NOTIFICACIÓN DE NUEVO PROSPECTO (FREE)
         try {
             await triggerNotificationEvent('onLicenseAssigned', {
-                id: Number(info.lastInsertRowid),
+                id: lastId.id,
                 customerId: customerData.id,
                 customerName: customerData.name,
                 softwareName: software.name,

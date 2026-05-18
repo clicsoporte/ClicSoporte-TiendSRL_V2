@@ -78,26 +78,31 @@ export const MASTER_SCHEMA: ExpectedSchema = {
     project_attachments: ['id', 'projectId', 'name', 'fileName', 'fileType', 'data', 'uploadedBy', 'createdAt'],
     project_items: ['id', 'projectId', 'description', 'quantity', 'unitPrice', 'type'],
     software_products: [
-        'id', 'name', 'isInternal', 
+        'id', 'name', 'isInternal', 'currentVersion',
+        'syncFrequencyFree', 'adRefreshFrequency', 'nagScreenTimer', 'allowOfflinePremium',
         'm01_name', 'm02_name', 'm03_name', 'm04_name', 'm05_name', 
-        'm06_name', 'm07_name', 'm08_name', 'm09_name', 'm10_name'
+        'm06_name', 'm07_name', 'm08_name', 'm09_name', 'm10_name',
+        'm11_name', 'm12_name', 'm13_name', 'm14_name', 'm15_name', 
+        'm16_name', 'm17_name', 'm18_name', 'm19_name', 'm20_name'
     ],
     licenses: [
         'id', 'licenseKey', 'activationToken', 'softwareId', 'customerId', 'hardwareId', 'isPerpetual', 'expirationDate', 'status', 'createdAt',
         'm01_val', 'm02_val', 'm03_val', 'm04_val', 'm05_val', 
-        'm06_val', 'm07_val', 'm08_val', 'm09_val', 'm10_val'
+        'm06_val', 'm07_val', 'm08_val', 'm09_val', 'm10_val',
+        'm11_val', 'm12_val', 'm13_val', 'm14_val', 'm15_val', 
+        'm16_val', 'm17_val', 'm18_val', 'm19_val', 'm20_val'
     ],
     time_entries: [
         'id', 'ticketId', 'userId', 'startTime', 'endTime', 'duration', 'billableDuration', 
         'billingStatus', 'externalInvoiceNumber', 'notes', 'isBillable', 'createdAt'
     ],
-    cost_drafts: ['id', 'userId', 'name', 'createdAt', 'data'],
-    cost_assistant_settings: ['key', 'value'],
+    marketing_ads: ['id', 'softwareId', 'imageUrl', 'description', 'price', 'targetUrl', 'isEnabled', 'targetType', 'expiresAt', 'createdAt'],
+    notification_templates: ['eventId', 'subject', 'body', 'telegram', 'internal'],
     notification_rules: ['id', 'name', 'event', 'action', 'recipients', 'subject', 'enabled'],
-    notification_settings: ['service', 'config'],
     scheduled_tasks: ['id', 'name', 'schedule', 'taskId', 'enabled'],
     notifications: ['id', 'userId', 'message', 'href', 'isRead', 'timestamp', 'entityId', 'entityType'],
-    notification_templates: ['eventId', 'subject', 'body', 'telegram', 'internal'],
-    marketing_ads: ['id', 'softwareId', 'imageUrl', 'description', 'price', 'targetUrl', 'isEnabled', 'targetType', 'expiresAt', 'createdAt'],
-    otp_verifications: ['id', 'email', 'code', 'expiresAt', 'isUsed']
+    otp_verifications: ['id', 'email', 'code', 'expiresAt', 'isUsed'],
+    inventory_equipment: ['id', 'clientId', 'nickname', 'category', 'brand', 'model', 'serialNumber', 'location', 'assignedUser', 'status', 'notes', 'createdAt', 'updatedAt'],
+    inventory_consumables: ['id', 'equipmentId', 'type', 'description', 'partNumber', 'brand', 'specs', 'isRecurring', 'lastReplaced', 'notes', 'createdAt'],
+    inventory_sale_records: ['id', 'clientId', 'equipmentId', 'invoiceNumber', 'invoiceDate', 'productName', 'serialNumber', 'partNumber', 'warrantyMonths', 'warrantyExpiry', 'warrantyNotes', 'warrantyStatus', 'claimDate', 'claimNotes', 'createdAt', 'updatedAt']
 };
