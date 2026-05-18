@@ -9,7 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDb } from '@/modules/core/lib/db';
 import { signLicenseData } from '@/modules/licenses/lib/crypto';
 import { logWarn } from '@/modules/core/lib/logger';
-import type { License, SoftwareProduct, Customer } from '@/modules/core/types';
+import type { SoftwareProduct, Customer } from '@/modules/core/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
         const license = db.prepare(`
             SELECT * FROM licenses 
             WHERE softwareId = ? AND activationToken = ? AND status = 'active'
-        `).get(software.id, normalizedToken) as any;
+        `).get(software.id, normalizedToken) as Record<string, string | number | null>;
 
         if (!license) {
             return NextResponse.json({ error: `Licencia no válida o token inexistente. ${CONTACT_INFO}` }, { status: 404 });
@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
 
         // 4. CHECK FOR MULTI-PC ATTEMPT (Hardware Lock)
         if (license.hardwareId && license.hardwareId !== normalizedHardwareId) {
-            await logWarn(`Intento de uso Multi-PC bloqueado`, { token: normalizedToken, originalHwid: license.hardwareId, intruderHwid: normalizedHardwareId, software: software.name });
+            await logWarn(`Intento de uso Multi-PC bloqueado`, { token: normalizedToken, originalHwid: license.hardwareId as string, intruderHwid: normalizedHardwareId, software: software.name });
             return NextResponse.json({ 
                 error: `OPERACIÓN DENEGADA: Esta licencia ya está vinculada a otro equipo y no puede ser transferida automáticamente. ${CONTACT_INFO}` 
             }, { status: 403 });

@@ -26,17 +26,24 @@ export async function getLicenses(): Promise<License[]> {
     const results = db.prepare('SELECT * FROM licenses ORDER BY createdAt DESC').all() as Record<string, unknown>[];
     
     return results.map(r => {
-        const mapped: any = {
-            ...r,
+        const mapped: License = {
             id: Number(r.id),
-            isPerpetual: r.isPerpetual === 1
+            licenseKey: String(r.licenseKey),
+            activationToken: r.activationToken ? String(r.activationToken) : undefined,
+            softwareId: Number(r.softwareId),
+            customerId: r.customerId ? String(r.customerId) : null,
+            hardwareId: r.hardwareId ? String(r.hardwareId) : null,
+            isPerpetual: r.isPerpetual === 1,
+            expirationDate: r.expirationDate ? String(r.expirationDate) : '',
+            status: r.status as License['status'],
+            createdAt: String(r.createdAt)
         };
         // Map all 20 modules
         for (let i = 1; i <= 20; i++) {
-            const key = `m${String(i).padStart(2, '0')}_val`;
-            mapped[key] = r[key] === 1;
+            const key = `m${String(i).padStart(2, '0')}_val` as keyof License;
+            (mapped as any)[key] = r[key as string] === 1;
         }
-        return mapped as License;
+        return mapped;
     });
 }
 
@@ -58,10 +65,10 @@ export async function addLicense(licenseData: Omit<License, 'id' | 'createdAt'>)
     if (software.isInternal) {
         // Build modules map for the 20 slots
         const modulesMap: Record<string, boolean> = {};
-        const licenseDataRec = licenseData as any;
         for (let i = 1; i <= 20; i++) {
             const key = `m${String(i).padStart(2, '0')}`;
-            modulesMap[key] = !!licenseDataRec[`${key}_val`];
+            const valKey = `${key}_val` as keyof typeof licenseData;
+            modulesMap[key] = !!licenseData[valKey];
         }
 
         const licenseInfo = {
@@ -90,7 +97,7 @@ export async function addLicense(licenseData: Omit<License, 'id' | 'createdAt'>)
         hardwareId = null;
     }
 
-    const params: any = {
+    const params: Record<string, unknown> = {
         licenseKey, activationToken, softwareId: licenseData.softwareId,
         customerId: licenseData.customerId, hardwareId, 
         isPerpetual: licenseData.isPerpetual ? 1 : 0, 
@@ -99,10 +106,9 @@ export async function addLicense(licenseData: Omit<License, 'id' | 'createdAt'>)
     };
 
     // Add M20 values to params
-    const licenseDataRec = licenseData as any;
     for (let i = 1; i <= 20; i++) {
-        const key = `m${String(i).padStart(2, '0')}_val`;
-        params[key] = licenseDataRec[key] ? 1 : 0;
+        const key = `m${String(i).padStart(2, '0')}_val` as keyof typeof licenseData;
+        params[key as string] = licenseData[key] ? 1 : 0;
     }
 
     const cols = Object.keys(params).join(', ');
@@ -113,12 +119,23 @@ export async function addLicense(licenseData: Omit<License, 'id' | 'createdAt'>)
     const result = db.prepare('SELECT * FROM licenses WHERE id = ?').get(info.lastInsertRowid) as Record<string, unknown>;
     
     // Return with mapped booleans
-    const final: any = { ...result, id: Number(result.id), isPerpetual: result.isPerpetual === 1 };
+    const final: License = { 
+        id: Number(result.id),
+        licenseKey: String(result.licenseKey),
+        activationToken: result.activationToken ? String(result.activationToken) : undefined,
+        softwareId: Number(result.softwareId),
+        customerId: result.customerId ? String(result.customerId) : null,
+        hardwareId: result.hardwareId ? String(result.hardwareId) : null,
+        isPerpetual: result.isPerpetual === 1,
+        expirationDate: result.expirationDate ? String(result.expirationDate) : '',
+        status: result.status as License['status'],
+        createdAt: String(result.createdAt)
+    };
     for (let i = 1; i <= 20; i++) {
-        const key = `m${String(i).padStart(2, '0')}_val`;
-        final[key] = result[key] === 1;
+        const key = `m${String(i).padStart(2, '0')}_val` as keyof License;
+        (final as any)[key] = result[key as string] === 1;
     }
-    return final as License;
+    return final;
 }
 
 /**
@@ -136,10 +153,10 @@ export async function updateLicense(license: License): Promise<License> {
 
     if (software.isInternal) {
         const modulesMap: Record<string, boolean> = {};
-        const licenseRec = license as any;
         for (let i = 1; i <= 20; i++) {
             const key = `m${String(i).padStart(2, '0')}`;
-            modulesMap[key] = !!licenseRec[`${key}_val`];
+            const valKey = `${key}_val` as keyof typeof license;
+            modulesMap[key] = !!license[valKey];
         }
 
         const licenseInfo = {
@@ -168,17 +185,16 @@ export async function updateLicense(license: License): Promise<License> {
         hardwareId = null;
     }
 
-    const params: any = {
+    const params: Record<string, unknown> = {
         ...license,
         licenseKey,
         hardwareId,
         isPerpetual: license.isPerpetual ? 1 : 0
     };
 
-    const licenseRec = license as any;
     for (let i = 1; i <= 20; i++) {
-        const key = `m${String(i).padStart(2, '0')}_val`;
-        params[key] = licenseRec[key] ? 1 : 0;
+        const key = `m${String(i).padStart(2, '0')}_val` as keyof typeof license;
+        params[key as string] = license[key] ? 1 : 0;
     }
 
     const setClauses = Object.keys(params)
@@ -189,12 +205,23 @@ export async function updateLicense(license: License): Promise<License> {
     db.prepare(`UPDATE licenses SET ${setClauses} WHERE id = @id`).run(params);
     
     const result = db.prepare('SELECT * FROM licenses WHERE id = ?').get(license.id) as Record<string, unknown>;
-    const final: any = { ...result, id: Number(result.id), isPerpetual: result.isPerpetual === 1 };
+    const final: License = { 
+        id: Number(result.id),
+        licenseKey: String(result.licenseKey),
+        activationToken: result.activationToken ? String(result.activationToken) : undefined,
+        softwareId: Number(result.softwareId),
+        customerId: result.customerId ? String(result.customerId) : null,
+        hardwareId: result.hardwareId ? String(result.hardwareId) : null,
+        isPerpetual: result.isPerpetual === 1,
+        expirationDate: result.expirationDate ? String(result.expirationDate) : '',
+        status: result.status as License['status'],
+        createdAt: String(result.createdAt)
+    };
     for (let i = 1; i <= 20; i++) {
-        const key = `m${String(i).padStart(2, '0')}_val`;
-        final[key] = result[key] === 1;
+        const key = `m${String(i).padStart(2, '0')}_val` as keyof License;
+        (final as any)[key] = result[key as string] === 1;
     }
-    return final as License;
+    return final;
 }
 
 export async function deleteLicense(id: number): Promise<void> {
@@ -205,8 +232,14 @@ export async function deleteLicense(id: number): Promise<void> {
 
 export async function getSoftwareProducts(): Promise<SoftwareProduct[]> {
     const db = await connectLicensesDb();
-    const rows = db.prepare('SELECT * FROM software_products ORDER BY name').all() as any[];
-    return rows.map(r => ({ ...r, allowOfflinePremium: r.allowOfflinePremium === 1 }));
+    const rows = db.prepare('SELECT * FROM software_products ORDER BY name').all() as Record<string, unknown>[];
+    return rows.map(r => ({ 
+        ...r, 
+        id: Number(r.id),
+        name: String(r.name),
+        isInternal: r.isInternal === 1,
+        allowOfflinePremium: r.allowOfflinePremium === 1 
+    })) as unknown as SoftwareProduct[];
 }
 
 export async function addSoftwareProduct(product: Omit<SoftwareProduct, 'id'>): Promise<SoftwareProduct> {
