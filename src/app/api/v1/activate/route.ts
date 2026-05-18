@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
             modulesMap[key] = license[`${key}_val`] === 1;
         }
 
-        // 8. Generate signed payload with Policies (v3.8)
+        // 8. Generate signed payload with Policies (v3.9)
         const licenseInfo = {
             softwareId: software.id,
             softwareName: software.name,

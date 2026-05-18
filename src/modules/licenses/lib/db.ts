@@ -1,6 +1,7 @@
 /**
  * @fileoverview Server-side functions for the licenses module.
  * Unified into intratool.db. Handles Hybrid Protocol v3.9 with 20 modules expansion.
+ * Saneado: Eliminación de tipos 'any' para cumplimiento estricto de TypeScript.
  */
 "use server";
 
@@ -38,10 +39,12 @@ export async function getLicenses(): Promise<License[]> {
             status: r.status as License['status'],
             createdAt: String(r.createdAt)
         };
-        // Map all 20 modules
+        
+        // Map all 20 modules using type-safe Object.assign
         for (let i = 1; i <= 20; i++) {
             const key = `m${String(i).padStart(2, '0')}_val` as keyof License;
-            (mapped as any)[key] = r[key as string] === 1;
+            const dbKey = `m${String(i).padStart(2, '0')}_val`;
+            Object.assign(mapped, { [key]: r[dbKey] === 1 });
         }
         return mapped;
     });
@@ -118,7 +121,6 @@ export async function addLicense(licenseData: Omit<License, 'id' | 'createdAt'>)
 
     const result = db.prepare('SELECT * FROM licenses WHERE id = ?').get(info.lastInsertRowid) as Record<string, unknown>;
     
-    // Return with mapped booleans
     const final: License = { 
         id: Number(result.id),
         licenseKey: String(result.licenseKey),
@@ -131,9 +133,12 @@ export async function addLicense(licenseData: Omit<License, 'id' | 'createdAt'>)
         status: result.status as License['status'],
         createdAt: String(result.createdAt)
     };
+    
+    // Map back the 20 modules safely
     for (let i = 1; i <= 20; i++) {
         const key = `m${String(i).padStart(2, '0')}_val` as keyof License;
-        (final as any)[key] = result[key as string] === 1;
+        const dbKey = `m${String(i).padStart(2, '0')}_val`;
+        Object.assign(final, { [key]: result[dbKey] === 1 });
     }
     return final;
 }
@@ -217,9 +222,11 @@ export async function updateLicense(license: License): Promise<License> {
         status: result.status as License['status'],
         createdAt: String(result.createdAt)
     };
+    
     for (let i = 1; i <= 20; i++) {
         const key = `m${String(i).padStart(2, '0')}_val` as keyof License;
-        (final as any)[key] = result[key as string] === 1;
+        const dbKey = `m${String(i).padStart(2, '0')}_val`;
+        Object.assign(final, { [key]: result[dbKey] === 1 });
     }
     return final;
 }
