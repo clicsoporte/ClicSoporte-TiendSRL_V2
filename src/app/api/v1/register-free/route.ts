@@ -1,7 +1,7 @@
 /**
  * @fileoverview API Endpoint for registering free licenses with OTP validation.
  * Refactored for Production Blindado: Identity validation on re-installs and Dynamic Policies v3.8.
- * Updated for M20 Expansion: Supports 20 logical modules in activation.
+ * Updated for Auto-Migration v3.9.1: Supports 1-device limit and autonomous hardware transfer.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
         const { 
             softwareId, softwareName, hardwareId, 
             customerName, customerEmail, customerPhone, taxId, 
-            otpCode 
+            otpCode, confirmTransfer 
         } = body;
 
         // 1. Handshake Validation
@@ -59,23 +59,25 @@ export async function POST(req: NextRequest) {
         }
 
         // 5. CHECK FOR RE-INSTALLATION (Identity Shield)
-        const existingLicense = db.prepare(`
+        // Check if THIS specific hardware already has a license for THIS software
+        const existingOnSameHardware = db.prepare(`
             SELECT l.*, c.email FROM licenses l
             JOIN customers c ON l.customerId = c.id
             WHERE l.softwareId = ? AND l.hardwareId = ? AND l.status = 'active'
         `).get(software.id, normalizedHardwareId) as (License & { email: string }) | undefined;
 
-        if (existingLicense) {
-            if (existingLicense.email !== normalizedEmail) {
-                await logWarn(`Restauración Free denegada: Conflicto de correo`, { hwid: normalizedHardwareId, attempt: normalizedEmail, original: existingLicense.email });
+        if (existingOnSameHardware) {
+            if (existingOnSameHardware.email !== normalizedEmail) {
+                await logWarn(`Restauración Free denegada: Conflicto de correo`, { hwid: normalizedHardwareId, attempt: normalizedEmail, original: existingOnSameHardware.email });
                 return NextResponse.json({ 
                     error: 'Este equipo ya está vinculado a una cuenta diferente. Use el correo original para restaurar o contacte a soporte.' 
                 }, { status: 403 });
             }
 
-            if (existingLicense.licenseKey) {
+            // If same hardware and same email, just return the existing license (Restoration)
+            if (existingOnSameHardware.licenseKey) {
                 try {
-                    const existingFile = JSON.parse(existingLicense.licenseKey);
+                    const existingFile = JSON.parse(existingOnSameHardware.licenseKey);
                     await logInfo(`Licencia Free restaurada con éxito para ${normalizedEmail}`, { hwid: normalizedHardwareId });
                     return NextResponse.json({ 
                         success: true, 
@@ -83,12 +85,39 @@ export async function POST(req: NextRequest) {
                         license_file: existingFile 
                     });
                 } catch {
-                    return NextResponse.json({ success: true, license_file: existingLicense.licenseKey });
+                    return NextResponse.json({ success: true, license_file: existingOnSameHardware.licenseKey });
                 }
             }
         }
 
-        // 6. Create the Customer as LEAD (Non-destructive)
+        // 6. AUTO-MIGRATION LOGIC (1 Device Limit)
+        // Check if the EMAIL already has a free license for THIS software on a DIFFERENT hardware
+        const existingOnDifferentHardware = db.prepare(`
+            SELECT l.id, l.hardwareId FROM licenses l
+            JOIN customers c ON l.customerId = c.id
+            WHERE l.softwareId = ? 
+            AND c.email = ? 
+            AND l.activationToken = 'FREE-LICENSE' 
+            AND l.status = 'active'
+            AND l.hardwareId != ?
+        `).get(software.id, normalizedEmail, normalizedHardwareId) as { id: number, hardwareId: string } | undefined;
+
+        if (existingOnDifferentHardware) {
+            if (!confirmTransfer) {
+                await logWarn(`Intento de registro múltiple detectado para ${normalizedEmail}`, { software: software.name });
+                return NextResponse.json({ 
+                    error: 'CONFLITO DE CUOTA: Ya posees una licencia gratuita activa en otro equipo. ¿Deseas desactivar el equipo anterior y transferir la licencia a este?',
+                    requiresTransfer: true,
+                    previousHardware: existingOnDifferentHardware.hardwareId
+                }, { status: 409 });
+            } else {
+                // User confirmed transfer: Revoke the old one
+                db.prepare("UPDATE licenses SET status = 'revoked' WHERE id = ?").run(existingOnDifferentHardware.id);
+                await logInfo(`Licencia Free transferida para ${normalizedEmail}`, { software: software.name, from: existingOnDifferentHardware.hardwareId, to: normalizedHardwareId });
+            }
+        }
+
+        // 7. Create the Customer as LEAD (Non-destructive)
         const customerData: Customer = {
             id: normalizedTaxId,
             name: String(customerName || 'Prospecto Nuevo').trim(),
@@ -109,14 +138,14 @@ export async function POST(req: NextRequest) {
 
         await upsertLeadCustomer(customerData);
 
-        // 7. Map 20 Modules for Free (Only m01 active)
+        // 8. Map 20 Modules for Free (Only m01 active by default)
         const modulesMap: Record<string, boolean> = {};
         for (let i = 1; i <= 20; i++) {
             const key = `m${String(i).padStart(2, '0')}`;
             modulesMap[key] = (i === 1); // Solo m01 activo para Free
         }
 
-        // 8. Generate Signed Payload with Policies (v3.8)
+        // 9. Generate Signed Payload with Policies (v3.9.1)
         const now = new Date().toISOString();
         const licenseInfo = {
             softwareId: software.id,
@@ -143,7 +172,7 @@ export async function POST(req: NextRequest) {
         const signedDataString = await signLicenseData(licenseInfo);
         const structuredLicenseFile = JSON.parse(signedDataString);
 
-        // 9. Persist in DB with 20 columns support
+        // 10. Persist in DB with 20 columns support
         db.prepare(`
             INSERT INTO licenses (
                 licenseKey, activationToken, softwareId, customerId, hardwareId, isPerpetual, expirationDate, status, createdAt, m01_val
@@ -152,7 +181,7 @@ export async function POST(req: NextRequest) {
 
         const lastId = db.prepare('SELECT last_insert_rowid() as id').get() as { id: number };
 
-        // 10. NOTIFICACIÓN DE NUEVO PROSPECTO (FREE)
+        // 11. NOTIFICACIÓN DE NUEVO PROSPECTO (FREE)
         try {
             await triggerNotificationEvent('onLicenseAssigned', {
                 id: lastId.id,
@@ -160,7 +189,7 @@ export async function POST(req: NextRequest) {
                 customerName: customerData.name,
                 softwareName: software.name,
                 type: 'SaaS Propios',
-                licenseStatus: 'NUEVO PROSPECTO (FREE)',
+                licenseStatus: confirmTransfer ? 'LICENCIA TRANSFERIDA (FREE)' : 'NUEVO PROSPECTO (FREE)',
                 expirationDate: 'Perpetua (Demo)',
                 hardwareId: normalizedHardwareId
             });
@@ -175,6 +204,6 @@ export async function POST(req: NextRequest) {
 
     } catch (error: unknown) {
         console.error('Free OTP Registration Error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: (error as Error).message || 'Internal Server Error' }, { status: 500 });
     }
 }

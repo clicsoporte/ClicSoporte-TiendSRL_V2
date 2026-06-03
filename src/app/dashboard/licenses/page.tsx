@@ -1,6 +1,6 @@
 /**
  * @fileoverview Main page for the License Management module.
- * Enhanced for Hybrid Licensing v3.9.0 (Expansion to 20 modules).
+ * Enhanced for Hybrid Licensing v3.9.1 (Expansion to 20 modules & Auto-Migration).
  */
 'use client';
 
@@ -77,7 +77,7 @@ export default function LicensesPage() {
     const SERVER_URL = state.companyData?.publicUrl || 'https://soporte.clicsoporte.com';
 
     const sdkCode = {
-        meta: `v3.9.0 (Expansion M20 Certified)`,
+        meta: `v3.9.1 (Auto-Migration Certified)`,
         schema: `{
   "success": true,
   "license_file": {
@@ -97,7 +97,7 @@ export default function LicensesPage() {
         "nagScreenTimer": 60,      // Segundos de bloqueo (Nag)
         "allowOfflinePremium": true
       },
-      "modules": { "m01": true, "m02": false, ..., "m20": true } // Protocolo de 20 módulos
+      "modules": { "m01": true, "m02": false, ..., "m20": true } // Protocolo M20
     },
     "signature": "hash_hex_firmado_rsa"
   }
@@ -120,29 +120,13 @@ export async function verifyClientInfo(taxId: string) {
     return { found: false };
 }`,
         activation: `/**
- * PASO 2: REGISTRO FREE / ACTIVACIÓN (SDK v3.8.4)
- * IMPORTANTE: El servidor tiene Throttling de 1 minuto por correo para OTP.
- * El software hijo DEBE indicar al usuario esperar si recibe error 429.
+ * PASO 2: REGISTRO FREE / ACTIVACIÓN (SDK v3.9.1)
+ * El servidor implementa un límite de 1 dispositivo por correo para versiones Free.
+ * Si detecta duplicidad, devolverá error 409 Conflict.
  */
-
-// A. SOLICITAR CÓDIGO (FREE)
-export async function requestOtp(email: string) {
-    const res = await fetch(\`${SERVER_URL}/api/v1/request-otp\`, {
-        method: 'POST',
-        body: JSON.stringify({ email })
-    });
-    const result = await res.json();
-    if (!res.ok) throw new Error(result.error); // Maneja el Throttling de 1 min
-    return result;
-}
-
-// B. ACTIVAR (CANJEAR TOKEN O OTP)
 export async function activateSoftware(payload: {
-    taxId: string,
-    customerName: string,
     customerEmail: string,
-    customerPhone: string,
-    token?: string // Token Premium o Código OTP Free
+    confirmTransfer?: boolean // FLAG CRÍTICO: Enviar true si el usuario acepta mover la licencia
 }) {
     const hardwareId = await generateHardwareId(); 
     const endpoint = payload.token ? 'activate' : 'register-free';
@@ -153,14 +137,24 @@ export async function activateSoftware(payload: {
         body: JSON.stringify({ 
             softwareName: 'Nombre-Software',
             hardwareId,
-            activationToken: payload.token,
             ...payload 
         })
     });
 
-    const result = await res.json();
-    if (!res.ok) throw new Error(result.error); // Maneja errores de Multi-PC e Identidad
+    // MANEJO DE AUTO-MIGRACIÓN (409 Conflict)
+    if (res.status === 409) {
+        const conflict = await res.json();
+        // Mostrar diálogo al usuario: "¿Deseas transferir tu licencia a esta PC?"
+        // Si acepta, volver a llamar a activateSoftware pasando confirmTransfer: true
+        return { requiresAction: true, message: conflict.error };
+    }
+
+    if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error);
+    }
     
+    const result = await res.json();
     return result.license_file; 
 }`,
         rsa: `/**
@@ -181,34 +175,19 @@ export function verifyServerSignature(licenseFile, publicKeyPem) {
     return verifier.verify(publicKeyPem, signature, 'hex');
 }`,
         config: `/**
- * PASO 4: AUTO-CONFIGURACIÓN (Identidad & Módulos)
+ * PASO 4: AUTO-CONFIGURACIÓN (Identity & Módulos)
  * El servidor inyecta la Identidad Maestra. El software hijo DEBE confiar
  * en estos datos firmados para su configuración interna.
  */
 export function autoConfigureSoftware(licenseFile) {
     const { license_info } = licenseFile;
 
-    // 1. Extraer Identidad Inyectada
-    // Esto asegura que el "About" del programa muestre datos oficiales del cliente.
-    const ownerData = {
-        name: license_info.customerName,
-        email: license_info.customerEmail,
-        phone: license_info.customerPhone
-    };
-    saveGlobalSettings('OWNER', ownerData);
-
-    // 2. Mapeo de Módulos (Protocolo m01 - m20)
-    // Desbloquee las funciones del software según el mapa recibido.
-    const activeModules = {
-        m01_active: !!license_info.modules.m01,
-        m02_active: !!license_info.modules.m02,
-        // ... continuar hasta m20
-        m20_active: !!license_info.modules.m20
-    };
+    // 1. Extraer Identidad Inyectada (customerName)
+    // 2. Mapear Protocolo M20 (m01 al m20)
+    const activeModules = license_info.modules;
     
-    applyModulePermissions(activeModules);
-    
-    return { ownerData, activeModules };
+    applyFunctionalBranding(license_info.customerName);
+    unlockModules(activeModules);
 }`,
         marketing: `/**
  * PASO 5: PUBLICIDAD DINÁMICA (SDK v3.8.4)
@@ -218,9 +197,7 @@ export async function syncGlobalAds(licenseType: 'free' | 'premium') {
     const res = await fetch(\`${SERVER_URL}/api/v1/marketing?software=Tu-Software&status=\${licenseType}\`);
     const { payload } = await res.json();
     
-    // El payload ya viene con { license_info, signature }
     if (verifyServerSignature(payload, publicKeyPem)) {
-        // Los anuncios están en license_info.ads
         return payload.license_info.ads; 
     }
     return [];
@@ -231,7 +208,6 @@ export async function syncGlobalAds(licenseType: 'free' | 'premium') {
  */
 import { useState } from 'react';
 import { Button } from './ui/button';
-import { toast } from './ui/use-toast';
 
 export function LicensePanel() {
     const [isSyncing, setIsSyncing] = useState(false);
@@ -239,49 +215,38 @@ export function LicensePanel() {
     const handleManualSync = async () => {
         setIsSyncing(true);
         try {
-            // 1. Re-validar licencia
             const license = await activateSoftware({ ...params });
-            // 2. Re-validar firma RSA
             if (verifyServerSignature(license, publicKey)) {
-                // 3. Actualizar publicidad
-                const ads = await syncGlobalAds(license.license_info.status);
-                toast({ title: "Sincronización Exitosa" });
+                await syncGlobalAds(license.license_info.status);
+                alert("Sincronización Exitosa");
             }
         } catch (e) {
-            toast({ title: "Error", description: e.message, variant: "destructive" });
+            alert("Error: " + e.message);
         } finally {
             setIsSyncing(false);
         }
     };
 
     return (
-        <div className="p-4 border rounded-lg">
-            <h3 className="font-bold">Estado de Licencia</h3>
-            <Button onClick={handleManualSync} disabled={isSyncing}>
-                {isSyncing ? "Sincronizando..." : "Sincronizar Ahora"}
-            </Button>
-        </div>
+        <Button onClick={handleManualSync} disabled={isSyncing}>
+            {isSyncing ? "Sincronizando..." : "Sincronizar Ahora"}
+        </Button>
     );
 }`,
         compliance: `/**
  * PASO 7: ESTRATEGIA DE CUMPLIMIENTO (COMPLIANCE)
- * Blindaje contra manipulación de fecha y falta de anuncios.
+ * Blindaje contra manipulación de fecha y clonación.
  */
 
 // 1. Anti-Clock Tamper (LKT: Last Known Time)
-export function validateSystemTime(currentDate) {
-    const lkt = localStorage.getItem('LKT_STAMP');
-    if (lkt && currentDate < new Date(lkt)) {
-        throw new Error("RELOJ ATRASADO DETECTADO: El sistema requiere re-calibrar con el servidor.");
-    }
-    localStorage.setItem('LKT_STAMP', currentDate.toISOString());
-}
+// Evita que el usuario atrase el reloj para burlar el vencimiento.
 
 // 2. Nag Screen Logic (Para versiones FREE)
-// Se dispara si Hoy - LastSync > policies.adRefreshFrequency
+// Bloqueo temporal por tiempo de uso para monetización.
 
 // 3. HWID Enforcement
-// Se debe comparar el HardwareID del equipo local contra el firmado en la licencia.`
+// Se debe comparar el HardwareID del equipo local contra el firmado en la licencia.
+// Si no coinciden, la licencia ha sido clonada y debe invalidarse.`
     };
 
     return (
@@ -294,7 +259,7 @@ export function validateSystemTime(currentDate) {
                                 <CardTitle className="text-2xl font-bold flex items-center gap-2">
                                     <ShieldCheck className="h-6 w-6 text-primary" /> Gestión de Licenciamiento Híbrido
                                 </CardTitle>
-                                <CardDescription>Administración central de activaciones y protocolo M20 v3.9.0.</CardDescription>
+                                <CardDescription>Administración central de activaciones y protocolo M20 v3.9.1.</CardDescription>
                             </div>
                             <div className="flex gap-2 flex-wrap">
                                 <Button variant="outline" onClick={() => setSdkDialogOpen(true)}>
