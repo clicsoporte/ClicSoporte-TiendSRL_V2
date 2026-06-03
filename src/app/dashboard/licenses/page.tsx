@@ -1,6 +1,7 @@
 /**
  * @fileoverview Main page for the License Management module.
  * Enhanced for Hybrid Licensing v3.9.1 (Expansion to 20 modules & Auto-Migration).
+ * Documentation restored with full UI Panel examples and M20 protocol.
  */
 'use client';
 
@@ -21,7 +22,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SearchInput } from '@/components/ui/search-input';
-import { PlusCircle, MoreVertical, CalendarIcon, Loader2, Trash2, Download, Edit, ShieldCheck, Boxes, Settings2, Info, Code2, Copy, Check, Terminal, MonitorPlay, ShieldAlert, AlertTriangle } from 'lucide-react';
+import { PlusCircle, MoreVertical, CalendarIcon, Loader2, Trash2, Download, Edit, ShieldCheck, Boxes, Settings2, Info, Code2, Copy, Check, Terminal, MonitorPlay, ShieldAlert, AlertTriangle, Wallet } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
@@ -77,17 +78,17 @@ export default function LicensesPage() {
     const SERVER_URL = state.companyData?.publicUrl || 'https://soporte.clicsoporte.com';
 
     const sdkCode = {
-        meta: `v3.9.1 (Auto-Migration Certified)`,
+        meta: `v3.9.1 (M20 & Auto-Migration Ready)`,
         schema: `{
   "success": true,
   "license_file": {
     "license_info": {
       "softwareId": 12,
-      "softwareName": "Clic-Turnos",
+      "softwareName": "Nombre-Software",
       "customerName": "Nombre Oficial del Cliente", 
       "customerEmail": "cliente@oficial.com",        
       "customerPhone": "8888-8888",
-      "hardwareId": "ABC-123-XYZ",
+      "hardwareId": "FINGERPRINT-PC-CLIENTE",
       "status": "active",
       "isPerpetual": false,
       "expirationDate": "2025-12-31",
@@ -97,7 +98,9 @@ export default function LicensesPage() {
         "nagScreenTimer": 60,      // Segundos de bloqueo (Nag)
         "allowOfflinePremium": true
       },
-      "modules": { "m01": true, "m02": false, ..., "m20": true } // Protocolo M20
+      "modules": { 
+        "m01": true, "m02": false, ..., "m20": true 
+      } // Rango extendido Protocolo M20
     },
     "signature": "hash_hex_firmado_rsa"
   }
@@ -175,23 +178,26 @@ export function verifyServerSignature(licenseFile, publicKeyPem) {
     return verifier.verify(publicKeyPem, signature, 'hex');
 }`,
         config: `/**
- * PASO 4: AUTO-CONFIGURACIÓN (Identity & Módulos)
+ * PASO 4: AUTO-CONFIGURACIÓN (Identity & Módulos M20)
  * El servidor inyecta la Identidad Maestra. El software hijo DEBE confiar
  * en estos datos firmados para su configuración interna.
  */
 export function autoConfigureSoftware(licenseFile) {
     const { license_info } = licenseFile;
 
-    // 1. Extraer Identidad Inyectada (customerName)
+    // 1. Extraer Identidad Inyectada (Branding Dinámico)
+    applyFunctionalBranding(license_info.customerName);
+
     // 2. Mapear Protocolo M20 (m01 al m20)
     const activeModules = license_info.modules;
     
-    applyFunctionalBranding(license_info.customerName);
-    unlockModules(activeModules);
+    if (activeModules.m01) unlockCoreModule();
+    if (activeModules.m15) unlockAdvancedModule();
+    // ... hasta m20
 }`,
         marketing: `/**
  * PASO 5: PUBLICIDAD DINÁMICA (SDK v3.8.4)
- * Descarga anuncios globales firmados segmentados.
+ * Descarga anuncios globales firmados segmentados por tipo de licencia.
  */
 export async function syncGlobalAds(licenseType: 'free' | 'premium') {
     const res = await fetch(\`${SERVER_URL}/api/v1/marketing?software=Tu-Software&status=\${licenseType}\`);
@@ -204,33 +210,50 @@ export async function syncGlobalAds(licenseType: 'free' | 'premium') {
 }`,
         uiPanel: `/**
  * PASO 6: PANEL DE ACTIVACIÓN (EJEMPLO REACT)
- * Implementación de un panel para que el usuario fuerce la sincronización.
+ * Implementación de un panel para que el usuario gestione su estado.
  */
 import { useState } from 'react';
+import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 import { Button } from './ui/button';
+import { useToast } from './hooks/use-toast';
 
-export function LicensePanel() {
+export function ActivationPanel() {
     const [isSyncing, setIsSyncing] = useState(false);
+    const { toast } = useToast();
 
-    const handleManualSync = async () => {
+    const handleSync = async () => {
         setIsSyncing(true);
         try {
             const license = await activateSoftware({ ...params });
             if (verifyServerSignature(license, publicKey)) {
                 await syncGlobalAds(license.license_info.status);
-                alert("Sincronización Exitosa");
+                autoConfigureSoftware(license);
+                toast({ title: "Sincronización Exitosa", description: "Licencia y anuncios actualizados." });
             }
         } catch (e) {
-            alert("Error: " + e.message);
+            toast({ title: "Falla de Activación", description: e.message, variant: "destructive" });
         } finally {
             setIsSyncing(false);
         }
     };
 
     return (
-        <Button onClick={handleManualSync} disabled={isSyncing}>
-            {isSyncing ? "Sincronizando..." : "Sincronizar Ahora"}
-        </Button>
+        <Card className="border-primary/20">
+            <CardHeader>
+                <CardTitle className="text-sm font-bold uppercase">Estado de la Licencia</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div className="flex justify-between items-center bg-muted/30 p-3 rounded-lg">
+                    <div className="flex flex-col">
+                        <span className="text-xs font-bold">Sincronización</span>
+                        <span className="text-[10px] text-muted-foreground">Última validación hace 2 días</span>
+                    </div>
+                    <Button onClick={handleSync} disabled={isSyncing} size="sm">
+                        {isSyncing ? "Procesando..." : "Sincronizar Ahora"}
+                    </Button>
+                </div>
+            </CardContent>
+        </Card>
     );
 }`,
         compliance: `/**
@@ -242,7 +265,7 @@ export function LicensePanel() {
 // Evita que el usuario atrase el reloj para burlar el vencimiento.
 
 // 2. Nag Screen Logic (Para versiones FREE)
-// Bloqueo temporal por tiempo de uso para monetización.
+// Bloqueo temporal por tiempo de uso para monetización forzada.
 
 // 3. HWID Enforcement
 // Se debe comparar el HardwareID del equipo local contra el firmado en la licencia.
@@ -521,7 +544,7 @@ export function LicensePanel() {
                     </CardContent>
                 </Card>
 
-                {/* kit de Integración (SDK) */}
+                {/* Kit de Integración (SDK) */}
                 <Dialog open={isSdkDialogOpen} onOpenChange={setSdkDialogOpen}>
                     <DialogContent className="sm:max-w-5xl h-[90vh] flex flex-col p-0 overflow-hidden">
                         <DialogHeader className="p-6 pb-2 border-b">
@@ -621,6 +644,19 @@ export function LicensePanel() {
                                     </div>
                                 </TabsContent>
 
+                                <TabsContent value="uiPanel" className="m-0 h-full p-4">
+                                    <div className="relative">
+                                        <p className="text-[11px] text-muted-foreground mb-3 italic">Implementación de un Panel de Activación interactivo usando React y ShadCN.</p>
+                                        <Button variant="secondary" size="sm" className="absolute top-12 right-2 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.uiPanel, 'uipanel')}>
+                                            {copiedSection === 'uipanel' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
+                                            {copiedSection === 'uipanel' ? 'Copiado' : 'Copiar'}
+                                        </Button>
+                                        <pre className="bg-slate-950 text-indigo-200 p-6 rounded-lg text-[11px] font-mono overflow-auto">
+                                            {sdkCode.uiPanel}
+                                        </pre>
+                                    </div>
+                                </TabsContent>
+
                                 <TabsContent value="compliance" className="m-0 h-full p-4">
                                     <div className="space-y-4">
                                         <Alert className="bg-blue-50 border-blue-200">
@@ -634,8 +670,8 @@ export function LicensePanel() {
                                             </AlertDescription>
                                         </Alert>
                                         <div className="relative">
-                                            <p className="text-[11px] text-muted-foreground mb-3 italic">Implementación de protecciones Anti-Clock e lógica de Nag Screen para versiones Free.</p>
-                                            <Button variant="secondary" size="sm" className="absolute top-8 right-2 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.compliance, 'compliance')}>
+                                            <p className="text-[11px] text-muted-foreground mb-3 italic">Estrategias de cumplimiento contra manipulación de fecha y clonación.</p>
+                                            <Button variant="secondary" size="sm" className="absolute top-20 right-2 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.compliance, 'compliance')}>
                                                 {copiedSection === 'compliance' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
                                                 {copiedSection === 'compliance' ? 'Copiado' : 'Copiar'}
                                             </Button>
@@ -643,18 +679,6 @@ export function LicensePanel() {
                                                 {sdkCode.compliance}
                                             </pre>
                                         </div>
-                                    </div>
-                                </TabsContent>
-
-                                <TabsContent value="uiPanel" className="m-0 h-full p-4">
-                                    <div className="relative">
-                                        <Button variant="secondary" size="sm" className="absolute top-8 right-2 z-10 h-7 text-[10px]" onClick={() => handleCopy(sdkCode.uiPanel, 'uipanel')}>
-                                            {copiedSection === 'uipanel' ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
-                                            {copiedSection === 'uipanel' ? 'Copiado' : 'Copiar'}
-                                        </Button>
-                                        <pre className="bg-slate-950 text-indigo-200 p-6 rounded-lg text-[11px] font-mono overflow-auto">
-                                            {sdkCode.uiPanel}
-                                        </pre>
                                     </div>
                                 </TabsContent>
                             </div>
@@ -666,23 +690,13 @@ export function LicensePanel() {
                     </DialogContent>
                 </Dialog>
 
-                {/* Diálogo Catálogo Software */}
+                {/* Catálogo Software Dialog */}
                 <Dialog open={state.isSoftwareDialogOpen} onOpenChange={actions.setIsSoftwareDialogOpen}>
                     <DialogContent className="sm:max-w-5xl h-[90vh] flex flex-col p-0">
                         <DialogHeader className="p-6 pb-2 border-b">
                             <div className="flex items-center gap-2">
                                 <Boxes className="h-5 w-5 text-primary" />
                                 <DialogTitle>Catálogo de Productos de Software</DialogTitle>
-                                <TooltipProvider>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <button className="rounded-full h-5 w-5 bg-muted flex items-center justify-center text-[10px] font-bold text-muted-foreground hover:bg-primary/20 hover:text-primary transition-colors">?</button>
-                                        </TooltipTrigger>
-                                        <TooltipContent className="max-w-sm">
-                                            <p className="text-xs">Define los productos que tu empresa desarrolla o distribuye. Permite mapear hasta 20 módulos lógicos y configurar políticas de conexión para el SDK hijo.</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
                             </div>
                         </DialogHeader>
                         
@@ -721,52 +735,20 @@ export function LicensePanel() {
                                             <p className="text-[10px] font-black uppercase text-primary tracking-widest flex items-center gap-1"><ShieldAlert className="h-3 w-3"/> Políticas Dinámicas (Compliance)</p>
                                             <div className="grid grid-cols-2 gap-3">
                                                 <div className="space-y-1.5">
-                                                    <Label className="text-[9px] uppercase font-bold flex items-center gap-1">
-                                                        Sync Gracia Free (Días)
-                                                        <TooltipProvider>
-                                                            <Tooltip>
-                                                                <TooltipTrigger><Info className="h-2.5 w-2.5 text-muted-foreground"/></TooltipTrigger>
-                                                                <TooltipContent className="max-w-xs"><p>Días máximos que una licencia Free puede operar sin reportarse al servidor antes de bloquearse.</p></TooltipContent>
-                                                            </Tooltip>
-                                                        </TooltipProvider>
-                                                    </Label>
+                                                    <Label className="text-[9px] uppercase font-bold">Sync Gracia Free (Días)</Label>
                                                     <Input type="number" value={state.newSoftwareProduct.syncFrequencyFree || 7} onChange={e => actions.handleNewSoftwareChange('syncFrequencyFree', Number(e.target.value))} className="h-8 text-xs" />
                                                 </div>
                                                 <div className="space-y-1.5">
-                                                    <Label className="text-[9px] uppercase font-bold flex items-center gap-1">
-                                                        Frescura Anuncios (Días)
-                                                        <TooltipProvider>
-                                                            <Tooltip>
-                                                                <TooltipTrigger><Info className="h-2.5 w-2.5 text-muted-foreground"/></TooltipTrigger>
-                                                                <TooltipContent className="max-w-xs"><p>Días de frescura de la publicidad. Superado este tiempo, se activa el Nag Screen en el hijo.</p></TooltipContent>
-                                                            </Tooltip>
-                                                        </TooltipProvider>
-                                                    </Label>
+                                                    <Label className="text-[9px] uppercase font-bold">Frescura Anuncios (Días)</Label>
                                                     <Input type="number" value={state.newSoftwareProduct.adRefreshFrequency || 2} onChange={e => actions.handleNewSoftwareChange('adRefreshFrequency', Number(e.target.value))} className="h-8 text-xs" />
                                                 </div>
                                                 <div className="space-y-1.5">
-                                                    <Label className="text-[9px] uppercase font-bold flex items-center gap-1">
-                                                        Bloqueo Nag Screen (Seg)
-                                                        <TooltipProvider>
-                                                            <Tooltip>
-                                                                <TooltipTrigger><Info className="h-2.5 w-2.5 text-muted-foreground"/></TooltipTrigger>
-                                                                <TooltipContent className="max-w-xs"><p>Segundos que la pantalla permanecerá bloqueada por el Nag Screen cada hora de uso.</p></TooltipContent>
-                                                            </Tooltip>
-                                                        </TooltipProvider>
-                                                    </Label>
+                                                    <Label className="text-[9px] uppercase font-bold">Bloqueo Nag Screen (Seg)</Label>
                                                     <Input type="number" value={state.newSoftwareProduct.nagScreenTimer || 60} onChange={e => actions.handleNewSoftwareChange('nagScreenTimer', Number(e.target.value))} className="h-8 text-xs" />
                                                 </div>
                                                 <div className="flex items-center space-x-2 pt-5">
                                                     <Switch checked={!!state.newSoftwareProduct.allowOfflinePremium} onCheckedChange={val => actions.handleNewSoftwareChange('allowOfflinePremium', val)} />
-                                                    <Label className="text-[9px] uppercase font-bold flex items-center gap-1">
-                                                        Licencia Perpetua
-                                                        <TooltipProvider>
-                                                            <Tooltip>
-                                                                <TooltipTrigger><Info className="h-2.5 w-2.5 text-muted-foreground"/></TooltipTrigger>
-                                                                <TooltipContent className="max-w-xs"><p>Si se permite el funcionamiento 100% offline para versiones pagas tras la validación inicial.</p></TooltipContent>
-                                                            </Tooltip>
-                                                        </TooltipProvider>
-                                                    </Label>
+                                                    <Label className="text-[9px] uppercase font-bold">Licencia Perpetua</Label>
                                                 </div>
                                             </div>
                                         </div>
@@ -781,7 +763,7 @@ export function LicensePanel() {
 
                             <div className="p-6 overflow-y-auto space-y-4">
                                 <h3 className="text-xs font-black uppercase text-muted-foreground tracking-widest flex items-center gap-2">
-                                    <Settings2 className="h-4 w-4" /> Mapeo de Protocolo (m01 - m20)
+                                    <Settings2 className="h-4 w-4" /> Módulos Disponibles (m01 - m20)
                                 </h3>
                                 {state.newSoftwareProduct.isInternal ? (
                                     <div className="grid gap-3">
