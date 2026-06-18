@@ -22,7 +22,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SearchInput } from '@/components/ui/search-input';
-import { PlusCircle, MoreVertical, CalendarIcon, Loader2, Trash2, Download, Edit, ShieldCheck, Boxes, Settings2, Info, Code2, Copy, Check, Terminal, MonitorPlay, ShieldAlert, AlertTriangle, Wallet } from 'lucide-react';
+import { PlusCircle, MoreVertical, CalendarIcon, Loader2, Trash2, Download, Edit, ShieldCheck, Boxes, Settings2, Info, Code2, Copy, Check, Terminal, MonitorPlay, ShieldAlert, AlertTriangle } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useAuthorization } from '@/modules/core/hooks/useAuthorization';
@@ -684,9 +684,7 @@ export function ActivationPanel() {
                             </div>
                         </Tabs>
                         
-                        <DialogFooter className="p-6 border-t bg-muted/10">
-                            <DialogClose asChild><Button variant="outline">Cerrar Kit</Button></DialogClose>
-                        </DialogFooter>
+                        <DialogFooter className="p-6 border-t bg-muted/10"><DialogClose asChild><Button variant="outline">Cerrar Kit</Button></DialogClose></DialogFooter>
                     </DialogContent>
                 </Dialog>
 
@@ -809,7 +807,7 @@ export function ActivationPanel() {
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                             <AlertDialogCancel onClick={() => actions.setShowPerpetualConfirm(false)}>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => { actions.confirmPerpetual(); }} className="bg-primary text-white">Entiendo, Proceder</AlertDialogAction>
+                            <AlertDialogAction onClick={ dream => { actions.confirmPerpetual(); }} className="bg-primary text-white">Entiendo, Proceder</AlertDialogAction>
                         </AlertDialogFooter>
                     </AlertDialogContent>
                 </AlertDialog>
