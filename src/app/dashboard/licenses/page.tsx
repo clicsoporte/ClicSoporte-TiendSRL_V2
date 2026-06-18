@@ -1,10 +1,10 @@
+'use client';
+
 /**
  * @fileoverview Main page for the License Management module.
  * Enhanced for Hybrid Licensing v3.9.1 (Expansion to 20 modules & Auto-Migration).
  * Documentation restored with full UI Panel examples and M20 protocol.
  */
-'use client';
-
 import React, { useState } from 'react';
 import { useLicenses } from '@/modules/licenses/hooks/useLicenses';
 import { Button } from '@/components/ui/button';
@@ -807,7 +807,7 @@ export function ActivationPanel() {
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                             <AlertDialogCancel onClick={() => actions.setShowPerpetualConfirm(false)}>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction onClick={ dream => { actions.confirmPerpetual(); }} className="bg-primary text-white">Entiendo, Proceder</AlertDialogAction>
+                            <AlertDialogAction onClick={() => { actions.confirmPerpetual(); }} className="bg-primary text-white">Entiendo, Proceder</AlertDialogAction>
                         </AlertDialogFooter>
                     </AlertDialogContent>
                 </AlertDialog>

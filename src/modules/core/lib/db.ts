@@ -401,6 +401,15 @@ export async function runMainMigrations(db: Database) {
             content TEXT, customerId TEXT, tags TEXT, createdBy TEXT,
             createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL
         );
+        
+        CREATE TABLE IF NOT EXISTS cost_drafts (
+            id TEXT PRIMARY KEY, userId INTEGER NOT NULL, name TEXT NOT NULL, 
+            data TEXT NOT NULL, createdAt TEXT NOT NULL
+        );
+        
+        CREATE TABLE IF NOT EXISTS cost_assistant_settings (
+            key TEXT PRIMARY KEY, value TEXT NOT NULL
+        );
 
         -- SHARED TABLES
         CREATE TABLE IF NOT EXISTS exchange_rates (date TEXT PRIMARY KEY, rate REAL NOT NULL);
