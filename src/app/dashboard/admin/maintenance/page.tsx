@@ -23,7 +23,7 @@ import {
   } from "../../../../components/ui/select"
 import { useToast } from "../../../../modules/core/hooks/use-toast";
 import { logError, logInfo, logWarn } from "../../../../modules/core/lib/logger";
-import { UploadCloud, RotateCcw, Loader2, Save, LifeBuoy, Trash2 as TrashIcon, Download, Skull, AlertTriangle, DatabaseZap, SearchCheck, CheckCircle2, XCircle, Database, History } from "lucide-react";
+import { UploadCloud, RotateCcw, Loader2, Save, LifeBuoy, Trash2 as TrashIcon, Download, Skull, AlertTriangle, DatabaseZap, SearchCheck, CheckCircle2, XCircle, Database, History, Wrench } from "lucide-react";
 import { useDropzone } from 'react-dropzone';
 import { usePageTitle } from "../../../../modules/core/hooks/usePageTitle";
 import { Checkbox } from '../../../../components/ui/checkbox';
@@ -39,7 +39,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/modules/core/hooks/useAuth';
-import { runDatabaseAudit, detectLegacyFiles, runLegacyMigration, type AuditResult } from '@/modules/core/lib/maintenance-actions';
+import { runDatabaseAudit, detectLegacyFiles, runLegacyMigration, repairDatabaseSchema, type AuditResult } from '@/modules/core/lib/maintenance-actions';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
@@ -56,6 +56,7 @@ export default function MaintenancePage() {
     // Audit & Migration State
     const [auditResults, setAuditResults] = useState<AuditResult[] | null>(null);
     const [isAuditing, setIsAuditing] = useState(false);
+    const [isRepairing, setIsRepairing] = useState(false);
     const [legacyFiles, setLegacyFiles] = useState<string[]>([]);
     const [isMigrating, setIsMigrating] = useState(false);
 
@@ -137,6 +138,23 @@ export default function MaintenancePage() {
             setIsAuditing(false);
         }
     };
+
+    const handleRepairSchema = async () => {
+        setIsRepairing(true);
+        try {
+            const res = await repairDatabaseSchema();
+            if (res.success) {
+                toast({ title: "Reparación Exitosa", description: res.message });
+                handleRunAudit(); // Re-run audit to confirm
+            } else {
+                toast({ title: "Falla en Reparación", description: res.message, variant: "destructive" });
+            }
+        } catch (e: unknown) {
+            toast({ title: "Error Crítico", description: (e as Error).message, variant: "destructive" });
+        } finally {
+            setIsRepairing(false);
+        }
+    }
 
     const handleLegacyMigration = async () => {
         setIsMigrating(true);
@@ -337,6 +355,7 @@ export default function MaintenancePage() {
         return null;
     }
 
+    const totalAuditIssues = auditResults?.filter(r => r.status !== 'ok').length || 0;
 
     return (
         <main className="flex-1 p-4 md:p-6 lg:p-8">
@@ -359,6 +378,14 @@ export default function MaintenancePage() {
                                 {isAuditing ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <DatabaseZap className="mr-2 h-4 w-4" />}
                                 Ejecutar Auditoría de Sistema
                             </Button>
+                            
+                            {totalAuditIssues > 0 && (
+                                <Button onClick={handleRepairSchema} disabled={isRepairing} variant="outline" className="border-blue-600 text-blue-700 hover:bg-blue-100">
+                                    {isRepairing ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Wrench className="mr-2 h-4 w-4" />}
+                                    Reparar Estructura (Sync Esquema)
+                                </Button>
+                            )}
+                            
                             <p className="text-xs text-muted-foreground self-center">
                                 Compara la estructura actual contra el diseño oficial v2.2.0.
                             </p>
@@ -403,7 +430,7 @@ export default function MaintenancePage() {
                                 Se han detectado {legacyFiles.length} archivos de base de datos de una arquitectura anterior fragmentada. 
                                 Para asegurar que el sistema funcione correctamente con la base de datos unificada, debe migrar estos registros.
                             </p>
-                            <div className="flex flex-wrap gap-2">
+                            <div className="flex wrap gap-2">
                                 {legacyFiles.map(f => <Badge key={f} variant="outline" className="bg-white/50">{f}</Badge>)}
                             </div>
                             <Button 
@@ -589,7 +616,7 @@ export default function MaintenancePage() {
                                             <AlertDialogHeader>
                                                 <AlertDialogTitle className="flex items-center gap-2"><AlertTriangle/>Confirmación Final Requerida</AlertDialogTitle>
                                                 <AlertDialogDescription>
-                                                    Esta acción borrará **TODA** la información del módulo seleccionado (&quot;{dbModules.find(m => m.id === moduleToReset)?.name || ''}&quot;). La aplicación lo reinicializará en blanco. La página se recargará. Esta acción no se puede deshacer.
+                                                    Esta acción borrará **TODA** la información del módulo seleccionado ("{dbModules.find(m => m.id === moduleToReset)?.name || ''}"). La aplicación lo reinicializará en blanco. La página se recargará. Esta acción no se puede deshacer.
                                                 </AlertDialogDescription>
                                             </AlertDialogHeader>
                                              <div className="py-4 space-y-4">
@@ -599,7 +626,7 @@ export default function MaintenancePage() {
                                                 </div>
                                                 {resetStep > 0 && (
                                                     <div className="space-y-2">
-                                                        <Label htmlFor="reset-confirmation-text">Para confirmar, escribe &quot;RESETEAR&quot; en el campo:</Label>
+                                                        <Label htmlFor="reset-confirmation-text">Para confirmar, escribe "RESETEAR" en el campo:</Label>
                                                         <Input id="reset-confirmation-text" value={resetConfirmationText} onChange={(e) => { setResetConfirmationText(e.target.value.toUpperCase()); if (e.target.value.toUpperCase() === 'RESETEAR') {setResetStep(2);} else {setResetStep(1);}}} className="border-destructive focus-visible:ring-destructive" />
                                                     </div>
                                                 )}
@@ -637,7 +664,7 @@ export default function MaintenancePage() {
                                             </div>
                                             {fullResetStep > 0 && (
                                                 <div className="space-y-2">
-                                                    <Label htmlFor="full-reset-confirmation-text">Para confirmar, escribe &quot;RESETEAR TODO&quot; en el campo:</Label>
+                                                    <Label htmlFor="full-reset-confirmation-text">Para confirmar, escribe "RESETEAR TODO" en el campo:</Label>
                                                     <Input id="full-reset-confirmation-text" value={fullResetConfirmationText} onChange={(e) => { setFullResetConfirmationText(e.target.value.toUpperCase()); if (e.target.value.toUpperCase() === 'RESETEAR TODO') {setFullResetStep(2);} else {setFullResetStep(1);}}} className="border-destructive focus-visible:ring-destructive" />
                                                 </div>
                                             )}

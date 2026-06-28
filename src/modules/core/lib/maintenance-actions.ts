@@ -5,7 +5,7 @@
  * Refactored for strict production serialization.
  */
 
-import { connectDb } from "./db";
+import { connectDb, runMainMigrations } from "./db";
 import { MASTER_SCHEMA } from "./schema";
 import fs from 'fs';
 import path from 'path';
@@ -13,6 +13,7 @@ import os from 'os';
 import { execSync } from 'child_process';
 import Database from 'better-sqlite3';
 import { logInfo, logError, logWarn } from "./logger";
+import { revalidatePath } from "next/cache";
 import type { Ticket, TicketThread, ITNote } from "@/modules/core/types";
 
 export type AuditResult = {
@@ -110,6 +111,23 @@ export async function runDatabaseAudit(): Promise<AuditResult[]> {
     }
 
     return JSON.parse(JSON.stringify(results));
+}
+
+/**
+ * Repairs the database schema by re-running migrations and adding missing elements.
+ */
+export async function repairDatabaseSchema(): Promise<{ success: boolean; message: string }> {
+    try {
+        const db = await connectDb();
+        await runMainMigrations(db);
+        await logInfo("Database schema repair executed successfully.");
+        revalidatePath('/dashboard/admin/maintenance');
+        return { success: true, message: "Estructura de base de datos actualizada y reparada." };
+    } catch (error: unknown) {
+        const err = error as Error;
+        await logError("Database schema repair failed", { error: err.message });
+        return { success: false, message: `Falla en reparación: ${err.message}` };
+    }
 }
 
 /**

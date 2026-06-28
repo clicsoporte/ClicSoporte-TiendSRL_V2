@@ -228,6 +228,11 @@ export async function runMainMigrations(db: Database) {
             userId INTEGER, userName TEXT, isRead INTEGER DEFAULT 0, timestamp TEXT NOT NULL
         );
 
+        CREATE TABLE IF NOT EXISTS user_preferences (
+            userId INTEGER NOT NULL, key TEXT NOT NULL, value TEXT,
+            PRIMARY KEY (userId, key)
+        );
+
         CREATE TABLE IF NOT EXISTS customers (
             id TEXT PRIMARY KEY, name TEXT NOT NULL, commercialName TEXT,
             address TEXT, phone TEXT, taxId TEXT NOT NULL, currency TEXT DEFAULT 'CRC',
@@ -263,6 +268,14 @@ export async function runMainMigrations(db: Database) {
             code TEXT PRIMARY KEY, description TEXT NOT NULL, taxRate REAL NOT NULL
         );
 
+        CREATE TABLE IF NOT EXISTS quote_drafts (
+            id TEXT PRIMARY KEY, createdAt TEXT NOT NULL, userId INTEGER NOT NULL,
+            customerId TEXT, customerDetails TEXT, lines TEXT, totals TEXT,
+            notes TEXT, currency TEXT, exchangeRate REAL, purchaseOrderNumber TEXT,
+            deliveryAddress TEXT, deliveryDate TEXT, sellerName TEXT, sellerType TEXT,
+            quoteDate TEXT, validUntilDate TEXT, paymentTerms TEXT, creditDays INTEGER
+        );
+
         CREATE TABLE IF NOT EXISTS contracts (
             id INTEGER PRIMARY KEY AUTOINCREMENT, consecutive TEXT UNIQUE NOT NULL,
             name TEXT NOT NULL, customerId TEXT NOT NULL, startDate TEXT NOT NULL,
@@ -271,6 +284,8 @@ export async function runMainMigrations(db: Database) {
             monthlyHours REAL DEFAULT 0, price REAL DEFAULT 0,
             currency TEXT DEFAULT 'CRC', notes TEXT, autoRenew INTEGER DEFAULT 0, createdAt TEXT NOT NULL
         );
+
+        CREATE TABLE IF NOT EXISTS contract_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 
         CREATE TABLE IF NOT EXISTS help_topics (
             id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE NOT NULL,
@@ -300,6 +315,20 @@ export async function runMainMigrations(db: Database) {
             id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL,
             email TEXT, phone TEXT, specialty TEXT, notes TEXT,
             contacts TEXT, createdAt TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS provider_services (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, providerId INTEGER NOT NULL,
+            serviceId TEXT NOT NULL, buyPriceRemote REAL, marginRemote REAL,
+            taxRate REAL, sellPriceRemote REAL, buyPriceOnSite REAL,
+            marginOnSite REAL, sellPriceOnSite REAL
+        );
+
+        CREATE TABLE IF NOT EXISTS provider_geo_rates (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, providerId INTEGER NOT NULL,
+            provinceId INTEGER NOT NULL, cantonId INTEGER, districtId INTEGER,
+            buyTravelPrice REAL, marginTravel REAL, taxRate REAL,
+            sellTravelPrice REAL, locationName TEXT
         );
 
         CREATE TABLE IF NOT EXISTS software_products (
@@ -411,13 +440,48 @@ export async function runMainMigrations(db: Database) {
             key TEXT PRIMARY KEY, value TEXT NOT NULL
         );
 
+        CREATE TABLE IF NOT EXISTS projects (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, consecutive TEXT UNIQUE NOT NULL,
+            name TEXT NOT NULL, customerId TEXT NOT NULL, customerName TEXT,
+            category TEXT NOT NULL, status TEXT NOT NULL, priority TEXT NOT NULL,
+            startDate TEXT NOT NULL, endDate TEXT NOT NULL, coordinatorId INTEGER NOT NULL,
+            subcontractorId INTEGER, description TEXT, notes TEXT,
+            estimatedBudget REAL DEFAULT 0, billingStatus TEXT DEFAULT 'pending',
+            createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS project_subcontractors (
+            projectId INTEGER NOT NULL, providerId INTEGER NOT NULL,
+            PRIMARY KEY (projectId, providerId)
+        );
+
+        CREATE TABLE IF NOT EXISTS project_advances (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, projectId INTEGER NOT NULL,
+            timestamp TEXT NOT NULL, content TEXT, userId INTEGER NOT NULL,
+            userName TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS project_attachments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, projectId INTEGER NOT NULL,
+            name TEXT NOT NULL, fileName TEXT NOT NULL, fileType TEXT NOT NULL,
+            data TEXT NOT NULL, uploadedBy TEXT NOT NULL, createdAt TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS project_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, projectId INTEGER NOT NULL,
+            description TEXT NOT NULL, quantity REAL NOT NULL, unitPrice REAL NOT NULL,
+            type TEXT NOT NULL
+        );
+
         -- SHARED TABLES
         CREATE TABLE IF NOT EXISTS exchange_rates (date TEXT PRIMARY KEY, rate REAL NOT NULL);
         CREATE TABLE IF NOT EXISTS provinces (id INTEGER PRIMARY KEY, name TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS cantons (id INTEGER PRIMARY KEY, provinceId INTEGER NOT NULL, name TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS districts (id INTEGER PRIMARY KEY, cantonId INTEGER NOT NULL, name TEXT NOT NULL);
-        CREATE TABLE IF NOT EXISTS contract_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS sql_config (key TEXT PRIMARY KEY, value TEXT);
+        CREATE TABLE IF NOT EXISTS import_queries (type TEXT PRIMARY KEY, query TEXT);
         CREATE TABLE IF NOT EXISTS planner_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS stock_settings (key TEXT PRIMARY KEY, value TEXT);
         CREATE TABLE IF NOT EXISTS notification_settings (service TEXT PRIMARY KEY, config TEXT NOT NULL);
     `;
 
@@ -436,6 +500,7 @@ export async function runMainMigrations(db: Database) {
     if (!hasColumn('company_settings', 'publicUrl')) db.exec(`ALTER TABLE company_settings ADD COLUMN publicUrl TEXT;`);
     if (!hasColumn('company_settings', 'internalHourCost')) db.exec(`ALTER TABLE company_settings ADD COLUMN internalHourCost REAL DEFAULT 0;`);
     if (!hasColumn('customers', 'isLead')) db.exec(`ALTER TABLE customers ADD COLUMN isLead INTEGER DEFAULT 0;`);
+    if (!hasColumn('customers', 'taxAdministrationText')) db.exec(`ALTER TABLE customers ADD COLUMN taxAdministrationText TEXT;`);
     
     // M20 Expansion: software_products (m11_name to m20_name)
     for (let i = 11; i <= 20; i++) {
@@ -545,5 +610,5 @@ export async function getUserPreferences(userId: number, key: string): Promise<R
 
 export async function saveUserPreferences(userId: number, key: string, value: Record<string, unknown>): Promise<void> {
     const db = await connectDb();
-    db.prepare('INSERT OR REPLACE INTO user_preferences (userId, key, value) VALUES (?, ?)').run(userId, key, JSON.stringify(value));
+    db.prepare('INSERT OR REPLACE INTO user_preferences (userId, key, value) VALUES (?, ?, ?)').run(userId, key, JSON.stringify(value));
 }
