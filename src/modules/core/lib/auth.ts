@@ -5,7 +5,7 @@
 
 import { cookies } from 'next/headers';
 import { connectDb, getUnreadSuggestionsCount } from './db';
-import type { User, ExchangeRateApiResponse, Company, Contract, Role, SoftwareProduct, Customer } from '../types';
+import type { User, ExchangeRateApiResponse, Company, Contract, Role, SoftwareProduct } from '../types';
 import bcrypt from 'bcryptjs';
 import { logInfo, logWarn, logError } from './logger';
 import { SESSION_COOKIE, SALT_ROUNDS, SESSION_DURATION } from './auth-constants';
@@ -16,6 +16,7 @@ import { getExchangeRate } from './api-actions';
 import { getEmailSettings, sendEmail } from './email-service';
 import { getCurrentUser } from './session';
 
+// Direct export of the cached session function
 export { getCurrentUser };
 
 /**
@@ -174,9 +175,9 @@ export async function sendPasswordRecoveryEmail(email: string): Promise<void> {
             html: body
         });
 
-        const hashedTempPassword = await bcrypt.hash(tempPassword, SALT_ROUNDS);
+        const hashedPassword = await bcrypt.hash(tempPassword, SALT_ROUNDS);
         db.prepare('UPDATE users SET password = ?, forcePasswordChange = 1 WHERE id = ?')
-          .run(hashedTempPassword, user.id);
+          .run(hashedPassword, user.id);
 
         await logInfo(`Correo de recuperación enviado para ${user.name}`);
     } catch (error: unknown) {
@@ -230,13 +231,13 @@ export async function getInitialAuthData() {
 
         // 3. Consolidar consumo por jerarquía (Pool Global)
         const poolMap = new Map<string, number>(); // Root ID -> totalMs
-        customersData.forEach((c: Customer) => {
+        customersData.forEach((c: any) => {
             const raw = rawConsumptionMap.get(c.id) || 0;
             const rootId = c.parentCustomerId || c.id;
             poolMap.set(rootId, (poolMap.get(rootId) || 0) + raw);
         });
 
-        const enrichedCustomers = customersData.map((customer: Customer) => {
+        const enrichedCustomers = customersData.map((customer: any) => {
             const rootId = customer.parentCustomerId || customer.id;
             
             // Consumo individual para la fila
@@ -247,7 +248,7 @@ export async function getInitialAuthData() {
             let availableHours = contractMap.get(ownerId) || 0;
             
             if (availableHours === 0) {
-                const owner = customersData.find((x: Customer) => x.id === ownerId);
+                const owner = customersData.find((x: any) => x.id === ownerId);
                 if (owner?.supportPackageId) {
                     const pkg = companySettings.supportPackages.find(p => p.id === owner.supportPackageId);
                     availableHours = pkg?.defaultHours || 0;

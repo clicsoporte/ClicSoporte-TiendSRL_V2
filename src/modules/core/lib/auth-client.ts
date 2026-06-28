@@ -12,9 +12,9 @@ import {
     comparePasswords as comparePasswordsServer, 
     addUser as addUserServer, 
     logout as logoutServer,
-    getCurrentUser as getCurrentUserServer,
     sendPasswordRecoveryEmail as sendRecoveryEmailServer
 } from './auth';
+import { getCurrentUser as getCurrentUserServer } from './session';
 
 /**
  * Logs in a user.

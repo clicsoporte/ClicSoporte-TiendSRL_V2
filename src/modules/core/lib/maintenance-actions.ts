@@ -11,7 +11,6 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { execSync } from 'child_process';
-import Database from 'better-sqlite3';
 import { logInfo, logError, logWarn } from "./logger";
 import { revalidatePath } from "next/cache";
 import type { Ticket, TicketThread, ITNote } from "@/modules/core/types";
@@ -161,6 +160,7 @@ export async function runLegacyMigration(): Promise<{ success: boolean, message:
         return { success: false, message: "No se detectaron archivos de base de datos antiguos." };
     }
 
+    const Database = (await import('better-sqlite3')).default;
     const mainDb = await connectDb();
     const dbDir = path.join(process.cwd(), 'dbs');
     let totalMigrated = 0;

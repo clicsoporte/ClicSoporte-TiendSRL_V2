@@ -1,22 +1,26 @@
 /**
  * @fileoverview API Route for autonomous QR Code generation.
  * Optimized for production build compatibility and runtime-only execution.
+ * Refactored to prevent PageNotFoundError during Next.js data collection.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { connectDb } from '@/modules/core/lib/db';
 import QRCode from 'qrcode';
-import type { Equipment } from '@/modules/core/types';
 
 // Force dynamic ensures this is never pre-rendered during build
 export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
 export const revalidate = 0;
 
 export async function GET(
     request: NextRequest,
     { params }: { params: { id: string } }
 ) {
-    // Safety check for dynamic parameters during build-time tracing
+    // 1. Critical Build-Time Guard
+    if (process.env.NEXT_PHASE === 'phase-production-build') {
+        return new NextResponse('Build Phase Bypass', { status: 200 });
+    }
+
     const id = params?.id;
     
     if (!id || id === '[id]' || id === 'undefined') {
@@ -24,6 +28,8 @@ export async function GET(
     }
 
     try {
+        // Dynamic import to avoid loading DB drivers during static analysis if possible
+        const { connectDb } = await import('@/modules/core/lib/db');
         const db = await connectDb();
         
         // Defensive check for table existence before querying
@@ -32,7 +38,7 @@ export async function GET(
             return new NextResponse('System initialization in progress', { status: 503 });
         }
 
-        const equipment = db.prepare('SELECT * FROM inventory_equipment WHERE id = ?').get(id) as Equipment | undefined;
+        const equipment = db.prepare('SELECT * FROM inventory_equipment WHERE id = ?').get(id) as any;
 
         if (!equipment) {
             return new NextResponse('Equipment not found', { status: 404 });

@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Generic SQLite database connection management.
  * This file is intended to be a low-level utility that does not depend on
@@ -6,15 +5,14 @@
  */
 "use server";
 
-import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
 
 const dbDirectory = path.join(process.cwd(), 'dbs');
-const dbConnections = new Map<string, Database.Database>();
+const dbConnections = new Map<string, any>();
 
-export type InitFn = (db: Database.Database) => Promise<void> | void;
-export type MigrationFn = (db: Database.Database) => Promise<void> | void;
+export type InitFn = (db: any) => Promise<void> | void;
+export type MigrationFn = (db: any) => Promise<void> | void;
 
 /**
  * Establishes a connection to a specific SQLite database file.
@@ -24,7 +22,7 @@ export async function connectDb(
     dbFile: string, 
     initFn?: InitFn, 
     migrationFn?: MigrationFn
-): Promise<Database.Database> {
+): Promise<any> {
     if (dbConnections.has(dbFile) && dbConnections.get(dbFile)!.open) {
         return dbConnections.get(dbFile)!;
     }
@@ -54,7 +52,11 @@ export async function connectDb(
         }
     }
 
-    let db: Database.Database;
+    // Dynamic import of better-sqlite3 to prevent it from being bundled into client components
+    // and to avoid "reading 'call'" errors during module resolution.
+    const Database = (await import('better-sqlite3')).default;
+
+    let db: any;
     const exists = fs.existsSync(dbPath);
 
     try {
