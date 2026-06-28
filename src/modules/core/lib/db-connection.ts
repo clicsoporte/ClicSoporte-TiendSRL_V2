@@ -7,12 +7,13 @@
 
 import path from 'path';
 import fs from 'fs';
+import type { Database } from 'better-sqlite3';
 
 const dbDirectory = path.join(process.cwd(), 'dbs');
-const dbConnections = new Map<string, any>();
+const dbConnections = new Map<string, Database>();
 
-export type InitFn = (db: any) => Promise<void> | void;
-export type MigrationFn = (db: any) => Promise<void> | void;
+export type InitFn = (db: Database) => Promise<void> | void;
+export type MigrationFn = (db: Database) => Promise<void> | void;
 
 /**
  * Establishes a connection to a specific SQLite database file.
@@ -22,7 +23,7 @@ export async function connectDb(
     dbFile: string, 
     initFn?: InitFn, 
     migrationFn?: MigrationFn
-): Promise<any> {
+): Promise<Database> {
     if (dbConnections.has(dbFile) && dbConnections.get(dbFile)!.open) {
         return dbConnections.get(dbFile)!;
     }
@@ -54,13 +55,13 @@ export async function connectDb(
 
     // Dynamic import of better-sqlite3 to prevent it from being bundled into client components
     // and to avoid "reading 'call'" errors during module resolution.
-    const Database = (await import('better-sqlite3')).default;
+    const DatabaseConstructor = (await import('better-sqlite3')).default;
 
-    let db: any;
+    let db: Database;
     const exists = fs.existsSync(dbPath);
 
     try {
-        db = new Database(dbPath);
+        db = new DatabaseConstructor(dbPath) as Database;
         db.pragma('journal_mode = WAL');
     } catch (error) {
         console.error(`Database ${dbFile} connection failed.`, error);

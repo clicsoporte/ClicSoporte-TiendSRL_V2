@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import QRCode from 'qrcode';
+import type { Equipment } from '@/modules/core/types';
 
 // Force dynamic ensures this is never pre-rendered during build
 export const dynamic = 'force-dynamic';
@@ -38,7 +39,7 @@ export async function GET(
             return new NextResponse('System initialization in progress', { status: 503 });
         }
 
-        const equipment = db.prepare('SELECT * FROM inventory_equipment WHERE id = ?').get(id) as any;
+        const equipment = db.prepare('SELECT * FROM inventory_equipment WHERE id = ?').get(id) as Equipment | undefined;
 
         if (!equipment) {
             return new NextResponse('Equipment not found', { status: 404 });
