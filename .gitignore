@@ -16,29 +16,55 @@
 # production
 /build
 
-# misc
+# misc & OS
 .DS_Store
 *.pem
+Thumbs.db
+desktop.ini
+ehthumbs.db
 
-# debug
+# debug & logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-# debug files in the Next.js folder
+*.log
 .next/debug
 
 # local env files
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env
+.env*.local
+*.env
+env.txt
 
-# vercel
+# vercel & firebase studio (idx)
 .vercel
+.idx/
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
 
+# IDEs and workspaces
+.vscode/
+.idea/
+*.code-workspace
+
+# Temporary, notes, and backup files
+*.zip
+*.tar.gz
+*.rar
+*.7z
+*.bak
+*.tmp
+.modified
+modified.txt
+Actualizar*.txt
+gitignore.txt
+eslintrc.json
+
 # Clic-Tools specific
 /dbs/
+*.sqlite
+*.sqlite3
+*.db
+
