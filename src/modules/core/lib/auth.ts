@@ -98,9 +98,10 @@ export async function login(email: string, passwordProvided: string): Promise<{ 
         recordRateLimitFailure(ipRateLimitKey, 15 * 60 * 1000);
         await logWarn(`Intento de inicio de sesión fallido para: ${normalizedEmail} desde IP: ${clientIp}`);
         return { user: null, forcePasswordChange: false };
-    } catch (error) {
-        console.error("Error en login:", error);
-        return { user: null, forcePasswordChange: false };
+    } catch (error: unknown) {
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        console.error("Error en login:", errorMsg);
+        return { user: null, forcePasswordChange: false, error: `Error del servidor: ${errorMsg}` };
     }
 }
 

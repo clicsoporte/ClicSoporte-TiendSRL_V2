@@ -60,7 +60,8 @@ export function AuthForm({ initialHasUsers }: AuthFormProps) {
     setIsLoggingIn(true);
     
     try {
-        const { user, forcePasswordChange } = await login(email, password);
+        const res = await login(email, password);
+        const { user, forcePasswordChange, error } = res;
 
         if (user) {
             if (forcePasswordChange) {
@@ -72,19 +73,20 @@ export function AuthForm({ initialHasUsers }: AuthFormProps) {
                     description: "Por seguridad, debes cambiar tu contraseña antes de ingresar."
                 });
             } else {
-                await refreshAuth();
                 window.location.href = '/dashboard';
             }
         } else {
             toast({
-                title: "Credenciales Incorrectas",
-                description: "El correo o la contraseña no son correctos.",
+                title: "Error al Iniciar Sesión",
+                description: error || "El correo o la contraseña no son correctos.",
                 variant: "destructive",
             });
             setIsLoggingIn(false);
         }
-    } catch {
-        toast({ title: "Error", description: "Hubo un problema al conectar con el servidor.", variant: "destructive" });
+    } catch (err: unknown) {
+        console.error("Login client error:", err);
+        const errorMsg = err instanceof Error ? err.message : "Hubo un problema al conectar con el servidor.";
+        toast({ title: "Error", description: errorMsg, variant: "destructive" });
         setIsLoggingIn(false);
     }
   };
