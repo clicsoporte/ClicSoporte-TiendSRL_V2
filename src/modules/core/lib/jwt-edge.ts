@@ -19,7 +19,8 @@ function base64UrlToUint8Array(base64Url: string): Uint8Array {
   }
   const binary = atob(base64);
   const len = binary.length;
-  const bytes = new Uint8Array(len);
+  const buffer = new ArrayBuffer(len);
+  const bytes = new Uint8Array(buffer);
   for (let i = 0; i < len; i++) {
     bytes[i] = binary.charCodeAt(i);
   }
@@ -76,7 +77,7 @@ export async function verifySessionJwtWebCrypto(
     const isValid = await crypto.subtle.verify(
       'HMAC',
       cryptoKey,
-      signatureBytes,
+      signatureBytes.buffer as ArrayBuffer,
       dataToSign
     );
 
