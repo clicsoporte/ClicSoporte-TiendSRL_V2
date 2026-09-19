@@ -1,7 +1,5 @@
 import crypto from 'crypto';
-import path from 'path';
-import fs from 'fs';
-import Database from 'better-sqlite3';
+import { DEFAULT_SESSION_SECRET } from './auth-constants';
 
 export interface SessionTokenPayload {
     userId: number;
@@ -12,16 +10,6 @@ export interface SessionTokenPayload {
     exp: number;
 }
 
-// Clave en memoria caché para evitar lecturas de disco continuas
-let _cachedDbJwtSecret: string | null = null;
-
-/**
- * Obtiene o inicializa la clave secreta para la firma de sesiones.
- * Prioridad:
- * 1. Variable de entorno SESSION_SECRET / JWT_SECRET / NEXTAUTH_SECRET.
- * 2. Secreto persistido en SQLite (dbs/intratool.db) para sobrevivir reinicios.
- * 3. Fallback generado aleatoriamente.
- */
 export function getSecretKey(): string {
     if (process.env.SESSION_SECRET && process.env.SESSION_SECRET.trim().length >= 16) {
         return process.env.SESSION_SECRET.trim();
@@ -32,42 +20,7 @@ export function getSecretKey(): string {
     if (process.env.NEXTAUTH_SECRET && process.env.NEXTAUTH_SECRET.trim().length >= 16) {
         return process.env.NEXTAUTH_SECRET.trim();
     }
-
-    if (_cachedDbJwtSecret) {
-        return _cachedDbJwtSecret;
-    }
-
-    // Persistencia en SQLite para asegurar estabilidad entre reinicios
-    try {
-        const dbDir = path.join(process.cwd(), 'dbs');
-        if (!fs.existsSync(dbDir)) {
-            fs.mkdirSync(dbDir, { recursive: true });
-        }
-        const dbPath = path.join(dbDir, 'intratool.db');
-        const db = new Database(dbPath);
-
-        
-        db.exec("CREATE TABLE IF NOT EXISTS system_secrets (key TEXT PRIMARY KEY, value TEXT)");
-        const row = db.prepare("SELECT value FROM system_secrets WHERE key = 'system_session_secret'").get() as { value?: string } | undefined;
-        
-        if (row && row.value && row.value.length >= 32) {
-            _cachedDbJwtSecret = row.value;
-            db.close();
-            return _cachedDbJwtSecret!;
-        }
-
-        const generated = crypto.randomBytes(64).toString('hex');
-        db.prepare("INSERT INTO system_secrets (key, value) VALUES ('system_session_secret', ?) ON CONFLICT(key) DO UPDATE SET value = ?").run(generated, generated);
-        _cachedDbJwtSecret = generated;
-        db.close();
-        return _cachedDbJwtSecret!;
-    } catch (err) {
-        console.warn("No se pudo persistir secret en BD, usando memoria:", err);
-        if (!_cachedDbJwtSecret) {
-            _cachedDbJwtSecret = crypto.randomBytes(64).toString('hex');
-        }
-        return _cachedDbJwtSecret;
-    }
+    return DEFAULT_SESSION_SECRET;
 }
 
 function base64UrlEncode(str: string): string {
