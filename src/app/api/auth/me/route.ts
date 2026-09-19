@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { SESSION_COOKIE } from '@/modules/core/lib/auth-constants';
 import { verifySessionToken } from '@/modules/core/lib/jwt-service';
@@ -7,7 +7,7 @@ import type { User } from '@/modules/core/types';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(req: NextRequest) {
+export async function GET() {
     try {
         const cookieStore = cookies();
         const token = cookieStore.get(SESSION_COOKIE)?.value;
