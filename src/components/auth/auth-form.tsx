@@ -65,6 +65,7 @@ export function AuthForm({ initialHasUsers }: AuthFormProps) {
             headers: {
                 'Content-Type': 'application/json',
             },
+            credentials: 'include',
             body: JSON.stringify({ email, password }),
         });
 

@@ -34,7 +34,22 @@ export async function logout() {
  * Retrieves the currently logged-in user from the server.
  */
 export async function getCurrentUser(): Promise<User | null> {
-    return await getCurrentUserServer();
+    try {
+        const res = await fetch('/api/auth/me', {
+            method: 'GET',
+            headers: {
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache'
+            },
+            credentials: 'include'
+        });
+        if (!res.ok) return null;
+        const data = await res.json();
+        return data.user || null;
+    } catch (e) {
+        console.warn('Fallback to server action for getCurrentUser:', e);
+        return await getCurrentUserServer();
+    }
 }
 
 /**
