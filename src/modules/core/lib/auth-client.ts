@@ -19,7 +19,7 @@ import { getCurrentUser as getCurrentUserServer } from './session';
 /**
  * Logs in a user.
  */
-export async function login(email: string, password: string): Promise<{ user: User | null, forcePasswordChange: boolean }> {
+export async function login(email: string, password: string): Promise<{ user: User | null, forcePasswordChange: boolean, error?: string }> {
     return await loginServer(email, password);
 }
 

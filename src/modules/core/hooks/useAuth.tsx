@@ -8,7 +8,7 @@ import type { User, Role, Company, Product, Customer, StockInfo, Exemption, Exem
 import { getCurrentUser, logout as logoutServer } from '../lib/auth-client';
 import { getInitialAuthData } from '../lib/auth';
 import { getNotifications, markNotificationsAsRead } from "@/modules/notifications/lib/db";
-import { useRouter, usePathname } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { checkPermissionInTree } from "../lib/permissions";
 
@@ -57,7 +57,6 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
   const [unreadSuggestionsCount, setUnreadSuggestionsCount] = useState(0);
   const [exchangeRateData, setExchangeRateData] = useState<{ rate: number | null; date: string | null }>({ rate: null, date: null });
   
-  const router = useRouter();
   const pathname = usePathname();
 
   const loadAuthData = useCallback(async () => {
@@ -98,7 +97,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
       console.error("Auth init failed", error);
       setIsAuthReady(true);
     }
-  }, [pathname, router]);
+  }, [pathname]);
 
   useEffect(() => {
     loadAuthData();
