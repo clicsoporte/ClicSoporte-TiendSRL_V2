@@ -71,27 +71,37 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
         return;
       }
 
-      const [data, notifs] = await Promise.all([
-          getInitialAuthData(),
-          getNotifications(currentUser.id)
-      ]);
-
+      // 1. Establish session identity immediately.
+      // This prevents redirect loops if auxiliary Server Actions fail below.
       setUser(currentUser);
-      setCompanyData(data.companySettings);
-      setCustomers(data.customers);
-      setProducts(data.products);
-      setUsers(data.users);
-      setSoftwareProducts(data.softwareProducts || []);
-      setStockLevels(data.stock);
-      setAllExemptions(data.exemptions);
-      setExemptionLaws(data.exemptionLaws);
-      setUnreadSuggestionsCount(data.unreadSuggestions);
-      setExchangeRateData(data.exchangeRate);
-      setNotifications(notifs);
-      setAllRoles(data.roles || []);
+
+      try {
+          const [data, notifs] = await Promise.all([
+              getInitialAuthData(),
+              getNotifications(currentUser.id)
+          ]);
+
+          setCompanyData(data.companySettings);
+          setCustomers(data.customers);
+          setProducts(data.products);
+          setUsers(data.users);
+          setSoftwareProducts(data.softwareProducts || []);
+          setStockLevels(data.stock);
+          setAllExemptions(data.exemptions);
+          setExemptionLaws(data.exemptionLaws);
+          setUnreadSuggestionsCount(data.unreadSuggestions);
+          setExchangeRateData(data.exchangeRate);
+          setNotifications(notifs);
+          setAllRoles(data.roles || []);
+          
+          const role = data.roles.find((r: Role) => r.id === currentUser.role);
+          setUserRole(role || null);
+      } catch (auxError) {
+          console.error("Auxiliary auth data load failed (Server Action drift?):", auxError);
+          // Fallback minimal role assignment to keep dashboard accessible
+          setUserRole({ id: currentUser.role, name: currentUser.role, permissions: {} });
+      }
       
-      const role = data.roles.find((r: Role) => r.id === currentUser.role);
-      setUserRole(role || null);
       setIsAuthReady(true);
     } catch (error) {
       console.error("Auth init failed", error);
