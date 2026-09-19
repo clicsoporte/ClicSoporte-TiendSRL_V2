@@ -99,7 +99,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
       } catch (auxError) {
           console.error("Auxiliary auth data load failed (Server Action drift?):", auxError);
           // Fallback minimal role assignment to keep dashboard accessible
-          setUserRole({ id: currentUser.role, name: currentUser.role, permissions: {} });
+          setUserRole({ id: currentUser.role, name: currentUser.role, permissions: [] });
       }
       
       setIsAuthReady(true);
