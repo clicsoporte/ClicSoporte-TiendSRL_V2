@@ -9,6 +9,7 @@ import { connectDb } from './db';
 import type { Product, Customer, Exemption, Company } from '../types';
 import { getCompanySettings } from './settings-db';
 import { executeQuery } from './sql-service';
+import { authorizeActionAny } from './auth-guard';
 
 type ImportType = 'customers' | 'products' | 'exemptions' | 'stock' | 'cabys';
 
@@ -216,6 +217,7 @@ async function fetchDataForType(type: ImportType): Promise<Record<string, string
 }
 
 export async function importData(type: ImportType): Promise<{ count: number; source: string }> {
+    await authorizeActionAny(['admin:import', 'admin:general']);
     const companySettings = await getCompanySettings();
     const source = companySettings?.importMode === 'sql' ? 'SQL Server' : 'Archivo';
 
@@ -254,6 +256,7 @@ export async function importData(type: ImportType): Promise<{ count: number; sou
 }
 
 export async function importAllDataFromFiles(): Promise<{ type: string; count: number; source: string }[]> {
+    await authorizeActionAny(['admin:import', 'admin:general']);
     const importTypes: ImportType[] = ['customers', 'products', 'exemptions', 'stock'];
     const results = [];
 
@@ -267,3 +270,4 @@ export async function importAllDataFromFiles(): Promise<{ type: string; count: n
     
     return results;
 }
+

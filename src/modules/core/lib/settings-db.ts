@@ -7,6 +7,7 @@ import { connectDb } from './db';
 import type { Company, ApiSettings, ExemptionLaw } from '../types';
 import { initialCompany } from './db-constants';
 import { getExchangeRate as fetchExchangeRateFromApi } from './api-actions';
+import { authorizeAction } from './auth-guard';
 
 /**
  * Retrieves the main company settings from the database.
@@ -43,6 +44,8 @@ export async function getCompanySettings(): Promise<Company> {
  * Saves the main company settings to the database.
  */
 export async function saveCompanySettings(data: Company): Promise<void> {
+    await authorizeAction('admin:settings');
+
     const db = await connectDb();
     const stmt = db.prepare(`
         UPDATE company_settings SET
@@ -84,6 +87,8 @@ export async function getApiSettings(): Promise<ApiSettings | null> {
  * Saves API settings to the database.
  */
 export async function saveApiSettings(settings: ApiSettings): Promise<void> {
+    await authorizeAction('admin:settings');
+
     const db = await connectDb();
     const stmt = db.prepare('INSERT OR REPLACE INTO api_settings (id, exchangeRateApi, haciendaExemptionApi, haciendaTributariaApi) VALUES (1, ?, ?, ?)');
     stmt.run(settings.exchangeRateApi, settings.haciendaExemptionApi, settings.haciendaTributariaApi);
@@ -107,6 +112,8 @@ export async function getExemptionLaws(): Promise<ExemptionLaw[]> {
  * Saves the entire list of exemption laws.
  */
 export async function saveExemptionLaws(laws: ExemptionLaw[]): Promise<void> {
+    await authorizeAction('admin:settings');
+
     const db = await connectDb();
     const transaction = db.transaction((lawsToSave) => {
         db.exec('DELETE FROM exemption_laws');
@@ -117,6 +124,7 @@ export async function saveExemptionLaws(laws: ExemptionLaw[]): Promise<void> {
     });
     transaction(laws);
 }
+
 
 /**
  * Gets the exchange rate, trying the cache first, then fetching from the API if needed.

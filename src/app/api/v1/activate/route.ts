@@ -16,8 +16,14 @@ export const dynamic = 'force-dynamic';
 const CONTACT_INFO = "Favor contactar a Soporte Técnico: soporte@clicsoporte.com o WhatsApp +50640000630";
 
 export async function POST(req: NextRequest) {
+    let body: Record<string, unknown>;
     try {
-        const body = await req.json();
+        body = await req.json();
+    } catch {
+        return NextResponse.json({ error: 'Cuerpo de solicitud JSON no válido.' }, { status: 400 });
+    }
+
+    try {
         const { softwareId, softwareName, activationToken, hardwareId } = body;
 
         // Normalización forzada

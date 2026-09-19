@@ -288,3 +288,17 @@ export async function deleteSoftwareProduct(id: number): Promise<void> {
     const db = await connectLicensesDb();
     db.prepare('DELETE FROM software_products WHERE id = ?').run(id);
 }
+
+// --- Crypto Key Management (Server Actions con control de acceso) ---
+import { generateKeys, getPublicKey } from './crypto';
+
+export async function generateNewKeysServer(): Promise<{ success: boolean; message: string }> {
+    await authorizeAction('admin:settings');
+    return generateKeys();
+}
+
+export async function getPublicKeyDataServer(): Promise<string | null> {
+    await authorizeAction('admin:settings');
+    return getPublicKey();
+}
+

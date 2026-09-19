@@ -10,20 +10,24 @@ import { cookies } from 'next/headers';
 import { connectDb } from './db';
 import type { User } from '../types';
 import { SESSION_COOKIE } from './auth-constants';
+import { verifySessionToken } from './jwt-service';
 
 /**
- * Obtiene el usuario actualmente autenticado basado en la cookie de sesión.
+ * Obtiene el usuario actualmente autenticado basado en el token criptográfico de sesión.
  * Cacheado por petición para asegurar eficiencia en Server Components.
  */
 export const getCurrentUser = cache(async (): Promise<User | null> => {
     const cookieStore = cookies();
-    const userId = cookieStore.get(SESSION_COOKIE)?.value;
+    const token = cookieStore.get(SESSION_COOKIE)?.value;
 
-    if (!userId) return null;
+    if (!token) return null;
+
+    const payload = verifySessionToken(token);
+    if (!payload || !payload.userId) return null;
 
     try {
         const db = await connectDb();
-        const user = db.prepare('SELECT * FROM users WHERE id = ?').get(Number(userId)) as User | undefined;
+        const user = db.prepare('SELECT * FROM users WHERE id = ?').get(payload.userId) as User | undefined;
 
         if (!user) return null;
 
@@ -35,3 +39,4 @@ export const getCurrentUser = cache(async (): Promise<User | null> => {
         return null;
     }
 });
+

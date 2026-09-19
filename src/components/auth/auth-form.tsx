@@ -30,10 +30,6 @@ import {
 import { SetupWizard } from "./setup-wizard";
 
 interface AuthFormProps {
-  clientInfo: {
-    ip: string;
-    host: string;
-  };
   initialHasUsers: boolean;
 }
 

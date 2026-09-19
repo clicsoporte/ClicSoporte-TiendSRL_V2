@@ -148,9 +148,11 @@ export async function deleteScheduledTask(id: number): Promise<void> {
     db.prepare('DELETE FROM scheduled_tasks WHERE id = ?').run(id);
 }
 
+import { getCurrentUser } from '@/modules/core/lib/session';
+
 /**
  * Retrieves notification service settings (e.g. Telegram config).
- * Internal function: Used by the engine to deliver messages.
+ * Protected to prevent Telegram bot token exposure.
  */
 export async function getNotificationServiceSettings(service: 'telegram'): Promise<NotificationServiceConfig> {
     const db = await connectNotificationsDb();
@@ -176,8 +178,14 @@ interface NotificationRow {
 }
 
 export async function getNotifications(userId: number): Promise<Notification[]> {
+    const currentUser = await getCurrentUser();
+    if (!currentUser) return [];
+
+    // Prevenir IDOR: un usuario solo puede consultar sus propias notificaciones
+    const targetUserId = (currentUser.role === 'admin') ? userId : currentUser.id;
+
     const db = await connectNotificationsDb();
-    const rows = db.prepare('SELECT * FROM notifications WHERE userId = ? ORDER BY timestamp DESC LIMIT 50').all(userId) as NotificationRow[];
+    const rows = db.prepare('SELECT * FROM notifications WHERE userId = ? ORDER BY timestamp DESC LIMIT 50').all(targetUserId) as NotificationRow[];
     return rows.map(r => ({ 
         ...r, 
         isRead: (r.isRead === 1 ? 1 : 0) as 0 | 1,
@@ -187,11 +195,16 @@ export async function getNotifications(userId: number): Promise<Notification[]> 
 }
 
 export async function markNotificationsAsRead(notificationIds: number[], userId: number): Promise<void> {
+    const currentUser = await getCurrentUser();
+    if (!currentUser) return;
+    const targetUserId = (currentUser.role === 'admin') ? userId : currentUser.id;
+
     const db = await connectNotificationsDb();
     if (notificationIds.length === 0) return;
     const placeholders = notificationIds.map(() => '?').join(',');
-    db.prepare(`UPDATE notifications SET isRead = 1 WHERE id IN (${placeholders}) AND userId = ?`).run(...notificationIds, userId);
+    db.prepare(`UPDATE notifications SET isRead = 1 WHERE id IN (${placeholders}) AND userId = ?`).run(...notificationIds, targetUserId);
 }
+
 
 export async function createNotification(notification: Omit<Notification, 'id' | 'timestamp' | 'isRead'>): Promise<void> {
     const db = await connectNotificationsDb();

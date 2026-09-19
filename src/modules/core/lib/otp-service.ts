@@ -1,28 +1,35 @@
 /**
  * @fileoverview Service for OTP (One-Time Password) generation, delivery and validation.
- * Features 1-minute throttling per email to protect against SMTP abuse.
+ * Features rate-limiting, cryptographically secure code generation, and brute-force protection.
  */
 "use server";
 
+import crypto from 'crypto';
 import { connectDb } from './db';
 import { sendEmail } from './email-service';
 import { getCompanySettings } from './settings-db';
 import { logInfo, logError, logWarn } from './logger';
+import { checkRateLimit, recordRateLimitFailure, resetRateLimit } from './rate-limiter';
 
 /**
- * Generates an 8-character random code (alphanumeric).
+ * Generates an 8-character cryptographically secure alphanumeric code.
  */
 function generateCode(): string {
-    return Math.random().toString(36).slice(-8).toUpperCase();
+    return crypto.randomBytes(4).toString('hex').toUpperCase();
 }
 
 /**
  * Requests an OTP code for a given email.
- * Includes a 60-second cooldown period to prevent spam.
+ * Includes cooldown period and rate limiting to prevent spam.
  */
 export async function requestOtp(email: string): Promise<boolean> {
-    const db = await connectDb();
     const normalizedEmail = email.trim().toLowerCase();
+    const rateCheck = checkRateLimit(`request_otp:${normalizedEmail}`, 5, 30 * 60 * 1000);
+    if (!rateCheck.allowed) {
+        throw new Error(`Demasiadas solicitudes. Por favor espera ${Math.ceil(rateCheck.retryAfterSec / 60)} minutos.`);
+    }
+
+    const db = await connectDb();
     const now = new Date();
 
     // 1. Throttling Check (1 minute)
@@ -33,7 +40,6 @@ export async function requestOtp(email: string): Promise<boolean> {
     `).get(normalizedEmail) as { expiresAt: string } | undefined;
 
     if (lastRequest) {
-        // Since expiresAt is now + 30m, we check if it was created less than 29m ago
         const lastRequestTime = new Date(new Date(lastRequest.expiresAt).getTime() - 30 * 60 * 1000);
         const diffSeconds = (now.getTime() - lastRequestTime.getTime()) / 1000;
         
@@ -83,10 +89,19 @@ export async function requestOtp(email: string): Promise<boolean> {
 }
 
 /**
- * Validates an OTP code.
+ * Validates an OTP code with brute-force lockout protection.
  * If successful, deletes the record immediately (Hygienic Security).
  */
 export async function verifyOtp(email: string, code: string): Promise<boolean> {
+    const normalizedEmail = email.trim().toLowerCase();
+    const rateKey = `verify_otp:${normalizedEmail}`;
+
+    const rateCheck = checkRateLimit(rateKey, 5, 15 * 60 * 1000);
+    if (!rateCheck.allowed) {
+        await logWarn(`Demasiados intentos fallidos de OTP para ${normalizedEmail}`);
+        return false;
+    }
+
     const db = await connectDb();
     const now = new Date().toISOString();
 
@@ -94,15 +109,18 @@ export async function verifyOtp(email: string, code: string): Promise<boolean> {
         SELECT * FROM otp_verifications 
         WHERE email = ? AND code = ? AND isUsed = 0 AND expiresAt > ?
         ORDER BY id DESC LIMIT 1
-    `).get(email.trim().toLowerCase(), code.toUpperCase(), now) as { id: number } | undefined;
+    `).get(normalizedEmail, code.toUpperCase(), now) as { id: number } | undefined;
 
     if (record) {
+        resetRateLimit(rateKey);
         // Delete immediately - One time use only!
         db.prepare('DELETE FROM otp_verifications WHERE id = ?').run(record.id);
-        await logInfo(`OTP verified successfully for ${email}`);
+        await logInfo(`OTP verified successfully for ${normalizedEmail}`);
         return true;
     }
 
-    await logWarn(`Failed OTP attempt for ${email}`, { code });
+    recordRateLimitFailure(rateKey, 15 * 60 * 1000);
+    await logWarn(`Failed OTP attempt for ${normalizedEmail}`, { code });
     return false;
 }
+

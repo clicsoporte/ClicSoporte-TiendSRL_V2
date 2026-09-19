@@ -9,6 +9,7 @@ import fs from 'fs';
 import path from 'path';
 import type { UpdateBackupInfo } from '../types';
 import { triggerNotificationEvent } from '@/modules/notifications/lib/notifications-engine';
+import { authorizeAction } from './auth-guard';
 
 const dbDirectory = path.join(process.cwd(), 'dbs');
 const DB_FILE = 'intratool.db';
@@ -20,6 +21,8 @@ const backupDir = path.join(dbDirectory, UPDATE_BACKUP_DIR);
  * Creates a backup of the central database and cryptographic keys.
  */
 export async function backupAllForUpdate(): Promise<void> {
+    await authorizeAction('admin:maintenance');
+
     if (!fs.existsSync(backupDir)) {
         fs.mkdirSync(backupDir, { recursive: true });
     }
@@ -52,6 +55,8 @@ export async function backupAllForUpdate(): Promise<void> {
  * Also restores the corresponding cryptographic keys.
  */
 export async function restoreAllFromUpdateBackup(timestamp: string): Promise<void> {
+    await authorizeAction('admin:maintenance');
+
     const backups = await listAllUpdateBackups();
     const backup = backups.find(b => b.date === timestamp);
     
@@ -62,7 +67,7 @@ export async function restoreAllFromUpdateBackup(timestamp: string): Promise<voi
     // Clean timestamp for file matching (removes ISO extra bits to match backup folder naming)
     const folderTimestamp = backup.date.replace(/[:.]/g, '-');
     
-    const sourceBackupPath = path.join(backupDir, backup.fileName);
+    const sourceBackupPath = path.join(backupDir, path.basename(backup.fileName));
     const targetRestorePath = path.join(dbDirectory, `${DB_FILE}_restore.db`);
     
     // 1. Restore Database
@@ -85,6 +90,8 @@ export async function restoreAllFromUpdateBackup(timestamp: string): Promise<voi
  * Lists all available update backups with robust date parsing.
  */
 export async function listAllUpdateBackups(): Promise<UpdateBackupInfo[]> {
+    await authorizeAction('admin:maintenance');
+
     try {
         if (!fs.existsSync(backupDir)) {
             fs.mkdirSync(backupDir, { recursive: true });
@@ -130,13 +137,15 @@ export async function listAllUpdateBackups(): Promise<UpdateBackupInfo[]> {
  * Deletes old backups.
  */
 export async function deleteOldUpdateBackups(): Promise<number> {
+    await authorizeAction('admin:maintenance');
+
     const backups = await listAllUpdateBackups();
     if (backups.length <= 1) return 0;
 
     const toDelete = backups.slice(1);
     let deletedCount = 0;
     for (const b of toDelete) {
-        const filePath = path.join(backupDir, b.fileName);
+        const filePath = path.join(backupDir, path.basename(b.fileName));
         if (fs.existsSync(filePath)) {
             fs.unlinkSync(filePath);
             deletedCount++;
@@ -152,13 +161,16 @@ export async function deleteOldUpdateBackups(): Promise<number> {
 }
 
 export async function uploadBackupFile(formData: FormData): Promise<number> {
+    await authorizeAction('admin:maintenance');
+
     const files = formData.getAll('backupFiles') as File[];
     if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
 
     let uploadedCount = 0;
     for (const file of files) {
+        const safeName = path.basename(file.name);
         const buffer = Buffer.from(await file.arrayBuffer());
-        fs.writeFileSync(path.join(backupDir, file.name), buffer);
+        fs.writeFileSync(path.join(backupDir, safeName), buffer);
         uploadedCount++;
     }
     return uploadedCount;
@@ -168,10 +180,13 @@ export async function uploadBackupFile(formData: FormData): Promise<number> {
  * Performs a factory reset by unlinking the main database file.
  */
 export async function factoryReset(): Promise<void> {
+    await authorizeAction('admin:maintenance');
     const dbPath = path.join(dbDirectory, DB_FILE);
     if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
 }
 
 export async function getDbModules() {
+    await authorizeAction('admin:maintenance');
     return JSON.parse(JSON.stringify([{ id: 'clic-tools-main', name: 'Clic-Tools (Base de Datos Unificada)', dbFile: DB_FILE }]));
 }
+

@@ -9,6 +9,7 @@
 import * as sql from 'mssql';
 import { logError } from './logger';
 import { getSqlConfig } from './config-db';
+import { authorizeActionAny } from './auth-guard';
 
 let pool: sql.ConnectionPool | null = null;
 let isConnecting = false;
@@ -55,25 +56,54 @@ async function getDbConfig(): Promise<sql.config> {
  * @throws {Error} If the query is not a valid, read-only SELECT statement.
  */
 function validateSelectOnly(query: string): void {
-    const cleanedQuery = query.trim().toLowerCase();
-    
-    const forbiddenKeywords = [
-        'insert', 'update', 'delete', 'drop', 'alter', 'create', 
-        'truncate', 'execute', 'exec', 'grant', 'revoke'
-    ];
-    
-    if (!cleanedQuery.startsWith('select')) {
+    if (!query || typeof query !== 'string') {
+        throw new Error("Consulta SQL no válida.");
+    }
+
+    // Normalizar eliminando comentarios de bloque /* ... */ y de línea -- ...
+    const strippedQuery = query
+        .replace(/\/\*[\s\S]*?\*\//g, ' ')
+        .replace(/--.*$/gm, ' ')
+        .trim();
+
+    const normalized = strippedQuery.toLowerCase().replace(/\s+/g, ' ');
+
+    if (!normalized.startsWith('select ')) {
         throw new Error("Solo se permiten consultas SELECT.");
     }
-    
-    for (const keyword of forbiddenKeywords) {
-        if (cleanedQuery.includes(` ${keyword} `) || cleanedQuery.includes(` ${keyword};`)) {
-            throw new Error(`La consulta contiene la palabra prohibida: ${keyword}`);
+
+    // Bloquear palabras reservadas peligrosas y cláusulas de modificación
+    const forbiddenPatterns = [
+        /\binto\b/i,          // SELECT ... INTO ... (crea tablas)
+        /\binsert\b/i,
+        /\bupdate\b/i,
+        /\bdelete\b/i,
+        /\bdrop\b/i,
+        /\balter\b/i,
+        /\bcreate\b/i,
+        /\btruncate\b/i,
+        /\bexecute\b/i,
+        /\bexec\b/i,
+        /\bgrant\b/i,
+        /\brevoke\b/i,
+        /\bwaitfor\b/i,       // time-based injection attacks
+        /\bopenrowset\b/i,    // external server queries
+        /\bopendatasource\b/i,
+        /\bopenquery\b/i,
+        /\bxp_\w+/i,          // extended stored procedures
+        /\bsp_\w+/i           // system stored procedures
+    ];
+
+    for (const pattern of forbiddenPatterns) {
+        if (pattern.test(strippedQuery)) {
+            throw new Error(`La consulta contiene una cláusula o comando no permitido (${pattern.source}).`);
         }
     }
-    
-    if ((cleanedQuery.match(/;/g) || []).length > 1) {
-        throw new Error("La consulta contiene múltiples sentencias (statements).");
+
+    // Bloquear múltiples sentencias (; o GO)
+    const cleanedForSemicolons = strippedQuery.replace(/;+\s*$/, ''); // Permitir un único ; al final
+    if (cleanedForSemicolons.includes(';') || /\bgo\b/i.test(strippedQuery)) {
+        throw new Error("No se permiten múltiples sentencias SQL.");
     }
 }
 
@@ -130,6 +160,7 @@ async function getConnectionPool(): Promise<sql.ConnectionPool> {
  * @throws {Error} If the query is invalid or if the database connection fails.
  */
 export async function executeQuery(query: string): Promise<Record<string, unknown>[]> {
+    await authorizeActionAny(['admin:sql', 'admin:general', 'admin:import']);
     validateSelectOnly(query);
     
     try {
@@ -159,6 +190,7 @@ export async function executeQuery(query: string): Promise<Record<string, unknow
  * Throws an error if the connection fails.
  */
 export async function testSqlConnection(): Promise<void> {
+    await authorizeActionAny(['admin:sql', 'admin:general', 'admin:import']);
     try {
         const connection = await getConnectionPool();
         // A simple query to confirm the connection is live.
@@ -169,3 +201,4 @@ export async function testSqlConnection(): Promise<void> {
         throw new Error(`La prueba de conexión falló: ${error.message}`);
     }
 }
+

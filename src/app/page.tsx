@@ -3,7 +3,6 @@
  * Enhanced with Setup Wizard logic for the first start.
  */
 
-import { headers } from "next/headers";
 import { AuthForm } from "@/components/auth/auth-form";
 import { getCompanySettings } from "@/modules/core/lib/settings-db";
 import { Suspense } from "react";
@@ -40,11 +39,6 @@ function CompanyInfoSkeleton() {
 }
 
 export default async function LoginPage() {
-  const requestHeaders = await headers();
-  const clientIp = requestHeaders.get('x-forwarded-for') ?? 'Unknown IP';
-  const clientHost = requestHeaders.get('host') ?? 'Unknown Host';
-  const clientInfo = { ip: clientIp, host: clientHost };
-
   // Fetch setup requirements
   const { hasUsers } = await getInitialPageData();
 
@@ -55,7 +49,7 @@ export default async function LoginPage() {
             <CompanyInfo />
         </Suspense>
         <CardContent>
-             <AuthForm clientInfo={clientInfo} initialHasUsers={hasUsers} />
+             <AuthForm initialHasUsers={hasUsers} />
         </CardContent>
       </Card>
     </div>

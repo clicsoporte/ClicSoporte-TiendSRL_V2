@@ -57,17 +57,38 @@ loadCabysData().catch(console.error);
  * @param {string} taxpayerId - The taxpayer's identification number.
  * @returns {Promise<HaciendaContributorInfo | { error: boolean; message: string }>} The contributor data or an error object.
  */
+// In-memory cache for contributor lookups (1 hour TTL) to prevent repeated outgoing calls
+const contributorCache = new Map<string, { data: HaciendaContributorInfo; expiresAt: number }>();
+
 export async function getContributorInfo(taxpayerId: string): Promise<HaciendaContributorInfo | { error: boolean; message: string }> {
-    if (!taxpayerId) {
+    if (!taxpayerId || typeof taxpayerId !== 'string') {
         return { error: true, message: "El número de identificación es requerido." };
     }
+
+    const cleanTaxId = taxpayerId.trim();
+    // Validar que solo contenga caracteres válidos de identificación tributaria (números, letras y guiones)
+    if (!/^[a-zA-Z0-9-]{8,25}$/.test(cleanTaxId)) {
+        return { error: true, message: "Formato de número de identificación no válido." };
+    }
+
+    // Check Cache
+    const now = Date.now();
+    const cached = contributorCache.get(cleanTaxId);
+    if (cached && cached.expiresAt > now) {
+        return cached.data;
+    }
+
     try {
         const apiSettings = await getApiSettings();
         if (!apiSettings?.haciendaTributariaApi) { 
             throw new Error("La URL de la API de situación tributaria no está configurada.");
         }
         
-        const apiUrl = `${apiSettings.haciendaTributariaApi}${taxpayerId}`;
+        const baseUrl = apiSettings.haciendaTributariaApi.endsWith('/') 
+            ? apiSettings.haciendaTributariaApi 
+            : `${apiSettings.haciendaTributariaApi}/`;
+
+        const apiUrl = `${baseUrl}${encodeURIComponent(cleanTaxId)}`;
         
         const response = await fetch(apiUrl, { cache: 'no-store' });
 
@@ -75,10 +96,14 @@ export async function getContributorInfo(taxpayerId: string): Promise<HaciendaCo
             throw new Error(`Error de la API de Hacienda: ${response.status} ${response.statusText}`);
         }
         
-        const data = await response.json();
-        return data as HaciendaContributorInfo;
+        const data = (await response.json()) as HaciendaContributorInfo;
+        
+        // Cache for 1 hour (3600 seconds)
+        contributorCache.set(cleanTaxId, { data, expiresAt: now + 60 * 60 * 1000 });
+        
+        return data;
     } catch (error: unknown) {
-        logError("Error al obtener información del contribuyente", { error: (error as Error).message, taxpayerId });
+        logError("Error al obtener información del contribuyente", { error: (error as Error).message, taxpayerId: cleanTaxId });
         return { error: true, message: (error as Error).message };
     }
 }
@@ -89,16 +114,26 @@ export async function getContributorInfo(taxpayerId: string): Promise<HaciendaCo
  * @returns {Promise<HaciendaExemptionApiResponse | { error: boolean; message: string; status?: number }>} The exemption data or an error object.
  */
 export async function getExemptionStatus(authNumber: string): Promise<HaciendaExemptionApiResponse | { error: boolean; message: string; status?: number }> {
-    if (!authNumber) {
+    if (!authNumber || typeof authNumber !== 'string') {
         return { error: true, message: "El número de autorización es requerido." };
     }
+
+    const cleanAuthNumber = authNumber.trim();
+    if (!/^[a-zA-Z0-9-]{5,35}$/.test(cleanAuthNumber)) {
+        return { error: true, message: "Formato de número de autorización no válido." };
+    }
+
     try {
         const apiSettings = await getApiSettings();
         if (!apiSettings?.haciendaExemptionApi) {
             throw new Error("La URL de la API de exoneraciones no está configurada.");
         }
 
-        const fullApiUrl = `${apiSettings.haciendaExemptionApi}${authNumber}`;
+        const baseUrl = apiSettings.haciendaExemptionApi.endsWith('/') 
+            ? apiSettings.haciendaExemptionApi 
+            : `${apiSettings.haciendaExemptionApi}/`;
+
+        const fullApiUrl = `${baseUrl}${encodeURIComponent(cleanAuthNumber)}`;
         const response = await fetch(fullApiUrl, { cache: 'no-store' });
 
         if (!response.ok) {

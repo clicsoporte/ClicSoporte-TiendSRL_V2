@@ -16,8 +16,14 @@ import type { Customer, License, SoftwareProduct } from '@/modules/core/types';
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
+    let body: Record<string, unknown>;
     try {
-        const body = await req.json();
+        body = await req.json();
+    } catch {
+        return NextResponse.json({ error: 'Cuerpo de solicitud JSON no válido.' }, { status: 400 });
+    }
+
+    try {
         const { 
             softwareId, softwareName, hardwareId, 
             customerName, customerEmail, customerPhone, taxId, 
@@ -39,7 +45,7 @@ export async function POST(req: NextRequest) {
         }
 
         // 3. Verify OTP
-        const isOtpValid = await verifyOtp(normalizedEmail, otpCode);
+        const isOtpValid = await verifyOtp(normalizedEmail, String(otpCode));
         if (!isOtpValid) {
             return NextResponse.json({ error: 'Código OTP inválido o expirado. Solicite uno nuevo.' }, { status: 401 });
         }
@@ -123,7 +129,7 @@ export async function POST(req: NextRequest) {
             name: String(customerName || 'Prospecto Nuevo').trim(),
             taxId: normalizedTaxId,
             email: normalizedEmail,
-            phone: customerPhone || '',
+            phone: String(customerPhone || ''),
             active: 'S',
             address: 'Registro Online (Lead OTP)',
             contacts: [],
@@ -204,6 +210,6 @@ export async function POST(req: NextRequest) {
 
     } catch (error: unknown) {
         console.error('Free OTP Registration Error:', error);
-        return NextResponse.json({ error: (error as Error).message || 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Solicitud no válida o error interno del servidor.' }, { status: 500 });
     }
 }

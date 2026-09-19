@@ -13,9 +13,10 @@ import {
     getSoftwareProducts as getSoftwareProductsServer, 
     addSoftwareProduct as addSoftwareProductServer, 
     updateSoftwareProduct as updateSoftwareProductServer,
-    deleteSoftwareProduct as deleteSoftwareProductServer
+    deleteSoftwareProduct as deleteSoftwareProductServer,
+    generateNewKeysServer,
+    getPublicKeyDataServer
 } from './db';
-import { generateKeys, getPublicKey } from './crypto';
 import { triggerNotificationEvent } from '@/modules/notifications/lib/notifications-engine';
 import { format, parseISO } from 'date-fns';
 
@@ -90,9 +91,10 @@ export async function deleteSoftwareProduct(id: number): Promise<void> {
 
 // --- Crypto Key Management ---
 export async function generateNewKeys(): Promise<{ success: boolean; message: string }> {
-    return generateKeys();
+    return generateNewKeysServer();
 }
 
 export async function getPublicKeyData(): Promise<string | null> {
-    return getPublicKey();
+    return getPublicKeyDataServer();
 }
+

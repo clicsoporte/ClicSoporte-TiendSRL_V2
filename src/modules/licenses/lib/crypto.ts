@@ -1,11 +1,10 @@
 /**
  * @fileoverview Server-side cryptography functions for license signing.
- * THIS IS A NEW FILE.
+ * Internal secure module (no direct RPC exposure).
  */
-"use server";
 
 import crypto from 'crypto';
-import fs from 'fs/promises';
+import fs from 'fs';
 import path from 'path';
 
 const KEYS_DIR = path.join(process.cwd(), 'dbs', 'keys');
@@ -17,12 +16,13 @@ const PUBLIC_KEY_PATH = path.join(KEYS_DIR, 'public_key.pem');
  */
 async function ensureKeysDirectory(): Promise<void> {
     try {
-        await fs.mkdir(KEYS_DIR, { recursive: true });
+        await fs.promises.mkdir(KEYS_DIR, { recursive: true });
     } catch (err: unknown) {
         console.error("Failed to create keys directory:", err);
         throw new Error("Could not create directory for cryptographic keys.");
     }
 }
+
 
 /**
  * Generates a new RSA key pair and saves them to the disk.
@@ -47,8 +47,8 @@ export async function generateKeys(): Promise<{ success: boolean; message: strin
                 return reject({ success: false, message: "Error al generar las claves." });
             }
             try {
-                await fs.writeFile(PUBLIC_KEY_PATH, publicKey);
-                await fs.writeFile(PRIVATE_KEY_PATH, privateKey);
+                await fs.promises.writeFile(PUBLIC_KEY_PATH, publicKey);
+                await fs.promises.writeFile(PRIVATE_KEY_PATH, privateKey);
                 resolve({ success: true, message: "Nuevo par de claves generado y guardado." });
             } catch (writeErr) {
                  console.error("Failed to write keys to disk:", writeErr);
@@ -65,7 +65,7 @@ export async function generateKeys(): Promise<{ success: boolean; message: strin
  */
 async function getPrivateKey(): Promise<string> {
     try {
-        return await fs.readFile(PRIVATE_KEY_PATH, 'utf-8');
+        return await fs.promises.readFile(PRIVATE_KEY_PATH, 'utf-8');
     } catch (err: unknown) {
         console.error("Private key not found. Please generate a new key pair.", err);
         throw new Error("La clave privada no se encuentra. Genere un nuevo par de claves en la configuración.");
@@ -78,11 +78,12 @@ async function getPrivateKey(): Promise<string> {
  */
 export async function getPublicKey(): Promise<string | null> {
     try {
-        return await fs.readFile(PUBLIC_KEY_PATH, 'utf-8');
+        return await fs.promises.readFile(PUBLIC_KEY_PATH, 'utf-8');
     } catch {
         return null; // It's okay if it doesn't exist, the UI will prompt to create it.
     }
 }
+
 
 
 /**

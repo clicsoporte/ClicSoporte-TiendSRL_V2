@@ -9,11 +9,17 @@ import { requestOtp } from '@/modules/core/lib/otp-service';
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
+    let body: { email?: string };
     try {
-        const body = await req.json();
+        body = await req.json();
+    } catch {
+        return NextResponse.json({ error: 'Cuerpo de solicitud JSON no válido.' }, { status: 400 });
+    }
+
+    try {
         const { email } = body;
 
-        if (!email) {
+        if (!email || typeof email !== 'string') {
             return NextResponse.json({ error: 'El correo electrónico es requerido.' }, { status: 400 });
         }
 
@@ -32,6 +38,6 @@ export async function POST(req: NextRequest) {
 
     } catch (error: unknown) {
         console.error('Request OTP API Error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Error interno del servidor al procesar la solicitud.' }, { status: 500 });
     }
 }

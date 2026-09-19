@@ -8,6 +8,7 @@ import { redirect } from 'next/navigation';
 import { getCurrentUser } from './session';
 import { connectDb } from './db';
 import { checkPermissionInTree } from './permissions';
+import { logWarn } from './logger';
 import type { User } from '@/modules/core/types';
 
 /**
@@ -35,21 +36,48 @@ async function checkPermission(permission: string): Promise<boolean> {
 }
 
 /**
+ * Exige sesión activa. Lanza error si no está autenticado.
+ */
+export async function authorizeSession(): Promise<User> {
+    const user = await getCachedUser();
+    if (!user) {
+        await logWarn('Intento de acción sin autenticación o sesión expirada');
+        throw new Error("No autenticado. Inicia sesión para continuar.");
+    }
+    return user;
+}
+
+/**
  * Verifica si el usuario tiene un permiso específico. Lanza error si falla.
  */
 export async function authorizeAction(requiredPermission: string): Promise<User> {
-    const user = await getCachedUser();
-    if (!user) {
-        throw new Error("No autenticado. Inicia sesión para continuar.");
-    }
-    
+    const user = await authorizeSession();
     const isAuthorized = await checkPermission(requiredPermission);
 
     if (!isAuthorized) {
+        await logWarn(`Acceso Denegado: '${user.name}' intentó ejecutar acción sin permiso '${requiredPermission}'`);
         throw new Error(`Acceso Denegado: Se requiere el permiso "${requiredPermission}" para realizar esta acción.`);
     }
 
     return user;
+}
+
+/**
+ * Verifica si el usuario tiene al menos uno de los permisos dados.
+ */
+export async function authorizeActionAny(requiredPermissions: string[]): Promise<User> {
+    const user = await authorizeSession();
+    
+    if (user.role === 'admin') return user;
+
+    for (const perm of requiredPermissions) {
+        if (await checkPermission(perm)) {
+            return user;
+        }
+    }
+
+    await logWarn(`Acceso Denegado: '${user.name}' intentó ejecutar acción sin ninguno de los permisos requeridos`, { requiredPermissions });
+    throw new Error("Acceso Denegado: No cuentas con los permisos requeridos.");
 }
 
 /**
@@ -68,3 +96,4 @@ export async function authorizePage(requiredPermission?: string): Promise<void> 
         }
     }
 }
+

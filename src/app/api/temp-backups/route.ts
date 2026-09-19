@@ -1,17 +1,30 @@
 /**
  * @fileoverview API Route to safely serve temporary backup files for download.
- * Optimized for production build compatibility.
+ * Optimized for production build compatibility and secured with JWT session authentication.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import path from 'path';
 import fs from 'fs';
+import { SESSION_COOKIE } from '@/modules/core/lib/auth-constants';
+import { verifySessionToken } from '@/modules/core/lib/jwt-service';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export async function GET(request: NextRequest) {
     try {
+        // Validación de sesión y rol de administrador
+        const sessionToken = request.cookies.get(SESSION_COOKIE)?.value;
+        if (!sessionToken) {
+            return new NextResponse('Unauthorized: Se requiere iniciar sesión.', { status: 401 });
+        }
+
+        const payload = verifySessionToken(sessionToken);
+        if (!payload || payload.role !== 'admin') {
+            return new NextResponse('Forbidden: Se requieren permisos de Administrador.', { status: 403 });
+        }
+
         const { searchParams } = new URL(request.url);
         const fileName = searchParams.get('file');
 
@@ -45,3 +58,4 @@ export async function GET(request: NextRequest) {
         return new NextResponse('Internal Server Error', { status: 500 });
     }
 }
+

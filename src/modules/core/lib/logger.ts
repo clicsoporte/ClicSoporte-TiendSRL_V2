@@ -8,6 +8,7 @@
 import { getLogs as dbGetLogs, clearLogs as dbClearLogs } from './db';
 import { addLog as dbAddLog } from './logger-db';
 import type { LogEntry, DateRange } from "@/modules/core/types";
+import { authorizeAction } from './auth-guard';
 
 /**
  * Logs an informational message.
@@ -46,6 +47,7 @@ export async function getLogs(filters: {
     search?: string;
     dateRange?: DateRange;
 } = {}): Promise<LogEntry[]> {
+  await authorizeAction('admin:logs');
   const logs = await dbGetLogs(filters);
   return JSON.parse(JSON.stringify(logs));
 }
@@ -57,5 +59,7 @@ export async function getLogs(filters: {
  * @param {boolean} deleteAllTime - If true, ignores the 30-day retention period and deletes all specified logs.
  */
 export async function clearLogs(clearedBy: string, type: 'operational' | 'system' | 'all', deleteAllTime: boolean) {
+  await authorizeAction('admin:logs');
   return await dbClearLogs(clearedBy, type, deleteAllTime);
 }
+

@@ -4,6 +4,7 @@ import nodemailer from 'nodemailer';
 import { connectDb } from './db';
 import type { EmailSettings } from '../types';
 import { logError, logWarn } from './logger';
+import { authorizeActionAny } from './auth-guard';
 
 /**
  * Retrieves email settings from the database.
@@ -41,7 +42,17 @@ export async function getEmailSettings(): Promise<Partial<EmailSettings>> {
  * @param settings The email settings to save.
  */
 export async function saveEmailSettings(settings: EmailSettings): Promise<void> {
+    await authorizeActionAny(['admin:settings', 'admin:notifications']);
     const db = await connectDb();
+    
+    // Si no se proveyó una nueva contraseña o viene enmascarada, preservar la existente
+    if (!settings.smtpPass || settings.smtpPass === '********') {
+        const currentPass = db.prepare("SELECT value FROM email_settings WHERE key = 'smtpPass'").get() as { value?: string } | undefined;
+        if (currentPass?.value) {
+            settings.smtpPass = currentPass.value;
+        }
+    }
+
     const insert = db.prepare('INSERT OR REPLACE INTO email_settings (key, value) VALUES (?, ?)');
     const transaction = db.transaction((s: EmailSettings) => {
         for (const [key, value] of Object.entries(s)) {
@@ -50,6 +61,7 @@ export async function saveEmailSettings(settings: EmailSettings): Promise<void> 
     });
     transaction(settings);
 }
+
 
 /**
  * Creates a nodemailer transporter based on saved settings.
@@ -99,6 +111,7 @@ export async function sendEmail({ to, subject, html }: { to: string | string[], 
  * Sends a test email to verify SMTP configuration.
  */
 export async function testEmailSettings(settings: EmailSettings, testRecipientEmails: string[]): Promise<void> {
+    await authorizeActionAny(['admin:settings', 'admin:notifications']);
     const transporter = createTransporter(settings);
     await transporter.sendMail({
         from: `"${settings.smtpUser}" <${settings.smtpUser}>`,
@@ -107,3 +120,4 @@ export async function testEmailSettings(settings: EmailSettings, testRecipientEm
         html: "<p>¡Hola!</p><p>Este es un correo de prueba para verificar que tu configuración SMTP en Clic-Tools funciona correctamente.</p><p>¡La conexión es exitosa!</p>",
     });
 }
+
