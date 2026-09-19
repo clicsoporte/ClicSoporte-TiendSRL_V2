@@ -66,7 +66,9 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
       if (!currentUser) {
         setUser(null);
         setIsAuthReady(true);
-        if (pathname.startsWith('/dashboard')) router.push('/');
+        if (pathname.startsWith('/dashboard')) {
+          window.location.href = '/';
+        }
         return;
       }
 
