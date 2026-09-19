@@ -14,7 +14,7 @@ import { Loader2, AlertCircle, Mail, Key } from "lucide-react";
 import React, { useState } from "react";
 import type { User } from "@/modules/core/types";
 import { useToast } from "@/modules/core/hooks/use-toast";
-import { login, updateUser, sendRecoveryEmail } from "@/modules/core/lib/auth-client";
+import { updateUser, sendRecoveryEmail } from "@/modules/core/lib/auth-client";
 import { useAuth } from "@/modules/core/hooks/useAuth";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import {
@@ -60,12 +60,19 @@ export function AuthForm({ initialHasUsers }: AuthFormProps) {
     setIsLoggingIn(true);
     
     try {
-        const res = await login(email, password);
-        const { user, forcePasswordChange, error } = res;
+        const response = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ email, password }),
+        });
 
-        if (user) {
-            if (forcePasswordChange) {
-                setUserToUpdate(user);
+        const data = await response.json();
+
+        if (response.ok && data.user) {
+            if (data.forcePasswordChange) {
+                setUserToUpdate(data.user);
                 setMustChangePassword(true);
                 setIsLoggingIn(false);
                 toast({
@@ -78,7 +85,7 @@ export function AuthForm({ initialHasUsers }: AuthFormProps) {
         } else {
             toast({
                 title: "Error al Iniciar Sesión",
-                description: error || "El correo o la contraseña no son correctos.",
+                description: data.error || "El correo o la contraseña no son correctos.",
                 variant: "destructive",
             });
             setIsLoggingIn(false);
