@@ -74,9 +74,11 @@ export async function login(email: string, passwordProvided: string): Promise<{ 
                     expiresInDays: SESSION_DURATION / (24 * 60 * 60)
                 });
 
+                const isHttps = headers().get('x-forwarded-proto') === 'https' || headers().get('referer')?.startsWith('https://');
+
                 cookies().set(SESSION_COOKIE, sessionToken, {
                     httpOnly: true,
-                    secure: process.env.NODE_ENV === 'production',
+                    secure: isHttps,
                     sameSite: 'lax',
                     maxAge: SESSION_DURATION,
                     path: '/',
